@@ -15,6 +15,10 @@ use Otherguise\Triples\Datatype\DatatypeRegistry;
 use Otherguise\Triples\Entity\EntityTypeRegistry;
 use Otherguise\Triples\Predicate\PredicateDefinition;
 use Otherguise\Triples\Predicate\PredicateRegistry;
+use Otherguise\Triples\Storage\Database;
+use Otherguise\Triples\Storage\SchemaManager;
+use Otherguise\Triples\Storage\StatementStore;
+use Otherguise\Triples\Storage\Uninstaller;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -25,6 +29,9 @@ defined( 'ABSPATH' ) || exit;
  * `triples_register_entity_types`, `triples_register_datatypes` and `triples_register_predicates`, each with the registry
  * as argument. Other modules add their callbacks to these actions in their `boot()`. The module itself registers the
  * predicate `triples/position`, the qualifier that gives a statement an explicit rank.
+ *
+ * It owns the table of the statements: it creates it when the plugin is activated (and on the first request of the other sites of a
+ * network), and removes it when the plugin is deleted if the administrator asked for it.
  */
 final class Module implements ModuleInterface {
 	/**
@@ -56,12 +63,21 @@ final class Module implements ModuleInterface {
 	private $predicates;
 
 	/**
+	 * The wpdb object, or null for the global one.
+	 *
+	 * @var object|null
+	 */
+	private $wpdb;
+
+	/**
 	 * Builds the module and its registries.
 	 *
 	 * @param callable|null $do_action Runs an action; defaults to WordPress `do_action`.
+	 * @param object|null   $wpdb      A wpdb or a compatible object; defaults to the global `$wpdb`.
 	 */
-	public function __construct( $do_action = null ) {
+	public function __construct( $do_action = null, $wpdb = null ) {
 		$this->do_action = $do_action ?? 'do_action';
+		$this->wpdb      = $wpdb;
 
 		$this->entity_types = EntityTypeRegistry::with_builtins(
 			function ( $registry ) {
@@ -114,21 +130,41 @@ final class Module implements ModuleInterface {
 	}
 
 	/**
-	 * Registers the hooks of the module.
+	 * Creates the table of the statements.
+	 *
+	 * @return void
+	 */
+	public function activate() {
+		( new SchemaManager( $this->database() ) )->maybe_upgrade();
+	}
+
+	/**
+	 * Makes sure the table exists and is up to date (one option read when it is): the other sites of a network create theirs here.
+	 *
+	 * The registries are filled lazily.
 	 *
 	 * @return void
 	 */
 	public function boot() {
-		// Nothing to register yet: the registries are filled lazily.
+		( new SchemaManager( $this->database() ) )->maybe_upgrade();
 	}
 
 	/**
-	 * Removes the data owned by the module.
+	 * Removes the table and the options when the administrator asked for it.
 	 *
 	 * @return void
 	 */
 	public function uninstall() {
-		// Nothing to remove yet.
+		( new Uninstaller( $this->wpdb ?? $GLOBALS['wpdb'] ) )->run();
+	}
+
+	/**
+	 * Returns the store of the statements.
+	 *
+	 * @return StatementStore
+	 */
+	public function statements() {
+		return new StatementStore( $this->database(), $this->datatypes );
 	}
 
 	/**
@@ -156,5 +192,14 @@ final class Module implements ModuleInterface {
 	 */
 	public function predicates() {
 		return $this->predicates;
+	}
+
+	/**
+	 * Wraps the wpdb object.
+	 *
+	 * @return Database
+	 */
+	private function database() {
+		return new Database( $this->wpdb ?? $GLOBALS['wpdb'] );
 	}
 }

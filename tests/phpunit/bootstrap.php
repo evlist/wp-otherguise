@@ -24,6 +24,129 @@ if ( ! function_exists( 'esc_html' ) ) {
     }
 }
 
+if ( ! defined( 'ARRAY_A' ) ) {
+    define( 'ARRAY_A', 'ARRAY_A' );
+}
+
+$GLOBALS['otherguise_test_options']      = array();
+$GLOBALS['otherguise_test_dbdelta']      = array();
+$GLOBALS['otherguise_test_site']         = 1;
+$GLOBALS['otherguise_test_sites']        = null;
+$GLOBALS['otherguise_test_site_options'] = array();
+
+/**
+ * Resets the state of the WordPress stubs.
+ *
+ * @return void
+ */
+function otherguise_test_reset() {
+    $GLOBALS['otherguise_test_options']      = array();
+    $GLOBALS['otherguise_test_dbdelta']      = array();
+    $GLOBALS['otherguise_test_site']         = 1;
+    $GLOBALS['otherguise_test_sites']        = null;
+    $GLOBALS['otherguise_test_site_options'] = array();
+    unset( $GLOBALS['wpdb'] );
+}
+
+/**
+ * Stub of get_option(): options are kept per site.
+ *
+ * @param string $name          Option name.
+ * @param mixed  $default_value Value when the option does not exist.
+ * @return mixed
+ */
+function get_option( $name, $default_value = false ) {
+    $site = $GLOBALS['otherguise_test_site'];
+
+    return $GLOBALS['otherguise_test_site_options'][ $site ][ $name ] ?? $default_value;
+}
+
+/**
+ * Stub of update_option().
+ *
+ * @param string $name  Option name.
+ * @param mixed  $value Value.
+ * @return bool
+ */
+function update_option( $name, $value ) {
+    $GLOBALS['otherguise_test_site_options'][ $GLOBALS['otherguise_test_site'] ][ $name ] = $value;
+
+    return true;
+}
+
+/**
+ * Stub of delete_option().
+ *
+ * @param string $name Option name.
+ * @return bool
+ */
+function delete_option( $name ) {
+    unset( $GLOBALS['otherguise_test_site_options'][ $GLOBALS['otherguise_test_site'] ][ $name ] );
+
+    return true;
+}
+
+/**
+ * Stub of dbDelta(): records the statement and, when a database object is available, creates the table if it does not exist.
+ *
+ * The real dbDelta compares the table with the statement and alters it; this stub cannot check that.
+ *
+ * @param string $sql CREATE TABLE statement.
+ * @return array
+ */
+function dbDelta( $sql ) {
+    $GLOBALS['otherguise_test_dbdelta'][] = $sql;
+
+    if ( isset( $GLOBALS['wpdb'] ) ) {
+        $GLOBALS['wpdb']->query( preg_replace( '/^CREATE TABLE /', 'CREATE TABLE IF NOT EXISTS ', $sql ) );
+    }
+
+    return array();
+}
+
+/**
+ * Stub of is_multisite().
+ *
+ * @return bool
+ */
+function is_multisite() {
+    return null !== $GLOBALS['otherguise_test_sites'];
+}
+
+/**
+ * Stub of get_sites().
+ *
+ * @return int[]
+ */
+function get_sites() {
+    return $GLOBALS['otherguise_test_sites'];
+}
+
+/**
+ * Stub of switch_to_blog(): changes the current site and the prefix of the database object.
+ *
+ * @param int $site_id Site id.
+ * @return bool
+ */
+function switch_to_blog( $site_id ) {
+    $GLOBALS['otherguise_test_site'] = $site_id;
+
+    if ( isset( $GLOBALS['wpdb'] ) ) {
+        $GLOBALS['wpdb']->prefix = 'wp_' . $site_id . '_';
+    }
+
+    return true;
+}
+
+/**
+ * Stub of restore_current_blog().
+ *
+ * @return bool
+ */
+function restore_current_blog() {
+    return switch_to_blog( 1 );
+}
+
 require_once dirname( __DIR__, 2 ) . '/plugin/includes/Core/Autoloader.php';
 
 \Otherguise\Core\Autoloader::register( dirname( __DIR__, 2 ) . '/plugin/' );

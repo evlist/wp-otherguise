@@ -17,10 +17,11 @@ The repository contains the structure of the plugin and the registries of the `T
 
 - the plugin header and bootstrap (`plugin/otherguise.php`), `uninstall.php`, `readme.txt`,
 - the module loader, the autoloader and the three modules (`Modes` and `Books` are still empty),
-- `Triples`: entity references and types, datatypes (literals), predicate definitions with the references that say which predicates may qualify which, and the three registries filled lazily through the actions `triples_register_entity_types`, `triples_register_datatypes` and `triples_register_predicates` (slices 100 and 101, in memory only),
-- 97 PHPUnit tests: loader, autoloader, architecture rules, version consistency, and the `Triples` classes.
+- `Triples`: entity references and types, datatypes (literals), predicate definitions with the references that say which predicates may qualify which, and the three registries filled lazily through the actions `triples_register_entity_types`, `triples_register_datatypes` and `triples_register_predicates` (slices 100 and 101),
+- `Triples` storage (slice 102): the table `{prefix}triples_statements` (created on activation, checked on every request, removed on uninstall only when the administrator asked), `Statement`, `StatementStore` (insert, read, queries including statements qualified or not by others, recursive deletion), `StatementQuery`, `Transaction`, and `Database`, the only class that runs SQL,
+- 153 PHPUnit tests: loader, autoloader, architecture rules, version consistency, the `Triples` classes, and 19 integration tests on a real database.
 
-No table, statement, screen or REST route exists yet. The next slice is 102 (storage).
+No screen or REST route exists yet, and nothing checks a statement against the registry (types, existence, limits, qualification rules): the next slice is 103.
 
 ### Triples: vocabulary
 
@@ -79,11 +80,11 @@ Small-slice XP workflow: tiny vertical slices, test first when practical, focuse
 
 Run these before pushing. The grafted CI runs PHPUnit, the repository-wide phpcs check, `reuse lint` and Plugin Check once the codespace is grafted.
 
-- **PHPUnit**: `phpunit` from the repository root (`phpunit.xml`). Expected: `OK`.
+- **PHPUnit**: `phpunit` from the repository root (`phpunit.xml`). Expected: `OK`. The integration tests need a MySQL or MariaDB database: set `OTHERGUISE_TEST_DB` to `host=127.0.0.1;port=3306;user=root;password=;dbname=wordpress` (adapt). They create their table under a unique prefix and drop it. Without the variable they are reported as **skipped**, not passed: check that the count of skipped tests is zero when you rely on them.
 - **phpcs**: `phpcs --standard=.vscode/phpcs.xml .` from the repository root. Expected: no output and exit code 0. The ruleset sets `warning-severity` to 0, so only errors count, and it scans the tests as well as the plugin. The custom sniffs are in `.vscode/phpcs-standard/Otherguise/` (no `phpcs:ignore` outside the tests, file length 400/700 lines).
 - **REUSE**: `reuse lint`.
 
-What the automated tests do not cover: everything that needs WordPress. The tests run on stubs (`tests/phpunit/bootstrap.php`); nothing has been run in a real WordPress site yet.
+What the automated tests do not cover: everything that needs WordPress (the real `dbDelta`, the activation hook, multisite, the hooks). The tests run on stubs (`tests/phpunit/bootstrap.php`); nothing has been run in a real WordPress site yet. The integration tests ran on MariaDB 10.11, not on MySQL.
 
 ## Lifecycle and Schema Changes
 

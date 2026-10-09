@@ -67,6 +67,15 @@ class Otherguise_Test_Module implements ModuleInterface {
 	}
 
 	/**
+	 * Records the activation.
+	 *
+	 * @return void
+	 */
+	public function activate() {
+		$this->log[] = 'activate:' . $this->id;
+	}
+
+	/**
 	 * Records the boot.
 	 *
 	 * @return void

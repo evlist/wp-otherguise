@@ -69,6 +69,17 @@ final class ModuleLoader {
 	}
 
 	/**
+	 * Activates the modules, dependencies first.
+	 *
+	 * @return void
+	 */
+	public function activate() {
+		foreach ( $this->ordered as $module ) {
+			$module->activate();
+		}
+	}
+
+	/**
 	 * Boots the modules, dependencies first.
 	 *
 	 * @return void

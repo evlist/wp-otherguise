@@ -14,12 +14,7 @@ Numbering: `0xx` foundation, `1xx` Triples, `2xx` Modes, `3xx` Books.
 | [000](000-repository-scaffold.md) | Repository scaffold: structure, tooling, module loader, architecture tests |
 | [100](100-triples-registry.md) | Triples: entity types and predicate registry (qualifier part superseded by 101) |
 | [101](101-triples-registry-revision.md) | Triples: registry revision for statements about statements |
-
-## Planned
-
-| Slice | Title | Status |
-|---|---|---|
-| [102](102-triples-storage.md) | Triples: storage of statements (one table) | planned, decisions confirmed |
+| [102](102-triples-storage.md) | Triples: storage of statements (one table) |
 
 ## Candidates (not planned yet)
 

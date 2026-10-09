@@ -3,7 +3,7 @@
 
 # Slice 102 — Triples: storage of statements
 
-Status: **planned, decisions confirmed by Eric (2026-10-09); code not started**. Dependencies: slices 000, 100 and 101. Module: `Triples`.
+Status: **done**. Dependencies: slices 000, 100 and 101. Module: `Triples`.
 
 This plan replaces the first version (two tables, a fingerprint, a flag for repeated statements and a position column), withdrawn after Eric's decision of 2026-10-09: a qualification is a statement about a statement.
 
@@ -55,7 +55,7 @@ id  subject            predicate      object
   - `insert( Statement )` returns the id, and throws `DuplicateStatementException` when the triple exists (the caller may then fetch it with `find_by_triple()`);
   - `find( $id )`, `find_by_triple( subject, predicate, object )`;
   - `query( StatementQuery )` and `count()`;
-  - `qualifiers_of( ids )`: the statements whose subject is one of the given statements, in one query (one level; the caller recurses for nested qualifications);
+  - `about( ids )`: the statements whose subject is one of the given statements (one level; the caller recurses for nested qualifications);
   - `delete_with_dependents( $id )`: deletes a statement and, recursively, the statements about it, in one transaction;
   - `delete_by_entity( EntityRef )`: deletes the statements where the entity is subject or object, with their dependents (primitive used by slice 104).
 - `StatementQuery`: criteria subject, object, predicates, `qualified( predicate, objects )` (EXISTS) and `unqualified( predicate )` (NOT EXISTS, for "no `mode` statement means all modes"), order and paging. It builds a prepared SQL string; the building is pure PHP and unit tested.
@@ -88,6 +88,30 @@ id  subject            predicate      object
 7. `activate()` added to `ModuleInterface`.
 8. Timestamps `created_gmt` and `updated_gmt`, no `created_by` for now.
 
+## Delivered
+
+- `plugin/modules/triples/src/Entity/`: `NodeInterface` (type and key: an entity or a literal), `Literal`; `EntityRef` implements `NodeInterface`.
+- `plugin/modules/triples/src/Storage/`: `Database` (the only class that runs SQL, wrapping `$wpdb`), `Transaction`, `SchemaManager`, `Statement`, `DuplicateStatementException`, `StatementQuery`, `StatementStore`, `Uninstaller`.
+- `ModuleInterface::activate()`, `ModuleLoader::activate()`, `otherguise_activate()` registered with `register_activation_hook`; the Triples module creates the table on activation, checks it on `boot()`, exposes `statements()` and removes the data on `uninstall()` only when asked.
+- Tests: 153 in all, of which 19 integration tests (`TriplesStatementStoreDbTest`) that run when `OTHERGUISE_TEST_DB` is set and are reported as skipped otherwise. Support classes in `tests/phpunit/support/`: `Otherguise_Test_Wpdb` (the part of `wpdb` the plugin uses, on `mysqli`, or only recording the queries) and `Otherguise_Test_Database_Case`.
+- The ruleset `.vscode/phpcs.xml` excludes, for the tests only, the database sniffs (raw SQL on a throwaway database) and the override of `$GLOBALS['wpdb']`, and knows the test base class.
+
+Differences from the plan, and choices made while implementing:
+
+- **`Database`** was not planned: the module needs one place that runs SQL, as in `wp-i18nly`, because the WordPress standard cannot follow queries assembled from validated table names and placeholders. Calls to `$wpdb` go through method names held in variables, only there.
+- **`Literal` and `NodeInterface`** were added: the object of a statement is an entity or a literal, and a literal may contain spaces, which an `EntityRef` id cannot.
+- **`about()`** is the name of the "statements about statements" read (planned as `qualifiers_of`).
+- **`delete_by_entity()`** takes an optional list of predicates (null: all), for the cleanup that honors `on_delete` (slice 104).
+- **Duplicate detection**: `insert()` runs a plain `INSERT`; when it fails it looks up the triple and, if found, throws `DuplicateStatementException` carrying the existing statement; otherwise it throws a `RuntimeException`. No `INSERT IGNORE` (it would also hide truncated data) and no parsing of the error message.
+- **Qualification queries** compare `q.subject_id` with `CAST( s.id AS BINARY )`: the subject column is binary and the id is a number; the cast keeps the comparison exact and indexable.
+- The table has no explicit engine; transactions need InnoDB, the default of MySQL and MariaDB.
+
+Verification: the 19 integration tests ran against MariaDB 10.11.14. They pass, and they cover the unique triple, the same subject and predicate with different objects, case- and accent-sensitive ids, quotes and backslashes, literals, maximum lengths, the statements about statements, `qualified` and `unqualified` queries, recursive deletion, deletion by entity, rollback, the index definition and the schema manager.
+
+## Not verified
+
+The real `dbDelta` call, the activation hook, the multisite path and the schema creation in a WordPress site; MySQL itself (only MariaDB was used); the performance of the joins on a large table.
+
 ## Done when
 
-PHPUnit (unit and integration, the latter run against MariaDB in the development session), phpcs and `reuse lint` pass; the architecture test passes; this document and `docs/IA.md` describe the delivered classes.
+PHPUnit (unit and integration, the latter run against MariaDB in the development session), phpcs and `reuse lint` pass; the architecture test passes; this document and `docs/IA.md` describe the delivered classes. (All done.)

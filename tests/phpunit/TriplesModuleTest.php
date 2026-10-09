@@ -14,6 +14,8 @@ use Otherguise\Triples\Module;
 use Otherguise\Triples\Predicate\PredicateDefinition;
 use PHPUnit\Framework\TestCase;
 
+require_once __DIR__ . '/support/class-otherguise-test-wpdb.php';
+
 /**
  * Tests of the wiring of the Triples module.
  *
@@ -147,5 +149,54 @@ class TriplesModuleTest extends TestCase {
 
 		$this->assertSame( 'triples', $module->id() );
 		$this->assertSame( array(), $module->dependencies() );
+	}
+
+	/**
+	 * Activation and boot create the table once and record the version.
+	 *
+	 * @return void
+	 */
+	public function test_the_table_is_created_on_activation_and_checked_on_boot(): void {
+		otherguise_test_reset();
+
+		$wpdb   = new Otherguise_Test_Wpdb( 'wp_' );
+		$module = new Module( static function () {}, $wpdb );
+
+		$module->activate();
+		$module->boot();
+
+		$this->assertCount( 1, $GLOBALS['otherguise_test_dbdelta'], 'The second call finds the schema up to date.' );
+		$this->assertSame( 1, get_option( 'triples_schema_version' ) );
+	}
+
+	/**
+	 * The data is removed on uninstall only when the administrator asked.
+	 *
+	 * @return void
+	 */
+	public function test_the_uninstall_removes_the_table_only_when_asked(): void {
+		otherguise_test_reset();
+
+		$wpdb   = new Otherguise_Test_Wpdb( 'wp_' );
+		$module = new Module( static function () {}, $wpdb );
+
+		$module->uninstall();
+		$this->assertSame( array(), $wpdb->queries );
+
+		update_option( 'triples_settings', array( 'delete_data_on_uninstall' => true ) );
+		$module->uninstall();
+
+		$this->assertSame( array( 'DROP TABLE IF EXISTS `wp_triples_statements`' ), $wpdb->queries );
+	}
+
+	/**
+	 * The module hands out a store bound to its datatypes.
+	 *
+	 * @return void
+	 */
+	public function test_the_module_provides_the_statement_store(): void {
+		$module = new Module( static function () {}, new Otherguise_Test_Wpdb( 'wp_' ) );
+
+		$this->assertInstanceOf( \Otherguise\Triples\Storage\StatementStore::class, $module->statements() );
 	}
 }

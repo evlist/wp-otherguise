@@ -17,7 +17,7 @@ defined( 'ABSPATH' ) || exit;
  *
  * The id is opaque here: its format is checked by its entity type.
  */
-final class EntityRef {
+final class EntityRef implements NodeInterface {
 	/**
 	 * Pattern of an entity type slug, or of a datatype name: lower case, at most 20 characters.
 	 */
@@ -98,13 +98,22 @@ final class EntityRef {
 	}
 
 	/**
-	 * Tells whether another reference has the same type and id.
+	 * Returns the id, which is the key of an entity.
 	 *
-	 * @param self $other Other reference.
+	 * @return string
+	 */
+	public function key() {
+		return $this->id;
+	}
+
+	/**
+	 * Tells whether another node is the same entity.
+	 *
+	 * @param NodeInterface $other Other node.
 	 * @return bool
 	 */
-	public function equals( self $other ) {
-		return $this->type === $other->type && $this->id === $other->id;
+	public function equals( NodeInterface $other ) {
+		return $other instanceof self && $this->type === $other->type && $this->id === $other->id;
 	}
 
 	/**

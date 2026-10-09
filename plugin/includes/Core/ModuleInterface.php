@@ -31,6 +31,13 @@ interface ModuleInterface {
 	public function dependencies();
 
 	/**
+	 * Creates what the module needs when the plugin is activated (tables, options). Called dependencies first.
+	 *
+	 * @return void
+	 */
+	public function activate();
+
+	/**
 	 * Registers the hooks of the module. Called once per request, dependencies first.
 	 *
 	 * @return void

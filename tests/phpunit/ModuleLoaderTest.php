@@ -76,6 +76,19 @@ class ModuleLoaderTest extends TestCase {
 	}
 
 	/**
+	 * The modules are activated dependencies first.
+	 *
+	 * @return void
+	 */
+	public function test_the_modules_are_activated_dependencies_first(): void {
+		$loader = new ModuleLoader( array( $this->module( 'modes', array( 'triples' ) ), $this->module( 'triples' ) ) );
+
+		$loader->activate();
+
+		$this->assertSame( array( 'activate:triples', 'activate:modes' ), $this->log );
+	}
+
+	/**
 	 * Only the enabled modules are loaded.
 	 *
 	 * @return void

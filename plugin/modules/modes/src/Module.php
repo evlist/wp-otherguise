@@ -37,6 +37,15 @@ final class Module implements ModuleInterface {
 	}
 
 	/**
+	 * Creates what the module needs when the plugin is activated.
+	 *
+	 * @return void
+	 */
+	public function activate() {
+		// Nothing to create yet.
+	}
+
+	/**
 	 * Registers the hooks of the module.
 	 *
 	 * @return void

@@ -51,6 +51,18 @@ function otherguise_load_textdomain() {
 add_action( 'init', 'otherguise_load_textdomain' );
 
 /**
+ * Activates the modules, dependencies first: creates their tables and options.
+ *
+ * @return void
+ */
+function otherguise_activate() {
+	$modules = require plugin_dir_path( OTHERGUISE_PLUGIN_FILE ) . 'includes/modules.php';
+
+	( new \Otherguise\Core\ModuleLoader( $modules ) )->activate();
+}
+register_activation_hook( __FILE__, 'otherguise_activate' );
+
+/**
  * Boots the enabled modules, dependencies first.
  *
  * @return void
