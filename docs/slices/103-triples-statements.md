@@ -17,11 +17,11 @@ Background: [`design/triples.md`](../design/triples.md).
 
 ### Writing
 
-Small calls that compose. A `$subject` is an `EntityRef` or a stored `Statement` (read as `statement:ID`, so that a statement about a statement needs no conversion).
+Small calls that compose. A `$subject` or an entity `$object` is anything that **names an entity** (see "Entities as arguments"): a WordPress object the caller already holds, an `EntityRef`, or a stored `Statement` (read as `statement:ID`, so that a statement about a statement needs no conversion).
 
 | Method | Behavior |
 |---|---|
-| `create_or_get( $subject, $predicate, $object )` | The main call. Checks, then returns the `Statement` that holds the triple, creating it when it does not exist. Idempotent. |
+| `triple( $subject, $predicate, $object )` | The main call (named after what it returns: the triple, found or created). Checks, then returns the `Statement` that holds the triple, creating it when it does not exist. Idempotent. |
 | `create( $subject, $predicate, $object )` | The strict form: throws `DuplicateStatementException` (carrying the existing statement) when the triple exists. For screens that say "already linked". |
 | `remove( $subject, $predicate, $object )` | Deletes the statement that holds the triple and, recursively, the statements about it. Returns the number of statements deleted (0 when there is none). |
 | `delete( $statement )` | The same for a known statement (a `Statement` or its id). |
@@ -35,17 +35,29 @@ There is no argument for qualifications: a qualification is a statement like ano
 
 ```php
 // $link: the statement that links post 12 to photo 88. The modes qualify this link, not the photo itself.
-$link = $statements->create_or_get( Ref( 'post:12' ), 'media/illustrated-by', Ref( 'attachment:88' ) );
-$statements->create_or_get( $link, 'modes/mode', Ref( 'mode:web' ) );
-$statements->create_or_get( $link, 'modes/mode', Ref( 'mode:print' ) );   // later
+$link = $statements->triple( Ref( 'post:12' ), 'media/illustrated-by', Ref( 'attachment:88' ) );
+$statements->triple( $link, 'modes/mode', Ref( 'mode:web' ) );
+$statements->triple( $link, 'modes/mode', Ref( 'mode:print' ) );   // later
 $statements->remove( $link, 'modes/mode', Ref( 'mode:print' ) );          // the user changes their mind
 ```
 
 Fluent chaining was left out: with statements about statements, a chained call would not say which statement it returns (the photo or its mode statement).
 
+### Entities as arguments
+
+The caller passes the objects it holds; it does not translate them into references. `Statements` turns each argument into an `EntityRef` in this order:
+
+1. an `EntityRef` is kept; a stored `Statement` becomes `statement:ID`;
+2. otherwise each registered entity type is asked whether it **recognizes** the value (`EntityType::identify( $value )` returns the id, or null). Built-ins: a `WP_Post` that is not an attachment is `post:ID`; a `WP_Post` of type `attachment` is `attachment:ID`; a `WP_Term` is `term:ID`; a `WP_User` is `user:ID`. Modes will register a recognizer for its template objects (`WP_Block_Template`, id `theme//slug`) and for its `Mode` objects;
+3. a value that no type recognizes throws `InvalidStatementException` (`unknown_entity`); a value that two types claim throws `ambiguous_entity` (the recognizers of the types must be exclusive, which a test checks for the built-ins).
+
+Not accepted: a bare integer or string (`12`, `'post:12'`) for an entity, because it does not say what it is. When no object is at hand, `Ref::post( 12 )`, `Ref::term( 5 )`, `Ref::user( 3 )`, `Ref::attachment( 88 )` and `EntityRef::parse( 'ext:abc' )` build one. The same rule applies to the arguments of `remove()`, `match()`, `listing()` and the other reads.
+
+The way back: `EntityType` may also provide a **loader** (`load( $id )` returns the WordPress object or null), and `$statements->resolve( $entity_ref )` calls it, so that `$statement->object()` can be turned into a `WP_Post` when the caller wants one. When a type has a loader and no existence check, existing means "the loader finds something".
+
 ### The checks
 
-Each failure throws `InvalidStatementException` (a subclass of `InvalidArgumentException`) with a code that screens and the REST API can map to a message: `unknown_predicate`, `unknown_type`, `invalid_id`, `subject_type_not_allowed`, `object_type_not_allowed`, `invalid_value`, `ambiguous_literal`, `subject_missing`, `object_missing`, `too_many_objects`, `too_many_subjects`, `qualification_not_allowed`. In this order:
+Each failure throws `InvalidStatementException` (a subclass of `InvalidArgumentException`) with a code that screens and the REST API can map to a message: `unknown_predicate`, `unknown_entity`, `ambiguous_entity`, `unknown_type`, `invalid_id`, `subject_type_not_allowed`, `object_type_not_allowed`, `invalid_value`, `ambiguous_literal`, `subject_missing`, `object_missing`, `too_many_objects`, `too_many_subjects`, `qualification_not_allowed`. In this order:
 
 1. The predicate is registered.
 2. The subject is an entity of a registered type, its id is well formed for the type, and the predicate accepts the type (an empty list accepts any entity type).
@@ -84,10 +96,10 @@ So without any scope pin, every scope shows the same order and only drops some i
 ## Changes to existing code
 
 - `Transaction::run()` becomes **re-entrant**: the `Database` counts the depth, only the outermost call issues `START TRANSACTION` and `COMMIT`, and an exception rolls back the whole work. Without it, `replace()` inside `transaction()` would commit the outer transaction. Tests added to the integration suite.
-- `EntityType` gets an optional **existence check** (`exists( $id )`: true when there is none); `EntityTypeRegistry::with_builtins()` accepts the checks of the built-in types; the WordPress ones are given by `Module`, so the registries stay free of WordPress calls.
+- `EntityType` gets three optional callables: an **existence check** (`exists( $id )`: true when there is none), a **recognizer** (`identify( $value )`) and a **loader** (`load( $id )`); `EntityTypeRegistry::with_builtins()` accepts the checks of the built-in types; the WordPress ones are given by `Module`, so the registries stay free of WordPress calls.
 - `StatementQuery` gets `involving( EntityRef )` (subject or object), used for symmetric predicates.
 - `Module::statements()` returns the service; `Module::store()` the store.
-- New classes: `Statements`, `InvalidStatementException`, `PinnedOrder`.
+- New classes: `Statements`, `InvalidStatementException`, `PinnedOrder`, `Ref` (shorthand constructors).
 
 ## Out of scope
 
@@ -95,7 +107,7 @@ Deleting what depends on a post, term, media item or user that disappears (`on_d
 
 ## Tests
 
-- **Unit, no database:** `PinnedOrder` (no pin, one, several, rank beyond the end, equal ranks, empty list, pinned ids unknown to the list); the checks that fail before reaching the store (every error code: unknown predicate or type, malformed id, type not allowed, scalar read as the only datatype and the ambiguous cases, invalid value, missing subject or object through the existence checks, a literal as subject); the existence checks of the built-in types against WordPress stubs; the canonical order of a symmetric pair.
+- **Unit, no database:** `PinnedOrder` (no pin, one, several, rank beyond the end, equal ranks, empty list, pinned ids unknown to the list); the recognition of the arguments (each built-in object, an attachment told from a post, a statement, an unknown value, an ambiguous one, a bare integer refused) and of the way back; the checks that fail before reaching the store (every error code: unknown predicate or type, malformed id, type not allowed, scalar read as the only datatype and the ambiguous cases, invalid value, missing subject or object through the existence checks, a literal as subject); the existence checks of the built-in types against WordPress stubs; the canonical order of a symmetric pair.
 - **Integration on a real database:** `transaction()` storing several statements and a failure rolling everything back, also when the calls inside use their own transactions; duplicates (strict and idempotent); `remove()` by triple, with its dependents; both limits; a symmetric predicate stored once whichever way it is given and read from both ends; the qualification rule (a statement about a statement accepted or refused); `replace()` on a single-valued predicate; `qualifications_of` in one query; `listing()` on the example below, for the web scope, the print scope, a scope without any mode statement, with a global pin and with a scope pin.
 - The architecture test still passes.
 
@@ -107,7 +119,7 @@ The existence checks use WordPress functions (`get_post`, `term_exists`, `get_us
 
 ## To confirm
 
-1. The writing API: `create_or_get` (main), `create` (strict), `remove`, `delete`, `replace`, `transaction`, `check`; a stored `Statement` accepted as subject; no argument for qualifications; no fluent chaining.
+1. The writing API: `triple` (main), `create` (strict), `remove`, `delete`, `replace`, `transaction`, `check`; a stored `Statement` accepted as subject; no argument for qualifications; no fluent chaining.
 2. Existence checks carried by entity types, with WordPress-based checks for the built-ins; a type without a check is not checked.
 3. A PHP scalar as object is read as a literal of the only datatype the predicate accepts.
 4. Every statement whose subject is a statement must be authorised by `can_qualify()`.
@@ -120,6 +132,8 @@ The existence checks use WordPress functions (`get_post`, `term_exists`, `get_us
 11. Actions and cache are left to slice 104.
 12. `match()` with wildcards as the main read (see the "Prior art and reuse" section of `design/triples.md`); no RDF library in the core.
 13. The options of `listing()` (`scope`, `natural_order`) as in the usage examples.
+14. The main call is named `triple()` (it returns a `Statement`; the class keeps the name used by RDF for a triple that has an identity).
+15. Entities are passed as the WordPress objects the caller holds (recognizers and loaders carried by the entity types), with `Ref::post( 12 )` and the like when no object is at hand; bare integers and strings are refused.
 
 ## Done when
 

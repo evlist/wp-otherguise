@@ -5,11 +5,13 @@
 
 How the statements look and how the API of [slice 103](../slices/103-triples-statements.md) is used to create them and to keep them alive: associating a print template with a web template, a photo with a post, selecting the photos of a post for a mode, assembling a book.
 
-**Status.** The registry and the store exist (slices 100 to 102). The service `Statements` used below is **planned** (slice 103): the calls are the planned API. It is built from small calls that compose: `create_or_get()` returns the statement, the statement can then be the subject of the next call, and nothing is nested in a single call. The predicates `modes/has-variant`, `modes/mode`, `media/illustrated-by`, `books/contains` and `books/pages` are **proposals**, registered by the Modes module, the Media Helper integration and the Books module, which are not written yet. `triples/position` is built in.
+**Status.** The registry and the store exist (slices 100 to 102). The service `Statements` used below is **planned** (slice 103): the calls are the planned API. It is built from small calls that compose: `triple()` returns the statement, the statement can then be the subject of the next call, and nothing is nested in a single call. The predicates `modes/has-variant`, `modes/mode`, `media/illustrated-by`, `books/contains` and `books/pages` are **proposals**, registered by the Modes module, the Media Helper integration and the Books module, which are not written yet. `triples/position` is built in.
 
-Notation: a statement is written `id: (subject, predicate, object)`. `$statements` is the service (`Module::statements()`), `Ref` stands for `EntityRef::parse()`. The statement ids are illustrative.
+Notation: a statement is written `id: (subject, predicate, object)`. `$statements` is the service (`Module::statements()`). The statement ids are illustrative.
 
-The calls used below (see slice 103): `create_or_get( $subject, $predicate, $object )` returns the `Statement` that holds the triple, creating it if needed; `create()` is the strict form (fails if the triple exists); `remove( $subject, $predicate, $object )` deletes the statement that holds a triple, with what is said about it; `delete( $statement )` deletes a known statement; `replace()` sets a single value; `transaction( $work )` makes several calls atomic. A `$subject` is an `EntityRef` or a stored `Statement` (a statement about a statement).
+**Entities as arguments.** A subject or an object is whatever the caller already holds: a `WP_Post`, an attachment post, a `WP_Term`, a `WP_User`, a `WP_Block_Template`, a `Statement` (a statement about a statement), or an `EntityRef`. The entity type is recognized from the object. `Ref( 'mode:print' )` (that is `EntityRef::parse()`) is used only where no object exists, such as a mode, or where only an id is at hand (`Ref::post( 12 )`). A bare integer or string is refused.
+
+The calls used below: `triple( $subject, $predicate, $object )` returns the `Statement` that holds the triple, creating it if needed; `create()` is the strict form (fails if the triple exists); `remove( $subject, $predicate, $object )` deletes the statement that holds a triple, with what is said about it; `delete( $statement )` deletes a known statement; `replace()` sets a single value; `transaction( $work )` makes several calls atomic.
 
 ## 0. What the modules register
 
@@ -60,11 +62,11 @@ Reading rule used by `listing()` with a scope: **a statement belongs to a mode o
 The print template `single-print` (created in the site editor) is the print version of `single`.
 
 ```php
-$web   = Ref( 'template:twentytwentyfive//single' );
-$print = Ref( 'template:twentytwentyfive//single-print' );
+$web   = get_block_template( 'twentytwentyfive//single' );         // WP_Block_Template objects
+$print = get_block_template( 'twentytwentyfive//single-print' );
 
-$variant = $statements->create_or_get( $web, 'modes/has-variant', $print );
-$statements->create_or_get( $variant, 'modes/mode', Ref( 'mode:print' ) );
+$variant = $statements->triple( $web, 'modes/has-variant', $print );
+$statements->triple( $variant, 'modes/mode', Ref( 'mode:print' ) );
 ```
 
 ```
@@ -82,8 +84,8 @@ $template = array() === $variants ? $web : $variants[0]->object();
 **The same print template for another web template** (a template may be the variant of several):
 
 ```php
-$page = $statements->create_or_get( Ref( 'template:twentytwentyfive//page' ), 'modes/has-variant', $print );
-$statements->create_or_get( $page, 'modes/mode', Ref( 'mode:print' ) );
+$page = $statements->triple( get_block_template( 'twentytwentyfive//page' ), 'modes/has-variant', $print );
+$statements->triple( $page, 'modes/mode', Ref( 'mode:print' ) );
 ```
 ```
 3: (template:twentytwentyfive//page, modes/has-variant, template:twentytwentyfive//single-print)
@@ -93,10 +95,14 @@ $statements->create_or_get( $page, 'modes/mode', Ref( 'mode:print' ) );
 **The same variant also serves the `book` mode**, and **a template part** works the same way:
 
 ```php
-$statements->create_or_get( $variant, 'modes/mode', Ref( 'mode:book' ) );     // 5: (statement:1, modes/mode, mode:book)
+$statements->triple( $variant, 'modes/mode', Ref( 'mode:book' ) );     // 5: (statement:1, modes/mode, mode:book)
 
-$header = $statements->create_or_get( Ref( 'template:twentytwentyfive//header' ), 'modes/has-variant', Ref( 'template:twentytwentyfive//header-print' ) );
-$statements->create_or_get( $header, 'modes/mode', Ref( 'mode:print' ) );
+$header = $statements->triple(
+    get_block_template( 'twentytwentyfive//header', 'wp_template_part' ),
+    'modes/has-variant',
+    get_block_template( 'twentytwentyfive//header-print', 'wp_template_part' )
+);
+$statements->triple( $header, 'modes/mode', Ref( 'mode:print' ) );
 ```
 
 **Change or remove**:
@@ -107,30 +113,32 @@ $statements->remove( $variant, 'modes/mode', Ref( 'mode:book' ) );             /
 
 // Use another print template for single: delete the variant (its mode statements go with it), create the new one.
 $statements->delete( $variant );                                               // deletes 1 and 2
-$new = $statements->create_or_get( $web, 'modes/has-variant', Ref( 'template:twentytwentyfive//single-print-v2' ) );
-$statements->create_or_get( $new, 'modes/mode', Ref( 'mode:print' ) );
+$new = $statements->triple( $web, 'modes/has-variant', get_block_template( 'twentytwentyfive//single-print-v2' ) );
+$statements->triple( $new, 'modes/mode', Ref( 'mode:print' ) );
 ```
 
 All the web templates that use a given print template: `$statements->subjects_of( $print, 'modes/has-variant' )`.
 
 ## 2. Associate a photo with a post
 
+In what follows `$post` is the `WP_Post` of post 12 and `$photo` the `WP_Post` of attachment 88 (`get_post()`); `$statements->triple( $post, ... )` needs nothing else.
+
 **A site without modes.** Linking a photo to a post is one call, and the photo may belong to any number of posts (a native attachment has a single parent). The call returns the statement that holds the **link between this post and this photo**, here named `$link`:
 
 ```php
-$link = $statements->create_or_get( Ref( 'post:12' ), 'media/illustrated-by', Ref( 'attachment:88' ) );
+$link = $statements->triple( $post, 'media/illustrated-by', $photo );
 ```
 ```
 10: (post:12, media/illustrated-by, attachment:88)
 ```
 
-The post must exist and the attachment must be a media item. Calling it again returns statement 10 instead of failing (`create()` is the strict form). The photos of a post: `$statements->objects_of( Ref( 'post:12' ), 'media/illustrated-by' )`; the posts that use a photo: `$statements->subjects_of( Ref( 'attachment:88' ), 'media/illustrated-by' )`.
+The post must exist and the attachment must be a media item. Calling it again returns statement 10 instead of failing (`create()` is the strict form). The photos of a post: `$statements->objects_of( $post, 'media/illustrated-by' )`; the posts that use a photo: `$statements->subjects_of( $photo, 'media/illustrated-by' )`.
 
 **A site with modes.** The same call, then one call per mode in which the photo must be shown **in this post** (a link with no mode statement is shown in no mode):
 
 ```php
-$link = $statements->create_or_get( Ref( 'post:12' ), 'media/illustrated-by', Ref( 'attachment:88' ) );
-$statements->create_or_get( $link, 'modes/mode', Ref( 'mode:web' ) );
+$link = $statements->triple( $post, 'media/illustrated-by', $photo );
+$statements->triple( $link, 'modes/mode', Ref( 'mode:web' ) );
 ```
 ```
 10: (post:12, media/illustrated-by, attachment:88)
@@ -140,7 +148,7 @@ $statements->create_or_get( $link, 'modes/mode', Ref( 'mode:web' ) );
 **Later, the print version matters too: add the mode to the link.**
 
 ```php
-$statements->create_or_get( $link, 'modes/mode', Ref( 'mode:print' ) );
+$statements->triple( $link, 'modes/mode', Ref( 'mode:print' ) );
 ```
 ```
 12: (statement:10, modes/mode, mode:print)
@@ -157,8 +165,8 @@ $statements->remove( $link, 'modes/mode', Ref( 'mode:print' ) );              //
 **The modes belong to the link between a post and a photo, not to the photo.** The mode statements are statements *about* statement 10, the link between `post:12` and `attachment:88`. The same photo in another post has its own link, and its own modes:
 
 ```php
-$other = $statements->create_or_get( Ref( 'post:13' ), 'media/illustrated-by', Ref( 'attachment:88' ) );
-$statements->create_or_get( $other, 'modes/mode', Ref( 'mode:print' ) );
+$other = $statements->triple( $post_13, 'media/illustrated-by', $photo );
+$statements->triple( $other, 'modes/mode', Ref( 'mode:print' ) );
 ```
 ```
 10: (post:12, media/illustrated-by, attachment:88)      11: (statement:10, modes/mode, mode:web)
@@ -168,10 +176,10 @@ $statements->create_or_get( $other, 'modes/mode', Ref( 'mode:print' ) );
 Photo 88 is shown on the web only in post 12 and in print only in post 13. The same holds for the ranks (section 4) and for any other statement about a link. If several steps must succeed or fail together, wrap them:
 
 ```php
-$statements->transaction( function () use ( $statements ) {
-    $link = $statements->create_or_get( Ref( 'post:12' ), 'media/illustrated-by', Ref( 'attachment:91' ) );
-    $statements->create_or_get( $link, 'modes/mode', Ref( 'mode:web' ) );
-    $statements->create_or_get( $link, 'modes/mode', Ref( 'mode:print' ) );
+$statements->transaction( function () use ( $statements, $post, $photo_c ) {
+    $link = $statements->triple( $post, 'media/illustrated-by', $photo_c );
+    $statements->triple( $link, 'modes/mode', Ref( 'mode:web' ) );
+    $statements->triple( $link, 'modes/mode', Ref( 'mode:print' ) );
 } );
 ```
 
@@ -183,7 +191,7 @@ State: photo A (attachment:88) is `web` and `print`; B (attachment:90) is `web` 
 
 ```php
 $photos = $statements->listing(
-    Ref( 'post:12' ), 'media/illustrated-by',
+    $post, 'media/illustrated-by',
     array(
         'scope'         => array( 'modes/mode', Ref( 'mode:print' ) ),
         'natural_order' => function ( Statement $a, Statement $b ) {
@@ -204,7 +212,7 @@ With `'scope' => array( 'modes/mode', Ref( 'mode:web' ) )` the result is A, B, C
 **Remove a photo from the post** (every mode at once): the statements about it go with it.
 
 ```php
-$statements->remove( Ref( 'post:12' ), 'media/illustrated-by', Ref( 'attachment:91' ) );
+$statements->remove( $post, 'media/illustrated-by', $photo_c );
 ```
 
 **Remove the print mode from the link between a post and a photo.** One call; the photo stays linked to the post, and its other modes and its link to other posts are untouched:
@@ -218,12 +226,12 @@ If that was its last mode, the link still exists but the photo is shown in no mo
 **Add a photo** to the web and print modes, or to print only:
 
 ```php
-$both = $statements->create_or_get( Ref( 'post:12' ), 'media/illustrated-by', Ref( 'attachment:92' ) );
-$statements->create_or_get( $both, 'modes/mode', Ref( 'mode:web' ) );
-$statements->create_or_get( $both, 'modes/mode', Ref( 'mode:print' ) );
+$both = $statements->triple( $post, 'media/illustrated-by', $photo_e );
+$statements->triple( $both, 'modes/mode', Ref( 'mode:web' ) );
+$statements->triple( $both, 'modes/mode', Ref( 'mode:print' ) );
 
-$print_only = $statements->create_or_get( Ref( 'post:12' ), 'media/illustrated-by', Ref( 'attachment:93' ) );
-$statements->create_or_get( $print_only, 'modes/mode', Ref( 'mode:print' ) );
+$print_only = $statements->triple( $post, 'media/illustrated-by', $photo_f );
+$statements->triple( $print_only, 'modes/mode', Ref( 'mode:print' ) );
 ```
 
 **Put a photo first in a post** (a "pin"; the default order is the date and time of the photos). The rank belongs to the link, so the photo can have another rank in another post. A rank for all the modes in which it is shown, then a different rank for print only:
@@ -231,7 +239,7 @@ $statements->create_or_get( $print_only, 'modes/mode', Ref( 'mode:print' ) );
 ```php
 $statements->replace( $link, 'triples/position', 5 );                         // 20: (statement:10, triples/position, 5)
 
-$print_mode = $statements->create_or_get( $link, 'modes/mode', Ref( 'mode:print' ) );
+$print_mode = $statements->triple( $link, 'modes/mode', Ref( 'mode:print' ) );
 $statements->replace( $print_mode, 'triples/position', 1 );                    // 21: (statement:12, triples/position, 1)
 ```
 
@@ -242,12 +250,12 @@ $statements->replace( $print_mode, 'triples/position', 1 );                    /
 A book is a post (of a type `book`), `post:200`. It contains posts; a part (a month, for instance) is itself a post that contains the days.
 
 ```php
-$book = Ref( 'post:200' );
-$part = Ref( 'post:300' );                                   // "Premier mois"
+$book = get_post( 200 );
+$part = get_post( 300 );                                     // "Premier mois"
 
-$statements->create_or_get( $book, 'books/contains', $part );
+$statements->triple( $book, 'books/contains', $part );
 foreach ( $day_post_ids as $id ) {                           // for example the posts of a period, read with a date query
-    $statements->create_or_get( $part, 'books/contains', Ref( 'post:' . $id ) );
+    $statements->triple( $part, 'books/contains', get_post( $id ) );
 }
 ```
 ```
@@ -271,15 +279,15 @@ foreach ( $statements->listing( $book, 'books/contains', array( 'natural_order' 
 **Declare that a post takes two pages** (for the page numbers and the table of contents), **put a post first, remove a post, reuse a post in another book**:
 
 ```php
-$entry = $statements->create_or_get( $part, 'books/contains', Ref( 'post:13' ) );   // already there: returned as is
+$entry = $statements->triple( $part, 'books/contains', $post_13 );  // already there: returned as is
 $statements->replace( $entry, 'books/pages', 2 );                                    // 40: (statement:32, books/pages, 2)
 $statements->replace( $entry, 'triples/position', 1 );                               // first in the part
 
-$statements->remove( $part, 'books/contains', Ref( 'post:12' ) );                    // out of the book
-$statements->create_or_get( Ref( 'post:201' ), 'books/contains', Ref( 'post:13' ) ); // also in another book
+$statements->remove( $part, 'books/contains', $post );                              // out of the book
+$statements->triple( get_post( 201 ), 'books/contains', $post_13 );   // also in another book
 ```
 
-Which books contain a post: `$statements->subjects_of( Ref( 'post:13' ), 'books/contains' )`; what a book contains, flat: `$statements->objects_of( $book, 'books/contains' )`.
+Which books contain a post: `$statements->subjects_of( $post_13, 'books/contains' )`; what a book contains, flat: `$statements->objects_of( $book, 'books/contains' )`.
 
 ## What this exercise shows
 
@@ -288,6 +296,6 @@ Points to settle, noted for the Modes and Books slices:
 1. **No statement of the scope predicate means "no scope"**, not "every scope" (decided on 2026-10-09). The photos are visible only in the modes where they were explicitly put, which is safe: removing a mode never makes a photo appear elsewhere, and a mode declared later does not include old photos by surprise. The price is that showing a photo in every mode takes one statement per mode. A specific predicate for "every mode" could be added if it is ever needed.
 2. **A photo can be linked to a post and shown nowhere** (no mode statement, or the last one removed). Screens should be able to list those and offer to delete them.
 3. **"One variant per template and mode" is not a limit of the registry.** `max_objects_per_subject` counts all the variants of a template, whatever the mode. The Modes module has to check it before creating a variant.
-4. **`Ref( ... )` is verbose.** A shorthand for the common entity types (`Ref::post( 12 )`) would make the code easier to read; cosmetic, to decide with the first consumer.
+4. **Objects, not references.** The calls take the WordPress objects the caller already holds (`WP_Post`, `WP_Term`, `WP_User`, `WP_Block_Template`, `Statement`); `Ref` remains for entities that have no object (a mode) or when only an id is known (`Ref::post( 12 )`). Decided on 2026-10-09; the rules are in slice 103 ("Entities as arguments").
 5. **The options of `listing()`** (`scope`, `natural_order`) are fixed by these examples and added to the plan of slice 103.
-6. **No nested qualifications in one call.** An earlier version of the plan put the qualifications in an argument of `create()`. It made updates rigid (adding or removing one mode meant rebuilding the call). The calls now compose: one call returns the statement, the next one uses it as subject, and `transaction()` makes a group atomic. Fluent chaining (`create_or_get(...)->create_or_get(...)`) was considered and left out: with statements about statements the chain does not say which statement each call returns (the photo or its mode statement).
+6. **No nested qualifications in one call.** An earlier version of the plan put the qualifications in an argument of `create()`. It made updates rigid (adding or removing one mode meant rebuilding the call). The calls now compose: one call returns the statement, the next one uses it as subject, and `transaction()` makes a group atomic. Fluent chaining (`triple(...)->triple(...)`) was considered and left out: with statements about statements the chain does not say which statement each call returns (the photo or its mode statement).
