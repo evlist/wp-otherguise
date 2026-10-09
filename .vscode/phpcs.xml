@@ -1,0 +1,55 @@
+<?xml version="1.0"?>
+<!--
+SPDX-FileCopyrightText: 2025, 2026 Eric van der Vlist <vdv@dyomedea.com>
+
+SPDX-License-Identifier: GPL-3.0-or-later OR MIT
+-->
+<ruleset name="Otherguise PHPCS">
+  <description>Shared PHPCS ruleset for VS Code and CI.</description>
+
+  <file>./</file>
+
+  <arg name="extensions" value="php"/>
+  <arg name="warning-severity" value="0"/>
+
+  <exclude-pattern>*/third-party/*</exclude-pattern>
+  <exclude-pattern>*/vendor/*</exclude-pattern>
+  <exclude-pattern>*/node_modules/*</exclude-pattern>
+  <exclude-pattern>*/.devcontainer/*</exclude-pattern>
+  <exclude-pattern>*/.vscode/*</exclude-pattern>
+  <exclude-pattern>*/languages/*</exclude-pattern>
+  <exclude-pattern>*/tests/phpunit/bootstrap.php</exclude-pattern>
+  <exclude-pattern>*/scripts/*</exclude-pattern>
+
+  <config name="text_domain" value="otherguise"/>
+
+  <rule ref="WordPress"/>
+
+  <rule ref="WordPress.NamingConventions.PrefixAllGlobals">
+    <properties>
+      <property name="prefixes" type="array">
+        <element value="otherguise"/>
+        <element value="Otherguise"/>
+        <element value="OTHERGUISE"/>
+      </property>
+    </properties>
+  </rule>
+
+  <!-- PSR-4 class files: the core and the modules do not use the class-*.php naming. -->
+  <rule ref="WordPress.Files.FileName">
+    <exclude-pattern>*/plugin/includes/*</exclude-pattern>
+    <exclude-pattern>*/plugin/modules/*</exclude-pattern>
+  </rule>
+
+  <rule ref="./.vscode/phpcs-standard/Otherguise/Sniffs/Commenting/NoPhpcsIgnoreSniff.php">
+    <exclude-pattern>*/tests/*</exclude-pattern>
+  </rule>
+
+  <rule ref="./.vscode/phpcs-standard/Otherguise/Sniffs/Files/FileLengthSniff.php">
+    <exclude-pattern>*/tests/*</exclude-pattern>
+    <properties>
+      <property name="lineLimit" value="400"/>
+      <property name="absoluteLineLimit" value="700"/>
+    </properties>
+  </rule>
+</ruleset>

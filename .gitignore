@@ -1,0 +1,14 @@
+# SPDX-FileCopyrightText: 2026 Eric van der Vlist <vdv@dyomedea.com>
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+.phpdoc/
+build/docs/php/
+
+nohup.out
+
+# Local development tools
+vendor/
+.phpunit.result.cache
+
+# JavaScript test dependencies
+tests/js/node_modules/
