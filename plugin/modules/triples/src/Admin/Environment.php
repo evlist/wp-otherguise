@@ -171,6 +171,7 @@ class Environment {
 			'order'           => FILTER_UNSAFE_RAW,
 			'paged'           => FILTER_UNSAFE_RAW,
 			'after'           => FILTER_UNSAFE_RAW,
+			'confirm_predicate' => FILTER_UNSAFE_RAW,
 			'triples_notice'  => FILTER_UNSAFE_RAW,
 			'n'               => FILTER_UNSAFE_RAW,
 			'_wpnonce'        => FILTER_UNSAFE_RAW,

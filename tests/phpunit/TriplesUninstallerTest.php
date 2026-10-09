@@ -82,7 +82,13 @@ class TriplesUninstallerTest extends TestCase {
 		$this->assertSame( array( 'DROP TABLE IF EXISTS `wp_triples_statements`' ), $this->wpdb->queries );
 		$this->assertFalse( get_option( SchemaManager::VERSION_OPTION ) );
 		$this->assertFalse( get_option( Uninstaller::SETTINGS_OPTION ) );
-		$this->assertSame( array( array( 'delete_metadata', 'user', 0, 'wp_triples_per_page', '', true ) ), $GLOBALS['otherguise_test_calls'] );
+		$this->assertSame(
+			array(
+				array( 'delete_metadata', 'user', 0, 'triples_per_page', '', true ),
+				array( 'delete_metadata', 'user', 0, 'wp_triples_per_page', '', true ),
+			),
+			$GLOBALS['otherguise_test_calls']
+		);
 	}
 
 	/**

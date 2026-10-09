@@ -30,7 +30,7 @@ final class Uninstaller {
 	public const DELETE_FLAG = 'delete_data_on_uninstall';
 
 	/**
-	 * User meta of the screen option "statements per page" (WordPress stores it per site, under the table prefix; removed for all the users with the data).
+	 * User meta of the screen option "statements per page" (removed for all the users with the data, under its plain name and under the name with the prefix of the site).
 	 */
 	public const PER_PAGE_META = 'triples_per_page';
 
@@ -84,6 +84,8 @@ final class Uninstaller {
 		( new SchemaManager( new Database( $this->wpdb ) ) )->drop_table();
 
 		delete_option( self::SETTINGS_OPTION );
-		delete_metadata( 'user', 0, $this->wpdb->prefix . self::PER_PAGE_META, '', true ); // The screen option is stored per site, under the prefix of the site.
+		// The screen option is saved by WordPress under its plain name (seen on WordPress 7.1.3); the name with the prefix of the site is what get_user_option() looks at first.
+		delete_metadata( 'user', 0, self::PER_PAGE_META, '', true );
+		delete_metadata( 'user', 0, $this->wpdb->prefix . self::PER_PAGE_META, '', true );
 	}
 }

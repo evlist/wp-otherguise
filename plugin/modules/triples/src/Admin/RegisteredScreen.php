@@ -47,6 +47,13 @@ final class RegisteredScreen {
 	 * @return void
 	 */
 	public function render() {
+		$query   = $this->environment->query();
+		$confirm = $query['confirm_predicate'] ?? '';
+
+		if ( is_string( $confirm ) && '' !== $confirm && $this->confirm( $confirm ) ) {
+			return;
+		}
+
 		$this->unregistered();
 		$this->predicates();
 		$this->entity_types();
@@ -54,7 +61,38 @@ final class RegisteredScreen {
 	}
 
 	/**
-	 * Prints the predicates that have statements but are not registered, with the action that deletes them.
+	 * Prints the confirmation page for the deletion of the statements of a predicate that is no longer registered.
+	 *
+	 * @param string $predicate Predicate slug asked.
+	 * @return bool Whether the page was printed: the predicate must have statements and not be registered.
+	 */
+	private function confirm( $predicate ) {
+		$unregistered = $this->view->unregistered();
+
+		if ( ! isset( $unregistered[ $predicate ] ) ) {
+			return false;
+		}
+
+		echo '<h2>' . esc_html__( 'Delete these statements?', 'triples' ) . '</h2>';
+		echo '<p>' . esc_html(
+			sprintf(
+				/* translators: 1: number of statements, 2: predicate slug. */
+				_n( '%1$d statement of the predicate %2$s, and the statements about it, will be deleted. This cannot be undone.', '%1$d statements of the predicate %2$s, and the statements about them, will be deleted. This cannot be undone.', $unregistered[ $predicate ], 'triples' ),
+				$unregistered[ $predicate ],
+				$predicate
+			)
+		) . '</p>';
+		echo '<form method="post" action="' . esc_url( $this->environment->admin_url( 'admin-post.php' ) ) . '">';
+		echo '<input type="hidden" name="action" value="triples_delete_predicate" /><input type="hidden" name="predicate" value="' . esc_attr( $predicate ) . '" />';
+		$this->environment->print_nonce_field( 'triples_delete_predicate_' . $predicate );
+		echo '<input type="submit" class="button button-primary" value="' . esc_attr__( 'Delete', 'triples' ) . '" /> ';
+		echo '<a class="button" href="' . esc_url( $this->environment->page_url( array( 'tab' => 'registered' ) ) ) . '">' . esc_html__( 'Cancel', 'triples' ) . '</a></form>';
+
+		return true;
+	}
+
+	/**
+	 * Prints the predicates that have statements but are not registered, with the link to the page that confirms their deletion.
 	 *
 	 * @return void
 	 */
@@ -70,11 +108,15 @@ final class RegisteredScreen {
 		echo '<table class="widefat striped"><thead><tr><th>' . esc_html__( 'Predicate', 'triples' ) . '</th><th>' . esc_html__( 'Statements', 'triples' ) . '</th><th></th></tr></thead><tbody>';
 
 		foreach ( $unregistered as $slug => $count ) {
+			$url = $this->environment->page_url(
+				array(
+					'tab'               => 'registered',
+					'confirm_predicate' => (string) $slug,
+				)
+			);
+
 			echo '<tr><td><code>' . esc_html( (string) $slug ) . '</code></td><td>' . esc_html( (string) $count ) . '</td><td>';
-			echo '<form method="post" action="' . esc_url( $this->environment->admin_url( 'admin-post.php' ) ) . '">';
-			echo '<input type="hidden" name="action" value="triples_delete_predicate" /><input type="hidden" name="predicate" value="' . esc_attr( (string) $slug ) . '" />';
-			$this->environment->print_nonce_field( 'triples_delete_predicate_' . $slug );
-			echo '<input type="submit" class="button" value="' . esc_attr__( 'Delete these statements', 'triples' ) . '" /></form></td></tr>';
+			echo '<a class="button" href="' . esc_url( $url ) . '">' . esc_html__( 'Delete these statements…', 'triples' ) . '</a></td></tr>';
 		}
 
 		echo '</tbody></table>';

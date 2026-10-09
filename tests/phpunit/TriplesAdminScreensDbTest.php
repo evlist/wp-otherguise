@@ -287,12 +287,43 @@ class TriplesAdminScreensDbTest extends Otherguise_Test_Database_Case {
 
 		$this->assertStringContainsString( 'Predicates that are no longer registered', $html );
 		$this->assertStringContainsString( '<code>old/relation</code>', $html );
-		$this->assertStringContainsString( 'name="predicate" value="old/relation"', $html );
-		$this->assertStringContainsString( 'name="_wpnonce" value="nonce:triples_delete_predicate_old/relation"', $html );
+		$this->assertStringContainsString( 'confirm_predicate=old%2Frelation', $html );
+		$this->assertStringNotContainsString( 'name="_wpnonce"', $html, 'The list only links to the confirmation.' );
 		$this->assertStringContainsString( '<code>media/illustrated-by</code>', $html );
 		$this->assertStringContainsString( 'Datatypes', $html );
 		$this->assertStringContainsString( 'xsd:integer', $html );
 		$this->assertStringContainsString( '<code>mode</code>', $html );
+
+		$confirm = $this->html(
+			array(
+				'tab' => 'registered',
+				'confirm_predicate' => 'old/relation',
+			)
+		);
+
+		$this->assertStringContainsString( '1 statement of the predicate old/relation, and the statements about it, will be deleted.', $confirm );
+		$this->assertStringContainsString( 'name="predicate" value="old/relation"', $confirm );
+		$this->assertStringContainsString( 'name="_wpnonce" value="nonce:triples_delete_predicate_old/relation"', $confirm );
+		$this->assertStringNotContainsString( 'Datatypes', $confirm );
+		$this->assertStringContainsString(
+			'Datatypes',
+			$this->html(
+				array(
+					'tab' => 'registered',
+					'confirm_predicate' => 'media/illustrated-by',
+				)
+			),
+			'A registered predicate has no confirmation page.'
+		);
+		$this->assertStringContainsString(
+			'Datatypes',
+			$this->html(
+				array(
+					'tab' => 'registered',
+					'confirm_predicate' => 'ghost/none',
+				)
+			)
+		);
 
 		$view = new RegisteredView( $this->module->predicates(), $this->module->entity_types(), $this->module->datatypes(), $this->module->store() );
 		$rows = array_column( $view->predicates(), 'count', 'slug' );

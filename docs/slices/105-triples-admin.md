@@ -3,7 +3,7 @@
 
 # Slice 105 — Triples: administration screen
 
-Status: **done** (the ten points under "To confirm" were confirmed by Eric on 2026-10-09; what was not verified is listed below). Dependencies: slices 100 to 104. Module: `Triples`.
+Status: **done** (the ten points under "To confirm" were confirmed by Eric on 2026-10-09). **Tried on a real site afterwards** (see "Tried in a real browser" below). Dependencies: slices 100 to 104. Module: `Triples`.
 
 ## Goal
 
@@ -69,7 +69,7 @@ Read-only. Three tables: the **predicates** (slug, label, inverse label, subject
 - **One nonce for the confirmation.** The row link and the bulk action lead to the same confirmation page (a read, no nonce); its form carries the single nonce `triples_bulk_delete`. The nonces `triples_delete_orphans` and `triples_delete_predicate_{slug}` are as planned. The handlers check the capability first, then the nonce, and a nonce made for another handler or another predicate is refused (tested).
 - **Input** is read by `filter_input_array()` with a list of the keys the screen uses (no superglobal is touched, so no inline `phpcs:ignore` is needed); output that comes from `Markup` goes through `wp_kses_post()` because the escaping check of the standard cannot follow a helper. The tests replace `wp_kses_post()` by an identity function, so they check that the data is escaped by the code, not what `wp_kses_post()` would strip.
 - **Orphans-only filter** scans from `after` until the page is full: no page numbers, no total, a "look for more" link carrying the id to continue from.
-- **The screen option** is stored by WordPress per site (`{prefix}triples_per_page`); the uninstaller deletes that key with the data.
+- **The screen option** is saved by WordPress as the user meta `triples_per_page` (plain name, seen on a real site: it was first assumed to be prefixed per site, which a test on WordPress 7.1.3 disproved); the uninstaller deletes both that key and the prefixed one with the data.
 - **Text domain** `triples` is loaded by `Module::load_textdomain()` from `modules/triples/languages/`, which holds no translation yet. `.vscode/phpcs.xml` accepts the text domains `otherguise` and `triples` and the prefixes `otherguise` and `triples`.
 - `Statements::describe()`, `StatementQuery::order_by()`, `after_id()`, `with_type()`, `excluding_subject_type()` and `with_other_predicates()`, `StatementStore::counts_by_predicate()` are as planned.
 - The files of `StatementQuery` (435 lines), `StatementStore` (476) and `Statements` (401) are over the 400 lines that warn.
@@ -85,9 +85,17 @@ Creating or editing statements by hand; a graph view; import and export (106); R
 - Every entry point (the page, the three handlers, the settings) has at least one test, as the conventions ask.
 - The architecture test still passes; `phpcs` and `reuse lint` stay clean.
 
+## Tried in a real browser
+
+After the slice was delivered, the plugin was installed on a scratch WordPress 7.1.3 (PHP 8.3.6, MariaDB 10.11.14, Twenty Twenty-Five) and the screen was driven with Chromium through Playwright: [`tests/real-wordpress/admin-screen/`](../../tests/real-wordpress/admin-screen/README.md), 32 checks, no PHP error and no failed request. Screenshots: [list](../screenshots/105-10-list.png), [registered](../screenshots/105-13-registered.png), [confirmation](../screenshots/105-12-confirm.png), [orphans](../screenshots/105-14-orphans.png), [unregistered predicate](../screenshots/105-16-unregistered.png).
+
+What it found, and what was changed: the screen option is saved as the user meta `triples_per_page` (not prefixed per site), so the uninstaller removed the wrong key (it now removes both); the button that deleted the statements of an unregistered predicate had no confirmation page (it is now a link to one); the filters were cramped (spacing added). The activation created the table with the real `dbDelta`, the module worked with real `WP_Post` objects and the real deletion actions (`wp_delete_attachment()`, `wp_delete_post()`, the trash), and a subscriber, a missing nonce and a forged nonce were all refused with HTTP 403.
+
+Still not verified after this run: other browsers and narrow screens, keyboard use and contrast, multisite, a persistent object cache, real language packs, other WordPress and PHP versions, Apache or nginx, and a large table.
+
 ## Not verified by this slice
 
-**The screen is never displayed in a browser**: the list table, the notices, the layout, the screen options, the contrast and the keyboard use are checked by nobody. The tests run on stubs of the WordPress admin functions and of `WP_List_Table`. The nonces and the capability checks are tested as logic, with a test environment that says what is valid, not against a real session; `Environment` itself (`current_user_can()`, `wp_verify_nonce()`, `filter_input_array()`, redirections) and `Module::load_textdomain()` have no test. `wp_kses_post()` was never run on the output, so a tag it strips would show only in a browser. The translations are not produced here: `triples.pot` is generated by `wp i18n make-pot`, which is not available in the development session, so the `.pot` is added by hand or at the first run of the CI. The behaviour with a very large table is not measured.
+**At the time of the slice the screen had never been displayed in a browser** (see the section above for what was tried afterwards): the list table, the notices, the layout and the screen options were checked by nobody. The tests run on stubs of the WordPress admin functions and of `WP_List_Table`. The nonces and the capability checks are tested as logic, with a test environment that says what is valid, not against a real session; `Environment` itself (`current_user_can()`, `wp_verify_nonce()`, `filter_input_array()`, redirections) and `Module::load_textdomain()` have no test. `wp_kses_post()` was never run on the output, so a tag it strips would show only in a browser. The translations are not produced here: `triples.pot` is generated by `wp i18n make-pot`, which is not available in the development session, so the `.pot` is added by hand or at the first run of the CI. The behaviour with a very large table is not measured.
 
 ## To confirm
 

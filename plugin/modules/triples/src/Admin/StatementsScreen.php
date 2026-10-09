@@ -120,10 +120,10 @@ final class StatementsScreen {
 	 * @return void
 	 */
 	private function filters_form( StatementsFilters $filters ) {
-		echo '<form method="get" action="' . esc_url( $this->environment->admin_url( 'tools.php' ) ) . '" class="triples-filters">';
+		echo '<form method="get" action="' . esc_url( $this->environment->admin_url( 'tools.php' ) ) . '" class="triples-filters" style="margin:1em 0">';
 		echo '<input type="hidden" name="page" value="' . esc_attr( Environment::PAGE ) . '" /><input type="hidden" name="tab" value="statements" />';
 
-		echo '<label>' . esc_html__( 'Predicate', 'triples' ) . ' <select name="predicate"><option value="">' . esc_html__( 'All', 'triples' ) . '</option>';
+		echo '<label style="display:inline-block;margin:0 1em .5em 0">' . esc_html__( 'Predicate', 'triples' ) . ' <select name="predicate"><option value="">' . esc_html__( 'All', 'triples' ) . '</option>';
 
 		foreach ( array_keys( $this->predicates->all() ) as $slug ) {
 			echo '<option value="' . esc_attr( $slug ) . '"' . ( $slug === $filters->predicate ? ' selected="selected"' : '' ) . '>' . esc_html( $slug ) . '</option>';
@@ -131,17 +131,17 @@ final class StatementsScreen {
 
 		echo '<option value="' . esc_attr( StatementsFilters::UNREGISTERED ) . '"' . ( StatementsFilters::UNREGISTERED === $filters->predicate ? ' selected="selected"' : '' ) . '>' . esc_html__( 'Not registered', 'triples' ) . '</option></select></label> ';
 
-		echo '<label>' . esc_html__( 'Type', 'triples' ) . ' <select name="entity_type"><option value="">' . esc_html__( 'All', 'triples' ) . '</option>';
+		echo '<label style="display:inline-block;margin:0 1em .5em 0">' . esc_html__( 'Type', 'triples' ) . ' <select name="entity_type"><option value="">' . esc_html__( 'All', 'triples' ) . '</option>';
 
 		foreach ( array_keys( $this->types->all() ) as $slug ) {
 			echo '<option value="' . esc_attr( $slug ) . '"' . ( $slug === $filters->type ? ' selected="selected"' : '' ) . '>' . esc_html( $slug ) . '</option>';
 		}
 
 		echo '</select></label> ';
-		echo '<label>' . esc_html__( 'Entity', 'triples' ) . ' <input type="text" name="entity" placeholder="post:12" value="' . esc_attr( null === $filters->entity ? '' : (string) $filters->entity ) . '" /></label> ';
-		echo '<label><input type="checkbox" name="with_qualifiers" value="1"' . ( $filters->with_qualifiers ? ' checked="checked"' : '' ) . ' /> ' . esc_html__( 'Include statements about statements', 'triples' ) . '</label> ';
-		echo '<label><input type="checkbox" name="orphans" value="1"' . ( $filters->orphans ? ' checked="checked"' : '' ) . ' /> ' . esc_html__( 'Orphans only', 'triples' ) . '</label> ';
-		echo '<label>' . esc_html__( 'Order', 'triples' ) . ' <select name="orderby"><option value="id"' . ( 'id' === $filters->orderby ? ' selected="selected"' : '' ) . '>' . esc_html__( 'Id', 'triples' ) . '</option><option value="created_gmt"' . ( 'created_gmt' === $filters->orderby ? ' selected="selected"' : '' ) . '>' . esc_html__( 'Date of creation', 'triples' ) . '</option></select></label> ';
+		echo '<label style="display:inline-block;margin:0 1em .5em 0">' . esc_html__( 'Entity', 'triples' ) . ' <input type="text" name="entity" placeholder="post:12" value="' . esc_attr( null === $filters->entity ? '' : (string) $filters->entity ) . '" /></label> ';
+		echo '<label style="display:inline-block;margin:0 1em .5em 0"><input type="checkbox" name="with_qualifiers" value="1"' . ( $filters->with_qualifiers ? ' checked="checked"' : '' ) . ' /> ' . esc_html__( 'Include statements about statements', 'triples' ) . '</label> ';
+		echo '<label style="display:inline-block;margin:0 1em .5em 0"><input type="checkbox" name="orphans" value="1"' . ( $filters->orphans ? ' checked="checked"' : '' ) . ' /> ' . esc_html__( 'Orphans only', 'triples' ) . '</label> ';
+		echo '<label style="display:inline-block;margin:0 1em .5em 0">' . esc_html__( 'Order', 'triples' ) . ' <select name="orderby"><option value="id"' . ( 'id' === $filters->orderby ? ' selected="selected"' : '' ) . '>' . esc_html__( 'Id', 'triples' ) . '</option><option value="created_gmt"' . ( 'created_gmt' === $filters->orderby ? ' selected="selected"' : '' ) . '>' . esc_html__( 'Date of creation', 'triples' ) . '</option></select></label> ';
 		echo '<label><select name="order"><option value="asc">' . esc_html__( 'Ascending', 'triples' ) . '</option><option value="desc"' . ( $filters->descending ? ' selected="selected"' : '' ) . '>' . esc_html__( 'Descending', 'triples' ) . '</option></select></label> ';
 		echo '<input type="submit" class="button" value="' . esc_attr__( 'Filter', 'triples' ) . '" /></form>';
 	}
