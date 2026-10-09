@@ -53,7 +53,7 @@ class ModesModuleTest extends TestCase {
 				}
 			},
 			static function ( $hook, $callback, $priority = 10, $accepted = 1 ) use ( &$hooks ) {
-				$hooks[ $hook ] = array( get_class( $callback[0] ), $callback[1], $priority, $accepted );
+				$hooks[ $hook ][] = array( get_class( $callback[0] ), $callback[1], $priority, $accepted );
 			},
 			static fn() => $query,
 			static fn( $hook, $value ) => $filters[ $hook ] ?? $value
@@ -87,10 +87,16 @@ class ModesModuleTest extends TestCase {
 
 		$this->assertSame(
 			array(
-				'triples_register_entity_types' => array( 'Otherguise\\Modes\\Integration\\TriplesIntegration', 'register_entity_type', 10, 1 ),
-				'triples_register_predicates'   => array( 'Otherguise\\Modes\\Integration\\TriplesIntegration', 'register_predicate', 10, 1 ),
-				'body_class'                    => array( Module::class, 'body_class', 10, 1 ),
-				'init'                          => array( Module::class, 'load_textdomain', 10, 1 ),
+				'triples_register_entity_types' => array(
+					array( 'Otherguise\\Modes\\Integration\\TriplesIntegration', 'register_entity_type', 10, 1 ),
+					array( 'Otherguise\\Modes\\Integration\\TemplateIntegration', 'register_entity_types', 10, 1 ),
+				),
+				'triples_register_predicates'   => array(
+					array( 'Otherguise\\Modes\\Integration\\TriplesIntegration', 'register_predicate', 10, 1 ),
+					array( 'Otherguise\\Modes\\Integration\\TemplateIntegration', 'register_predicates', 10, 1 ),
+				),
+				'body_class'                    => array( array( Module::class, 'body_class', 10, 1 ) ),
+				'init'                          => array( array( Module::class, 'load_textdomain', 10, 1 ) ),
 			),
 			$hooks
 		);

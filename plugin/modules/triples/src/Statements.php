@@ -346,6 +346,18 @@ final class Statements {
 	}
 
 	/**
+	 * Returns the reference to the entity a value stands for (a WordPress object, a stored `Statement`, a reference): the way a module
+	 * reads the arguments it receives with the same rules as the service.
+	 *
+	 * @param mixed $value Value.
+	 * @return EntityRef
+	 * @throws InvalidStatementException With `unknown_entity` or `ambiguous_entity`.
+	 */
+	public function entity( $value ) {
+		return $this->resolver->entity( $value );
+	}
+
+	/**
 	 * Describes an entity for a screen: a label, a link when there is one, and whether it exists (null when its type cannot tell).
 	 *
 	 * @param EntityRef $entity Entity.

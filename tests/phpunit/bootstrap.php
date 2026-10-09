@@ -250,6 +250,53 @@ class WP_User {
     }
 }
 
+/**
+ * Stub of WP_Block_Template.
+ */
+class WP_Block_Template {
+    /**
+     * Id: `theme//slug`.
+     *
+     * @var string
+     */
+    public $id = '';
+
+    /**
+     * Slug.
+     *
+     * @var string
+     */
+    public $slug = '';
+
+    /**
+     * Type: `wp_template` or `wp_template_part`.
+     *
+     * @var string
+     */
+    public $type = 'wp_template';
+
+    /**
+     * Title.
+     *
+     * @var string
+     */
+    public $title = '';
+
+    /**
+     * Builds a template.
+     *
+     * @param string $id    Id.
+     * @param string $type  Type.
+     * @param string $title Title.
+     */
+    public function __construct( $id, $type = 'wp_template', $title = '' ) {
+        $this->id    = $id;
+        $this->slug  = substr( $id, strpos( $id, '//' ) + 2 );
+        $this->type  = $type;
+        $this->title = $title;
+    }
+}
+
 $GLOBALS['otherguise_test_objects'] = array();
 
 /**

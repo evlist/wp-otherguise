@@ -11,10 +11,14 @@
 namespace Otherguise\Modes;
 
 use Otherguise\Core\ModuleInterface;
+use Otherguise\Core\Modules;
+use Otherguise\Modes\Integration\TemplateIntegration;
 use Otherguise\Modes\Integration\TriplesIntegration;
 use Otherguise\Modes\Mode\ActiveMode;
 use Otherguise\Modes\Mode\ModeDefinition;
 use Otherguise\Modes\Mode\ModeRegistry;
+use Otherguise\Modes\Template\TemplateLookup;
+use Otherguise\Modes\Variant\Variants;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -62,18 +66,48 @@ final class Module implements ModuleInterface {
 	private $active;
 
 	/**
+	 * Returns the service of the statements, or null.
+	 *
+	 * @var callable
+	 */
+	private $statements;
+
+	/**
+	 * Lookup of templates.
+	 *
+	 * @var TemplateLookup
+	 */
+	private $lookup;
+
+	/**
+	 * Variants, built at the first use.
+	 *
+	 * @var Variants|null
+	 */
+	private $variants = null;
+
+	/**
 	 * Builds the module.
 	 *
-	 * @param callable|null $do_action     Runs an action; defaults to WordPress `do_action`.
-	 * @param callable|null $add_action    Adds an action or a filter; defaults to WordPress `add_action`.
-	 * @param callable|null $query         Returns the query string keys `mode` and the aliases that are present; defaults to a read of the
-	 *                                     request with `filter_input_array()`.
-	 * @param callable|null $apply_filters Applies a filter; defaults to WordPress `apply_filters`.
+	 * @param callable|null       $do_action     Runs an action; defaults to WordPress `do_action`.
+	 * @param callable|null       $add_action    Adds an action or a filter; defaults to WordPress `add_action`.
+	 * @param callable|null       $query         Returns the query string keys `mode` and the aliases that are present; defaults to a read of the
+	 *                                           request with `filter_input_array()`.
+	 * @param callable|null       $apply_filters Applies a filter; defaults to WordPress `apply_filters`.
+	 * @param callable|null       $statements    Returns the service of the statements (`Statements`) or null; defaults to the Triples module booted
+	 *                                           in this request.
+	 * @param TemplateLookup|null $lookup  What the module asks WordPress about templates.
 	 */
-	public function __construct( $do_action = null, $add_action = null, $query = null, $apply_filters = null ) {
+	public function __construct( $do_action = null, $add_action = null, $query = null, $apply_filters = null, $statements = null, ?TemplateLookup $lookup = null ) {
 		$this->do_action     = $do_action ?? 'do_action';
 		$this->add_action    = $add_action ?? 'add_action';
 		$this->apply_filters = $apply_filters ?? 'apply_filters';
+		$this->lookup        = $lookup ?? new TemplateLookup();
+		$this->statements    = $statements ?? static function () {
+			$triples = Modules::get( 'triples' );
+
+			return $triples instanceof \Otherguise\Triples\Module ? $triples->statements() : null;
+		};
 
 		$this->modes  = new ModeRegistry(
 			function ( $registry ) {
@@ -138,6 +172,10 @@ final class Module implements ModuleInterface {
 
 		( $this->add_action )( 'triples_register_entity_types', array( $integration, 'register_entity_type' ), 10, 1 );
 		( $this->add_action )( 'triples_register_predicates', array( $integration, 'register_predicate' ), 10, 1 );
+		$templates = new TemplateIntegration( $this->lookup );
+
+		( $this->add_action )( 'triples_register_entity_types', array( $templates, 'register_entity_types' ), 10, 1 );
+		( $this->add_action )( 'triples_register_predicates', array( $templates, 'register_predicates' ), 10, 1 );
 		( $this->add_action )( 'body_class', array( $this, 'body_class' ), 10, 1 );
 		( $this->add_action )( 'init', array( $this, 'load_textdomain' ), 10, 1 );
 	}
@@ -167,6 +205,26 @@ final class Module implements ModuleInterface {
 	 */
 	public function active() {
 		return $this->active;
+	}
+
+	/**
+	 * Returns the variants of templates and of template parts.
+	 *
+	 * @return Variants
+	 * @throws \LogicException When the Triples module is not enabled.
+	 */
+	public function variants() {
+		if ( null === $this->variants ) {
+			$statements = ( $this->statements )();
+
+			if ( null === $statements ) {
+				throw new \LogicException( 'The Triples module is not enabled.' );
+			}
+
+			$this->variants = new Variants( $statements, $this->lookup );
+		}
+
+		return $this->variants;
 	}
 
 	/**
