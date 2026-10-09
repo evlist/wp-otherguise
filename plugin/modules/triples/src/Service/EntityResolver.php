@@ -98,4 +98,30 @@ final class EntityResolver {
 	public function resolve( EntityRef $entity ) {
 		return $this->types->has( $entity->type() ) ? $this->types->get( $entity->type() )->load( $entity->id() ) : null;
 	}
+
+	/**
+	 * Describes an entity for a screen: a label, a link when there is one, and whether it exists.
+	 *
+	 * @param EntityRef $entity Entity.
+	 * @return array{label: string, url: string|null, exists: bool|null} The label is `type:id` when the type cannot describe the entity;
+	 *                                                                    `exists` is null when the type cannot tell.
+	 */
+	public function describe( EntityRef $entity ) {
+		if ( ! $this->types->has( $entity->type() ) ) {
+			return array(
+				'label'  => (string) $entity,
+				'url'    => null,
+				'exists' => null,
+			);
+		}
+
+		$type        = $this->types->get( $entity->type() );
+		$description = $type->describe( $entity->id() );
+
+		return array(
+			'label'  => null === $description ? (string) $entity : $description['label'],
+			'url'    => null === $description ? null : $description['url'],
+			'exists' => $type->exists( $entity->id() ),
+		);
+	}
 }

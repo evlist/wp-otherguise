@@ -195,6 +195,22 @@ final class StatementStore {
 	}
 
 	/**
+	 * Counts the statements of each predicate.
+	 *
+	 * @return array<string, int> By predicate slug.
+	 */
+	public function counts_by_predicate() {
+		$rows   = $this->rows( $this->database->prepare( 'SELECT predicate, COUNT(*) AS total FROM %i GROUP BY predicate ORDER BY predicate', array( $this->table() ) ) );
+		$counts = array();
+
+		foreach ( $rows as $row ) {
+			$counts[ (string) $row['predicate'] ] = (int) $row['total'];
+		}
+
+		return $counts;
+	}
+
+	/**
 	 * Reads the statements about some statements: those whose subject is `statement:ID` for one of the ids. One level only.
 	 *
 	 * @param int[] $ids Statement ids.

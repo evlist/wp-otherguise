@@ -48,6 +48,41 @@ final class StatementQuery {
 	private $involved;
 
 	/**
+	 * Predicates that must not match, or empty.
+	 *
+	 * @var string[]
+	 */
+	private $other_than = array();
+
+	/**
+	 * Subject type that must not match, or null.
+	 *
+	 * @var string|null
+	 */
+	private $not_subject_type;
+
+	/**
+	 * Entity or datatype type that must be on one end, or null.
+	 *
+	 * @var string|null
+	 */
+	private $type;
+
+	/**
+	 * Only the statements with an id above this one, or null.
+	 *
+	 * @var int|null
+	 */
+	private $after_id;
+
+	/**
+	 * Column of the order: `id` or `created_gmt`.
+	 *
+	 * @var string
+	 */
+	private $order_by = 'id';
+
+	/**
 	 * Allowed predicates (empty: any).
 	 *
 	 * @var string[]
@@ -193,6 +228,71 @@ final class StatementQuery {
 	}
 
 	/**
+	 * Keeps the statements whose predicate is none of these (the ones that are no longer registered, for example).
+	 *
+	 * @param string[] $predicates Predicate slugs; an empty list restricts nothing.
+	 * @return self
+	 */
+	public function with_other_predicates( array $predicates ) {
+		$copy             = clone $this;
+		$copy->other_than = array_values( array_unique( $predicates ) );
+
+		return $copy;
+	}
+
+	/**
+	 * Leaves out the statements whose subject is of a type (the statements about statements, for example).
+	 *
+	 * @param string $type Entity type.
+	 * @return self
+	 */
+	public function excluding_subject_type( $type ) {
+		$copy                   = clone $this;
+		$copy->not_subject_type = $type;
+
+		return $copy;
+	}
+
+	/**
+	 * Keeps the statements that have a type on one of their ends.
+	 *
+	 * @param string $type Entity type or datatype.
+	 * @return self
+	 */
+	public function with_type( $type ) {
+		$copy       = clone $this;
+		$copy->type = $type;
+
+		return $copy;
+	}
+
+	/**
+	 * Keeps the statements with an id above a given one: the next batch of a scan.
+	 *
+	 * @param int $id Statement id.
+	 * @return self
+	 */
+	public function after_id( $id ) {
+		$copy           = clone $this;
+		$copy->after_id = max( 0, (int) $id );
+
+		return $copy;
+	}
+
+	/**
+	 * Chooses the column of the order; the id breaks ties. Anything but `created_gmt` means the id.
+	 *
+	 * @param string $column `id` or `created_gmt`.
+	 * @return self
+	 */
+	public function order_by( $column ) {
+		$copy           = clone $this;
+		$copy->order_by = 'created_gmt' === $column ? 'created_gmt' : 'id';
+
+		return $copy;
+	}
+
+	/**
 	 * Builds the SQL that reads the statements.
 	 *
 	 * @param string $table Table name (letters, digits and underscores).
@@ -201,7 +301,7 @@ final class StatementQuery {
 	public function select( $table ) {
 		list( $where, $args ) = $this->conditions( $table );
 
-		$sql = 'SELECT ' . self::COLUMNS . ' FROM ' . $this->identifier( $table ) . ' s' . $where . ' ORDER BY s.id ' . ( $this->descending ? 'DESC' : 'ASC' );
+		$sql = 'SELECT ' . self::COLUMNS . ' FROM ' . $this->identifier( $table ) . ' s' . $where . ' ORDER BY ' . $this->order();
 
 		if ( null !== $this->limit ) {
 			$sql   .= ' LIMIT %d OFFSET %d';
@@ -222,6 +322,17 @@ final class StatementQuery {
 		list( $where, $args ) = $this->conditions( $table );
 
 		return array( 'SELECT COUNT(*) FROM ' . $this->identifier( $table ) . ' s' . $where, $args );
+	}
+
+	/**
+	 * Builds the ORDER BY clause: the chosen column, then the id.
+	 *
+	 * @return string
+	 */
+	private function order() {
+		$direction = $this->descending ? 'DESC' : 'ASC';
+
+		return 'id' === $this->order_by ? 's.id ' . $direction : 's.' . $this->order_by . ' ' . $direction . ', s.id ' . $direction;
 	}
 
 	/**
@@ -252,6 +363,27 @@ final class StatementQuery {
 			$args[]    = $this->involved->key();
 			$args[]    = $this->involved->type();
 			$args[]    = $this->involved->key();
+		}
+
+		if ( null !== $this->not_subject_type ) {
+			$clauses[] = 's.subject_type <> %s';
+			$args[]    = $this->not_subject_type;
+		}
+
+		if ( null !== $this->type ) {
+			$clauses[] = '( s.subject_type = %s OR s.object_type = %s )';
+			$args[]    = $this->type;
+			$args[]    = $this->type;
+		}
+
+		if ( null !== $this->after_id ) {
+			$clauses[] = 's.id > %d';
+			$args[]    = $this->after_id;
+		}
+
+		if ( array() !== $this->other_than ) {
+			$clauses[] = 's.predicate NOT IN (' . implode( ',', array_fill( 0, count( $this->other_than ), '%s' ) ) . ')';
+			$args      = array_merge( $args, $this->other_than );
 		}
 
 		if ( array() !== $this->predicates ) {

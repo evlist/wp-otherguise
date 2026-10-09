@@ -172,4 +172,57 @@ class TriplesWordPressEntitiesTest extends TestCase {
 		$this->assertSame( 'term:5', (string) Ref::term( 5 ) );
 		$this->assertSame( 'user:3', (string) Ref::user( 3 ) );
 	}
+
+	/**
+	 * The describers give a label and a link for the built-in types.
+	 *
+	 * @return void
+	 */
+	public function test_descriptions(): void {
+		otherguise_test_wp_objects( array( new WP_Post( 12, 'post', 'Col du Tourmalet' ), new WP_Post( 13 ), new WP_Term( 5, 'GR10' ), new WP_User( 3, 'Eric' ) ) );
+
+		$this->assertSame(
+			array(
+				'label' => 'Col du Tourmalet',
+				'url'   => 'post.php?post=12&action=edit',
+			),
+			$this->types->get( 'post' )->describe( '12' )
+		);
+		$this->assertSame( '#13', $this->types->get( 'post' )->describe( '13' )['label'] );
+		$this->assertSame( 'GR10', $this->types->get( 'term' )->describe( '5' )['label'] );
+		$this->assertSame( 'user-edit.php?user_id=3', $this->types->get( 'user' )->describe( '3' )['url'] );
+		$this->assertNull( $this->types->get( 'user' )->describe( '99' ) );
+		$this->assertNull( $this->types->get( 'statement' )->describe( '1' ) );
+	}
+
+	/**
+	 * A describer that gives nothing usable is ignored, an empty link is none.
+	 *
+	 * @return void
+	 */
+	public function test_unusable_descriptions_are_ignored(): void {
+		$empty = new EntityType( 'a', 'A', fn( $id ) => true, null, null, null, null, fn( $id ) => array( 'label' => '' ) );
+		$bare  = new EntityType(
+			'b',
+			'B',
+			fn( $id ) => true,
+			null,
+			null,
+			null,
+			null,
+			fn( $id ) => array(
+				'label' => 'Bee',
+				'url' => '',
+			)
+		);
+
+		$this->assertNull( $empty->describe( '1' ) );
+		$this->assertSame(
+			array(
+				'label' => 'Bee',
+				'url' => null,
+			),
+			$bare->describe( '1' )
+		);
+	}
 }

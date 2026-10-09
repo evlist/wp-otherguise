@@ -169,14 +169,23 @@ class WP_Post {
     public $post_type;
 
     /**
+     * Title.
+     *
+     * @var string
+     */
+    public $post_title;
+
+    /**
      * Builds a post.
      *
      * @param int    $id        Id.
      * @param string $post_type Post type.
+     * @param string $title     Title.
      */
-    public function __construct( $id, $post_type = 'post' ) {
-        $this->ID        = $id;
-        $this->post_type = $post_type;
+    public function __construct( $id, $post_type = 'post', $title = '' ) {
+        $this->ID         = $id;
+        $this->post_type  = $post_type;
+        $this->post_title = $title;
     }
 }
 
@@ -192,12 +201,21 @@ class WP_Term {
     public $term_id;
 
     /**
+     * Name.
+     *
+     * @var string
+     */
+    public $name;
+
+    /**
      * Builds a term.
      *
-     * @param int $id Id.
+     * @param int    $id   Id.
+     * @param string $name Name.
      */
-    public function __construct( $id ) {
+    public function __construct( $id, $name = 'term' ) {
         $this->term_id = $id;
+        $this->name    = $name;
     }
 }
 
@@ -213,12 +231,21 @@ class WP_User {
     public $ID;
 
     /**
+     * Display name.
+     *
+     * @var string
+     */
+    public $display_name;
+
+    /**
      * Builds a user.
      *
-     * @param int $id Id.
+     * @param int    $id           Id.
+     * @param string $display_name Display name.
      */
-    public function __construct( $id ) {
-        $this->ID = $id;
+    public function __construct( $id, $display_name = 'user' ) {
+        $this->ID           = $id;
+        $this->display_name = $display_name;
     }
 }
 
@@ -258,6 +285,37 @@ function get_post( $id ) {
  */
 function get_term( $id ) {
     return $GLOBALS['otherguise_test_objects']['WP_Term'][ $id ] ?? null;
+}
+
+/**
+ * Stub of get_edit_post_link().
+ *
+ * @param int    $id      Post id.
+ * @param string $context Context.
+ * @return string
+ */
+function get_edit_post_link( $id, $context = 'display' ) {
+    return 'post.php?post=' . $id . '&action=edit';
+}
+
+/**
+ * Stub of get_edit_term_link().
+ *
+ * @param int $id Term id.
+ * @return string
+ */
+function get_edit_term_link( $id ) {
+    return 'term.php?tag_ID=' . $id;
+}
+
+/**
+ * Stub of get_edit_user_link().
+ *
+ * @param int $id User id.
+ * @return string
+ */
+function get_edit_user_link( $id ) {
+    return 'user-edit.php?user_id=' . $id;
 }
 
 /**

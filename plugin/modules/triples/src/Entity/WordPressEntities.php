@@ -16,12 +16,12 @@ defined( 'ABSPATH' ) || exit;
  * The only place of the module where the built-in entity types meet the WordPress API.
  *
  * `EntityTypeRegistry::with_builtins()` takes the result of `behaviors()`, so that the registries and their tests stay free of WordPress
- * calls. Not tried on a real WordPress site yet: the tests use stubs of `WP_Post`, `WP_Term`, `WP_User`, `get_post()`, `get_term()` and
- * `get_userdata()`.
+ * calls. Not tried on a real WordPress site yet: the tests use stubs of `WP_Post`, `WP_Term`, `WP_User`, `get_post()`, `get_term()`,
+ * `get_userdata()`, `get_edit_post_link()`, `get_edit_term_link()` and `get_edit_user_link()`.
  */
 final class WordPressEntities {
 	/**
-	 * Returns the behaviors of the built-in types, by slug: `exists`, `identify` and `load`.
+	 * Returns the behaviors of the built-in types, by slug: `exists`, `identify`, `load` and `describe`.
 	 *
 	 * A post that is a media item is an `attachment`, any other post is a `post`; the two recognizers are exclusive.
 	 *
@@ -48,6 +48,14 @@ final class WordPressEntities {
 					return $value instanceof \WP_Post && ( 'attachment' === $value->post_type ) === $attachment ? $value->ID : null;
 				},
 				'load'     => $load,
+				'describe' => static function ( $id ) use ( $load ) {
+					$post = $load( $id );
+
+					return null === $post ? null : array(
+						'label' => '' !== (string) $post->post_title ? $post->post_title : '#' . $post->ID,
+						'url'   => get_edit_post_link( (int) $id, 'raw' ),
+					);
+				},
 			);
 		}
 
@@ -63,6 +71,14 @@ final class WordPressEntities {
 
 				return $term instanceof \WP_Term ? $term : null;
 			},
+			'describe' => static function ( $id ) {
+				$term = get_term( (int) $id );
+
+				return $term instanceof \WP_Term ? array(
+					'label' => $term->name,
+					'url'   => get_edit_term_link( (int) $id ),
+				) : null;
+			},
 		);
 
 		$behaviors['user'] = array(
@@ -76,6 +92,14 @@ final class WordPressEntities {
 				$user = get_userdata( (int) $id );
 
 				return $user instanceof \WP_User ? $user : null;
+			},
+			'describe' => static function ( $id ) {
+				$user = get_userdata( (int) $id );
+
+				return $user instanceof \WP_User ? array(
+					'label' => $user->display_name,
+					'url'   => get_edit_user_link( (int) $id ),
+				) : null;
 			},
 		);
 

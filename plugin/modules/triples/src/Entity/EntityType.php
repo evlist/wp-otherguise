@@ -66,6 +66,13 @@ final class EntityType {
 	private $load;
 
 	/**
+	 * Describer, or null.
+	 *
+	 * @var callable|null
+	 */
+	private $describe;
+
+	/**
 	 * Builds an entity type.
 	 *
 	 * The last three callables are optional and let the service work with the objects the caller holds:
@@ -73,7 +80,9 @@ final class EntityType {
 	 * - `$exists( $id )` returns whether the entity exists; a type without it (and without a loader) is not checked;
 	 * - `$identify( $value )` returns the id when the value is an object of this type (a `WP_Term`, say), or null; the recognizers of the
 	 *   registered types must be exclusive;
-	 * - `$load( $id )` returns the object for an id, or null when there is none.
+	 * - `$load( $id )` returns the object for an id, or null when there is none;
+	 * - `$describe( $id )` returns `array( 'label' => string, 'url' => string|null )` for the administration screen, or null when the
+	 *   entity cannot be described.
 	 *
 	 * @param string        $slug         Slug, lower case.
 	 * @param string        $label        Label.
@@ -82,9 +91,10 @@ final class EntityType {
 	 * @param callable|null $exists       Existence check.
 	 * @param callable|null $identify     Recognizer.
 	 * @param callable|null $load         Loader.
+	 * @param callable|null $describe     Describer.
 	 * @throws \InvalidArgumentException When the slug is malformed or the label empty.
 	 */
-	public function __construct( $slug, $label, $id_validator, $iri_resolver = null, $exists = null, $identify = null, $load = null ) {
+	public function __construct( $slug, $label, $id_validator, $iri_resolver = null, $exists = null, $identify = null, $load = null, $describe = null ) {
 		if ( 1 !== preg_match( EntityRef::TYPE_PATTERN, (string) $slug ) ) {
 			throw new \InvalidArgumentException( sprintf( 'Invalid entity type slug "%s".', esc_html( (string) $slug ) ) );
 		}
@@ -100,6 +110,7 @@ final class EntityType {
 		$this->exists       = $exists;
 		$this->identify     = $identify;
 		$this->load         = $load;
+		$this->describe     = $describe;
 	}
 
 	/**
@@ -111,9 +122,10 @@ final class EntityType {
 	 * @param callable|null $exists       Existence check.
 	 * @param callable|null $identify     Recognizer.
 	 * @param callable|null $load         Loader.
+	 * @param callable|null $describe     Describer.
 	 * @return self
 	 */
-	public static function positive_integer( $slug, $label, $iri_resolver = null, $exists = null, $identify = null, $load = null ) {
+	public static function positive_integer( $slug, $label, $iri_resolver = null, $exists = null, $identify = null, $load = null, $describe = null ) {
 		return new self(
 			$slug,
 			$label,
@@ -123,7 +135,8 @@ final class EntityType {
 			$iri_resolver,
 			$exists,
 			$identify,
-			$load
+			$load,
+			$describe
 		);
 	}
 
@@ -213,5 +226,30 @@ final class EntityType {
 	 */
 	public function load( $id ) {
 		return null === $this->load ? null : ( $this->load )( (string) $id );
+	}
+
+	/**
+	 * Describes an entity for a screen.
+	 *
+	 * @param string $id Entity id.
+	 * @return array{label: string, url: string|null}|null Null when the type has no describer or the entity cannot be described.
+	 */
+	public function describe( $id ) {
+		if ( null === $this->describe ) {
+			return null;
+		}
+
+		$description = ( $this->describe )( (string) $id );
+
+		if ( ! is_array( $description ) || ! isset( $description['label'] ) || '' === (string) $description['label'] ) {
+			return null;
+		}
+
+		$url = $description['url'] ?? null;
+
+		return array(
+			'label' => (string) $description['label'],
+			'url'   => is_string( $url ) && '' !== $url ? $url : null,
+		);
 	}
 }

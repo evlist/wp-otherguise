@@ -346,6 +346,16 @@ final class Statements {
 	}
 
 	/**
+	 * Describes an entity for a screen: a label, a link when there is one, and whether it exists (null when its type cannot tell).
+	 *
+	 * @param EntityRef $entity Entity.
+	 * @return array{label: string, url: string|null, exists: bool|null}
+	 */
+	public function describe( EntityRef $entity ) {
+		return $this->resolver->describe( $entity );
+	}
+
+	/**
 	 * Runs the checks that need no limit and returns the statement as it would be stored.
 	 *
 	 * @param mixed  $subject   Subject.

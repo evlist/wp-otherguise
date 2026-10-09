@@ -62,6 +62,37 @@ class TriplesStatementQueryTest extends TestCase {
 	}
 
 	/**
+	 * The new filters of the administration screen.
+	 *
+	 * @return void
+	 */
+	public function test_filters_of_the_administration_screen(): void {
+		$query = ( new StatementQuery() )
+			->excluding_subject_type( 'statement' )
+			->with_type( 'post' )
+			->after_id( 40 )
+			->with_other_predicates( array( 'a/b', 'c/d' ) );
+
+		list( $sql, $args ) = $query->select( 'wp_t' );
+
+		$this->assertStringContainsString( ' WHERE s.subject_type <> %s AND ( s.subject_type = %s OR s.object_type = %s ) AND s.id > %d AND s.predicate NOT IN (%s,%s) ORDER BY s.id ASC', $sql );
+		$this->assertSame( array( 'statement', 'post', 'post', 40, 'a/b', 'c/d' ), $args );
+	}
+
+	/**
+	 * The order: by id by default, by creation date with the id as tie-breaker, anything else is the id.
+	 *
+	 * @return void
+	 */
+	public function test_the_order(): void {
+		list( $sql ) = ( new StatementQuery() )->order_by( 'created_gmt' )->descending()->select( 'wp_t' );
+		$this->assertStringEndsWith( 'ORDER BY s.created_gmt DESC, s.id DESC', $sql );
+
+		list( $sql ) = ( new StatementQuery() )->order_by( 'predicate; DROP' )->select( 'wp_t' );
+		$this->assertStringEndsWith( 'ORDER BY s.id ASC', $sql );
+	}
+
+	/**
 	 * A qualification is an exists on the statements about the statement.
 	 *
 	 * @return void

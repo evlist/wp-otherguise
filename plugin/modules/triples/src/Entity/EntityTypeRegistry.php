@@ -39,7 +39,7 @@ final class EntityTypeRegistry extends LazyRegistry {
 
 			$registry->add(
 				$slug,
-				EntityType::positive_integer( $slug, $label, null, $own['exists'] ?? null, $own['identify'] ?? null, $own['load'] ?? null ),
+				EntityType::positive_integer( $slug, $label, null, $own['exists'] ?? null, $own['identify'] ?? null, $own['load'] ?? null, $own['describe'] ?? null ),
 				'Entity type'
 			);
 		}
