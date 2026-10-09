@@ -3,7 +3,7 @@
 
 # Slice 100 — Triples: entity types and predicate registry
 
-Status: **planned** (waiting for the decisions marked "To confirm"). Dependencies: slice 000. Module: `Triples`.
+Status: **done**. Dependencies: slice 000. Module: `Triples`.
 
 ## Goal
 
@@ -50,7 +50,7 @@ The registries are filled through actions named after the module: `triples_regis
 
 Storage and schema (slice 101), statements and their enforcement of cardinality, repeats, symmetry and order (102), cascade on deletion (103), admin screen (104), JSON export and import (105), REST (later), RDF export (later). No user-facing string: exception messages are developer messages in English, not translated.
 
-## To confirm
+## Decisions (confirmed by Eric, 2026-10-09)
 
 1. **Predicate slugs are `owner/name`** (the owner is the module or the vendor that registers it), as an application of "names belong to the module". Alternative: bare names, with a risk of collision between modules and third parties.
 2. **Cardinality** is expressed with the two limits above. Cases such as "one variant per mode for a given template" need the limit to apply per value of a qualifier; this is **not** in this slice: it is noted for slice 102, where the semantics of uniqueness with qualifiers is settled together with `allow_repeats`.
@@ -66,6 +66,19 @@ Storage and schema (slice 101), statements and their enforcement of cardinality,
 - `PredicateRegistry`: registration, duplicates, lookup, `all()` in registration order, the registration actions run once and only when needed.
 - Architecture: the new code uses only the core and the `Triples` namespace (`ArchitectureTest`).
 
+## Delivered
+
+- Code under `plugin/modules/triples/src/`: `Entity/` (`EntityRef`, `EntityType`, `EntityTypeRegistry`), `Qualifier/` (`QualifierTypeInterface`, `AbstractScalarType`, `StringType`, `IntegerType`, `BooleanType`, `EnumType`, `QualifierTypeRegistry`), `Predicate/` (`QualifierDefinition`, `PredicateDefinition`, `DefinitionReader`, `PredicateRegistry`), `Support/LazyRegistry`, and the wiring in `Module` (registries built once, registration actions `triples_register_entity_types`, `triples_register_qualifier_types` and `triples_register_predicates`, each run on first use).
+- 65 new tests (`tests/phpunit/Triples*Test.php`); 85 tests in all.
+
+Choices made while implementing:
+
+- A qualifier type validates its own options (`validate_options`), so a qualifier definition can be checked when its predicate is registered; the `enum` type needs `values`, the others take no option.
+- Validation uses `\z`, not `$`, in regular expressions: in PCRE `$` also matches before a trailing newline. A test caught it on entity references.
+- `string` qualifiers are limited to 255 characters, for the future storage column (slice 101).
+- Names reserved for qualifiers: `id`, `subject`, `predicate`, `object`, `position`. A predicate cannot be both ordered and symmetric; a symmetric predicate needs the same subject and object types.
+- The registration actions pass the registry; a module registers from a callback added in its `boot()`, and only the registries that are actually read run their action.
+
 ## Done when
 
-PHPUnit, phpcs and `reuse lint` pass, the architecture test still passes, and this document and `docs/IA.md` describe the delivered classes.
+PHPUnit, phpcs and `reuse lint` pass, the architecture test still passes, and this document and `docs/IA.md` describe the delivered classes. (All done.)

@@ -12,12 +12,7 @@ Numbering: `0xx` foundation, `1xx` Triples, `2xx` Modes, `3xx` Books.
 | Slice | Title |
 |---|---|
 | [000](000-repository-scaffold.md) | Repository scaffold: structure, tooling, module loader, architecture tests |
-
-## Planned
-
-| Slice | Title | Status |
-|---|---|---|
-| [100](100-triples-registry.md) | Triples: entity types and predicate registry | planned, decisions to confirm |
+| [100](100-triples-registry.md) | Triples: entity types and predicate registry |
 
 ## Candidates (not planned yet)
 

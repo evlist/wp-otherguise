@@ -13,13 +13,21 @@ Otherguise lets a WordPress site present the same content in several forms (web,
 
 ## Verified Current State
 
-The repository contains the structure of the plugin and nothing else:
+The repository contains the structure of the plugin and the first part of the `Triples` module:
 
 - the plugin header and bootstrap (`plugin/otherguise.php`), `uninstall.php`, `readme.txt`,
-- the module loader, the autoloader and the three empty modules,
-- PHPUnit tests of the loader, the autoloader, the architecture rules and the version consistency.
+- the module loader, the autoloader and the three modules (`Modes` and `Books` are still empty),
+- `Triples`: entity references and types, qualifier types, predicate definitions, and the three registries filled lazily through the actions `triples_register_entity_types`, `triples_register_qualifier_types` and `triples_register_predicates` (slice 100, in memory only),
+- 85 PHPUnit tests: loader, autoloader, architecture rules, version consistency, and the `Triples` classes.
 
-No feature, table, screen or hook of the modules exists yet.
+No table, statement, screen or REST route exists yet. The next slice is 101 (storage).
+
+### Triples: vocabulary
+
+- **Entity reference** (`EntityRef`): `type:id`, for example `post:123` or `ext:youtube:abc`. The id is opaque; its type checks the format (the built-in types `post`, `attachment`, `term` and `user` take positive integers). Existence is checked when a statement is created (slice 102).
+- **Predicate** (`PredicateDefinition`): slug `owner/name` (for example `modes/has-variant`), labels, allowed subject and object types, limits, repeats, order, symmetry, behavior on deletion, optional IRI, qualifiers.
+- **Qualifier** (`QualifierDefinition`): a name, a type (`string`, `integer`, `boolean`, `enum`, others registered by modules) and the options of that type.
+- A module registers its entity types, qualifier types and predicates from callbacks added in its `boot()` to the three actions above; each action runs once, when its registry is first read.
 
 ## Modules
 
