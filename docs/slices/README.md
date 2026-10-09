@@ -18,7 +18,7 @@ Numbering: `0xx` foundation, `1xx` Triples, `2xx` Modes, `3xx` Books.
 
 | Slice | Title | Status |
 |---|---|---|
-| [101](101-triples-storage.md) | Triples: storage of statements and qualifiers | planned, decisions to confirm |
+| [101](101-triples-storage.md) | Triples: storage of statements and qualifiers | planned, decisions confirmed |
 
 ## Candidates (not planned yet)
 
