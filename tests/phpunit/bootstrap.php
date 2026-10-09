@@ -45,6 +45,7 @@ function otherguise_test_reset() {
     $GLOBALS['otherguise_test_site']         = 1;
     $GLOBALS['otherguise_test_sites']        = null;
     $GLOBALS['otherguise_test_site_options'] = array();
+    $GLOBALS['otherguise_test_objects']      = array();
     unset( $GLOBALS['wpdb'] );
 }
 
@@ -145,6 +146,126 @@ function switch_to_blog( $site_id ) {
  */
 function restore_current_blog() {
     return switch_to_blog( 1 );
+}
+
+/**
+ * Stub of WP_Post.
+ */
+class WP_Post {
+    /**
+     * Id.
+     *
+     * @var int
+     */
+    public $ID;
+
+    /**
+     * Post type.
+     *
+     * @var string
+     */
+    public $post_type;
+
+    /**
+     * Builds a post.
+     *
+     * @param int    $id        Id.
+     * @param string $post_type Post type.
+     */
+    public function __construct( $id, $post_type = 'post' ) {
+        $this->ID        = $id;
+        $this->post_type = $post_type;
+    }
+}
+
+/**
+ * Stub of WP_Term.
+ */
+class WP_Term {
+    /**
+     * Id.
+     *
+     * @var int
+     */
+    public $term_id;
+
+    /**
+     * Builds a term.
+     *
+     * @param int $id Id.
+     */
+    public function __construct( $id ) {
+        $this->term_id = $id;
+    }
+}
+
+/**
+ * Stub of WP_User.
+ */
+class WP_User {
+    /**
+     * Id.
+     *
+     * @var int
+     */
+    public $ID;
+
+    /**
+     * Builds a user.
+     *
+     * @param int $id Id.
+     */
+    public function __construct( $id ) {
+        $this->ID = $id;
+    }
+}
+
+$GLOBALS['otherguise_test_objects'] = array();
+
+/**
+ * Declares the WordPress objects that exist in the stubs: `get_post()`, `get_term()` and `get_userdata()` find them by id.
+ *
+ * @param object[] $objects WP_Post, WP_Term and WP_User objects.
+ * @return void
+ */
+function otherguise_test_wp_objects( array $objects ) {
+    $GLOBALS['otherguise_test_objects'] = array();
+
+    foreach ( $objects as $object ) {
+        $id = $object->ID ?? $object->term_id;
+
+        $GLOBALS['otherguise_test_objects'][ get_class( $object ) ][ $id ] = $object;
+    }
+}
+
+/**
+ * Stub of get_post().
+ *
+ * @param int $id Post id.
+ * @return WP_Post|null
+ */
+function get_post( $id ) {
+    return $GLOBALS['otherguise_test_objects']['WP_Post'][ $id ] ?? null;
+}
+
+/**
+ * Stub of get_term().
+ *
+ * @param int $id Term id.
+ * @return WP_Term|null
+ */
+function get_term( $id ) {
+    return $GLOBALS['otherguise_test_objects']['WP_Term'][ $id ] ?? null;
+}
+
+/**
+ * Stub of get_userdata().
+ *
+ * @param int $id User id.
+ * @return WP_User|false
+ */
+function get_userdata( $id ) {
+    return $GLOBALS['otherguise_test_objects']['WP_User'][ $id ] ?? false;
 }
 
 require_once dirname( __DIR__, 2 ) . '/plugin/includes/Core/Autoloader.php';

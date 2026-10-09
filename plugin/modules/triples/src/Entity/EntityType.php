@@ -45,15 +45,46 @@ final class EntityType {
 	private $iri_resolver;
 
 	/**
+	 * Existence check, or null.
+	 *
+	 * @var callable|null
+	 */
+	private $exists;
+
+	/**
+	 * Recognizer, or null.
+	 *
+	 * @var callable|null
+	 */
+	private $identify;
+
+	/**
+	 * Loader, or null.
+	 *
+	 * @var callable|null
+	 */
+	private $load;
+
+	/**
 	 * Builds an entity type.
+	 *
+	 * The last three callables are optional and let the service work with the objects the caller holds:
+	 *
+	 * - `$exists( $id )` returns whether the entity exists; a type without it (and without a loader) is not checked;
+	 * - `$identify( $value )` returns the id when the value is an object of this type (a `WP_Term`, say), or null; the recognizers of the
+	 *   registered types must be exclusive;
+	 * - `$load( $id )` returns the object for an id, or null when there is none.
 	 *
 	 * @param string        $slug         Slug, lower case.
 	 * @param string        $label        Label.
 	 * @param callable      $id_validator Receives an id (string) and returns whether it is well formed.
 	 * @param callable|null $iri_resolver Receives an id and returns an IRI or null.
+	 * @param callable|null $exists       Existence check.
+	 * @param callable|null $identify     Recognizer.
+	 * @param callable|null $load         Loader.
 	 * @throws \InvalidArgumentException When the slug is malformed or the label empty.
 	 */
-	public function __construct( $slug, $label, $id_validator, $iri_resolver = null ) {
+	public function __construct( $slug, $label, $id_validator, $iri_resolver = null, $exists = null, $identify = null, $load = null ) {
 		if ( 1 !== preg_match( EntityRef::TYPE_PATTERN, (string) $slug ) ) {
 			throw new \InvalidArgumentException( sprintf( 'Invalid entity type slug "%s".', esc_html( (string) $slug ) ) );
 		}
@@ -66,6 +97,9 @@ final class EntityType {
 		$this->label        = (string) $label;
 		$this->id_validator = $id_validator;
 		$this->iri_resolver = $iri_resolver;
+		$this->exists       = $exists;
+		$this->identify     = $identify;
+		$this->load         = $load;
 	}
 
 	/**
@@ -74,16 +108,22 @@ final class EntityType {
 	 * @param string        $slug         Slug.
 	 * @param string        $label        Label.
 	 * @param callable|null $iri_resolver IRI resolver.
+	 * @param callable|null $exists       Existence check.
+	 * @param callable|null $identify     Recognizer.
+	 * @param callable|null $load         Loader.
 	 * @return self
 	 */
-	public static function positive_integer( $slug, $label, $iri_resolver = null ) {
+	public static function positive_integer( $slug, $label, $iri_resolver = null, $exists = null, $identify = null, $load = null ) {
 		return new self(
 			$slug,
 			$label,
 			static function ( $id ) {
 				return 1 === preg_match( '/^[1-9][0-9]{0,17}\z/', (string) $id );
 			},
-			$iri_resolver
+			$iri_resolver,
+			$exists,
+			$identify,
+			$load
 		);
 	}
 
@@ -129,5 +169,49 @@ final class EntityType {
 		$iri = ( $this->iri_resolver )( (string) $id );
 
 		return is_string( $iri ) && '' !== $iri ? $iri : null;
+	}
+
+	/**
+	 * Tells whether an entity exists.
+	 *
+	 * @param string $id Entity id.
+	 * @return bool|null True or false, or null when the type has no way to know (nothing is checked then).
+	 */
+	public function exists( $id ) {
+		if ( null !== $this->exists ) {
+			return (bool) ( $this->exists )( (string) $id );
+		}
+
+		if ( null !== $this->load ) {
+			return null !== ( $this->load )( (string) $id );
+		}
+
+		return null;
+	}
+
+	/**
+	 * Returns the id of an entity of this type when the value is an object that represents one.
+	 *
+	 * @param mixed $value Any value.
+	 * @return string|null
+	 */
+	public function identify( $value ) {
+		if ( null === $this->identify ) {
+			return null;
+		}
+
+		$id = ( $this->identify )( $value );
+
+		return null === $id || '' === (string) $id ? null : (string) $id;
+	}
+
+	/**
+	 * Loads the object of an entity.
+	 *
+	 * @param string $id Entity id.
+	 * @return mixed The object, or null when the type has no loader or the entity does not exist.
+	 */
+	public function load( $id ) {
+		return null === $this->load ? null : ( $this->load )( (string) $id );
 	}
 }

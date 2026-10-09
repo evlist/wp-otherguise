@@ -29,6 +29,13 @@ final class Database {
 	private $wpdb;
 
 	/**
+	 * Depth of the transactions in progress (see `Transaction`).
+	 *
+	 * @var int
+	 */
+	private $transaction_depth = 0;
+
+	/**
 	 * Wraps a wpdb object.
 	 *
 	 * @param object $wpdb A wpdb or a compatible object.
@@ -135,5 +142,32 @@ final class Database {
 	 */
 	public function suppress_errors( $suppress ) {
 		return (bool) $this->wpdb->suppress_errors( $suppress );
+	}
+
+	/**
+	 * Returns the depth of the transactions in progress: 0 outside any transaction.
+	 *
+	 * @return int
+	 */
+	public function transaction_depth() {
+		return $this->transaction_depth;
+	}
+
+	/**
+	 * Records that a transaction (or a savepoint) starts. Used by `Transaction` only.
+	 *
+	 * @return void
+	 */
+	public function enter_transaction() {
+		++$this->transaction_depth;
+	}
+
+	/**
+	 * Records that a transaction (or a savepoint) ends. Used by `Transaction` only.
+	 *
+	 * @return void
+	 */
+	public function leave_transaction() {
+		$this->transaction_depth = max( 0, $this->transaction_depth - 1 );
 	}
 }

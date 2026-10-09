@@ -21,10 +21,11 @@ final class EntityTypeRegistry extends LazyRegistry {
 	/**
 	 * Builds a registry holding the built-in types: post, attachment, term and user (provided by WordPress), and statement.
 	 *
-	 * @param callable|null $initializer Called once with the registry before its first use, to register other types.
+	 * @param callable|null                          $initializer Called once with the registry before its first use, to register other types.
+	 * @param array<string, array<string, callable>> $behaviors   Optional `exists`, `identify` and `load` callables by slug (see `WordPressEntities`).
 	 * @return self
 	 */
-	public static function with_builtins( $initializer = null ) {
+	public static function with_builtins( $initializer = null, array $behaviors = array() ) {
 		$registry = new self( $initializer );
 
 		foreach ( array(
@@ -34,7 +35,13 @@ final class EntityTypeRegistry extends LazyRegistry {
 			'user'       => 'User',
 			'statement'  => 'Statement',
 		) as $slug => $label ) {
-			$registry->add( $slug, EntityType::positive_integer( $slug, $label ), 'Entity type' );
+			$own = $behaviors[ $slug ] ?? array();
+
+			$registry->add(
+				$slug,
+				EntityType::positive_integer( $slug, $label, null, $own['exists'] ?? null, $own['identify'] ?? null, $own['load'] ?? null ),
+				'Entity type'
+			);
 		}
 
 		return $registry;
