@@ -51,7 +51,7 @@ The caller passes the objects it holds; it does not translate them into referenc
 2. otherwise each registered entity type is asked whether it **recognizes** the value (`EntityType::identify( $value )` returns the id, or null). Built-ins: a `WP_Post` that is not an attachment is `post:ID`; a `WP_Post` of type `attachment` is `attachment:ID`; a `WP_Term` is `term:ID`; a `WP_User` is `user:ID`. Modes will register a recognizer for its template objects (`WP_Block_Template`, id `theme//slug`) and for its `Mode` objects;
 3. a value that no type recognizes throws `InvalidStatementException` (`unknown_entity`); a value that two types claim throws `ambiguous_entity` (the recognizers of the types must be exclusive, which a test checks for the built-ins).
 
-Not accepted: a bare integer or string (`12`, `'post:12'`) for an entity, because it does not say what it is. When no object is at hand, `Ref::post( 12 )`, `Ref::term( 5 )`, `Ref::user( 3 )`, `Ref::attachment( 88 )` and `EntityRef::parse( 'ext:abc' )` build one. The same rule applies to the arguments of `remove()`, `match()`, `listing()` and the other reads.
+Not accepted: a bare integer or string (`12`, `'post:12'`) **as an entity**, because it does not say what it is. This does not concern literals: as `$object`, a scalar is a literal (see above), and `Literal( 'integer', 5 )` names the datatype when the predicate accepts several. A subject is always an entity. When no object is at hand, `Ref::post( 12 )`, `Ref::term( 5 )`, `Ref::user( 3 )`, `Ref::attachment( 88 )` and `EntityRef::parse( 'ext:abc' )` build one. The same rule applies to the arguments of `remove()`, `match()`, `listing()` and the other reads.
 
 The way back: `EntityType` may also provide a **loader** (`load( $id )` returns the WordPress object or null), and `$statements->resolve( $entity_ref )` calls it, so that `$statement->object()` can be turned into a `WP_Post` when the caller wants one. When a type has a loader and no existence check, existing means "the loader finds something".
 
@@ -133,7 +133,7 @@ The existence checks use WordPress functions (`get_post`, `term_exists`, `get_us
 12. `match()` with wildcards as the main read (see the "Prior art and reuse" section of `design/triples.md`); no RDF library in the core.
 13. The options of `listing()` (`scope`, `natural_order`) as in the usage examples.
 14. The main call is named `triple()` (it returns a `Statement`; the class keeps the name used by RDF for a triple that has an identity).
-15. Entities are passed as the WordPress objects the caller holds (recognizers and loaders carried by the entity types), with `Ref::post( 12 )` and the like when no object is at hand; bare integers and strings are refused.
+15. Entities are passed as the WordPress objects the caller holds (recognizers and loaders carried by the entity types), with `Ref::post( 12 )` and the like when no object is at hand; bare integers and strings are refused as entities (as `$object`, a scalar stays a literal, point 3).
 
 ## Done when
 
