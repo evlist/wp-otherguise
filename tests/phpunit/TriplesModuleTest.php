@@ -197,6 +197,7 @@ class TriplesModuleTest extends TestCase {
 	public function test_the_module_provides_the_statement_store(): void {
 		$module = new Module( static function () {}, new Otherguise_Test_Wpdb( 'wp_' ) );
 
-		$this->assertInstanceOf( \Otherguise\Triples\Storage\StatementStore::class, $module->statements() );
+		$this->assertInstanceOf( \Otherguise\Triples\Statements::class, $module->statements() );
+		$this->assertInstanceOf( \Otherguise\Triples\Storage\StatementStore::class, $module->store() );
 	}
 }

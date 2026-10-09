@@ -3,7 +3,7 @@
 
 # Slice 103 — Triples: creating and reading statements
 
-Status: **planned** (waiting for Eric's confirmation of the points under "To confirm"). Dependencies: slices 100, 101 and 102. Module: `Triples`.
+Status: **done** (the 15 points under "To confirm" were confirmed by Eric on 2026-10-09). Dependencies: slices 100, 101 and 102. Module: `Triples`.
 
 ## Goal
 
@@ -99,7 +99,17 @@ So without any scope pin, every scope shows the same order and only drops some i
 - `EntityType` gets three optional callables: an **existence check** (`exists( $id )`: true when there is none), a **recognizer** (`identify( $value )`) and a **loader** (`load( $id )`); `EntityTypeRegistry::with_builtins()` accepts the checks of the built-in types; the WordPress ones are given by `Module`, so the registries stay free of WordPress calls.
 - `StatementQuery` gets `involving( EntityRef )` (subject or object), used for symmetric predicates.
 - `Module::statements()` returns the service; `Module::store()` the store.
-- New classes: `Statements`, `InvalidStatementException`, `PinnedOrder`, `Ref` (shorthand constructors).
+- New classes: `Statements` (the service), and in `Service/`: `EntityResolver`, `StatementValidator`, `StatementReader`, `StatementListing`, `PinnedOrder`, `InvalidStatementException`; `Entity/Ref` (shorthand constructors) and `Entity/WordPressEntities` (the only place where the built-in types meet the WordPress API).
+
+### As delivered
+
+- `Transaction` nests with savepoints, so an inner failure that the caller catches undoes only the inner work; the depth lives in `Database`, which `Module` now creates once and shares.
+- `Statement` objects returned by `match()` for a symmetric predicate are **oriented as asked** (the entity given as subject, or failing that as object, is on that side); `find()` and `find_by_triple()` give the statement as stored.
+- `check()` runs every check, the duplicate and the limits included, and writes nothing; a triple that exists is reported like `create()` does.
+- `replace()` keeps the statement that already holds the wanted value, with what is said about it, and deletes the others.
+- `qualifications_of()` and the scope step of `listing()` read one level, in one query each.
+- A scalar given where no datatype or several are accepted is `ambiguous_literal`; a bare integer or string as a subject or entity is `unknown_entity`.
+- Error messages are escaped once, in `InvalidStatementException::refuse()`.
 
 ## Out of scope
 

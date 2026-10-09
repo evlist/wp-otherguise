@@ -20,7 +20,7 @@ Numbering: `0xx` foundation, `1xx` Triples, `2xx` Modes, `3xx` Books.
 
 | Slice | Title | Status |
 |---|---|---|
-| [103](103-triples-statements.md) | Triples: creating and reading statements | planned, to confirm |
+| [103](103-triples-statements.md) | Triples: creating and reading statements | done |
 
 ## Candidates (not planned yet)
 

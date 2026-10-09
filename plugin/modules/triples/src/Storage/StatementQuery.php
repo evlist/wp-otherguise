@@ -41,6 +41,13 @@ final class StatementQuery {
 	private $object;
 
 	/**
+	 * Entity that must be the subject or the object, or null.
+	 *
+	 * @var EntityRef|null
+	 */
+	private $involved;
+
+	/**
 	 * Allowed predicates (empty: any).
 	 *
 	 * @var string[]
@@ -97,6 +104,19 @@ final class StatementQuery {
 	public function with_object( NodeInterface $target ) {
 		$copy         = clone $this;
 		$copy->object = $target;
+
+		return $copy;
+	}
+
+	/**
+	 * Keeps the statements where an entity is the subject or the object (used for symmetric predicates).
+	 *
+	 * @param EntityRef $entity Entity.
+	 * @return self
+	 */
+	public function involving( EntityRef $entity ) {
+		$copy           = clone $this;
+		$copy->involved = $entity;
 
 		return $copy;
 	}
@@ -224,6 +244,14 @@ final class StatementQuery {
 			$clauses[] = 's.object_type = %s AND s.object_id = %s';
 			$args[]    = $this->object->type();
 			$args[]    = $this->object->key();
+		}
+
+		if ( null !== $this->involved ) {
+			$clauses[] = '( ( s.subject_type = %s AND s.subject_id = %s ) OR ( s.object_type = %s AND s.object_id = %s ) )';
+			$args[]    = $this->involved->type();
+			$args[]    = $this->involved->key();
+			$args[]    = $this->involved->type();
+			$args[]    = $this->involved->key();
 		}
 
 		if ( array() !== $this->predicates ) {

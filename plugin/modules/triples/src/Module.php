@@ -13,8 +13,13 @@ namespace Otherguise\Triples;
 use Otherguise\Core\ModuleInterface;
 use Otherguise\Triples\Datatype\DatatypeRegistry;
 use Otherguise\Triples\Entity\EntityTypeRegistry;
+use Otherguise\Triples\Entity\WordPressEntities;
 use Otherguise\Triples\Predicate\PredicateDefinition;
 use Otherguise\Triples\Predicate\PredicateRegistry;
+use Otherguise\Triples\Service\EntityResolver;
+use Otherguise\Triples\Service\StatementListing;
+use Otherguise\Triples\Service\StatementReader;
+use Otherguise\Triples\Service\StatementValidator;
 use Otherguise\Triples\Storage\Database;
 use Otherguise\Triples\Storage\SchemaManager;
 use Otherguise\Triples\Storage\StatementStore;
@@ -70,6 +75,27 @@ final class Module implements ModuleInterface {
 	private $wpdb;
 
 	/**
+	 * Database wrapper, shared so that the transactions of every service count their depth together.
+	 *
+	 * @var Database|null
+	 */
+	private $database;
+
+	/**
+	 * Store.
+	 *
+	 * @var StatementStore|null
+	 */
+	private $store;
+
+	/**
+	 * Service.
+	 *
+	 * @var Statements|null
+	 */
+	private $statements;
+
+	/**
 	 * Builds the module and its registries.
 	 *
 	 * @param callable|null $do_action Runs an action; defaults to WordPress `do_action`.
@@ -82,7 +108,8 @@ final class Module implements ModuleInterface {
 		$this->entity_types = EntityTypeRegistry::with_builtins(
 			function ( $registry ) {
 				( $this->do_action )( 'triples_register_entity_types', $registry );
-			}
+			},
+			$this->entity_behaviors()
 		);
 		$this->datatypes    = DatatypeRegistry::with_builtins(
 			function ( $registry ) {
@@ -159,12 +186,39 @@ final class Module implements ModuleInterface {
 	}
 
 	/**
-	 * Returns the store of the statements.
+	 * Returns the service that creates and reads statements.
+	 *
+	 * @return Statements
+	 */
+	public function statements() {
+		if ( null === $this->statements ) {
+			$resolver         = new EntityResolver( $this->entity_types );
+			$validator        = new StatementValidator( $this->entity_types, $this->datatypes, $this->predicates, $resolver, $this->store() );
+			$reader           = new StatementReader( $this->store(), $validator, $resolver, $this->predicates );
+			$this->statements = new Statements(
+				$this->store(),
+				$this->database(),
+				$validator,
+				$resolver,
+				$reader,
+				new StatementListing( $reader, $resolver, $validator )
+			);
+		}
+
+		return $this->statements;
+	}
+
+	/**
+	 * Returns the low-level store of the statements, which checks nothing: use `statements()`.
 	 *
 	 * @return StatementStore
 	 */
-	public function statements() {
-		return new StatementStore( $this->database(), $this->datatypes );
+	public function store() {
+		if ( null === $this->store ) {
+			$this->store = new StatementStore( $this->database(), $this->datatypes );
+		}
+
+		return $this->store;
 	}
 
 	/**
@@ -200,6 +254,30 @@ final class Module implements ModuleInterface {
 	 * @return Database
 	 */
 	private function database() {
-		return new Database( $this->wpdb ?? $GLOBALS['wpdb'] );
+		if ( null === $this->database ) {
+			$this->database = new Database( $this->wpdb ?? $GLOBALS['wpdb'] );
+		}
+
+		return $this->database;
+	}
+
+	/**
+	 * Returns the existence checks, recognizers and loaders of the built-in types: WordPress objects, and the store for statements.
+	 *
+	 * @return array<string, array<string, callable>>
+	 */
+	private function entity_behaviors() {
+		$behaviors = WordPressEntities::behaviors();
+
+		$behaviors['statement'] = array(
+			'exists' => function ( $id ) {
+				return null !== $this->store()->find( (int) $id );
+			},
+			'load'   => function ( $id ) {
+				return $this->store()->find( (int) $id );
+			},
+		);
+
+		return $behaviors;
 	}
 }

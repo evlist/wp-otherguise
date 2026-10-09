@@ -5,7 +5,7 @@
 
 How the statements look and how the API of [slice 103](../slices/103-triples-statements.md) is used to create them and to keep them alive: associating a print template with a web template, a photo with a post, selecting the photos of a post for a mode, assembling a book.
 
-**Status.** The registry and the store exist (slices 100 to 102). The service `Statements` used below is **planned** (slice 103): the calls are the planned API. It is built from small calls that compose: `triple()` returns the statement, the statement can then be the subject of the next call, and nothing is nested in a single call. The predicates `modes/has-variant`, `modes/mode`, `media/illustrated-by`, `books/contains` and `books/pages` are **proposals**, registered by the Modes module, the Media Helper integration and the Books module, which are not written yet. `triples/position` is built in.
+**Status.** The registry, the store and the service `Statements` exist (slices 100 to 103); the calls below are its API, exercised by the tests of slice 103 on the same example (with the predicates of this document registered by the test fixtures), not on a real WordPress site. It is built from small calls that compose: `triple()` returns the statement, the statement can then be the subject of the next call, and nothing is nested in a single call. The predicates `modes/has-variant`, `modes/mode`, `media/illustrated-by`, `books/contains` and `books/pages` are **proposals**, registered by the Modes module, the Media Helper integration and the Books module, which are not written yet. `triples/position` is built in.
 
 Notation: a statement is written `id: (subject, predicate, object)`. `$statements` is the service (`Module::statements()`). The statement ids are illustrative.
 

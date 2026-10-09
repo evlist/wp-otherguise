@@ -50,6 +50,18 @@ class TriplesStatementQueryTest extends TestCase {
 	}
 
 	/**
+	 * Involving an entity matches it as subject or as object.
+	 *
+	 * @return void
+	 */
+	public function test_involving_an_entity_matches_either_end(): void {
+		list( $sql, $args ) = ( new StatementQuery() )->involving( EntityRef::parse( 'post:12' ) )->with_predicates( array( 'a/b' ) )->select( 'wp_t' );
+
+		$this->assertStringContainsString( ' WHERE ( ( s.subject_type = %s AND s.subject_id = %s ) OR ( s.object_type = %s AND s.object_id = %s ) ) AND s.predicate IN (%s) ORDER BY', $sql );
+		$this->assertSame( array( 'post', '12', 'post', '12', 'a/b' ), $args );
+	}
+
+	/**
 	 * A qualification is an exists on the statements about the statement.
 	 *
 	 * @return void
