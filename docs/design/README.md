@@ -11,6 +11,7 @@ The reasoning behind the decisions of Otherguise: what was considered, what was 
 | [modes.md](modes.md) | The `Modes` module: modes and relations between templates, and the analysis of the current `?print` hack |
 | [books.md](books.md) | The `Books` module: composing a book, the manual finishing chain, table of contents, index, PDF output |
 | [media-helper.md](media-helper.md) | Integration with Media Helper |
+| [usage-examples.md](usage-examples.md) | Usage examples of the planned API: templates, photos, modes, books |
 | [packaging.md](packaging.md) | One plugin with three modules: reasons and the rules that keep a later split cheap |
 
 ## Goal
