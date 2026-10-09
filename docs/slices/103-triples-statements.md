@@ -17,28 +17,30 @@ Background: [`design/triples.md`](../design/triples.md).
 
 ### Writing
 
+Small calls that compose. A `$subject` is an `EntityRef` or a stored `Statement` (read as `statement:ID`, so that a statement about a statement needs no conversion).
+
 | Method | Behavior |
 |---|---|
-| `create( EntityRef $subject, $predicate, $object, array $qualifications = [] )` | Checks, then stores the statement and its qualifications **in one transaction**. Throws `DuplicateStatementException` when the triple exists. Returns the `Statement`. |
-| `ensure( $subject, $predicate, $object )` | Idempotent: returns the statement that holds the triple, creating it when needed. Does not touch its qualifications. |
-| `replace( $subject, $predicate, $object )` | In one transaction, deletes the other statements of this subject and predicate (with what is said about them) and ensures this one. For single-valued predicates such as `triples/position`. |
-| `delete( $id )` | Deletes a statement and, recursively, the statements about it. |
+| `create_or_get( $subject, $predicate, $object )` | The main call. Checks, then returns the `Statement` that holds the triple, creating it when it does not exist. Idempotent. |
+| `create( $subject, $predicate, $object )` | The strict form: throws `DuplicateStatementException` (carrying the existing statement) when the triple exists. For screens that say "already linked". |
+| `remove( $subject, $predicate, $object )` | Deletes the statement that holds the triple and, recursively, the statements about it. Returns the number of statements deleted (0 when there is none). |
+| `delete( $statement )` | The same for a known statement (a `Statement` or its id). |
+| `replace( $subject, $predicate, $object )` | In one transaction, deletes the other statements of this subject and predicate (with what is said about them) and creates this one. For single-valued predicates such as `triples/position`. Returns the statement. |
+| `transaction( callable $work )` | Runs several calls atomically: everything is stored, or, if a call throws, nothing is. Calls made inside may use their own transactions: only the outermost one commits (see "Changes to existing code"). |
 | `check( $subject, $predicate, $object )` | The checks only, nothing written; for screens that validate before saving. |
 
 `$object` is an `EntityRef`, a `Literal`, or a **PHP scalar**, read as a literal of the only datatype the predicate accepts (`5` for `triples/position` becomes `integer:5`); a scalar is an error when the predicate accepts no datatype or several.
 
-`$qualifications` is a list of `array( predicate, object, nested qualifications )`:
+There is no argument for qualifications: a qualification is a statement like another one.
 
 ```php
-$statements->create(
-    EntityRef::parse( 'post:12' ), 'media/illustrated-by', EntityRef::parse( 'attachment:88' ),
-    array(
-        array( 'modes/mode', EntityRef::parse( 'mode:web' ) ),
-        array( 'modes/mode', EntityRef::parse( 'mode:print' ), array( array( 'triples/position', 1 ) ) ),
-        array( 'triples/position', 5 ),
-    )
-);
+$photo = $statements->create_or_get( Ref( 'post:12' ), 'media/illustrated-by', Ref( 'attachment:88' ) );
+$statements->create_or_get( $photo, 'modes/mode', Ref( 'mode:web' ) );
+$statements->create_or_get( $photo, 'modes/mode', Ref( 'mode:print' ) );   // later
+$statements->remove( $photo, 'modes/mode', Ref( 'mode:print' ) );          // the user changes their mind
 ```
+
+Fluent chaining was left out: with statements about statements, a chained call would not say which statement it returns (the photo or its mode statement).
 
 ### The checks
 
@@ -78,6 +80,7 @@ So without any scope pin, every scope shows the same order and only drops some i
 
 ## Changes to existing code
 
+- `Transaction::run()` becomes **re-entrant**: the `Database` counts the depth, only the outermost call issues `START TRANSACTION` and `COMMIT`, and an exception rolls back the whole work. Without it, `replace()` inside `transaction()` would commit the outer transaction. Tests added to the integration suite.
 - `EntityType` gets an optional **existence check** (`exists( $id )`: true when there is none); `EntityTypeRegistry::with_builtins()` accepts the checks of the built-in types; the WordPress ones are given by `Module`, so the registries stay free of WordPress calls.
 - `StatementQuery` gets `involving( EntityRef )` (subject or object), used for symmetric predicates.
 - `Module::statements()` returns the service; `Module::store()` the store.
@@ -90,7 +93,7 @@ Deleting what depends on a post, term, media item or user that disappears (`on_d
 ## Tests
 
 - **Unit, no database:** `PinnedOrder` (no pin, one, several, rank beyond the end, equal ranks, empty list, pinned ids unknown to the list); the checks that fail before reaching the store (every error code: unknown predicate or type, malformed id, type not allowed, scalar read as the only datatype and the ambiguous cases, invalid value, missing subject or object through the existence checks, a literal as subject); the existence checks of the built-in types against WordPress stubs; the canonical order of a symmetric pair.
-- **Integration on a real database:** a statement with nested qualifications stored in one transaction and a failure rolling everything back; duplicates (strict and idempotent); both limits; a symmetric predicate stored once whichever way it is given and read from both ends; the qualification rule (a statement about a statement accepted or refused); `replace()` on a single-valued predicate; `qualifications_of` in one query; `listing()` on the example below, for the web scope, the print scope, a scope without any mode statement, with a global pin and with a scope pin.
+- **Integration on a real database:** `transaction()` storing several statements and a failure rolling everything back, also when the calls inside use their own transactions; duplicates (strict and idempotent); `remove()` by triple, with its dependents; both limits; a symmetric predicate stored once whichever way it is given and read from both ends; the qualification rule (a statement about a statement accepted or refused); `replace()` on a single-valued predicate; `qualifications_of` in one query; `listing()` on the example below, for the web scope, the print scope, a scope without any mode statement, with a global pin and with a scope pin.
 - The architecture test still passes.
 
 Example for `listing()`: the photos A, B, C of a post, natural order A, B, C. A has no mode statement; B is `web`; C is `web` and `print`. Global pin: C at rank 1. Scope web: C, A, B. Scope print: C, A. Scope pin of C in print at rank 2: print shows A, C.
@@ -101,7 +104,7 @@ The existence checks use WordPress functions (`get_post`, `term_exists`, `get_us
 
 ## To confirm
 
-1. The writing API: `create` (strict, with nested qualifications in one transaction), `ensure`, `replace`, `delete`, `check`.
+1. The writing API: `create_or_get` (main), `create` (strict), `remove`, `delete`, `replace`, `transaction`, `check`; a stored `Statement` accepted as subject; no argument for qualifications; no fluent chaining.
 2. Existence checks carried by entity types, with WordPress-based checks for the built-ins; a type without a check is not checked.
 3. A PHP scalar as object is read as a literal of the only datatype the predicate accepts.
 4. Every statement whose subject is a statement must be authorised by `can_qualify()`.
