@@ -88,6 +88,8 @@ Run these before pushing. The grafted CI runs PHPUnit, the repository-wide phpcs
 - **phpcs**: `phpcs --standard=.vscode/phpcs.xml .` from the repository root. Expected: no output and exit code 0. The ruleset sets `warning-severity` to 0, so only errors count, and it scans the tests as well as the plugin. The custom sniffs are in `.vscode/phpcs-standard/Otherguise/` (no `phpcs:ignore` outside the tests, file length 400/700 lines).
 - **REUSE**: `reuse lint`.
 
+`tests/real-wordpress/` holds scripts that run on a scratch WordPress site (not in the PHPUnit suite or the CI); the first one, for slice 201, ran on WordPress 7.1.3 with PHP 8.3.6 and MariaDB 10.11 (32 checks passed). The product code of the Triples module has never been run on a real site.
+
 What the automated tests do not cover: everything that needs WordPress (the real `dbDelta`, the activation hook, multisite, the hooks). The tests run on stubs (`tests/phpunit/bootstrap.php`); nothing has been run in a real WordPress site yet. The integration tests ran on MariaDB 10.11, not on MySQL.
 
 ## Lifecycle and Schema Changes

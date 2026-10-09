@@ -28,7 +28,7 @@ Proposed details:
 - Page caches must vary on the query string.
 - Set the filter priority explicitly and document coexistence with themes and plugins hooking the same filter (see the Thumbnails Folder lesson in `CLAUDE.md`).
 
-To verify in the WordPress source before building: block themes (HTML files, or `wp_template` posts edited in the site editor) and classic PHP templates are selected by different mechanisms, so the point where the filter hooks in must cover both.
+**Verified in slice 201** (WordPress source 6.6, 6.9 and 7.1, and a run on 7.1.3, see [`../slices/201-modes-template-hooks.md`](../slices/201-modes-template-hooks.md)): the point is the filter `{$type}_template_hierarchy` of `get_query_template()`, which serves block themes (database and files) and classic themes alike; template parts are handled apart, with `render_block_data` on the block `core/template-part`. The hook of the current hack, `get_block_templates`, is rejected. **Proposed**, to be confirmed with the slice.
 
 
 # The current hack: `wp-pdf-helper`
@@ -53,7 +53,7 @@ Problems visible in the code (useful as a checklist for the replacement):
 
 Implications for the design:
 
-- Block themes (and block templates stored in the database or in theme files) must be supported; the existing hook point works only through `get_block_templates`, and whether better points exist is still to verify in WordPress core.
+- Block themes (and block templates stored in the database or in theme files) must be supported; the hook of the hack (`get_block_templates`) is not the right one, see slice 201.
 - A mode may need **parameters or options** (here the map size) and **hooks for third-party plugins** (WP GPX Maps) that adapt their output per mode. To design: a way for integrations to ask "which mode is active, with which options?".
 - The per-attachment "Print" flag becomes a mode-qualified attachment per post (see the Media Helper section).
 - Per-mode assets (stylesheets) are needed, as already listed; some of what the CSS hides could be removed from the print templates instead.
