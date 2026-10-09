@@ -42,14 +42,21 @@ final class Otherguise_Test_Fixtures {
 	/**
 	 * Builds a module on a database object, with a mode entity type and the predicates of the examples.
 	 *
-	 * @param object $wpdb Database object.
+	 * @param object           $wpdb   Database object.
+	 * @param ArrayObject|null $events Receives the events of the statements as `hook:id`, in order.
 	 * @return Module
 	 */
-	public static function module( $wpdb ) {
+	public static function module( $wpdb, ?ArrayObject $events = null ) {
 		self::objects();
 
 		return new Module(
-			static function ( $hook, $registry ) {
+			static function ( $hook, $registry ) use ( $events ) {
+				if ( null !== $events && 0 === strpos( $hook, 'triples_statement_' ) ) {
+					$events[] = substr( $hook, strlen( 'triples_statement_' ) ) . ':' . $registry->id();
+
+					return;
+				}
+
 				if ( 'triples_register_entity_types' === $hook ) {
 					$modes = array( 'web', 'print', 'book' );
 
@@ -139,6 +146,13 @@ final class Otherguise_Test_Fixtures {
 				'label'         => 'Tag',
 				'subject_types' => array( 'post' ),
 				'object_types'  => array( 'string' ),
+			),
+			array(
+				'slug'          => 'test/log',
+				'label'         => 'Log',
+				'subject_types' => array( 'post' ),
+				'object_types'  => array( 'post' ),
+				'on_delete'     => 'keep',
 			),
 			array(
 				'slug'          => 'test/anything',

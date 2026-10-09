@@ -21,7 +21,7 @@ Numbering: `0xx` foundation, `1xx` Triples, `2xx` Modes, `3xx` Books.
 | Slice | Title | Status |
 |---|---|---|
 | [103](103-triples-statements.md) | Triples: creating and reading statements | done |
-| [104](104-triples-lifecycle.md) | Triples: cleanup, actions and cache | planned, to confirm |
+| [104](104-triples-lifecycle.md) | Triples: cleanup, actions and cache | done |
 
 ## Candidates (not planned yet)
 

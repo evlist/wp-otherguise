@@ -12,7 +12,9 @@ namespace Otherguise\Triples;
 
 use Otherguise\Triples\Entity\EntityRef;
 use Otherguise\Triples\Service\EntityResolver;
+use Otherguise\Triples\Service\EventQueue;
 use Otherguise\Triples\Service\InvalidStatementException;
+use Otherguise\Triples\Service\StatementEraser;
 use Otherguise\Triples\Service\StatementListing;
 use Otherguise\Triples\Service\StatementReader;
 use Otherguise\Triples\Service\StatementValidator;
@@ -76,6 +78,20 @@ final class Statements {
 	private $listing;
 
 	/**
+	 * Eraser.
+	 *
+	 * @var StatementEraser
+	 */
+	private $eraser;
+
+	/**
+	 * Events.
+	 *
+	 * @var EventQueue
+	 */
+	private $events;
+
+	/**
 	 * Builds the service.
 	 *
 	 * @param StatementStore     $store     Store.
@@ -84,14 +100,18 @@ final class Statements {
 	 * @param EntityResolver     $resolver  Resolver.
 	 * @param StatementReader    $reader    Reader.
 	 * @param StatementListing   $listing   Listing.
+	 * @param StatementEraser    $eraser    Eraser.
+	 * @param EventQueue         $events    Events.
 	 */
-	public function __construct( StatementStore $store, Database $database, StatementValidator $validator, EntityResolver $resolver, StatementReader $reader, StatementListing $listing ) {
+	public function __construct( StatementStore $store, Database $database, StatementValidator $validator, EntityResolver $resolver, StatementReader $reader, StatementListing $listing, StatementEraser $eraser, EventQueue $events ) {
 		$this->store     = $store;
 		$this->database  = $database;
 		$this->validator = $validator;
 		$this->resolver  = $resolver;
 		$this->reader    = $reader;
 		$this->listing   = $listing;
+		$this->eraser    = $eraser;
+		$this->events    = $events;
 	}
 
 	/**
@@ -173,7 +193,7 @@ final class Statements {
 	public function remove( $subject, $predicate, $target ) {
 		$existing = $this->reader->find_by_triple( $subject, $predicate, $target );
 
-		return null === $existing ? 0 : $this->store->delete_with_dependents( $existing->id() );
+		return null === $existing ? 0 : $this->eraser->erase( array( $existing->id() ) );
 	}
 
 	/**
@@ -183,7 +203,19 @@ final class Statements {
 	 * @return int Number of statements deleted.
 	 */
 	public function delete( $statement ) {
-		return $this->store->delete_with_dependents( $statement instanceof Statement ? (int) $statement->id() : (int) $statement );
+		return $this->eraser->erase( array( $statement instanceof Statement ? (int) $statement->id() : (int) $statement ) );
+	}
+
+	/**
+	 * Deletes what involves an entity that no longer exists, with the statements about it: the predicates declared `keep` stay.
+	 * WordPress calls this for posts, media items, terms and users; the modules that register other entity types call it when those
+	 * disappear.
+	 *
+	 * @param mixed $entity Entity: an `EntityRef` (`Ref::post( 12 )`), since the object itself is usually gone.
+	 * @return int Number of statements deleted.
+	 */
+	public function forget( $entity ) {
+		return $this->eraser->forget( $this->resolver->entity( $entity ) );
 	}
 
 	/**
@@ -205,7 +237,7 @@ final class Statements {
 
 				foreach ( $this->reader->match( $wanted->subject(), $wanted->predicate() ) as $other ) {
 					if ( null === $kept || $other->id() !== $kept->id() ) {
-						$this->store->delete_with_dependents( $other->id() );
+						$this->eraser->erase( array( $other->id() ) );
 					}
 				}
 
@@ -350,6 +382,10 @@ final class Statements {
 			throw $duplicate;
 		}
 
-		return $this->store->find( $id );
+		$created = $this->store->find( $id );
+
+		$this->events->created( $created );
+
+		return $created;
 	}
 }

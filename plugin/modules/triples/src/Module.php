@@ -17,9 +17,13 @@ use Otherguise\Triples\Entity\WordPressEntities;
 use Otherguise\Triples\Predicate\PredicateDefinition;
 use Otherguise\Triples\Predicate\PredicateRegistry;
 use Otherguise\Triples\Service\EntityResolver;
+use Otherguise\Triples\Service\EventQueue;
+use Otherguise\Triples\Service\StatementEraser;
 use Otherguise\Triples\Service\StatementListing;
 use Otherguise\Triples\Service\StatementReader;
 use Otherguise\Triples\Service\StatementValidator;
+use Otherguise\Triples\Service\WordPressCleanup;
+use Otherguise\Triples\Storage\Cache;
 use Otherguise\Triples\Storage\Database;
 use Otherguise\Triples\Storage\SchemaManager;
 use Otherguise\Triples\Storage\StatementStore;
@@ -45,6 +49,13 @@ final class Module implements ModuleInterface {
 	 * @var callable
 	 */
 	private $do_action;
+
+	/**
+	 * Adds an action: receives the hook name, the callback, the priority and the number of arguments.
+	 *
+	 * @var callable
+	 */
+	private $add_action;
 
 	/**
 	 * Entity types.
@@ -100,9 +111,11 @@ final class Module implements ModuleInterface {
 	 *
 	 * @param callable|null $do_action Runs an action; defaults to WordPress `do_action`.
 	 * @param object|null   $wpdb      A wpdb or a compatible object; defaults to the global `$wpdb`.
+	 * @param callable|null $add_action Adds an action; defaults to WordPress `add_action`.
 	 */
-	public function __construct( $do_action = null, $wpdb = null ) {
-		$this->do_action = $do_action ?? 'do_action';
+	public function __construct( $do_action = null, $wpdb = null, $add_action = null ) {
+		$this->do_action  = $do_action ?? 'do_action';
+		$this->add_action = $add_action ?? 'add_action';
 		$this->wpdb      = $wpdb;
 
 		$this->entity_types = EntityTypeRegistry::with_builtins(
@@ -166,7 +179,8 @@ final class Module implements ModuleInterface {
 	}
 
 	/**
-	 * Makes sure the table exists and is up to date (one option read when it is): the other sites of a network create theirs here.
+	 * Makes sure the table exists and is up to date (one option read when it is): the other sites of a network create theirs here, and
+	 * the statements that involve a post, a media item, a term or a user follow its deletion (`WordPressCleanup`).
 	 *
 	 * The registries are filled lazily.
 	 *
@@ -174,6 +188,7 @@ final class Module implements ModuleInterface {
 	 */
 	public function boot() {
 		( new SchemaManager( $this->database() ) )->maybe_upgrade();
+		( new WordPressCleanup( $this->statements() ) )->register( $this->add_action );
 	}
 
 	/**
@@ -195,13 +210,22 @@ final class Module implements ModuleInterface {
 			$resolver         = new EntityResolver( $this->entity_types );
 			$validator        = new StatementValidator( $this->entity_types, $this->datatypes, $this->predicates, $resolver, $this->store() );
 			$reader           = new StatementReader( $this->store(), $validator, $resolver, $this->predicates );
+			$events           = new EventQueue(
+				$this->database(),
+				function ( $hook, $statement ) {
+					( $this->do_action )( $hook, $statement );
+				}
+			);
+			$eraser           = new StatementEraser( $this->store(), $this->database(), $events, $this->predicates );
 			$this->statements = new Statements(
 				$this->store(),
 				$this->database(),
 				$validator,
 				$resolver,
 				$reader,
-				new StatementListing( $reader, $resolver, $validator )
+				new StatementListing( $reader, $resolver, $validator ),
+				$eraser,
+				$events
 			);
 		}
 
@@ -215,7 +239,7 @@ final class Module implements ModuleInterface {
 	 */
 	public function store() {
 		if ( null === $this->store ) {
-			$this->store = new StatementStore( $this->database(), $this->datatypes );
+			$this->store = new StatementStore( $this->database(), $this->datatypes, null, new Cache() );
 		}
 
 		return $this->store;

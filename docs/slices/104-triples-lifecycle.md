@@ -3,7 +3,7 @@
 
 # Slice 104 — Triples: cleanup, actions and cache
 
-Status: **planned** (waiting for Eric's confirmation of the points under "To confirm"). Dependencies: slices 100 to 103. Module: `Triples`.
+Status: **done** (the seven points under "To confirm" were confirmed by Eric on 2026-10-09). Dependencies: slices 100 to 103. Module: `Triples`.
 
 ## Goal
 
@@ -79,7 +79,16 @@ It does not cache the result of `listing()` (it depends on the comparator, a clo
 - `Statements` queues and fires the events; new `forget()`.
 - `Database` tells the `Cache` when a transaction rolls back (or `Transaction` does, if the `Database` should stay free of the cache; decided with the code).
 - `Module::boot()` registers the three deletion callbacks and builds the cache; `Module` gets `$add_action`.
-- New classes: `Storage\Cache`, `Service\EntityCleanup` (the three WordPress callbacks and `forget()`'s predicate selection), `Service\EventQueue`.
+- New classes: `Storage\Cache`, `Service\EventQueue`, `Service\StatementEraser` (deletion, events, selection of the predicates to forget) and `Service\WordPressCleanup` (the three WordPress callbacks).
+
+### As delivered
+
+- **Transaction listeners.** `Database::listen()` lets a listener follow the transactions (`begin`, `commit`, `rollback`, with the level, 1 for the outermost); `Transaction` sends the notifications. The `Database` knows nothing about the cache or the events: `StatementStore` listens for the cache (bump on every rollback and on the outermost commit) and `EventQueue` listens for the events (a mark per transaction; flush at the outermost commit; truncation to the mark on rollback). The cache is bumped on commit as well as on write, so that a result cached by another process between our write and our commit does not survive it.
+- **Store.** `StatementStore` takes an optional `Cache` (`Module` always gives one) and reads through it; new public methods `ids_for_entity()`, `ids_with_dependents()`, `find_many()` and `delete_ids()` (the first three read, the last one deletes without looking for dependents). `delete_with_dependents()` and `delete_by_entity()` are unchanged for callers.
+- **Events.** `triples_statement_created` and `triples_statement_deleted` are fired through the `$do_action` of `Module`, with a `Statement`. `remove()`, `delete()`, `replace()` and `forget()` all go through `StatementEraser::erase()`, which reads the statements (dependents included) before deleting them.
+- **Cache.** One `Cache` object, the group `triples`, the `last_changed` token; it stores the rows of `find`, `find_by_triple`, `query` and `about`, and the counts. The tests use stubs of `wp_cache_get()` and `wp_cache_set()`.
+- **Module.** `Module` takes `$add_action` as a third constructor argument; `boot()` registers the three callbacks at priority 10.
+- `StatementStore.php` is now 460 lines (the limit that warns is 400): splitting the reads and the deletions into two classes is a candidate for a later slice.
 
 ## Out of scope
 

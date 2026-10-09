@@ -46,6 +46,8 @@ function otherguise_test_reset() {
     $GLOBALS['otherguise_test_sites']        = null;
     $GLOBALS['otherguise_test_site_options'] = array();
     $GLOBALS['otherguise_test_objects']      = array();
+    $GLOBALS['otherguise_test_cache']        = array();
+    $GLOBALS['otherguise_test_actions']      = array();
     unset( $GLOBALS['wpdb'] );
 }
 
@@ -266,6 +268,49 @@ function get_term( $id ) {
  */
 function get_userdata( $id ) {
     return $GLOBALS['otherguise_test_objects']['WP_User'][ $id ] ?? false;
+}
+
+$GLOBALS['otherguise_test_cache']   = array();
+$GLOBALS['otherguise_test_actions'] = array();
+
+/**
+ * Stub of wp_cache_get(): an array for the current process.
+ *
+ * @param string $key   Key.
+ * @param string $group Group.
+ * @return mixed
+ */
+function wp_cache_get( $key, $group = '' ) {
+    return $GLOBALS['otherguise_test_cache'][ $group ][ $key ] ?? false;
+}
+
+/**
+ * Stub of wp_cache_set().
+ *
+ * @param string $key   Key.
+ * @param mixed  $value Value.
+ * @param string $group Group.
+ * @return bool
+ */
+function wp_cache_set( $key, $value, $group = '' ) {
+    $GLOBALS['otherguise_test_cache'][ $group ][ $key ] = $value;
+
+    return true;
+}
+
+/**
+ * Stub of add_action(): records the callbacks by hook.
+ *
+ * @param string   $hook          Hook.
+ * @param callable $callback      Callback.
+ * @param int      $priority      Priority.
+ * @param int      $accepted_args Number of arguments.
+ * @return bool
+ */
+function add_action( $hook, $callback, $priority = 10, $accepted_args = 1 ) {
+    $GLOBALS['otherguise_test_actions'][ $hook ][] = array( $callback, $priority, $accepted_args );
+
+    return true;
 }
 
 require_once dirname( __DIR__, 2 ) . '/plugin/includes/Core/Autoloader.php';

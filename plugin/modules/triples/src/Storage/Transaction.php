@@ -37,12 +37,14 @@ final class Transaction {
 
 		$database->execute( 'START TRANSACTION' );
 		$database->enter_transaction();
+		$database->notify( 'begin', 1 );
 
 		try {
 			$result = $work();
 		} catch ( \Throwable $problem ) {
 			$database->leave_transaction();
 			$database->execute( 'ROLLBACK' );
+			$database->notify( 'rollback', 1 );
 
 			throw $problem;
 		}
@@ -51,9 +53,12 @@ final class Transaction {
 
 		if ( false === $database->execute( 'COMMIT' ) ) {
 			$database->execute( 'ROLLBACK' );
+			$database->notify( 'rollback', 1 );
 
 			throw new \RuntimeException( 'The transaction could not be committed.' );
 		}
+
+		$database->notify( 'commit', 1 );
 
 		return $result;
 	}
@@ -69,20 +74,25 @@ final class Transaction {
 	private static function run_nested( Database $database, $work ) {
 		$savepoint = 'og_sp_' . ( $database->transaction_depth() + 1 );
 
+		$level = $database->transaction_depth() + 1;
+
 		$database->execute( 'SAVEPOINT ' . $savepoint );
 		$database->enter_transaction();
+		$database->notify( 'begin', $level );
 
 		try {
 			$result = $work();
 		} catch ( \Throwable $problem ) {
 			$database->leave_transaction();
 			$database->execute( 'ROLLBACK TO SAVEPOINT ' . $savepoint );
+			$database->notify( 'rollback', $level );
 
 			throw $problem;
 		}
 
 		$database->leave_transaction();
 		$database->execute( 'RELEASE SAVEPOINT ' . $savepoint );
+		$database->notify( 'commit', $level );
 
 		return $result;
 	}

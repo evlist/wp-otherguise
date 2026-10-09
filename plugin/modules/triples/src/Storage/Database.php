@@ -36,6 +36,13 @@ final class Database {
 	private $transaction_depth = 0;
 
 	/**
+	 * Callables told about the life of the transactions (see `listen()`).
+	 *
+	 * @var callable[]
+	 */
+	private $listeners = array();
+
+	/**
 	 * Wraps a wpdb object.
 	 *
 	 * @param object $wpdb A wpdb or a compatible object.
@@ -169,5 +176,32 @@ final class Database {
 	 */
 	public function leave_transaction() {
 		$this->transaction_depth = max( 0, $this->transaction_depth - 1 );
+	}
+
+	/**
+	 * Registers a callable told when a transaction begins, commits or rolls back.
+	 *
+	 * It receives the event (`begin`, `commit` or `rollback`) and the level of the transaction concerned: 1 for the outermost one, more
+	 * for the ones nested behind a savepoint. `commit` is sent after the database has committed (or released the savepoint) and
+	 * `rollback` after the rollback. Used by the object cache and by the queue of events.
+	 *
+	 * @param callable $listener Listener.
+	 * @return void
+	 */
+	public function listen( $listener ) {
+		$this->listeners[] = $listener;
+	}
+
+	/**
+	 * Tells the listeners. Used by `Transaction` only.
+	 *
+	 * @param string $event `begin`, `commit` or `rollback`.
+	 * @param int    $level Level of the transaction concerned.
+	 * @return void
+	 */
+	public function notify( $event, $level ) {
+		foreach ( $this->listeners as $listener ) {
+			$listener( $event, $level );
+		}
 	}
 }
