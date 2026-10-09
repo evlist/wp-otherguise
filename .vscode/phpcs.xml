@@ -21,7 +21,7 @@ SPDX-License-Identifier: GPL-3.0-or-later OR MIT
   <exclude-pattern>*/tests/phpunit/bootstrap.php</exclude-pattern>
   <exclude-pattern>*/scripts/*</exclude-pattern>
 
-  <config name="text_domain" value="otherguise,triples"/>
+  <config name="text_domain" value="otherguise,triples,modes"/>
 
   <rule ref="WordPress"/>
 
@@ -30,8 +30,12 @@ SPDX-License-Identifier: GPL-3.0-or-later OR MIT
       <property name="prefixes" type="array">
         <element value="otherguise"/>
         <element value="triples"/>
+        <element value="modes"/>
+        <element value="books"/>
         <element value="Otherguise"/>
         <element value="Triples"/>
+        <element value="Modes"/>
+        <element value="Books"/>
         <element value="OTHERGUISE"/>
       </property>
       <property name="custom_test_classes" type="array">

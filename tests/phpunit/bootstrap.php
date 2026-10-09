@@ -387,6 +387,17 @@ function otherguise_test_record( $name, array $arguments ) {
 }
 
 /**
+ * Stub of apply_filters(): returns the value unchanged.
+ *
+ * @param string $hook  Hook.
+ * @param mixed  $value Value.
+ * @return mixed
+ */
+function apply_filters( $hook, $value ) {
+    return $value;
+}
+
+/**
  * Stub of is_admin().
  *
  * @return bool

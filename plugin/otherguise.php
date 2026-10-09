@@ -79,6 +79,9 @@ function otherguise_bootstrap() {
 	 */
 	$enabled = apply_filters( 'otherguise_enabled_modules', null );
 
-	( new \Otherguise\Core\ModuleLoader( $modules, is_array( $enabled ) ? $enabled : null ) )->boot();
+	$loader = new \Otherguise\Core\ModuleLoader( $modules, is_array( $enabled ) ? $enabled : null );
+
+	\Otherguise\Core\Modules::set( $loader );
+	$loader->boot();
 }
 add_action( 'plugins_loaded', 'otherguise_bootstrap' );

@@ -69,6 +69,22 @@ final class ModuleLoader {
 	}
 
 	/**
+	 * Returns an enabled module.
+	 *
+	 * @param string $id Module identifier.
+	 * @return ModuleInterface|null Null when the module is unknown or not enabled.
+	 */
+	public function module( $id ) {
+		foreach ( $this->ordered as $module ) {
+			if ( $module->id() === $id ) {
+				return $module;
+			}
+		}
+
+		return null;
+	}
+
+	/**
 	 * Activates the modules, dependencies first.
 	 *
 	 * @return void

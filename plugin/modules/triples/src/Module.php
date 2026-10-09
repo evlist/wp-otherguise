@@ -199,6 +199,8 @@ final class Module implements ModuleInterface {
 	 * @return void
 	 */
 	public function boot() {
+		require_once dirname( __DIR__ ) . '/functions.php';
+
 		( new SchemaManager( $this->database() ) )->maybe_upgrade();
 		( new WordPressCleanup( $this->statements() ) )->register( $this->add_action );
 		( $this->add_action )( 'init', array( $this, 'load_textdomain' ), 10, 1 );
