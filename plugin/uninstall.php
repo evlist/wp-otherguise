@@ -11,7 +11,7 @@
  */
 
 if ( ! defined( 'WP_UNINSTALL_PLUGIN' ) ) {
-    exit;
+	exit;
 }
 
 require_once __DIR__ . '/includes/Core/Autoloader.php';

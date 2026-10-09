@@ -35,18 +35,18 @@ require_once plugin_dir_path( __FILE__ ) . 'includes/Core/Autoloader.php';
  * @return void
  */
 function otherguise_load_textdomain() {
-    $locale = determine_locale();
+	$locale = determine_locale();
 
-    $wp_lang_mofile = WP_LANG_DIR . '/plugins/otherguise-' . $locale . '.mo';
-    if ( is_readable( $wp_lang_mofile ) ) {
-        load_textdomain( 'otherguise', $wp_lang_mofile );
-        return;
-    }
+	$wp_lang_mofile = WP_LANG_DIR . '/plugins/otherguise-' . $locale . '.mo';
+	if ( is_readable( $wp_lang_mofile ) ) {
+		load_textdomain( 'otherguise', $wp_lang_mofile );
+		return;
+	}
 
-    $plugin_mofile = plugin_dir_path( __FILE__ ) . 'languages/otherguise-' . $locale . '.mo';
-    if ( is_readable( $plugin_mofile ) ) {
-        load_textdomain( 'otherguise', $plugin_mofile );
-    }
+	$plugin_mofile = plugin_dir_path( __FILE__ ) . 'languages/otherguise-' . $locale . '.mo';
+	if ( is_readable( $plugin_mofile ) ) {
+		load_textdomain( 'otherguise', $plugin_mofile );
+	}
 }
 add_action( 'init', 'otherguise_load_textdomain' );
 
@@ -56,17 +56,17 @@ add_action( 'init', 'otherguise_load_textdomain' );
  * @return void
  */
 function otherguise_bootstrap() {
-    $modules = require plugin_dir_path( OTHERGUISE_PLUGIN_FILE ) . 'includes/modules.php';
+	$modules = require plugin_dir_path( OTHERGUISE_PLUGIN_FILE ) . 'includes/modules.php';
 
-    /**
-     * Filters the identifiers of the enabled modules.
-     *
-     * Returning null enables every module. A module cannot be enabled without the modules it depends on.
-     *
-     * @param string[]|null $enabled Identifiers of the enabled modules, or null for all.
-     */
-    $enabled = apply_filters( 'otherguise_enabled_modules', null );
+	/**
+	 * Filters the identifiers of the enabled modules.
+	 *
+	 * Returning null enables every module. A module cannot be enabled without the modules it depends on.
+	 *
+	 * @param string[]|null $enabled Identifiers of the enabled modules, or null for all.
+	 */
+	$enabled = apply_filters( 'otherguise_enabled_modules', null );
 
-    ( new \Otherguise\Core\ModuleLoader( $modules, is_array( $enabled ) ? $enabled : null ) )->boot();
+	( new \Otherguise\Core\ModuleLoader( $modules, is_array( $enabled ) ? $enabled : null ) )->boot();
 }
 add_action( 'plugins_loaded', 'otherguise_bootstrap' );

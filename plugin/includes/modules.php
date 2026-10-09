@@ -13,7 +13,7 @@
 defined( 'ABSPATH' ) || exit;
 
 return array(
-    new \Otherguise\Triples\Module(),
-    new \Otherguise\Modes\Module(),
-    new \Otherguise\Books\Module(),
+	new \Otherguise\Triples\Module(),
+	new \Otherguise\Modes\Module(),
+	new \Otherguise\Books\Module(),
 );
