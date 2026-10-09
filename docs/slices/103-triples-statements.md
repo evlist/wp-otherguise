@@ -34,10 +34,11 @@ Small calls that compose. A `$subject` is an `EntityRef` or a stored `Statement`
 There is no argument for qualifications: a qualification is a statement like another one.
 
 ```php
-$photo = $statements->create_or_get( Ref( 'post:12' ), 'media/illustrated-by', Ref( 'attachment:88' ) );
-$statements->create_or_get( $photo, 'modes/mode', Ref( 'mode:web' ) );
-$statements->create_or_get( $photo, 'modes/mode', Ref( 'mode:print' ) );   // later
-$statements->remove( $photo, 'modes/mode', Ref( 'mode:print' ) );          // the user changes their mind
+// $link: the statement that links post 12 to photo 88. The modes qualify this link, not the photo itself.
+$link = $statements->create_or_get( Ref( 'post:12' ), 'media/illustrated-by', Ref( 'attachment:88' ) );
+$statements->create_or_get( $link, 'modes/mode', Ref( 'mode:web' ) );
+$statements->create_or_get( $link, 'modes/mode', Ref( 'mode:print' ) );   // later
+$statements->remove( $link, 'modes/mode', Ref( 'mode:print' ) );          // the user changes their mind
 ```
 
 Fluent chaining was left out: with statements about statements, a chained call would not say which statement it returns (the photo or its mode statement).

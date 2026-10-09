@@ -115,10 +115,10 @@ All the web templates that use a given print template: `$statements->subjects_of
 
 ## 2. Associate a photo with a post
 
-**A site without modes.** Linking a photo to a post is one call, and the photo may belong to any number of posts (a native attachment has a single parent):
+**A site without modes.** Linking a photo to a post is one call, and the photo may belong to any number of posts (a native attachment has a single parent). The call returns the statement that holds the **link between this post and this photo**, here named `$link`:
 
 ```php
-$photo = $statements->create_or_get( Ref( 'post:12' ), 'media/illustrated-by', Ref( 'attachment:88' ) );
+$link = $statements->create_or_get( Ref( 'post:12' ), 'media/illustrated-by', Ref( 'attachment:88' ) );
 ```
 ```
 10: (post:12, media/illustrated-by, attachment:88)
@@ -126,39 +126,52 @@ $photo = $statements->create_or_get( Ref( 'post:12' ), 'media/illustrated-by', R
 
 The post must exist and the attachment must be a media item. Calling it again returns statement 10 instead of failing (`create()` is the strict form). The photos of a post: `$statements->objects_of( Ref( 'post:12' ), 'media/illustrated-by' )`; the posts that use a photo: `$statements->subjects_of( Ref( 'attachment:88' ), 'media/illustrated-by' )`.
 
-**A site with modes.** The same call, then one call per mode in which the photo must be shown (a photo with no mode statement is shown in no mode):
+**A site with modes.** The same call, then one call per mode in which the photo must be shown **in this post** (a link with no mode statement is shown in no mode):
 
 ```php
-$photo = $statements->create_or_get( Ref( 'post:12' ), 'media/illustrated-by', Ref( 'attachment:88' ) );
-$statements->create_or_get( $photo, 'modes/mode', Ref( 'mode:web' ) );
+$link = $statements->create_or_get( Ref( 'post:12' ), 'media/illustrated-by', Ref( 'attachment:88' ) );
+$statements->create_or_get( $link, 'modes/mode', Ref( 'mode:web' ) );
 ```
 ```
 10: (post:12, media/illustrated-by, attachment:88)
 11: (statement:10, modes/mode, mode:web)
 ```
 
-**Later, the print version matters too: add the mode.**
+**Later, the print version matters too: add the mode to the link.**
 
 ```php
-$statements->create_or_get( $photo, 'modes/mode', Ref( 'mode:print' ) );
+$statements->create_or_get( $link, 'modes/mode', Ref( 'mode:print' ) );
 ```
 ```
 12: (statement:10, modes/mode, mode:print)
 ```
 
-**The user changes their mind: remove the print mode.**
+**The user changes their mind: remove the print mode from the link.**
 
 ```php
-$statements->remove( $photo, 'modes/mode', Ref( 'mode:print' ) );              // deletes 12, and the rank set for print only
+$statements->remove( $link, 'modes/mode', Ref( 'mode:print' ) );              // deletes 12, and the rank set for print only
 ```
 
-`$photo` is the `Statement` returned the first time; it can be kept, or found again with `find_by_triple()`. If several steps must succeed or fail together, wrap them:
+`$link` is the `Statement` returned the first time; it can be kept, or found again with `find_by_triple()`.
+
+**The modes belong to the link between a post and a photo, not to the photo.** The mode statements are statements *about* statement 10, the link between `post:12` and `attachment:88`. The same photo in another post has its own link, and its own modes:
+
+```php
+$other = $statements->create_or_get( Ref( 'post:13' ), 'media/illustrated-by', Ref( 'attachment:88' ) );
+$statements->create_or_get( $other, 'modes/mode', Ref( 'mode:print' ) );
+```
+```
+10: (post:12, media/illustrated-by, attachment:88)      11: (statement:10, modes/mode, mode:web)
+50: (post:13, media/illustrated-by, attachment:88)      51: (statement:50, modes/mode, mode:print)
+```
+
+Photo 88 is shown on the web only in post 12 and in print only in post 13. The same holds for the ranks (section 4) and for any other statement about a link. If several steps must succeed or fail together, wrap them:
 
 ```php
 $statements->transaction( function () use ( $statements ) {
-    $photo = $statements->create_or_get( Ref( 'post:12' ), 'media/illustrated-by', Ref( 'attachment:91' ) );
-    $statements->create_or_get( $photo, 'modes/mode', Ref( 'mode:web' ) );
-    $statements->create_or_get( $photo, 'modes/mode', Ref( 'mode:print' ) );
+    $link = $statements->create_or_get( Ref( 'post:12' ), 'media/illustrated-by', Ref( 'attachment:91' ) );
+    $statements->create_or_get( $link, 'modes/mode', Ref( 'mode:web' ) );
+    $statements->create_or_get( $link, 'modes/mode', Ref( 'mode:print' ) );
 } );
 ```
 
@@ -194,13 +207,13 @@ With `'scope' => array( 'modes/mode', Ref( 'mode:web' ) )` the result is A, B, C
 $statements->remove( Ref( 'post:12' ), 'media/illustrated-by', Ref( 'attachment:91' ) );
 ```
 
-**Remove a photo from the print mode only.** One call:
+**Remove the print mode from the link between a post and a photo.** One call; the photo stays linked to the post, and its other modes and its link to other posts are untouched:
 
 ```php
-$statements->remove( $photo, 'modes/mode', Ref( 'mode:print' ) );              // deletes the mode statement, and the rank set for print only
+$statements->remove( $link, 'modes/mode', Ref( 'mode:print' ) );              // deletes the mode statement, and the rank set for print only
 ```
 
-If that was its last mode, the photo is still linked to the post but shown in no mode. That is safe, and a screen can offer to delete it (`$statements->delete( $photo )`) or to list the photos that are shown nowhere with `StatementQuery::unqualified( 'modes/mode' )`.
+If that was its last mode, the link still exists but the photo is shown in no mode in this post. That is safe, and a screen can offer to delete it (`$statements->delete( $link )`) or to list the photos that are shown nowhere with `StatementQuery::unqualified( 'modes/mode' )`.
 
 **Add a photo** to the web and print modes, or to print only:
 
@@ -213,16 +226,16 @@ $print_only = $statements->create_or_get( Ref( 'post:12' ), 'media/illustrated-b
 $statements->create_or_get( $print_only, 'modes/mode', Ref( 'mode:print' ) );
 ```
 
-**Put a photo first** (a "pin"; the default order is the date and time of the photos). A rank for all the modes in which it is shown, then a different rank for print only:
+**Put a photo first in a post** (a "pin"; the default order is the date and time of the photos). The rank belongs to the link, so the photo can have another rank in another post. A rank for all the modes in which it is shown, then a different rank for print only:
 
 ```php
-$statements->replace( $photo, 'triples/position', 5 );                         // 20: (statement:10, triples/position, 5)
+$statements->replace( $link, 'triples/position', 5 );                         // 20: (statement:10, triples/position, 5)
 
-$print_mode = $statements->create_or_get( $photo, 'modes/mode', Ref( 'mode:print' ) );
+$print_mode = $statements->create_or_get( $link, 'modes/mode', Ref( 'mode:print' ) );
 $statements->replace( $print_mode, 'triples/position', 1 );                    // 21: (statement:12, triples/position, 1)
 ```
 
-`replace()` deletes the previous position and creates the new one; to unpin, `remove( $photo, 'triples/position', 5 )` or `delete()` on the position statement. `listing()` applies the reading rule of slice 103: the order of all the photos with the pins of every mode, then the filter by mode, then the ranks that are specific to the mode.
+`replace()` deletes the previous position and creates the new one; to unpin, `remove( $link, 'triples/position', 5 )` or `delete()` on the position statement. `listing()` applies the reading rule of slice 103: the order of all the photos with the pins of every mode, then the filter by mode, then the ranks that are specific to the mode.
 
 ## 5. Assemble a book
 
@@ -273,7 +286,7 @@ Which books contain a post: `$statements->subjects_of( Ref( 'post:13' ), 'books/
 Points to settle, noted for the Modes and Books slices:
 
 1. **No statement of the scope predicate means "no scope"**, not "every scope" (decided on 2026-10-09). The photos are visible only in the modes where they were explicitly put, which is safe: removing a mode never makes a photo appear elsewhere, and a mode declared later does not include old photos by surprise. The price is that showing a photo in every mode takes one statement per mode. A specific predicate for "every mode" could be added if it is ever needed.
-2. **A photo can be linked and shown nowhere** (no mode statement, or the last one removed). Screens should be able to list those and offer to delete them.
+2. **A photo can be linked to a post and shown nowhere** (no mode statement, or the last one removed). Screens should be able to list those and offer to delete them.
 3. **"One variant per template and mode" is not a limit of the registry.** `max_objects_per_subject` counts all the variants of a template, whatever the mode. The Modes module has to check it before creating a variant.
 4. **`Ref( ... )` is verbose.** A shorthand for the common entity types (`Ref::post( 12 )`) would make the code easier to read; cosmetic, to decide with the first consumer.
 5. **The options of `listing()`** (`scope`, `natural_order`) are fixed by these examples and added to the plan of slice 103.
