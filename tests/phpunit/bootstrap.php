@@ -48,6 +48,7 @@ function otherguise_test_reset() {
     $GLOBALS['otherguise_test_objects']      = array();
     $GLOBALS['otherguise_test_cache']        = array();
     $GLOBALS['otherguise_test_actions']      = array();
+    $GLOBALS['otherguise_test_calls']        = array();
     unset( $GLOBALS['wpdb'] );
 }
 
@@ -369,6 +370,266 @@ function add_action( $hook, $callback, $priority = 10, $accepted_args = 1 ) {
     $GLOBALS['otherguise_test_actions'][ $hook ][] = array( $callback, $priority, $accepted_args );
 
     return true;
+}
+
+$GLOBALS['otherguise_test_admin']      = true;
+$GLOBALS['otherguise_test_calls']      = array();
+
+/**
+ * Records a call of a WordPress function that has no effect in the tests.
+ *
+ * @param string $name      Function.
+ * @param array  $arguments Arguments.
+ * @return void
+ */
+function otherguise_test_record( $name, array $arguments ) {
+    $GLOBALS['otherguise_test_calls'][] = array_merge( array( $name ), $arguments );
+}
+
+/**
+ * Stub of is_admin().
+ *
+ * @return bool
+ */
+function is_admin() {
+    return false;
+}
+
+/**
+ * Stub of esc_attr().
+ *
+ * @param string $text Text.
+ * @return string
+ */
+function esc_attr( $text ) {
+    return htmlspecialchars( (string) $text, ENT_QUOTES, 'UTF-8' );
+}
+
+/**
+ * Stub of esc_url().
+ *
+ * @param string $url URL.
+ * @return string
+ */
+function esc_url( $url ) {
+    return htmlspecialchars( (string) $url, ENT_QUOTES, 'UTF-8' );
+}
+
+/**
+ * Stub of __().
+ *
+ * @param string $text   Text.
+ * @param string $domain Domain.
+ * @return string
+ */
+function __( $text, $domain = 'default' ) {
+    return $text;
+}
+
+/**
+ * Stub of esc_html__().
+ *
+ * @param string $text   Text.
+ * @param string $domain Domain.
+ * @return string
+ */
+function esc_html__( $text, $domain = 'default' ) {
+    return esc_html( $text );
+}
+
+/**
+ * Stub of esc_attr__().
+ *
+ * @param string $text   Text.
+ * @param string $domain Domain.
+ * @return string
+ */
+function esc_attr__( $text, $domain = 'default' ) {
+    return esc_attr( $text );
+}
+
+/**
+ * Stub of esc_html_e().
+ *
+ * @param string $text   Text.
+ * @param string $domain Domain.
+ * @return void
+ */
+function esc_html_e( $text, $domain = 'default' ) {
+    echo esc_html( $text );
+}
+
+/**
+ * Stub of _n().
+ *
+ * @param string $single Singular.
+ * @param string $plural Plural.
+ * @param int    $number Number.
+ * @param string $domain Domain.
+ * @return string
+ */
+function _n( $single, $plural, $number, $domain = 'default' ) {
+    return 1 === (int) $number ? $single : $plural;
+}
+
+/**
+ * Stub of wp_kses_post(): the tests only check what the code escapes, so it returns the HTML unchanged.
+ *
+ * @param string $html HTML.
+ * @return string
+ */
+function wp_kses_post( $html ) {
+    return $html;
+}
+
+/**
+ * Stub of absint().
+ *
+ * @param mixed $value Value.
+ * @return int
+ */
+function absint( $value ) {
+    return abs( (int) $value );
+}
+
+/**
+ * Stub of delete_metadata().
+ *
+ * @return bool
+ */
+function delete_metadata() {
+    otherguise_test_record( 'delete_metadata', func_get_args() );
+
+    return true;
+}
+
+/**
+ * Stub of add_submenu_page(): records the call and returns a hook suffix.
+ *
+ * @return string
+ */
+function add_submenu_page() {
+    otherguise_test_record( 'add_submenu_page', func_get_args() );
+
+    return 'tools_page_triples';
+}
+
+/**
+ * Stub of add_screen_option().
+ *
+ * @return void
+ */
+function add_screen_option() {
+    otherguise_test_record( 'add_screen_option', func_get_args() );
+}
+
+/**
+ * Stub of register_setting().
+ *
+ * @return void
+ */
+function register_setting() {
+    otherguise_test_record( 'register_setting', func_get_args() );
+}
+
+/**
+ * Stub of settings_fields(): prints a marker.
+ *
+ * @param string $group Group.
+ * @return void
+ */
+function settings_fields( $group ) {
+    echo '<input type="hidden" name="option_page" value="' . esc_attr( $group ) . '" />';
+}
+
+/**
+ * Stub of WP_List_Table: the part of the API the statements table uses, with a plain display().
+ */
+class WP_List_Table {
+    /**
+     * Items.
+     *
+     * @var array
+     */
+    public $items = array();
+
+    /**
+     * Column headers.
+     *
+     * @var array
+     */
+    public $_column_headers = array();
+
+    /**
+     * Pagination arguments.
+     *
+     * @var array
+     */
+    public $pagination = array();
+
+    /**
+     * Builds the table.
+     *
+     * @param array $args Arguments.
+     */
+    public function __construct( $args = array() ) {
+        unset( $args );
+    }
+
+    /**
+     * Stub of set_pagination_args().
+     *
+     * @param array $args Arguments.
+     * @return void
+     */
+    protected function set_pagination_args( $args ) {
+        $this->pagination = $args;
+    }
+
+    /**
+     * Stub of row_actions().
+     *
+     * @param array $actions Actions.
+     * @return string
+     */
+    protected function row_actions( $actions ) {
+        return '<div class="row-actions">' . implode( ' | ', $actions ) . '</div>';
+    }
+
+    /**
+     * Prints the table.
+     *
+     * @return void
+     */
+    public function display() {
+        $columns = $this->get_columns();
+
+        echo '<table class="wp-list-table"><thead><tr>';
+
+        foreach ( $columns as $title ) {
+            echo '<th>' . $title . '</th>';
+        }
+
+        echo '</tr></thead><tbody>';
+
+        if ( array() === $this->items ) {
+            echo '<tr><td colspan="' . count( $columns ) . '">';
+            $this->no_items();
+            echo '</td></tr>';
+        }
+
+        foreach ( $this->items as $item ) {
+            echo '<tr>';
+
+            foreach ( array_keys( $columns ) as $name ) {
+                echo '<td>' . $this->{'column_' . $name}( $item ) . '</td>';
+            }
+
+            echo '</tr>';
+        }
+
+        echo '</tbody></table>';
+    }
 }
 
 require_once dirname( __DIR__, 2 ) . '/plugin/includes/Core/Autoloader.php';

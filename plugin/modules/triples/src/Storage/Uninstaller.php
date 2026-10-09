@@ -16,8 +16,7 @@ defined( 'ABSPATH' ) || exit;
  * Removes the table and the options of the module when the plugin is deleted.
  *
  * The statements are the work of the author, so nothing is removed unless the administrator asked for it with the setting
- * `delete_data_on_uninstall` of the option `triples_settings` (the screen comes with the administration slice; until then the option
- * can be set with WP-CLI). On a multisite network every site is processed.
+ * `delete_data_on_uninstall` of the option `triples_settings` (set on the maintenance tab of the administration screen). On a multisite network every site is processed.
  */
 final class Uninstaller {
 	/**
@@ -29,6 +28,11 @@ final class Uninstaller {
 	 * Key of the setting that asks for the deletion.
 	 */
 	public const DELETE_FLAG = 'delete_data_on_uninstall';
+
+	/**
+	 * User meta of the screen option "statements per page" (WordPress stores it per site, under the table prefix; removed for all the users with the data).
+	 */
+	public const PER_PAGE_META = 'triples_per_page';
 
 	/**
 	 * The wpdb object.
@@ -80,5 +84,6 @@ final class Uninstaller {
 		( new SchemaManager( new Database( $this->wpdb ) ) )->drop_table();
 
 		delete_option( self::SETTINGS_OPTION );
+		delete_metadata( 'user', 0, $this->wpdb->prefix . self::PER_PAGE_META, '', true ); // The screen option is stored per site, under the prefix of the site.
 	}
 }

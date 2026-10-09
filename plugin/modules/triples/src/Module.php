@@ -11,6 +11,8 @@
 namespace Otherguise\Triples;
 
 use Otherguise\Core\ModuleInterface;
+use Otherguise\Triples\Admin\Admin;
+use Otherguise\Triples\Admin\Environment;
 use Otherguise\Triples\Datatype\DatatypeRegistry;
 use Otherguise\Triples\Entity\EntityTypeRegistry;
 use Otherguise\Triples\Entity\WordPressEntities;
@@ -56,6 +58,13 @@ final class Module implements ModuleInterface {
 	 * @var callable
 	 */
 	private $add_action;
+
+	/**
+	 * Tells whether the request is in the administration.
+	 *
+	 * @var callable
+	 */
+	private $is_admin;
 
 	/**
 	 * Entity types.
@@ -112,10 +121,12 @@ final class Module implements ModuleInterface {
 	 * @param callable|null $do_action Runs an action; defaults to WordPress `do_action`.
 	 * @param object|null   $wpdb      A wpdb or a compatible object; defaults to the global `$wpdb`.
 	 * @param callable|null $add_action Adds an action; defaults to WordPress `add_action`.
+	 * @param callable|null $is_admin   Tells whether this is an administration request; defaults to WordPress `is_admin`.
 	 */
-	public function __construct( $do_action = null, $wpdb = null, $add_action = null ) {
+	public function __construct( $do_action = null, $wpdb = null, $add_action = null, $is_admin = null ) {
 		$this->do_action  = $do_action ?? 'do_action';
 		$this->add_action = $add_action ?? 'add_action';
+		$this->is_admin   = $is_admin ?? 'is_admin';
 		$this->wpdb      = $wpdb;
 
 		$this->entity_types = EntityTypeRegistry::with_builtins(
@@ -180,7 +191,8 @@ final class Module implements ModuleInterface {
 
 	/**
 	 * Makes sure the table exists and is up to date (one option read when it is): the other sites of a network create theirs here, and
-	 * the statements that involve a post, a media item, a term or a user follow its deletion (`WordPressCleanup`).
+	 * the statements that involve a post, a media item, a term or a user follow its deletion (`WordPressCleanup`), and the administration
+	 * screen is hooked in the administration only.
 	 *
 	 * The registries are filled lazily.
 	 *
@@ -189,6 +201,33 @@ final class Module implements ModuleInterface {
 	public function boot() {
 		( new SchemaManager( $this->database() ) )->maybe_upgrade();
 		( new WordPressCleanup( $this->statements() ) )->register( $this->add_action );
+		( $this->add_action )( 'init', array( $this, 'load_textdomain' ), 10, 1 );
+
+		if ( ( $this->is_admin )() ) {
+			$this->admin( new Environment() )->register( $this->add_action );
+		}
+	}
+
+	/**
+	 * Loads the translations of the module (text domain `triples`) from the `languages` directory of the module, next to its sources.
+	 * WordPress.org language packs are found by WordPress itself.
+	 *
+	 * @return void
+	 */
+	public function load_textdomain() {
+		if ( defined( 'OTHERGUISE_PLUGIN_FILE' ) ) {
+			load_plugin_textdomain( 'triples', false, dirname( plugin_basename( OTHERGUISE_PLUGIN_FILE ) ) . '/modules/triples/languages' );
+		}
+	}
+
+	/**
+	 * Builds the administration screen.
+	 *
+	 * @param Environment $environment Environment.
+	 * @return Admin
+	 */
+	public function admin( Environment $environment ) {
+		return new Admin( $environment, $this->statements(), $this->store(), $this->predicates, $this->entity_types, $this->datatypes, $this->add_action );
 	}
 
 	/**

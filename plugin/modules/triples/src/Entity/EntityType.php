@@ -252,4 +252,40 @@ final class EntityType {
 			'url'   => is_string( $url ) && '' !== $url ? $url : null,
 		);
 	}
+
+	/**
+	 * Tells whether the type can check that an entity exists (with a check or a loader).
+	 *
+	 * @return bool
+	 */
+	public function can_check_existence() {
+		return null !== $this->exists || null !== $this->load;
+	}
+
+	/**
+	 * Tells whether the type can recognize objects.
+	 *
+	 * @return bool
+	 */
+	public function can_identify() {
+		return null !== $this->identify;
+	}
+
+	/**
+	 * Tells whether the type can load objects.
+	 *
+	 * @return bool
+	 */
+	public function can_load() {
+		return null !== $this->load;
+	}
+
+	/**
+	 * Tells whether the type can describe entities.
+	 *
+	 * @return bool
+	 */
+	public function can_describe() {
+		return null !== $this->describe;
+	}
 }

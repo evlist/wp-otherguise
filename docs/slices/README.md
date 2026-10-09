@@ -17,12 +17,11 @@ Numbering: `0xx` foundation, `1xx` Triples, `2xx` Modes, `3xx` Books.
 | [102](102-triples-storage.md) | Triples: storage of statements (one table) |
 | [103](103-triples-statements.md) | Triples: creating and reading statements |
 | [104](104-triples-lifecycle.md) | Triples: cleanup, actions and cache |
+| [105](105-triples-admin.md) | Triples: administration screen |
 
 ## Planned
 
-| Slice | Title | Status |
-|---|---|---|
-| [105](105-triples-admin.md) | Triples: administration screen | planned, to confirm |
+None at the moment.
 
 ## Candidates (not planned yet)
 
