@@ -80,6 +80,7 @@ class TriplesEntityRefTest extends TestCase {
 			'id with space'     => array( 'post:1 2' ),
 			'id with newline'   => array( "post:1\n" ),
 			'type with newline' => array( "post\n:1" ),
+			'type too long'     => array( str_repeat( 'a', 21 ) . ':1' ),
 			'id too long'       => array( 'post:' . str_repeat( 'a', 192 ) ),
 		);
 	}

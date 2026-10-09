@@ -11,9 +11,10 @@
 namespace Otherguise\Triples;
 
 use Otherguise\Core\ModuleInterface;
+use Otherguise\Triples\Datatype\DatatypeRegistry;
 use Otherguise\Triples\Entity\EntityTypeRegistry;
+use Otherguise\Triples\Predicate\PredicateDefinition;
 use Otherguise\Triples\Predicate\PredicateRegistry;
-use Otherguise\Triples\Qualifier\QualifierTypeRegistry;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -21,8 +22,9 @@ defined( 'ABSPATH' ) || exit;
  * Entry point of the triples module.
  *
  * Owns the three registries. Each one runs its registration action the first time it is used:
- * `triples_register_entity_types`, `triples_register_qualifier_types` and `triples_register_predicates`, each with the registry
- * as argument. Other modules add their callbacks to these actions in their `boot()`.
+ * `triples_register_entity_types`, `triples_register_datatypes` and `triples_register_predicates`, each with the registry
+ * as argument. Other modules add their callbacks to these actions in their `boot()`. The module itself registers the
+ * predicate `triples/position`, the qualifier that gives a statement an explicit rank.
  */
 final class Module implements ModuleInterface {
 	/**
@@ -40,11 +42,11 @@ final class Module implements ModuleInterface {
 	private $entity_types;
 
 	/**
-	 * Qualifier types.
+	 * Datatypes.
 	 *
-	 * @var QualifierTypeRegistry
+	 * @var DatatypeRegistry
 	 */
-	private $qualifier_types;
+	private $datatypes;
 
 	/**
 	 * Predicates.
@@ -61,20 +63,33 @@ final class Module implements ModuleInterface {
 	public function __construct( $do_action = null ) {
 		$this->do_action = $do_action ?? 'do_action';
 
-		$this->entity_types    = EntityTypeRegistry::with_builtins(
+		$this->entity_types = EntityTypeRegistry::with_builtins(
 			function ( $registry ) {
 				( $this->do_action )( 'triples_register_entity_types', $registry );
 			}
 		);
-		$this->qualifier_types = QualifierTypeRegistry::with_builtins(
+		$this->datatypes    = DatatypeRegistry::with_builtins(
 			function ( $registry ) {
-				( $this->do_action )( 'triples_register_qualifier_types', $registry );
+				( $this->do_action )( 'triples_register_datatypes', $registry );
 			}
 		);
-		$this->predicates      = new PredicateRegistry(
+		$this->predicates   = new PredicateRegistry(
 			$this->entity_types,
-			$this->qualifier_types,
+			$this->datatypes,
 			function ( $registry ) {
+				$registry->register(
+					PredicateDefinition::from_array(
+						array(
+							'slug'                    => 'triples/position',
+							'label'                   => 'Position',
+							'subject_types'           => array( 'statement' ),
+							'object_types'            => array( 'integer' ),
+							'max_objects_per_subject' => 1,
+							'qualifies'               => array( PredicateDefinition::WILDCARD ),
+						)
+					)
+				);
+
 				( $this->do_action )( 'triples_register_predicates', $registry );
 			}
 		);
@@ -126,12 +141,12 @@ final class Module implements ModuleInterface {
 	}
 
 	/**
-	 * Returns the qualifier types.
+	 * Returns the datatypes.
 	 *
-	 * @return QualifierTypeRegistry
+	 * @return DatatypeRegistry
 	 */
-	public function qualifier_types() {
-		return $this->qualifier_types;
+	public function datatypes() {
+		return $this->datatypes;
 	}
 
 	/**

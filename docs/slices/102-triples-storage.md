@@ -3,7 +3,7 @@
 
 # Slice 102 — Triples: storage of statements
 
-Status: **planned** (waiting for Eric's confirmation of the points under "To confirm"). Dependencies: slices 000, 100 and 101. Module: `Triples`.
+Status: **planned, decisions confirmed by Eric (2026-10-09); code not started**. Dependencies: slices 000, 100 and 101. Module: `Triples`.
 
 This plan replaces the first version (two tables, a fingerprint, a flag for repeated statements and a position column), withdrawn after Eric's decision of 2026-10-09: a qualification is a statement about a statement.
 
@@ -77,7 +77,7 @@ id  subject            predicate      object
 
 `dbDelta` itself needs WordPress: the SQL is checked against its conventions and run directly on MariaDB, but the real `dbDelta` call, the activation hook and the multisite path are untested until the plugin runs in a real WordPress site. The object cache (statements will be read on most requests by `Modes`) is designed in slice 104, not here. Reads that combine a statement with its qualifications use joins or `EXISTS`; their performance on a large table is not measured.
 
-## To confirm
+## Decisions (confirmed by Eric, 2026-10-09)
 
 1. Table name `triples_statements`, per site.
 2. One table, unique on the whole triple; **statements are immutable** (no `update()`).

@@ -19,9 +19,9 @@ defined( 'ABSPATH' ) || exit;
  */
 final class EntityRef {
 	/**
-	 * Pattern of an entity type slug.
+	 * Pattern of an entity type slug, or of a datatype name: lower case, at most 20 characters.
 	 */
-	public const TYPE_PATTERN = '/^[a-z][a-z0-9_]*\z/';
+	public const TYPE_PATTERN = '/^[a-z][a-z0-9_]{0,19}\z/';
 
 	/**
 	 * Maximum length of an id.

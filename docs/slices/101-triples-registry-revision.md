@@ -3,7 +3,7 @@
 
 # Slice 101 — Triples: registry revision for statements about statements
 
-Status: **planned** (waiting for Eric's confirmation of the points under "To confirm"). Dependencies: slice 100. Module: `Triples`.
+Status: **done**. Dependencies: slice 100. Module: `Triples`.
 
 ## Why
 
@@ -62,7 +62,7 @@ Storage (102), creating statements and enforcing limits, symmetry and qualificat
 
 Removed or rewritten: the qualifier and `ordered` tests of slice 100. New or changed: the datatypes (validation, normalization, 191-byte limit, XSD names), the `statement` built-in, the shared namespace of entity types and datatypes, `qualified_by` and `qualifies` resolution (both directions, `'*'`), reference errors found when the registry is first read, symmetric with literal types refused, `triples/position` registered with its limits, the module wiring and the three actions.
 
-## To confirm
+## Decisions (confirmed by Eric, 2026-10-09)
 
 1. The two keys `qualified_by` and `qualifies`, and `'*'` for generic qualifiers.
 2. The qualifier-reference check is done when the registry is first read (all predicates registered), not at each registration.
@@ -70,6 +70,20 @@ Removed or rewritten: the qualifier and `ordered` tests of slice 100. New or cha
 4. Literal strings limited to 191 bytes.
 5. `triples/position` is built in; `modes/mode` and the `mode` entity type come with the Modes module.
 
+## Delivered
+
+- Removed: `Qualifier/` (types, interface, registry), `QualifierDefinition`, the keys `qualifiers`, `ordered` and `allow_repeats`, the action `triples_register_qualifier_types`.
+- Added: `Datatype/` (`DatatypeInterface`, `StringDatatype`, `IntegerDatatype`, `BooleanDatatype`, `DatatypeRegistry`) and the action `triples_register_datatypes`; the built-in entity type `statement`; the predicate keys `qualified_by` and `qualifies`; `PredicateRegistry::can_qualify()`; the built-in predicate `triples/position` (registered by `Module` before the registration action runs); type slugs limited to 20 characters (`EntityRef::TYPE_PATTERN`) and predicate slugs to 64 (`PredicateDefinition::is_valid_slug()`).
+- `DefinitionReader` gained `predicate_slugs()` and lost `qualifiers()`.
+- 97 tests (239 assertions): the datatype tests replace the qualifier tests; new tests for the qualification references, the shared namespace, literals as subjects and the firing order of the actions.
+
+Choices made while implementing:
+
+- **The references between predicates are checked when the registry is first read after the registrations**, again after any later registration, and not while the initializer runs (`LazyRegistry::is_initializing()`), so that modules can register in any order. A broken configuration throws on every read until it is fixed.
+- **Datatype strings refuse control characters** (including newlines) and invalid UTF-8, in addition to the 191-byte limit.
+- **Order of the actions**: `triples_register_datatypes`, `triples_register_entity_types`, then `triples_register_predicates`, because the registration of `triples/position` reads the type registries first. The types are therefore registered before the callbacks of the predicates run.
+- A literal cannot be a subject; a symmetric predicate relates the same entity types.
+
 ## Done when
 
-PHPUnit, phpcs and `reuse lint` pass; the architecture test passes; this document, slice 100 and `docs/IA.md` describe the delivered classes.
+PHPUnit, phpcs and `reuse lint` pass; the architecture test passes; this document, slice 100 and `docs/IA.md` describe the delivered classes. (All done.)

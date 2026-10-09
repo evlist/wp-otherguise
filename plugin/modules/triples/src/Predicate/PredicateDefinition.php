@@ -13,7 +13,7 @@ namespace Otherguise\Triples\Predicate;
 defined( 'ABSPATH' ) || exit;
 
 /**
- * A kind of relation: what it may relate, how many, whether it is ordered or symmetric, and which qualifiers it carries.
+ * A kind of relation: what it may relate, how many, whether it is symmetric, and which predicates may qualify its statements.
  *
  * Immutable. The checks that need the entity and qualifier types are made when the definition is registered.
  */
@@ -29,13 +29,22 @@ final class PredicateDefinition {
 		'object_types',
 		'max_objects_per_subject',
 		'max_subjects_per_object',
-		'allow_repeats',
-		'ordered',
 		'symmetric',
 		'on_delete',
 		'iri',
-		'qualifiers',
+		'qualified_by',
+		'qualifies',
 	);
+
+	/**
+	 * Entry of `qualifies` meaning "any predicate".
+	 */
+	public const WILDCARD = '*';
+
+	/**
+	 * Maximum length of a slug.
+	 */
+	public const MAX_SLUG_LENGTH = 64;
 
 	/**
 	 * Slug: `owner/name`.
@@ -87,20 +96,6 @@ final class PredicateDefinition {
 	private $max_subjects_per_object;
 
 	/**
-	 * Whether several statements may share the same subject, predicate and object.
-	 *
-	 * @var bool
-	 */
-	private $allow_repeats;
-
-	/**
-	 * Whether the statements of a subject carry a position.
-	 *
-	 * @var bool
-	 */
-	private $ordered;
-
-	/**
 	 * Whether (a, p, b) implies (b, p, a).
 	 *
 	 * @var bool
@@ -122,18 +117,25 @@ final class PredicateDefinition {
 	private $iri;
 
 	/**
-	 * Qualifiers by name.
+	 * Predicates that may qualify the statements of this predicate.
 	 *
-	 * @var array<string, QualifierDefinition>
+	 * @var string[]
 	 */
-	private $qualifiers = array();
+	private $qualified_by;
+
+	/**
+	 * Predicates whose statements this predicate may qualify (`*`: any).
+	 *
+	 * @var string[]
+	 */
+	private $qualifies;
 
 	/**
 	 * Builds a definition from an array.
 	 *
-	 * Required keys: `slug` and `label`. Optional keys: `inverse_label`, `subject_types`, `object_types`, `max_objects_per_subject`,
-	 * `max_subjects_per_object`, `allow_repeats`, `ordered`, `symmetric`, `on_delete`, `iri` and `qualifiers` (a list of arrays or of
-	 * QualifierDefinition).
+	 * Required keys: `slug` and `label`. Optional keys: `inverse_label`, `subject_types` (entity types), `object_types` (entity types
+	 * or datatypes), `max_objects_per_subject`, `max_subjects_per_object`, `symmetric`, `on_delete`, `iri`, `qualified_by` and
+	 * `qualifies` (lists of predicate slugs; `*` is accepted in `qualifies`).
 	 *
 	 * @param array<string, mixed> $args Definition.
 	 * @return self
@@ -157,8 +159,8 @@ final class PredicateDefinition {
 
 		$slug = $args['slug'] ?? '';
 
-		if ( ! is_string( $slug ) || 1 !== preg_match( '/^[a-z][a-z0-9_-]*\/[a-z][a-z0-9_-]*\z/', $slug ) ) {
-			throw new \InvalidArgumentException( sprintf( 'Invalid predicate slug "%s": expected "owner/name" in lower case.', esc_html( is_string( $slug ) ? $slug : '' ) ) );
+		if ( ! is_string( $slug ) || ! self::is_valid_slug( $slug ) ) {
+			throw new \InvalidArgumentException( sprintf( 'Invalid predicate slug "%s": expected "owner/name" in lower case, at most 64 characters.', esc_html( is_string( $slug ) ? $slug : '' ) ) );
 		}
 
 		$this->slug = $slug;
@@ -174,13 +176,7 @@ final class PredicateDefinition {
 		$this->max_objects_per_subject = $reader->limit( 'max_objects_per_subject' );
 		$this->max_subjects_per_object = $reader->limit( 'max_subjects_per_object' );
 
-		$this->allow_repeats = $reader->flag( 'allow_repeats' );
-		$this->ordered       = $reader->flag( 'ordered' );
-		$this->symmetric     = $reader->flag( 'symmetric' );
-
-		if ( $this->ordered && $this->symmetric ) {
-			throw new \InvalidArgumentException( sprintf( 'Predicate "%s" cannot be both ordered and symmetric.', esc_html( $slug ) ) );
-		}
+		$this->symmetric = $reader->flag( 'symmetric' );
 
 		$this->on_delete = $args['on_delete'] ?? 'remove';
 
@@ -188,15 +184,21 @@ final class PredicateDefinition {
 			throw new \InvalidArgumentException( sprintf( 'Predicate "%s": "on_delete" must be "remove" or "keep".', esc_html( $slug ) ) );
 		}
 
-		$this->iri = $reader->iri( 'iri' );
+		$this->iri          = $reader->iri( 'iri' );
+		$this->qualified_by = $reader->predicate_slugs( 'qualified_by', false );
+		$this->qualifies    = $reader->predicate_slugs( 'qualifies', true );
+	}
 
-		foreach ( $reader->qualifiers( 'qualifiers' ) as $qualifier ) {
-			if ( isset( $this->qualifiers[ $qualifier->name() ] ) ) {
-				throw new \InvalidArgumentException( sprintf( 'Predicate "%1$s" declares the qualifier "%2$s" twice.', esc_html( $slug ), esc_html( $qualifier->name() ) ) );
-			}
-
-			$this->qualifiers[ $qualifier->name() ] = $qualifier;
-		}
+	/**
+	 * Tells whether a string is a valid predicate slug: `owner/name`, lower case, at most 64 characters.
+	 *
+	 * @param mixed $slug Candidate.
+	 * @return bool
+	 */
+	public static function is_valid_slug( $slug ) {
+		return is_string( $slug )
+			&& strlen( $slug ) <= self::MAX_SLUG_LENGTH
+			&& 1 === preg_match( '/^[a-z][a-z0-9_-]*\/[a-z][a-z0-9_-]*\z/', $slug );
 	}
 
 	/**
@@ -263,24 +265,6 @@ final class PredicateDefinition {
 	}
 
 	/**
-	 * Tells whether the same subject, predicate and object may appear in several statements.
-	 *
-	 * @return bool
-	 */
-	public function allows_repeats() {
-		return $this->allow_repeats;
-	}
-
-	/**
-	 * Tells whether the statements of a subject carry a position.
-	 *
-	 * @return bool
-	 */
-	public function is_ordered() {
-		return $this->ordered;
-	}
-
-	/**
 	 * Tells whether the predicate is symmetric.
 	 *
 	 * @return bool
@@ -308,11 +292,20 @@ final class PredicateDefinition {
 	}
 
 	/**
-	 * Returns the qualifiers by name.
+	 * Returns the predicates that may qualify the statements of this predicate.
 	 *
-	 * @return array<string, QualifierDefinition>
+	 * @return string[]
 	 */
-	public function qualifiers() {
-		return $this->qualifiers;
+	public function qualified_by() {
+		return $this->qualified_by;
+	}
+
+	/**
+	 * Returns the predicates whose statements this predicate may qualify (`*`: any).
+	 *
+	 * @return string[]
+	 */
+	public function qualifies() {
+		return $this->qualifies;
 	}
 }

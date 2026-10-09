@@ -29,7 +29,7 @@ class TriplesEntityTypeTest extends TestCase {
 	public function test_the_built_in_types_are_registered(): void {
 		$registry = EntityTypeRegistry::with_builtins();
 
-		$this->assertSame( array( 'post', 'attachment', 'term', 'user' ), array_keys( $registry->all() ) );
+		$this->assertSame( array( 'post', 'attachment', 'term', 'user', 'statement' ), array_keys( $registry->all() ) );
 	}
 
 	/**
@@ -166,5 +166,22 @@ class TriplesEntityTypeTest extends TestCase {
 		$this->assertTrue( $registry->has( 'post' ) );
 		$registry->all();
 		$this->assertSame( 1, $calls );
+	}
+
+	/**
+	 * A slug is at most 20 characters.
+	 *
+	 * @return void
+	 */
+	public function test_a_slug_is_at_most_20_characters(): void {
+		$validator = static function () {
+			return true;
+		};
+
+		$this->assertSame( str_repeat( 'a', 20 ), ( new EntityType( str_repeat( 'a', 20 ), 'Long', $validator ) )->slug() );
+
+		$this->expectException( InvalidArgumentException::class );
+
+		new EntityType( str_repeat( 'a', 21 ), 'Too long', $validator );
 	}
 }

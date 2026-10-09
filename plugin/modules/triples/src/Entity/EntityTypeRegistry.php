@@ -19,7 +19,7 @@ defined( 'ABSPATH' ) || exit;
  */
 final class EntityTypeRegistry extends LazyRegistry {
 	/**
-	 * Builds a registry holding the types provided by WordPress: post, attachment, term and user.
+	 * Builds a registry holding the built-in types: post, attachment, term and user (provided by WordPress), and statement.
 	 *
 	 * @param callable|null $initializer Called once with the registry before its first use, to register other types.
 	 * @return self
@@ -32,6 +32,7 @@ final class EntityTypeRegistry extends LazyRegistry {
 			'attachment' => 'Media item',
 			'term'       => 'Term',
 			'user'       => 'User',
+			'statement'  => 'Statement',
 		) as $slug => $label ) {
 			$registry->add( $slug, EntityType::positive_integer( $slug, $label ), 'Entity type' );
 		}

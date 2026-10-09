@@ -61,26 +61,44 @@ final class DefinitionReader {
 	}
 
 	/**
-	 * Reads a list of entity type slugs.
+	 * Reads a list of type slugs (entity types or datatypes).
 	 *
 	 * @param string $key Key.
 	 * @return string[]
-	 * @throws \InvalidArgumentException When the value is not a list of entity type slugs.
+	 * @throws \InvalidArgumentException When the value is not a list of type slugs.
 	 */
 	public function types( $key ) {
-		$value = $this->args[ $key ] ?? array();
-
-		if ( ! is_array( $value ) || array_values( $value ) !== $value ) {
-			throw new \InvalidArgumentException( sprintf( '%1$s: "%2$s" must be a list.', esc_html( $this->label ), esc_html( $key ) ) );
-		}
+		$value = $this->list( $key );
 
 		foreach ( $value as $slug ) {
 			if ( ! is_string( $slug ) || 1 !== preg_match( EntityRef::TYPE_PATTERN, $slug ) ) {
-				throw new \InvalidArgumentException( sprintf( '%1$s: "%2$s" holds an invalid entity type slug.', esc_html( $this->label ), esc_html( $key ) ) );
+				throw new \InvalidArgumentException( sprintf( '%1$s: "%2$s" holds an invalid type slug.', esc_html( $this->label ), esc_html( $key ) ) );
 			}
 		}
 
-		return $value;
+		return array_values( array_unique( $value ) );
+	}
+
+	/**
+	 * Reads a list of predicate slugs.
+	 *
+	 * @param string $key           Key.
+	 * @param bool   $allow_wildcard Whether the entry `*` (any predicate) is accepted.
+	 * @return string[]
+	 * @throws \InvalidArgumentException When the value is not a list of predicate slugs.
+	 */
+	public function predicate_slugs( $key, $allow_wildcard ) {
+		$value = $this->list( $key );
+
+		foreach ( $value as $slug ) {
+			$wildcard = $allow_wildcard && PredicateDefinition::WILDCARD === $slug;
+
+			if ( ! $wildcard && ! PredicateDefinition::is_valid_slug( $slug ) ) {
+				throw new \InvalidArgumentException( sprintf( '%1$s: "%2$s" holds an invalid predicate slug.', esc_html( $this->label ), esc_html( $key ) ) );
+			}
+		}
+
+		return array_values( array_unique( $value ) );
 	}
 
 	/**
@@ -139,33 +157,19 @@ final class DefinitionReader {
 	}
 
 	/**
-	 * Reads the qualifiers.
+	 * Reads a list (a sequential array), empty by default.
 	 *
 	 * @param string $key Key.
-	 * @return QualifierDefinition[]
-	 * @throws \InvalidArgumentException When the qualifiers are not a list of definitions.
+	 * @return array<int, mixed>
+	 * @throws \InvalidArgumentException When the value is not a list.
 	 */
-	public function qualifiers( $key ) {
+	private function list( $key ) {
 		$value = $this->args[ $key ] ?? array();
 
 		if ( ! is_array( $value ) || array_values( $value ) !== $value ) {
-			throw new \InvalidArgumentException( sprintf( '%s: "qualifiers" must be a list.', esc_html( $this->label ) ) );
+			throw new \InvalidArgumentException( sprintf( '%1$s: "%2$s" must be a list.', esc_html( $this->label ), esc_html( $key ) ) );
 		}
 
-		$qualifiers = array();
-
-		foreach ( $value as $qualifier ) {
-			if ( is_array( $qualifier ) ) {
-				$qualifier = new QualifierDefinition( $qualifier );
-			}
-
-			if ( ! $qualifier instanceof QualifierDefinition ) {
-				throw new \InvalidArgumentException( sprintf( '%s: each qualifier must be an array or a QualifierDefinition.', esc_html( $this->label ) ) );
-			}
-
-			$qualifiers[] = $qualifier;
-		}
-
-		return $qualifiers;
+		return $value;
 	}
 }

@@ -3,19 +3,19 @@
  * SPDX-FileCopyrightText: 2026 Eric van der Vlist <vdv@dyomedea.com>
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * Boolean qualifier type.
+ * Boolean datatype.
  *
  * @package Otherguise
  */
 
-namespace Otherguise\Triples\Qualifier;
+namespace Otherguise\Triples\Datatype;
 
 defined( 'ABSPATH' ) || exit;
 
 /**
  * A boolean, stored as "1" or "0".
  */
-final class BooleanType extends AbstractScalarType {
+final class BooleanDatatype implements DatatypeInterface {
 	/**
 	 * Values read as true.
 	 *
@@ -31,7 +31,7 @@ final class BooleanType extends AbstractScalarType {
 	private const FALSE_VALUES = array( false, 0, '0', 'false' );
 
 	/**
-	 * Returns the name of the type.
+	 * Returns the name of the datatype.
 	 *
 	 * @return string
 	 */
@@ -51,22 +51,20 @@ final class BooleanType extends AbstractScalarType {
 	/**
 	 * Tells whether a value reads as a boolean: true, false, 1, 0, and the strings "1", "0", "true" and "false".
 	 *
-	 * @param mixed                $value   Value.
-	 * @param array<string, mixed> $options Options of the qualifier.
+	 * @param mixed $value Value.
 	 * @return bool
 	 */
-	public function validate( $value, array $options ) {
+	public function validate( $value ) {
 		return in_array( $value, self::TRUE_VALUES, true ) || in_array( $value, self::FALSE_VALUES, true );
 	}
 
 	/**
 	 * Returns "1" for a true value and "0" for a false one.
 	 *
-	 * @param mixed                $value   Valid value.
-	 * @param array<string, mixed> $options Options of the qualifier.
+	 * @param mixed $value Valid value.
 	 * @return string
 	 */
-	public function normalize( $value, array $options ) {
+	public function normalize( $value ) {
 		return in_array( $value, self::TRUE_VALUES, true ) ? '1' : '0';
 	}
 }

@@ -3,20 +3,19 @@
  * SPDX-FileCopyrightText: 2026 Eric van der Vlist <vdv@dyomedea.com>
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * Tests of the predicate and qualifier definitions.
+ * Tests of the predicate definitions.
  *
  * @package Otherguise
  */
 
 use Otherguise\Triples\Predicate\PredicateDefinition;
-use Otherguise\Triples\Predicate\QualifierDefinition;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Tests of the predicate and qualifier definitions.
+ * Tests of the predicate definitions.
  *
+ * @covers \Otherguise\Triples\Predicate\DefinitionReader
  * @covers \Otherguise\Triples\Predicate\PredicateDefinition
- * @covers \Otherguise\Triples\Predicate\QualifierDefinition
  */
 class TriplesPredicateDefinitionTest extends TestCase {
 
@@ -51,12 +50,11 @@ class TriplesPredicateDefinitionTest extends TestCase {
 		$this->assertSame( array(), $predicate->object_types() );
 		$this->assertNull( $predicate->max_objects_per_subject() );
 		$this->assertNull( $predicate->max_subjects_per_object() );
-		$this->assertFalse( $predicate->allows_repeats() );
-		$this->assertFalse( $predicate->is_ordered() );
 		$this->assertFalse( $predicate->is_symmetric() );
 		$this->assertSame( 'remove', $predicate->on_delete() );
 		$this->assertNull( $predicate->iri() );
-		$this->assertSame( array(), $predicate->qualifiers() );
+		$this->assertSame( array(), $predicate->qualified_by() );
+		$this->assertSame( array(), $predicate->qualifies() );
 	}
 
 	/**
@@ -71,45 +69,41 @@ class TriplesPredicateDefinitionTest extends TestCase {
 					'slug'                    => 'modes/has-variant',
 					'inverse_label'           => 'Variant of',
 					'subject_types'           => array( 'template' ),
-					'object_types'            => array( 'template' ),
+					'object_types'            => array( 'template', 'string' ),
 					'max_objects_per_subject' => 1,
 					'max_subjects_per_object' => 3,
-					'allow_repeats'           => true,
-					'ordered'                 => true,
 					'on_delete'               => 'keep',
 					'iri'                     => 'https://example.org/vocab#hasVariant',
-					'qualifiers'              => array(
-						array(
-							'name'     => 'mode',
-							'type'     => 'enum',
-							'values'   => array( 'web', 'print' ),
-							'multiple' => true,
-							'required' => true,
-						),
-						new QualifierDefinition(
-							array(
-								'name' => 'note',
-								'type' => 'string',
-							)
-						),
-					),
+					'qualified_by'            => array( 'modes/mode', 'triples/position', 'modes/mode' ),
+					'qualifies'               => array( 'books/contains', '*' ),
 				)
 			)
 		);
 
 		$this->assertSame( 'Variant of', $predicate->inverse_label() );
 		$this->assertSame( array( 'template' ), $predicate->subject_types() );
+		$this->assertSame( array( 'template', 'string' ), $predicate->object_types() );
 		$this->assertSame( 1, $predicate->max_objects_per_subject() );
 		$this->assertSame( 3, $predicate->max_subjects_per_object() );
-		$this->assertTrue( $predicate->allows_repeats() );
-		$this->assertTrue( $predicate->is_ordered() );
 		$this->assertSame( 'keep', $predicate->on_delete() );
 		$this->assertSame( 'https://example.org/vocab#hasVariant', $predicate->iri() );
-		$this->assertSame( array( 'mode', 'note' ), array_keys( $predicate->qualifiers() ) );
-		$this->assertTrue( $predicate->qualifiers()['mode']->is_multiple() );
-		$this->assertTrue( $predicate->qualifiers()['mode']->is_required() );
-		$this->assertSame( array( 'values' => array( 'web', 'print' ) ), $predicate->qualifiers()['mode']->options() );
-		$this->assertFalse( $predicate->qualifiers()['note']->is_multiple() );
+		$this->assertSame( array( 'modes/mode', 'triples/position' ), $predicate->qualified_by(), 'Duplicates are dropped.' );
+		$this->assertSame( array( 'books/contains', '*' ), $predicate->qualifies() );
+	}
+
+	/**
+	 * A slug of 64 characters is accepted.
+	 *
+	 * @return void
+	 */
+	public function test_a_slug_of_64_characters_is_accepted(): void {
+		$slug = 'owner/' . str_repeat( 'a', 58 );
+
+		$this->assertSame( 64, strlen( $slug ) );
+		$this->assertSame( $slug, PredicateDefinition::from_array( $this->args( array( 'slug' => $slug ) ) )->slug() );
+		$this->assertTrue( PredicateDefinition::is_valid_slug( 'books/contains' ) );
+		$this->assertFalse( PredicateDefinition::is_valid_slug( 'contains' ) );
+		$this->assertFalse( PredicateDefinition::is_valid_slug( 12 ) );
 	}
 
 	/**
@@ -131,68 +125,32 @@ class TriplesPredicateDefinitionTest extends TestCase {
 	 * @return array<string, array<int, array<string, mixed>>>
 	 */
 	public static function invalid_definitions(): array {
-		$qualifier = array(
-			'name' => 'mode',
-			'type' => 'string',
-		);
-
 		return array(
-			'slug without owner'      => array( array( 'slug' => 'related-to' ) ),
-			'slug with upper case'    => array( array( 'slug' => 'Triples/Related' ) ),
-			'slug with two slashes'   => array( array( 'slug' => 'a/b/c' ) ),
-			'slug with newline'       => array( array( 'slug' => "triples/related\n" ) ),
-			'iri with newline'        => array( array( 'iri' => "http://example.org/p\n" ) ),
-			'empty label'             => array( array( 'label' => '' ) ),
-			'unknown key'             => array( array( 'colour' => 'red' ) ),
-			'types not a list'        => array( array( 'subject_types' => 'post' ) ),
-			'invalid type slug'       => array( array( 'object_types' => array( 'Post' ) ) ),
-			'zero limit'              => array( array( 'max_objects_per_subject' => 0 ) ),
-			'negative limit'          => array( array( 'max_subjects_per_object' => -1 ) ),
-			'string limit'            => array( array( 'max_objects_per_subject' => '1' ) ),
-			'flag not a boolean'      => array( array( 'ordered' => 'yes' ) ),
-			'unknown on_delete'       => array( array( 'on_delete' => 'cascade' ) ),
-			'iri with a space'        => array( array( 'iri' => 'http://a b' ) ),
-			'relative iri'            => array( array( 'iri' => 'vocab/hasVariant' ) ),
-			'duplicate qualifier'     => array( array( 'qualifiers' => array( $qualifier, $qualifier ) ) ),
-			'qualifier not an array'  => array( array( 'qualifiers' => array( 'mode' ) ) ),
-			'symmetric and ordered'   => array(
-				array(
-					'symmetric' => true,
-					'ordered'   => true,
-				),
-			),
-			'reserved qualifier name' => array(
-				array(
-					'qualifiers' => array(
-						array(
-							'name' => 'position',
-							'type' => 'integer',
-						),
-					),
-				),
-			),
-			'qualifier invalid name'  => array(
-				array(
-					'qualifiers' => array(
-						array(
-							'name' => 'Mode',
-							'type' => 'string',
-						),
-					),
-				),
-			),
-			'qualifier without type'  => array( array( 'qualifiers' => array( array( 'name' => 'mode' ) ) ) ),
-			'qualifier unknown key'   => array(
-				array(
-					'qualifiers' => array(
-						array(
-							'name' => 'mode',
-							'type' => 'string',
-							'size' => 3,
-						),
-					),
-				),
-			),
+			'slug without owner'        => array( array( 'slug' => 'related-to' ) ),
+			'slug with upper case'      => array( array( 'slug' => 'Triples/Related' ) ),
+			'slug with two slashes'     => array( array( 'slug' => 'a/b/c' ) ),
+			'slug with newline'         => array( array( 'slug' => "triples/related\n" ) ),
+			'slug of 65 characters'     => array( array( 'slug' => 'owner/' . str_repeat( 'a', 59 ) ) ),
+			'iri with newline'          => array( array( 'iri' => "http://example.org/p\n" ) ),
+			'empty label'               => array( array( 'label' => '' ) ),
+			'unknown key'               => array( array( 'colour' => 'red' ) ),
+			'removed key qualifiers'    => array( array( 'qualifiers' => array() ) ),
+			'removed key ordered'       => array( array( 'ordered' => true ) ),
+			'removed key allow_repeats' => array( array( 'allow_repeats' => true ) ),
+			'types not a list'          => array( array( 'subject_types' => 'post' ) ),
+			'invalid type slug'         => array( array( 'object_types' => array( 'Post' ) ) ),
+			'type slug too long'        => array( array( 'object_types' => array( str_repeat( 'a', 21 ) ) ) ),
+			'zero limit'                => array( array( 'max_objects_per_subject' => 0 ) ),
+			'negative limit'            => array( array( 'max_subjects_per_object' => -1 ) ),
+			'string limit'              => array( array( 'max_objects_per_subject' => '1' ) ),
+			'flag not a boolean'        => array( array( 'symmetric' => 'yes' ) ),
+			'unknown on_delete'         => array( array( 'on_delete' => 'cascade' ) ),
+			'iri with a space'          => array( array( 'iri' => 'http://a b' ) ),
+			'relative iri'              => array( array( 'iri' => 'vocab/hasVariant' ) ),
+			'qualified_by not a list'   => array( array( 'qualified_by' => 'modes/mode' ) ),
+			'qualified_by bad slug'     => array( array( 'qualified_by' => array( 'mode' ) ) ),
+			'wildcard in qualified_by'  => array( array( 'qualified_by' => array( '*' ) ) ),
+			'qualifies bad slug'        => array( array( 'qualifies' => array( 'Books' ) ) ),
 		);
 	}
 }

@@ -3,21 +3,21 @@
  * SPDX-FileCopyrightText: 2026 Eric van der Vlist <vdv@dyomedea.com>
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * Integer qualifier type.
+ * Integer datatype.
  *
  * @package Otherguise
  */
 
-namespace Otherguise\Triples\Qualifier;
+namespace Otherguise\Triples\Datatype;
 
 defined( 'ABSPATH' ) || exit;
 
 /**
  * A signed integer, given as an integer or as its decimal string.
  */
-final class IntegerType extends AbstractScalarType {
+final class IntegerDatatype implements DatatypeInterface {
 	/**
-	 * Returns the name of the type.
+	 * Returns the name of the datatype.
 	 *
 	 * @return string
 	 */
@@ -37,11 +37,10 @@ final class IntegerType extends AbstractScalarType {
 	/**
 	 * Tells whether a value is an integer, or a decimal string that fits in a PHP integer.
 	 *
-	 * @param mixed                $value   Value.
-	 * @param array<string, mixed> $options Options of the qualifier.
+	 * @param mixed $value Value.
 	 * @return bool
 	 */
-	public function validate( $value, array $options ) {
+	public function validate( $value ) {
 		if ( is_int( $value ) ) {
 			return true;
 		}
@@ -52,11 +51,10 @@ final class IntegerType extends AbstractScalarType {
 	/**
 	 * Returns the canonical decimal string.
 	 *
-	 * @param mixed                $value   Valid value.
-	 * @param array<string, mixed> $options Options of the qualifier.
+	 * @param mixed $value Valid value.
 	 * @return string
 	 */
-	public function normalize( $value, array $options ) {
+	public function normalize( $value ) {
 		return (string) (int) $value;
 	}
 

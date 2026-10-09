@@ -13,21 +13,23 @@ Otherguise lets a WordPress site present the same content in several forms (web,
 
 ## Verified Current State
 
-The repository contains the structure of the plugin and the first part of the `Triples` module:
+The repository contains the structure of the plugin and the registries of the `Triples` module:
 
 - the plugin header and bootstrap (`plugin/otherguise.php`), `uninstall.php`, `readme.txt`,
 - the module loader, the autoloader and the three modules (`Modes` and `Books` are still empty),
-- `Triples`: entity references and types, qualifier types, predicate definitions, and the three registries filled lazily through the actions `triples_register_entity_types`, `triples_register_qualifier_types` and `triples_register_predicates` (slice 100, in memory only),
-- 85 PHPUnit tests: loader, autoloader, architecture rules, version consistency, and the `Triples` classes.
+- `Triples`: entity references and types, datatypes (literals), predicate definitions with the references that say which predicates may qualify which, and the three registries filled lazily through the actions `triples_register_entity_types`, `triples_register_datatypes` and `triples_register_predicates` (slices 100 and 101, in memory only),
+- 97 PHPUnit tests: loader, autoloader, architecture rules, version consistency, and the `Triples` classes.
 
-No table, statement, screen or REST route exists yet. The next slice is 101 (storage).
+No table, statement, screen or REST route exists yet. The next slice is 102 (storage).
 
 ### Triples: vocabulary
 
-- **Entity reference** (`EntityRef`): `type:id`, for example `post:123` or `ext:youtube:abc`. The id is opaque; its type checks the format (the built-in types `post`, `attachment`, `term` and `user` take positive integers). Existence is checked when a statement is created (slice 102).
-- **Predicate** (`PredicateDefinition`): slug `owner/name` (for example `modes/has-variant`), labels, allowed subject and object types, limits, repeats, order, symmetry, behavior on deletion, optional IRI, qualifiers.
-- **Qualifier** (`QualifierDefinition`): a name, a type (`string`, `integer`, `boolean`, `enum`, others registered by modules) and the options of that type.
-- A module registers its entity types, qualifier types and predicates from callbacks added in its `boot()` to the three actions above; each action runs once, when its registry is first read.
+- **Statement**: a triple *(subject, predicate, object)* that has an identity. A qualification is another statement whose subject is the statement qualified: `(statement:41, mode, mode:print)`, `(statement:43, position, 1)`.
+- **Entity reference** (`EntityRef`): `type:id`, for example `post:123` or `ext:youtube:abc`. The id is opaque; its entity type checks the format (the built-in types `post`, `attachment`, `term`, `user` and `statement` take positive integers). Existence is checked when a statement is created.
+- **Datatype** (`DatatypeInterface`): the type of a literal object (`string` up to 191 bytes, `integer`, `boolean`), with its XSD name. Entity type slugs and datatype names share one namespace (20 characters at most).
+- **Predicate** (`PredicateDefinition`): slug `owner/name` (64 characters at most, for example `modes/has-variant`), labels, allowed subject types (entity types) and object types (entity types or datatypes), limits, symmetry, behavior on deletion, optional IRI, and `qualified_by` / `qualifies`: a predicate X may qualify the statements of P when P lists X in `qualified_by`, or X lists P or `*` in `qualifies` (`PredicateRegistry::can_qualify()`). The references are checked when the registry is first read after the registrations.
+- **Built-in qualifier**: `triples/position` (a statement about a statement, with an integer object, at most one per statement).
+- A module registers its entity types, datatypes and predicates from callbacks added in its `boot()` to the three actions above; each action runs once, when its registry is first read. The entity types and datatypes are registered before the callbacks of the predicates run.
 
 ## Modules
 

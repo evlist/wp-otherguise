@@ -40,6 +40,13 @@ abstract class LazyRegistry {
 	private $initialized;
 
 	/**
+	 * Whether the initializer is running.
+	 *
+	 * @var bool
+	 */
+	private $initializing = false;
+
+	/**
 	 * Builds the registry.
 	 *
 	 * @param callable|null $initializer Called once with the registry before its first use.
@@ -82,9 +89,23 @@ abstract class LazyRegistry {
 			return;
 		}
 
-		$this->initialized = true;
+		$this->initialized  = true;
+		$this->initializing = true;
 
-		( $this->initializer )( $this );
+		try {
+			( $this->initializer )( $this );
+		} finally {
+			$this->initializing = false;
+		}
+	}
+
+	/**
+	 * Tells whether the initializer is running, so that checks needing every registration can wait.
+	 *
+	 * @return bool
+	 */
+	protected function is_initializing() {
+		return $this->initializing;
 	}
 
 	/**

@@ -8,10 +8,11 @@
  * @package Otherguise
  */
 
+use Otherguise\Triples\Datatype\DatatypeRegistry;
+use Otherguise\Triples\Entity\EntityType;
 use Otherguise\Triples\Entity\EntityTypeRegistry;
 use Otherguise\Triples\Predicate\PredicateDefinition;
 use Otherguise\Triples\Predicate\PredicateRegistry;
-use Otherguise\Triples\Qualifier\QualifierTypeRegistry;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -25,10 +26,11 @@ class TriplesPredicateRegistryTest extends TestCase {
 	 * Builds a registry with the built-in types.
 	 *
 	 * @param callable|null $initializer Initializer.
+	 * @param array|null    $entity_types Entity type registry, or null for the built-ins.
 	 * @return PredicateRegistry
 	 */
-	private function registry( $initializer = null ) {
-		return new PredicateRegistry( EntityTypeRegistry::with_builtins(), QualifierTypeRegistry::with_builtins(), $initializer );
+	private function registry( $initializer = null, $entity_types = null ) {
+		return new PredicateRegistry( $entity_types ?? EntityTypeRegistry::with_builtins(), DatatypeRegistry::with_builtins(), $initializer );
 	}
 
 	/**
@@ -105,11 +107,11 @@ class TriplesPredicateRegistryTest extends TestCase {
 	}
 
 	/**
-	 * The entity types must be registered.
+	 * Subject types must be registered entity types.
 	 *
 	 * @return void
 	 */
-	public function test_the_entity_types_must_be_registered(): void {
+	public function test_subject_types_must_be_registered_entity_types(): void {
 		$this->expectException( InvalidArgumentException::class );
 		$this->expectExceptionMessage( 'Predicate "triples/related-to" uses the unknown entity type "ghost".' );
 
@@ -117,48 +119,39 @@ class TriplesPredicateRegistryTest extends TestCase {
 	}
 
 	/**
-	 * The qualifier types must be registered.
+	 * Object types may be entity types or datatypes.
 	 *
 	 * @return void
 	 */
-	public function test_the_qualifier_types_must_be_registered(): void {
-		$this->expectException( InvalidArgumentException::class );
-		$this->expectExceptionMessage( 'Predicate "triples/related-to" uses the unknown qualifier type "mode".' );
+	public function test_object_types_may_be_entity_types_or_datatypes(): void {
+		$registry = $this->registry();
+		$registry->register( $this->definition( array( 'object_types' => array( 'post', 'integer' ) ) ) );
 
-		$this->registry()->register(
+		$this->assertSame( array( 'post', 'integer' ), $registry->get( 'triples/related-to' )->object_types() );
+
+		$this->expectException( InvalidArgumentException::class );
+		$this->expectExceptionMessage( 'Predicate "triples/other" uses the unknown type "ghost".' );
+
+		$registry->register(
 			$this->definition(
 				array(
-					'qualifiers' => array(
-						array(
-							'name' => 'mode',
-							'type' => 'mode',
-						),
-					),
+					'slug'         => 'triples/other',
+					'object_types' => array( 'ghost' ),
 				)
 			)
 		);
 	}
 
 	/**
-	 * The options of a qualifier are checked by its type.
+	 * A literal cannot be a subject.
 	 *
 	 * @return void
 	 */
-	public function test_the_options_of_a_qualifier_are_checked_by_its_type(): void {
+	public function test_a_literal_cannot_be_a_subject(): void {
 		$this->expectException( InvalidArgumentException::class );
+		$this->expectExceptionMessage( 'the literal type "integer" cannot be a subject' );
 
-		$this->registry()->register(
-			$this->definition(
-				array(
-					'qualifiers' => array(
-						array(
-							'name' => 'mode',
-							'type' => 'enum',
-						),
-					),
-				)
-			)
-		);
+		$this->registry()->register( $this->definition( array( 'subject_types' => array( 'integer' ) ) ) );
 	}
 
 	/**
@@ -190,10 +183,230 @@ class TriplesPredicateRegistryTest extends TestCase {
 					'slug'          => 'triples/bad',
 					'symmetric'     => true,
 					'subject_types' => array( 'post' ),
-					'object_types'  => array( 'term' ),
+					'object_types'  => array( 'integer' ),
 				)
 			)
 		);
+	}
+
+	/**
+	 * A predicate may qualify through the target or through itself.
+	 *
+	 * @return void
+	 */
+	public function test_a_predicate_may_qualify_through_the_target_or_through_itself(): void {
+		$registry = $this->registry();
+		$registry->register(
+			$this->definition(
+				array(
+					'slug'         => 'books/contains',
+					'qualified_by' => array( 'modes/mode' ),
+				)
+			)
+		);
+		$registry->register(
+			$this->definition(
+				array(
+					'slug'          => 'modes/mode',
+					'subject_types' => array( 'statement' ),
+				)
+			)
+		);
+		$registry->register(
+			$this->definition(
+				array(
+					'slug'          => 'modes/note',
+					'subject_types' => array( 'statement' ),
+					'qualifies'     => array( 'books/contains' ),
+				)
+			)
+		);
+		$registry->register(
+			$this->definition(
+				array(
+					'slug'          => 'triples/position',
+					'subject_types' => array( 'statement' ),
+					'qualifies'     => array( '*' ),
+				)
+			)
+		);
+		$registry->register( $this->definition( array( 'slug' => 'media/caption' ) ) );
+
+		$this->assertTrue( $registry->can_qualify( 'modes/mode', 'books/contains' ), 'The target lists the qualifier.' );
+		$this->assertTrue( $registry->can_qualify( 'modes/note', 'books/contains' ), 'The qualifier lists the target.' );
+		$this->assertTrue( $registry->can_qualify( 'triples/position', 'media/caption' ), 'The wildcard qualifies anything.' );
+		$this->assertFalse( $registry->can_qualify( 'modes/mode', 'media/caption' ) );
+		$this->assertFalse( $registry->can_qualify( 'modes/note', 'media/caption' ) );
+	}
+
+	/**
+	 * References may point to predicates registered later.
+	 *
+	 * @return void
+	 */
+	public function test_references_may_point_to_predicates_registered_later(): void {
+		$registry = $this->registry();
+		$registry->register(
+			$this->definition(
+				array(
+					'slug'         => 'books/contains',
+					'qualified_by' => array( 'modes/mode' ),
+				)
+			)
+		);
+		$registry->register(
+			$this->definition(
+				array(
+					'slug'          => 'modes/mode',
+					'subject_types' => array( 'statement' ),
+				)
+			)
+		);
+
+		$this->assertTrue( $registry->can_qualify( 'modes/mode', 'books/contains' ) );
+	}
+
+	/**
+	 * An unknown reference is reported when the registry is read.
+	 *
+	 * @return void
+	 */
+	public function test_an_unknown_reference_is_reported_when_the_registry_is_read(): void {
+		$registry = $this->registry();
+		$registry->register(
+			$this->definition(
+				array(
+					'slug'         => 'books/contains',
+					'qualified_by' => array( 'modes/mode' ),
+				)
+			)
+		);
+
+		$this->expectException( InvalidArgumentException::class );
+		$this->expectExceptionMessage( 'Predicate "books/contains" is qualified by the unknown predicate "modes/mode".' );
+
+		$registry->all();
+	}
+
+	/**
+	 * An unknown qualified target is reported when the registry is read.
+	 *
+	 * @return void
+	 */
+	public function test_an_unknown_qualified_target_is_reported_when_the_registry_is_read(): void {
+		$registry = $this->registry();
+		$registry->register(
+			$this->definition(
+				array(
+					'slug'          => 'modes/mode',
+					'subject_types' => array( 'statement' ),
+					'qualifies'     => array( 'books/contains' ),
+				)
+			)
+		);
+
+		$this->expectException( InvalidArgumentException::class );
+		$this->expectExceptionMessage( 'Predicate "modes/mode" qualifies the unknown predicate "books/contains".' );
+
+		$registry->get( 'modes/mode' );
+	}
+
+	/**
+	 * A qualifier must accept a statement as subject.
+	 *
+	 * @return void
+	 */
+	public function test_a_qualifier_must_accept_a_statement_as_subject(): void {
+		$registry = $this->registry();
+		$registry->register(
+			$this->definition(
+				array(
+					'slug'         => 'books/contains',
+					'qualified_by' => array( 'modes/mode' ),
+				)
+			)
+		);
+		$registry->register(
+			$this->definition(
+				array(
+					'slug'          => 'modes/mode',
+					'subject_types' => array( 'post' ),
+				)
+			)
+		);
+
+		$this->expectException( InvalidArgumentException::class );
+		$this->expectExceptionMessage( 'Predicate "modes/mode" is used as a qualifier but "statement" is not among its subject types.' );
+
+		$registry->all();
+	}
+
+	/**
+	 * A qualifier without subject types is accepted.
+	 *
+	 * @return void
+	 */
+	public function test_a_qualifier_without_subject_types_is_accepted(): void {
+		$registry = $this->registry();
+		$registry->register(
+			$this->definition(
+				array(
+					'slug'         => 'books/contains',
+					'qualified_by' => array( 'modes/mode' ),
+				)
+			)
+		);
+		$registry->register( $this->definition( array( 'slug' => 'modes/mode' ) ) );
+
+		$this->assertTrue( $registry->can_qualify( 'modes/mode', 'books/contains' ) );
+	}
+
+	/**
+	 * The references are checked again after a late registration.
+	 *
+	 * @return void
+	 */
+	public function test_the_references_are_checked_again_after_a_late_registration(): void {
+		$registry = $this->registry();
+		$registry->register(
+			$this->definition(
+				array(
+					'slug'          => 'modes/mode',
+					'subject_types' => array( 'statement' ),
+				)
+			)
+		);
+		$registry->all();
+		$registry->register(
+			$this->definition(
+				array(
+					'slug'         => 'books/contains',
+					'qualified_by' => array( 'modes/ghost' ),
+				)
+			)
+		);
+
+		$this->expectException( InvalidArgumentException::class );
+		$this->expectExceptionMessage( 'unknown predicate "modes/ghost"' );
+
+		$registry->all();
+	}
+
+	/**
+	 * An entity type and a datatype cannot share a name.
+	 *
+	 * @return void
+	 */
+	public function test_an_entity_type_and_a_datatype_cannot_share_a_name(): void {
+		$entity_types = EntityTypeRegistry::with_builtins();
+		$entity_types->register( EntityType::positive_integer( 'integer', 'Clashing type' ) );
+
+		$registry = $this->registry( null, $entity_types );
+
+		$this->expectException( InvalidArgumentException::class );
+		$this->expectExceptionMessage( 'The name "integer" is used by both an entity type and a datatype.' );
+
+		$registry->all();
 	}
 
 	/**
@@ -206,7 +419,23 @@ class TriplesPredicateRegistryTest extends TestCase {
 		$registry = $this->registry(
 			function ( PredicateRegistry $registry ) use ( &$calls ) {
 				++$calls;
-				$registry->register( $this->definition( array( 'slug' => 'books/contains' ) ) );
+				$registry->register(
+					$this->definition(
+						array(
+							'slug'         => 'books/contains',
+							'qualified_by' => array( 'modes/mode' ),
+						)
+					)
+				);
+				$this->assertFalse( $registry->has( 'books/contains' ) && false, 'Reading during the initialization does not check the references.' );
+				$registry->register(
+					$this->definition(
+						array(
+							'slug'          => 'modes/mode',
+							'subject_types' => array( 'statement' ),
+						)
+					)
+				);
 			}
 		);
 
@@ -216,6 +445,6 @@ class TriplesPredicateRegistryTest extends TestCase {
 		$registry->all();
 
 		$this->assertSame( 1, $calls );
-		$this->assertSame( array( 'books/contains', 'modes/has-variant' ), array_keys( $registry->all() ) );
+		$this->assertSame( array( 'books/contains', 'modes/mode', 'modes/has-variant' ), array_keys( $registry->all() ) );
 	}
 }
