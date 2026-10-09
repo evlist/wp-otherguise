@@ -5,6 +5,8 @@
 
 Status: **done**. Dependencies: slice 000. Module: `Triples`.
 
+> **Revision.** The qualifier part of this slice (qualifier definitions and types, `ordered`, `allow_repeats`) is superseded by [slice 101](101-triples-registry-revision.md): a qualification is now a statement about a statement. The entity references, the entity types and the lazy registries remain.
+
 ## Goal
 
 Describe, in memory and with strict validation, *what a statement may relate*: the kinds of things that can be a subject or an object (entity types), the kinds of relations (predicates) and the qualifiers a predicate may carry. Nothing is stored yet (slice 101) and no statement exists yet (slice 102). The slice is pure PHP, testable without WordPress, and it fixes the vocabulary used by every later slice and by the other modules.
