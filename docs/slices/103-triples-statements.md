@@ -59,7 +59,7 @@ Each failure throws `InvalidStatementException` (a subclass of `InvalidArgumentE
 ### Reading
 
 - `find( $id )`, `find_by_triple( $subject, $predicate, $object )`.
-- `objects_of( $subject, $predicate = null )` and `subjects_of( $object, $predicate = null )`, symmetric predicates included.
+- `match( ?EntityRef $subject, ?string $predicate, ?NodeInterface $object )`: the statements that fit the parts given, a missing part being a wildcard (the pattern read of RDF dataset APIs), symmetric predicates included. `objects_of( $subject, $predicate = null )` and `subjects_of( $object, $predicate = null )` are shortcuts for `match()`.
 - `qualifications_of( array $statements )`: the statements about each statement, **in one query** per level: `statement id => predicate => Statement[]`.
 - `listing( $subject, $predicate, array $options )`: the ordered, scoped list described below.
 
@@ -112,6 +112,7 @@ The existence checks use WordPress functions (`get_post`, `term_exists`, `get_us
 9. The natural order is a comparator supplied by the consumer; the default is the id.
 10. `Module::statements()` becomes the service and `Module::store()` the store.
 11. Actions and cache are left to slice 104.
+12. `match()` with wildcards as the main read (see the "Prior art and reuse" section of `design/triples.md`); no RDF library in the core.
 
 ## Done when
 
