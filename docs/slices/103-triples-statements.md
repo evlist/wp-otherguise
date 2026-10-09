@@ -71,8 +71,10 @@ A **scope** is a pair *(scope predicate, value)*, for example `(modes/mode, mode
 
 1. Read the statements of the subject and predicate (**all** of them) with their qualifications.
 2. Put them in the **natural order** given by the consumer (a comparator on the statements; photos: date and time of the photo; default: by id), then apply the **global pins**: the `triples/position` statements about the statements themselves.
-3. Keep the statements that apply to the scope: those with **no** statement of the scope predicate (they apply to every scope) and those with one whose object is the scope value. Their relative order is that of step 2.
+3. Keep the statements that have a statement of the scope predicate whose object is the scope value. **A statement with no statement of that predicate belongs to no scope**: it is linked but shown nowhere. This is the safe default on a site that uses scopes (nothing becomes visible by deleting something, and a scope declared later does not include old statements by surprise). Their relative order is that of step 2.
 4. If some of them have a **scope pin** (a `triples/position` statement about their statement of the scope), take those out and put them back at their rank in the scoped list. A scope pin overrides the global pin.
+
+Without the `scope` option `listing()` filters nothing: the view of a site that does not use scopes, and of the screens that list everything (they can show the statements that belong to no scope). Showing a statement in every scope without naming them is not supported; a specific predicate could be added if it is ever needed.
 
 So without any scope pin, every scope shows the same order and only drops some items; a scope pin changes the order for that scope only. This settles an ambiguity in the design notes, which said both that the order is the same in every mode and that a position on a mode statement overrides the other one (the notes are corrected with this slice).
 
@@ -96,7 +98,7 @@ Deleting what depends on a post, term, media item or user that disappears (`on_d
 - **Integration on a real database:** `transaction()` storing several statements and a failure rolling everything back, also when the calls inside use their own transactions; duplicates (strict and idempotent); `remove()` by triple, with its dependents; both limits; a symmetric predicate stored once whichever way it is given and read from both ends; the qualification rule (a statement about a statement accepted or refused); `replace()` on a single-valued predicate; `qualifications_of` in one query; `listing()` on the example below, for the web scope, the print scope, a scope without any mode statement, with a global pin and with a scope pin.
 - The architecture test still passes.
 
-Example for `listing()`: the photos A, B, C of a post, natural order A, B, C. A has no mode statement; B is `web`; C is `web` and `print`. Global pin: C at rank 1. Scope web: C, A, B. Scope print: C, A. Scope pin of C in print at rank 2: print shows A, C.
+Example for `listing()`: four photos A, B, C, D of a post, natural order A, B, C, D. A is `web` and `print`; B is `web`; C is `web` and `print`; D has no mode statement. Global pin: C at rank 1. Without scope: C, A, B, D. Scope web: C, A, B. Scope print: C, A. A scope pin of C in print at rank 2: print shows A, C. D is shown in no mode.
 
 ## Not verified by this slice
 
@@ -111,7 +113,7 @@ The existence checks use WordPress functions (`get_post`, `term_exists`, `get_us
 5. The limits are checked without a database lock (documented race), duplicates are guaranteed by the unique index.
 6. A symmetric predicate is stored once in canonical order; only `max_objects_per_subject` applies and it counts both ends.
 7. `InvalidStatementException` with a code per failure.
-8. The reading rule above (global order first, filter by scope, scope pins re-merged in the scoped list; no statement of the scope predicate means every scope), and `PinnedOrder::merge()` with ranks starting at 1.
+8. The reading rule above (global order first, filter by scope, scope pins re-merged in the scoped list; a statement with no statement of the scope predicate belongs to no scope; without the `scope` option nothing is filtered), and `PinnedOrder::merge()` with ranks starting at 1.
 9. The natural order is a comparator supplied by the consumer; the default is the id.
 10. `Module::statements()` becomes the service and `Module::store()` the store.
 11. Actions and cache are left to slice 104.

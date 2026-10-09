@@ -34,7 +34,7 @@ As of 2026-10-09 (the decided points are in the documents above).
 
 - **Template selection hook.** Where to hook the choice of a template so that it covers block themes (files and templates stored in the database by the site editor) and classic themes: to verify in the WordPress source. See [modes.md](modes.md).
 - **Media Helper.** Its attachment model and extension points, and whether the change belongs in Media Helper, in this plugin, or both. See [media-helper.md](media-helper.md).
-- **Reading rules for modes and positions** on stored statements (no `mode` statement means all modes; a position on a mode statement overrides the one on the statement): to settle with the statements slice (103).
+- **Reading rules for modes and positions** on stored statements (a statement with no `mode` statement is shown in no mode; a position on a mode statement overrides the one on the statement): to settle with the statements slice (103).
 - **PDF output.** Which renderer backends to build first (the HTML and CSS book page printed from a browser is the baseline) and whether any lives in this project. See [books.md](books.md).
 - **Index.** Kinds of terms, the tags to include, presentation. See [books.md](books.md).
 - **Private repositories on the Gitea server**, if they are needed: requires allowing the domain in the network settings of the environment and a read-only token stored as a secret, never pasted in a chat.

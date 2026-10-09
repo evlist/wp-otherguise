@@ -133,7 +133,7 @@ final class StatementQuery {
 	/**
 	 * Keeps the statements that have no statement about them with this predicate.
 	 *
-	 * Example: the statements without any `modes/mode` statement, which apply to every mode.
+	 * Example: the statements without any `modes/mode` statement, which are shown in no mode.
 	 *
 	 * @param string $predicate Predicate of the statement about the statement.
 	 * @return self

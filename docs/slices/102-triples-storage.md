@@ -58,7 +58,7 @@ id  subject            predicate      object
   - `about( ids )`: the statements whose subject is one of the given statements (one level; the caller recurses for nested qualifications);
   - `delete_with_dependents( $id )`: deletes a statement and, recursively, the statements about it, in one transaction;
   - `delete_by_entity( EntityRef )`: deletes the statements where the entity is subject or object, with their dependents (primitive used by slice 104).
-- `StatementQuery`: criteria subject, object, predicates, `qualified( predicate, objects )` (EXISTS) and `unqualified( predicate )` (NOT EXISTS, for "no `mode` statement means all modes"), order and paging. It builds a prepared SQL string; the building is pure PHP and unit tested.
+- `StatementQuery`: criteria subject, object, predicates, `qualified( predicate, objects )` (EXISTS) and `unqualified( predicate )` (NOT EXISTS, for instance the statements that are shown in no mode), order and paging. It builds a prepared SQL string; the building is pure PHP and unit tested.
 - Module wiring: `activate()` creates the schema, `boot()` calls `maybe_upgrade()` (a cheap option check) so that other sites of a multisite network create their table on their first request, `uninstall()` removes the table and the options (see below).
 
 ## Changes to existing code

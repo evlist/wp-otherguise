@@ -56,7 +56,7 @@ The three registries become: entity types, datatypes, predicates; actions `tripl
 
 ## Out of scope
 
-Storage (102), creating statements and enforcing limits, symmetry and qualification rules on data (103), cascade and cache (104). Reading rules (no `mode` statement means all modes; a position on a mode statement overrides the one on the statement) belong to the consumers and to slice 103.
+Storage (102), creating statements and enforcing limits, symmetry and qualification rules on data (103), cascade and cache (104). Reading rules (a statement with no `mode` statement is shown in no mode; a position on a mode statement overrides the one on the statement) belong to the consumers and to slice 103.
 
 ## Tests
 

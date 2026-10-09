@@ -53,7 +53,7 @@ add_action( 'triples_register_predicates', function ( $predicates ) {
 } );
 ```
 
-Reading rule used by `listing()`: **no `modes/mode` statement about a statement means it applies to every mode**; with one or more, it applies to those modes only.
+Reading rule used by `listing()` with a scope: **a statement belongs to a mode only if it has a `modes/mode` statement for it**. A photo linked to a post without any mode statement is shown in no mode (it is linked, and a screen can list it as "not shown anywhere"). Without a scope `listing()` filters nothing, which is what a site that does not use modes wants.
 
 ## 1. Associate a print template with a web template
 
@@ -72,7 +72,7 @@ $statements->create_or_get( $variant, 'modes/mode', Ref( 'mode:print' ) );
 2: (statement:1, modes/mode, mode:print)
 ```
 
-**Resolve the template of a page in a mode** (the Modes module does this on each request; `listing()` returns the variants that apply to the mode; the first one wins; none means "use the normal template"):
+**Resolve the template of a page in a mode** (the Modes module does this on each request; `listing()` returns the variants that have a mode statement for this mode; the first one wins; none means "use the normal template". A variant with no mode statement serves no mode):
 
 ```php
 $variants = $statements->listing( $web, 'modes/has-variant', array( 'scope' => array( 'modes/mode', Ref( 'mode:print' ) ) ) );
@@ -126,7 +126,7 @@ $photo = $statements->create_or_get( Ref( 'post:12' ), 'media/illustrated-by', R
 
 The post must exist and the attachment must be a media item. Calling it again returns statement 10 instead of failing (`create()` is the strict form). The photos of a post: `$statements->objects_of( Ref( 'post:12' ), 'media/illustrated-by' )`; the posts that use a photo: `$statements->subjects_of( Ref( 'attachment:88' ), 'media/illustrated-by' )`.
 
-**A site with modes.** The same call, then one call per mode (no mode statement means "every mode", so the first mode statement is what restricts the photo):
+**A site with modes.** The same call, then one call per mode in which the photo must be shown (a photo with no mode statement is shown in no mode):
 
 ```php
 $photo = $statements->create_or_get( Ref( 'post:12' ), 'media/illustrated-by', Ref( 'attachment:88' ) );
@@ -166,7 +166,7 @@ If any call is refused (unknown mode, missing attachment) nothing is stored.
 
 ## 3. Select the photos of a post that concern the print mode
 
-State: photo A (attachment:88) has no mode statement; B (attachment:90) is `web` only; C (attachment:91) is `web` and `print`.
+State: photo A (attachment:88) is `web` and `print`; B (attachment:90) is `web` only; C (attachment:91) is `web` and `print`; D (attachment:94) has no mode statement.
 
 ```php
 $photos = $statements->listing(
@@ -178,52 +178,42 @@ $photos = $statements->listing(
         },
     )
 );
-// A and C, in order of date and time. B is not shown in print.
+// A and C, in order of date and time. B is not shown in print, and D is shown nowhere.
 foreach ( $photos as $statement ) {
     $attachment_id = (int) $statement->object()->key();
 }
 ```
 
-With `'scope' => array( 'modes/mode', Ref( 'mode:web' ) )` the result is A, B, C. Without `natural_order` the order is the order of creation.
+With `'scope' => array( 'modes/mode', Ref( 'mode:web' ) )` the result is A, B, C. Without any `scope` the result is A, B, C, D (nothing is filtered). Without `natural_order` the order is the order of creation.
 
 ## 4. Keep the photos alive: remove, restrict, add, reorder
 
-**Remove a photo from the post** (every mode): the statements about it go with it.
+**Remove a photo from the post** (every mode at once): the statements about it go with it.
 
 ```php
 $statements->remove( Ref( 'post:12' ), 'media/illustrated-by', Ref( 'attachment:91' ) );
 ```
 
-**Remove a photo from the print mode only.** Two cases, because "no mode statement" means "every mode". This logic belongs to the Modes module, which offers it as one call, since the low-level `remove()` does not know the rule:
+**Remove a photo from the print mode only.** One call:
 
 ```php
-$modes = $statements->match( $photo, 'modes/mode', null );
-
-if ( array() === $modes ) {
-    // It applies to every mode today: make the scope explicit, without print.
-    foreach ( $declared_modes as $mode ) {                       // the declared modes other than print
-        $statements->create_or_get( $photo, 'modes/mode', Ref( 'mode:' . $mode ) );
-    }
-} else {
-    $statements->remove( $photo, 'modes/mode', Ref( 'mode:print' ) );
-
-    if ( array() === $statements->match( $photo, 'modes/mode', null ) ) {
-        // That was the only mode: the photo would now apply to every mode. It is nowhere any more: delete it.
-        $statements->delete( $photo );
-    }
-}
+$statements->remove( $photo, 'modes/mode', Ref( 'mode:print' ) );              // deletes the mode statement, and the rank set for print only
 ```
 
-**Add a photo** to every mode, or to print only:
+If that was its last mode, the photo is still linked to the post but shown in no mode. That is safe, and a screen can offer to delete it (`$statements->delete( $photo )`) or to list the photos that are shown nowhere with `StatementQuery::unqualified( 'modes/mode' )`.
+
+**Add a photo** to the web and print modes, or to print only:
 
 ```php
-$statements->create_or_get( Ref( 'post:12' ), 'media/illustrated-by', Ref( 'attachment:92' ) );
+$both = $statements->create_or_get( Ref( 'post:12' ), 'media/illustrated-by', Ref( 'attachment:92' ) );
+$statements->create_or_get( $both, 'modes/mode', Ref( 'mode:web' ) );
+$statements->create_or_get( $both, 'modes/mode', Ref( 'mode:print' ) );
 
 $print_only = $statements->create_or_get( Ref( 'post:12' ), 'media/illustrated-by', Ref( 'attachment:93' ) );
 $statements->create_or_get( $print_only, 'modes/mode', Ref( 'mode:print' ) );
 ```
 
-**Put a photo first** (a "pin"; the default order is the date and time of the photos). A rank for every mode, then a different rank for print only:
+**Put a photo first** (a "pin"; the default order is the date and time of the photos). A rank for all the modes in which it is shown, then a different rank for print only:
 
 ```php
 $statements->replace( $photo, 'triples/position', 5 );                         // 20: (statement:10, triples/position, 5)
@@ -282,8 +272,8 @@ Which books contain a post: `$statements->subjects_of( Ref( 'post:13' ), 'books/
 
 Points to settle, noted for the Modes and Books slices:
 
-1. **Excluding one mode makes the scope explicit.** "Everything except print" is written as the list of the other modes. A mode declared later is not included in such a scope. An explicit exclusion form was left out so far ("not planned"); to decide if this matters.
-2. **Removing the last mode statement would widen the scope to every mode.** The Modes module must guard against it (delete the photo instead), as in the example; a low-level `delete()` does not know.
+1. **No statement of the scope predicate means "no scope"**, not "every scope" (decided on 2026-10-09). The photos are visible only in the modes where they were explicitly put, which is safe: removing a mode never makes a photo appear elsewhere, and a mode declared later does not include old photos by surprise. The price is that showing a photo in every mode takes one statement per mode. A specific predicate for "every mode" could be added if it is ever needed.
+2. **A photo can be linked and shown nowhere** (no mode statement, or the last one removed). Screens should be able to list those and offer to delete them.
 3. **"One variant per template and mode" is not a limit of the registry.** `max_objects_per_subject` counts all the variants of a template, whatever the mode. The Modes module has to check it before creating a variant.
 4. **`Ref( ... )` is verbose.** A shorthand for the common entity types (`Ref::post( 12 )`) would make the code easier to read; cosmetic, to decide with the first consumer.
 5. **The options of `listing()`** (`scope`, `natural_order`) are fixed by these examples and added to the plan of slice 103.
