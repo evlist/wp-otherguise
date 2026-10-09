@@ -9,7 +9,7 @@ Instructions for Claude Code sessions working in this repository.
 
 1. `docs/IA.md`: architecture, constraints, validation, current state.
 2. `docs/slices/README.md`: the slices of work, done and planned.
-3. The brainstorming and the decisions behind the project are in the repository `evlist/shared-room`, directory `wp-otherguise/` (`README.md` there marks every point as decided, proposed or open). Do not assume a point that is not marked decided.
+3. `docs/design/README.md`: the reasoning behind the decisions, one document per subject; every point is marked decided, proposed or open. Do not assume a point that is not marked decided. The cross-project context (the other repositories of Eric, shared conventions) is in the repository `evlist/shared-room`.
 
 ## Language
 

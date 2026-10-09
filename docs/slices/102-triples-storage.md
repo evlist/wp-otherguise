@@ -11,7 +11,7 @@ This plan replaces the first version (two tables, a fingerprint, a flag for repe
 
 Store statements in **one table** owned by the `Triples` module, create and migrate it safely, and give the rest of the module a low-level store to read and write it. The store knows how data is laid out, not what is allowed: checking a statement against the registry is slice 103.
 
-Background: `evlist/shared-room`, `wp-otherguise/README.md` ("Reification: statements about statements").
+Background: [`design/triples.md`](../design/triples.md) ("Reification: statements about statements").
 
 ## Table
 

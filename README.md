@@ -34,7 +34,7 @@ The plugin is a single plugin made of three modules with one-way dependencies, b
 
 ### 📚 Where the thinking lives
 
-The brainstorming, the decisions and the open questions are kept in a separate repository: [`evlist/shared-room`](https://github.com/evlist/shared-room), directory [`wp-otherguise/`](https://github.com/evlist/shared-room/blob/main/wp-otherguise/README.md).
+The reasoning behind the decisions is in [`docs/design/`](docs/design/README.md); the slices of work are in [`docs/slices/`](docs/slices/README.md). The context shared with Eric's other projects is in [`evlist/shared-room`](https://github.com/evlist/shared-room).
 
 ### 🔧 Local Activation (Development)
 

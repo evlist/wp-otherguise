@@ -11,7 +11,7 @@ Status: **done**. Dependencies: slice 000. Module: `Triples`.
 
 Describe, in memory and with strict validation, *what a statement may relate*: the kinds of things that can be a subject or an object (entity types), the kinds of relations (predicates) and the qualifiers a predicate may carry. Nothing is stored yet (slice 101) and no statement exists yet (slice 102). The slice is pure PHP, testable without WordPress, and it fixes the vocabulary used by every later slice and by the other modules.
 
-Background and decisions: `evlist/shared-room`, `wp-otherguise/README.md` ("Triples", "Reification: statements with identity and qualifiers", "RDF import and export").
+Background and decisions: [`design/triples.md`](../design/triples.md).
 
 ## Scope
 

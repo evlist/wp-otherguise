@@ -19,7 +19,7 @@ statement:45: (statement:43, position, 1)
 
 So a qualifier is a predicate of the same registry, its value is the object of a statement (an entity or a typed literal), and the registry must say which predicates may qualify which. This slice aligns the registry of slice 100 with that model. Nothing is stored yet (slice 102) and slice 100 has not been released, so there is no data to migrate.
 
-Background: `evlist/shared-room`, `wp-otherguise/README.md` ("Reification: statements about statements").
+Background: [`design/triples.md`](../design/triples.md) ("Reification: statements about statements").
 
 ## Scope
 

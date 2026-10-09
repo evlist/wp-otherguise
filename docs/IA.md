@@ -5,7 +5,7 @@
 
 This document is the current handover note for the repository.
 
-Its purpose is to describe what is implemented today, which architectural decisions are valid, which constraints apply to new work, and which directions are still open. It prefers verified current behavior over session history. The reasoning behind the decisions is in `evlist/shared-room`, directory `wp-otherguise/`.
+Its purpose is to describe what is implemented today, which architectural decisions are valid, which constraints apply to new work, and which directions are still open. It prefers verified current behavior over session history. The reasoning behind the decisions is in [`design/`](design/README.md).
 
 ## Purpose
 
@@ -91,7 +91,7 @@ Not applicable yet. When a module gets tables, it owns their creation, a schema 
 
 ## Open Items
 
-See `docs/slices/README.md`. The decisions still open are tracked in `evlist/shared-room`.
+See `docs/slices/README.md`. The decisions still open are listed in [`design/README.md`](design/README.md).
 
 ## Scope Rule for Future Updates
 
