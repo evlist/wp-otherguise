@@ -18,6 +18,7 @@ use Otherguise\Modes\Mode\ActiveMode;
 use Otherguise\Modes\Mode\ModeDefinition;
 use Otherguise\Modes\Mode\ModeRegistry;
 use Otherguise\Modes\Template\TemplateLookup;
+use Otherguise\Modes\Template\VariantApplier;
 use Otherguise\Modes\Variant\Variants;
 
 defined( 'ABSPATH' ) || exit;
@@ -87,6 +88,20 @@ final class Module implements ModuleInterface {
 	private $variants = null;
 
 	/**
+	 * Tells whether the request is a page of the site.
+	 *
+	 * @var callable
+	 */
+	private $is_front;
+
+	/**
+	 * Applies the variants.
+	 *
+	 * @var VariantApplier
+	 */
+	private $applier;
+
+	/**
 	 * Builds the module.
 	 *
 	 * @param callable|null       $do_action     Runs an action; defaults to WordPress `do_action`.
@@ -97,12 +112,17 @@ final class Module implements ModuleInterface {
 	 * @param callable|null       $statements    Returns the service of the statements (`Statements`) or null; defaults to the Triples module booted
 	 *                                           in this request.
 	 * @param TemplateLookup|null $lookup  What the module asks WordPress about templates.
+	 * @param callable|null       $is_front      Tells whether the request is a page of the site, as opposed to the administration or REST;
+	 *                                           defaults to a test of `is_admin()` and `REST_REQUEST`.
 	 */
-	public function __construct( $do_action = null, $add_action = null, $query = null, $apply_filters = null, $statements = null, ?TemplateLookup $lookup = null ) {
+	public function __construct( $do_action = null, $add_action = null, $query = null, $apply_filters = null, $statements = null, ?TemplateLookup $lookup = null, $is_front = null ) {
 		$this->do_action     = $do_action ?? 'do_action';
 		$this->add_action    = $add_action ?? 'add_action';
 		$this->apply_filters = $apply_filters ?? 'apply_filters';
 		$this->lookup        = $lookup ?? new TemplateLookup();
+		$this->is_front      = $is_front ?? static function () {
+			return ! is_admin() && ! ( defined( 'REST_REQUEST' ) && REST_REQUEST );
+		};
 		$this->statements    = $statements ?? static function () {
 			$triples = Modules::get( 'triples' );
 
@@ -130,7 +150,8 @@ final class Module implements ModuleInterface {
 				return ( $this->apply_filters )( 'modes_default_mode', 'web' );
 			}
 		);
-		$this->active = new ActiveMode( $this->modes, $query ?? array( $this, 'read_query' ) );
+		$this->active  = new ActiveMode( $this->modes, $query ?? array( $this, 'read_query' ) );
+		$this->applier = new VariantApplier( array( $this, 'variants_of_the_request' ), array( $this->lookup, 'stylesheet' ), $this->is_front );
 	}
 
 	/**
@@ -178,6 +199,7 @@ final class Module implements ModuleInterface {
 		( $this->add_action )( 'triples_register_predicates', array( $templates, 'register_predicates' ), 10, 1 );
 		( $this->add_action )( 'body_class', array( $this, 'body_class' ), 10, 1 );
 		( $this->add_action )( 'init', array( $this, 'load_textdomain' ), 10, 1 );
+		( $this->add_action )( 'init', array( $this, 'register_variant_filters' ), 20, 0 );
 	}
 
 	/**
@@ -225,6 +247,43 @@ final class Module implements ModuleInterface {
 		}
 
 		return $this->variants;
+	}
+
+	/**
+	 * Returns the applier of the variants.
+	 *
+	 * @return VariantApplier
+	 */
+	public function applier() {
+		return $this->applier;
+	}
+
+	/**
+	 * Hooks the application of the variants to WordPress: the template hierarchy of every type of template (the types of core, and those
+	 * that the filter `modes_template_types` adds) and the blocks. Action `init`, priority 20, so that the plugins that add types have run.
+	 *
+	 * @return void
+	 */
+	public function register_variant_filters() {
+		/**
+		 * Filters the types of template whose hierarchy gets the variants: the `$type` of `{$type}_template_hierarchy`.
+		 *
+		 * @param string[] $types The types documented by WordPress core. Add the type of a plugin that calls `get_query_template()`.
+		 */
+		$types = ( $this->apply_filters )( 'modes_template_types', VariantApplier::TYPES );
+
+		$this->applier->register( $this->add_action, is_array( $types ) ? $types : VariantApplier::TYPES );
+	}
+
+	/**
+	 * Returns the variants of the mode of the request for a kind: the id of the variant by id of the template. Empty when the Triples module
+	 * is not enabled.
+	 *
+	 * @param string $kind `template` or `template_part`.
+	 * @return array<string, string>
+	 */
+	public function variants_of_the_request( $kind ) {
+		return null === ( $this->statements )() ? array() : $this->variants()->map( $this->active->mode(), $kind );
 	}
 
 	/**

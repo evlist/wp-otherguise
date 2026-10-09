@@ -96,7 +96,10 @@ class ModesModuleTest extends TestCase {
 					array( 'Otherguise\\Modes\\Integration\\TemplateIntegration', 'register_predicates', 10, 1 ),
 				),
 				'body_class'                    => array( array( Module::class, 'body_class', 10, 1 ) ),
-				'init'                          => array( array( Module::class, 'load_textdomain', 10, 1 ) ),
+				'init'                          => array(
+					array( Module::class, 'load_textdomain', 10, 1 ),
+					array( Module::class, 'register_variant_filters', 20, 0 ),
+				),
 			),
 			$hooks
 		);

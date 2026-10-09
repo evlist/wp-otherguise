@@ -10,7 +10,7 @@ Moved here from `evlist/shared-room` on 2026-10-09. Points are marked **Decided*
 - A **mode** is a declared entity: slug (`print`, `book`, `cover`...), label, query-string trigger. Delivered in slice 200 (proposed choices to confirm): declared in code, `web` (default) and `print` built in, alias `?print`.
 - A **relation** *(source template, mode) → target template* (delivered in slice 202: proposed choices to confirm there) says "template `bar` is the `print` version of template `foo`". One target can serve several sources. A default target per mode is possible: *(\*, print) → print-default*.
 - **Decided**: a mode is *not* a predicate. The mode of a relation is given by a further statement about the relation (see [triples.md](triples.md#reification-statements-about-statements)): "`bar` is the `print` version of `foo`" is `(template:foo, has-variant, template:bar)` plus `(that statement, mode, mode:print)`.
-- **Resolution**: WordPress picks the template as usual (full hierarchy); if a mode is active, the plugin looks for a relation for that template, then a default target for the mode, then applies the fallback.
+- **Resolution** (delivered in slice 203): WordPress picks the template as usual (full hierarchy); if a mode is active, the plugin looks for a relation for that template, then a default target for the mode, then applies the fallback.
 
 Decided details:
 
