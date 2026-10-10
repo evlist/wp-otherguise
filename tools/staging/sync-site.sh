@@ -17,7 +17,8 @@
 # Usage: sync-site.sh [--dry-run] [--yes] [--skip-uploads] [--keep-dump] [--keep-cron]
 #   --dry-run        show the files rsync would change and stop. The only thing written is WP-CLI in the test container, if it is missing.
 #   --yes            do not ask for confirmation.
-#   --skip-uploads   do not copy wp-content/uploads (the test site keeps its own).
+#   --skip-uploads   do not copy wp-content/uploads (the test site keeps its own, and gets none of the images, thumbnails included, of
+#                    production). Without it, the uploads are copied.
 #   --keep-dump      keep the SQL dump (it holds personal data: mode 600, in $WORKDIR).
 #   --keep-cron      leave WP-Cron enabled on the test site (it is disabled by default: scheduled tasks of the production plugins
 #                    would run on the copy, and may publish, mail or call external services).
@@ -145,7 +146,23 @@ for pattern in $EXCLUDES; do rsync_args+=(--exclude "$pattern"); done
 
 if [ "$DRY_RUN" -eq 1 ]; then
   say "Dry run: files rsync would change in $STAGING_VOLUME"
-  $RSYNC "${rsync_args[@]}" --dry-run --itemize-changes --stats "$PROD_VOLUME/" "$STAGING_VOLUME/" | tail -n 60
+  list=$(mktemp)
+  $RSYNC "${rsync_args[@]}" --dry-run --itemize-changes --stats "$PROD_VOLUME/" "$STAGING_VOLUME/" >"$list"
+  echo "Files and directories that would be copied or deleted, by place (plugins and themes: one line per directory):"
+  # Lines of --itemize-changes: ">f+++++++++ path" (new file), ">f.st...... path" (changed), "cd+++++++++ path/" (new directory), "*deleting   path".
+  grep -E '^(>f|cd|\*deleting)' "$list" | sed -E 's/^(\*deleting) +/\1 /; s/^[^ ]+ //' >"$list.paths" || true
+  for place in wp-content/plugins wp-content/themes wp-content/mu-plugins wp-content/uploads wp-content/languages; do
+    count=$(grep -c "^$place/" "$list.paths" || true)
+    [ "$count" -eq 0 ] || echo "  $place: $count entries"
+  done
+  others=$(grep -vc -E '^wp-content/(plugins|themes|mu-plugins|uploads|languages)/' "$list.paths" || true)
+  echo "  elsewhere (WordPress core, wp-content root...): $others entries"
+  echo "Plugin directories that would be created or whose files change (and plugin directories that would be deleted from the test site):"
+  grep -E '^wp-content/plugins/[^/]+/' "$list.paths" | cut -d/ -f1-3 | sort | uniq -c | sed 's/^/  /'
+  grep -E '^\*deleting' "$list" | grep -E 'wp-content/plugins/[^/]+/?$' | sed 's/^/  /' || true
+  echo
+  grep -E '^(Number of|Total file size|Total transferred)' "$list"
+  echo "(The full list is in $list; delete it when you have read it.)"
   echo "Dry run: stopping here. Nothing was written."
   exit 0
 fi

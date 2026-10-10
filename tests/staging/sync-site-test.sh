@@ -47,6 +47,11 @@ STUB
 cat >"$T/bin/rsync" <<'STUB'
 #!/usr/bin/env bash
 echo "rsync $*" >>"$LOG"
+case "$*" in *--dry-run*)
+  printf '%s\n' '>f+++++++++ wp-content/plugins/new-plugin/new.php' 'cd+++++++++ wp-content/plugins/new-plugin/' '>f.st...... wp-content/plugins/old-plugin/a.php' \
+    '>f+++++++++ wp-content/uploads/2026/photo-150x150.jpg' '>f+++++++++ wp-config-sample.php' '*deleting   wp-content/plugins/gone-plugin/' \
+    'Number of regular files transferred: 4' 'Total file size: 1,000 bytes' ;;
+esac
 exit 0
 STUB
 chmod +x "$T/bin/docker" "$T/bin/rsync"
@@ -78,6 +83,11 @@ check "refuses without the confirmation" $((! $?))
 check "dry run succeeds" $rc
 grep -q "^rsync .*--dry-run" "$LOG"; check "dry run: rsync --dry-run" $?
 ! grep -q "docker-dump\|docker-load" "$LOG"; check "dry run: no dump, no load" $?
+out=$(run --dry-run 2>&1)
+grep -q "wp-content/plugins: 4 entries" <<<"$out"; check "dry run: summary by place (plugins)" $?
+grep -q "wp-content/uploads: 1 entries" <<<"$out"; check "dry run: summary by place (uploads)" $?
+grep -q " 2 wp-content/plugins/new-plugin" <<<"$out" && grep -q "gone-plugin" <<<"$out"; check "dry run: lists the plugin directories, with deletions" $?
+grep -q "Number of regular files transferred" <<<"$out"; check "dry run: shows the statistics" $?
 
 # Full run.
 : >"$LOG"; run --yes >"$T/out.txt" 2>&1; rc=$?
