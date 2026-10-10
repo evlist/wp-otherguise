@@ -28,9 +28,7 @@ Numbering: `0xx` foundation, `1xx` Triples, `2xx` Modes, `3xx` Books.
 
 ## Planned
 
-| Slice | Title |
-|---|---|
-| [208](208-modes-plugin-contract.md) | Modes: the contract for other plugins — filters and per-mode options (to confirm) |
+None at the moment.
 
 ## Candidates (not planned yet)
 
@@ -39,6 +37,7 @@ Titles only. Each one is to be planned with Eric, from the decisions recorded in
 - `1xx` Triples, after 105: 106 JSON export and import; later REST, then RDF export.
 - `2xx` Modes, after 205: propagation of the mode in internal links, a QR code to another mode, per-mode assets and options, side effects (`noindex`, `canonical`).
 - `3xx` Books: composition of a book (ordered `contains` statements, parts by date range); single book page; table of contents; page numbers (declared strategy); index; export; renderer backends.
+- `208` Modes, a contract for other plugins: the filters `modes_active_mode` and `modes_option` and per-mode options set on the screen ([planned in detail](208-modes-plugin-contract.md), **not needed for now**: parameters of a block are better set in its call, in each template; useful for plugins without a block).
 - `206` Modes, edit the variants in place and save with a button ([planned in detail](206-modes-screen-save.md), **not a priority**): change the template, the variant and the modes of a row, one **Save changes** button, all or nothing.
 - `2xx` Modes, create a variant by copying: in the form **Add a variant** of **Settings → Otherguise modes**, an option "create the variant as a copy of the template" (with a name), so that a print version can be started from the web template without going through the site editor. Eric's request after finding that the list of templates of the editor offers only *Edit* and *Reset* (the **Add Template** button is at the top right of that list, and the template can then be filled through the code editor). Open: what the copy keeps (the whole content and the parts it uses), and whether it also declares the relation.
 - `2xx` Modes, **disabled by default** (Eric, after trying the plugin on a copy of his site: the modes do nothing until a variant is declared, so they need not be on at activation). Proposal: the setting is off after activation, the screen says so at the top with the checkbox, and declaring a variant while the modes are off shows a warning that the variant has no effect yet. Changes the meaning of an absent setting (today: enabled).

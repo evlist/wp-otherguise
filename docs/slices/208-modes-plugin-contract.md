@@ -3,7 +3,11 @@
 
 # Slice 208 — Modes: the contract for other plugins
 
-Status: **planned**, to confirm with Eric before any code. Dependencies: slices 200 (the active mode), 204 and 207 (the screen). Module: `Modes`.
+Status: **candidate, not needed for now** (see the note below). Not confirmed; no code. Dependencies: slices 200 (the active mode), 204 and 207 (the screen). Module: `Modes`.
+
+## Reconsidered (2026-10-10)
+
+Eric pointed out that with two different templates, the parameters can simply be set **in the call of each block** in each template. For his two plugins this is simpler than the contract below, and needs nothing from Otherguise: the blocks `wp-attached-gpx` and `wp-printable-gallery` declare no attribute today, which is why a filter and a test of `$_GET['print']` were used. Adding attributes to them (`mapHeight`, `graphHeight`, `showAttachments`, `showDownload`; `onlyMarked`) and setting them in the print template does the job, and `?gpxmap-size=large` becomes a second print template. This slice stays as a candidate for plugins that have **no block to put parameters on** (a shortcode, a global behaviour).
 
 ## Goal
 
