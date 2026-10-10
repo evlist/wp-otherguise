@@ -11,6 +11,16 @@ tools/staging/sync-site.sh               # asks you to type the name of the test
 tools/staging/sync-site.sh --yes --skip-uploads
 ```
 
+When the volumes are not writable by your user, use `sudo` for **rsync only**, not for the whole script (the Docker commands and the temporary files belong to your user):
+
+```sh
+sudo -v                                  # asks the password now, so that it is not asked in the middle of a long copy
+RSYNC='sudo rsync' tools/staging/sync-site.sh --dry-run
+RSYNC='sudo rsync' tools/staging/sync-site.sh
+```
+
+The script writes nothing else into the volumes from the host: the safety plugin is written through `docker exec`. rsync, even as root, only writes in `STAGING_VOLUME` (the production volume is the source) and the script refuses to start when the two volumes, containers or addresses are the same.
+
 The defaults are those of Eric's setup (containers `docker-e-vli-st_wordpress_1` and `docker-sb-vli-st_wordpress-sb_1`, volumes `/volumes/e-vli-st/wordpress` and `/volumes/sb-vli-st/wordpress`, addresses `https://e.vli.st` and `https://sb.vli.st`); every one can be changed with an environment variable, listed at the top of the script.
 
 ## Example: leaving a big directory out

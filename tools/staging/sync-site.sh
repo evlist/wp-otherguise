@@ -246,8 +246,8 @@ if [ "$KEEP_CRON" -eq 0 ]; then
   echo "WP-Cron disabled on the test site (use --keep-cron to leave it on)."
 fi
 
-mkdir -p "$STAGING_VOLUME/wp-content/mu-plugins"
-cat >"$STAGING_VOLUME/wp-content/mu-plugins/staging-safety.php" <<PHP
+# Written through the container, as root: the volume is often not writable by the user who runs this script.
+docker exec -i -u root "$STAGING_CONTAINER" sh -c 'mkdir -p /var/www/html/wp-content/mu-plugins && cat >/var/www/html/wp-content/mu-plugins/staging-safety.php && chown www-data:www-data /var/www/html/wp-content/mu-plugins/staging-safety.php' <<PHP
 <?php
 /**
  * Plugin Name: Staging safety
@@ -279,7 +279,6 @@ add_action(
 	}
 );
 PHP
-docker exec "$STAGING_CONTAINER" chown www-data:www-data /var/www/html/wp-content/mu-plugins/staging-safety.php 2>/dev/null || true
 
 wp_in "$STAGING_CONTAINER" cache flush || true
 wp_in "$STAGING_CONTAINER" rewrite flush || true

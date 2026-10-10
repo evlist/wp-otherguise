@@ -32,6 +32,7 @@ case "$cmd" in
   *"command -v wp"*) [ "$container" = "${STAGING_HAS_WP:-no}" ] && exit 1; [ "$container" = prod ] && echo /usr/local/bin/wp; [ "$container" = stg ] && [ "${STAGING_HAS_WP:-no}" = no ] && exit 1; exit 0 ;;
   *"mariadb-dump || command -v mysqldump"*) echo /usr/bin/mysqldump; exit 0 ;;
   *"mariadb || command -v mysql"*) echo /usr/bin/mysql; exit 0 ;;
+  *"staging-safety.php"*) mkdir -p "$T/stg/wp-content/mu-plugins"; cat >"$T/stg/wp-content/mu-plugins/staging-safety.php"; exit 0 ;;
   "wp --info"*) exit 0 ;;
   "wp option get siteurl"*) if [ "$container" = prod ]; then echo "${PROD_SITEURL:-https://e.test}"; else echo "${STG_SITEURL:-https://sb.test}"; fi; exit 0 ;;
   "wp config get DB_NAME"*) [ "$container" = prod ] && echo prod_db || echo stg_db; exit 0 ;;
