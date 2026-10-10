@@ -66,3 +66,16 @@ Answers from Eric (2026-10-09):
 - **The "Regression" commit** concerns the print CSS the plugin injects: a rule was removed. Which rule is not known, and the repository has a single commit, so there is no history to compare. It shows how fragile a global stylesheet full of `!important` overrides is. Eric recalled the rule as `.skip-link.screen-reader-text { display: none !important; }`; it is present in the committed file (last selector of the first rule), so the repository copy already has it and the deployed copy may differ. It is very specific to the current theme.
 - **The print links** are included discreetly in Eric's view templates so that a visitor can reach the print version.
 - **PDFs are produced and assembled by hand today:** each page is printed to PDF with the Samsung Internet browser on Android (the only browser Eric found that does not add a header and footer), then the PDFs are arranged and merged with PDF Arranger on Ubuntu. Automation would save a lot of time.
+
+## Retiring `wp-pdf-helper` (checklist, 2026-10-10)
+
+What the hack did, and what replaces it (Eric's plugins are outside this repository):
+
+| `wp-pdf-helper` | Replacement | State |
+|---|---|---|
+| Template swap (`get_block_templates` + `-print`) | Variants of templates and parts (slices 202, 203, 204) | done, tried on a copy |
+| `wp-pdf-helper-print.css` | Stylesheet of the mode `print` in the Media Library (slice 207) | done, tried on a copy |
+| Icon and `.print-link` style, Dashicons | Block `modes/link` with an inline SVG (slice 205), to put in the web template in place of the `javascript:` link | to do in the template (Dashicons stop loading with the plugin) |
+| Heights of the GPX map and chart, no attachments or download (`wpagpx_shortcode_parameters`) | Attributes of the block `wp-attached-gpx`, set in the print template | done by Eric, tried on a copy |
+| `$_GET['print']` in `wp-printable-gallery` | Attribute `onlyMarked` of the block, set in the print template | to do. **Until then, links with `?mode=print` (the block `modes/link`) show every image: the gallery only tests the `print` key.** |
+| Column "Print" of the media library (meta `wpdfh.print`, AJAX without nonce or capability check) | Integration with Media Helper (images qualified by mode) | later. Deactivating the plugin removes the column, so the flag cannot be edited any more. Interim: cut the plugin down to this column (everything after the early `return` on `print`), and add `check_ajax_referer`, `current_user_can( 'edit_post', $post_id )` and `absint( $post_id )` to its handler. |
