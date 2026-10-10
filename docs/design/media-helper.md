@@ -93,3 +93,7 @@ Reported by that session after Eric confirmed, in it, the four decisions and the
 - **The method owns the rule of the primary parent in `post_parent`**: when the primary parent is detached it designates another post, and clears the field only when none remains.
 
 A problem found in the contract is to be reported to Eric, who decides whether the Media Helper session amends its slice.
+
+### Step 1 coded in Media Helper (reported 2026-10-10, not tried on a real site)
+
+The interface `WP_Media_Helper\Attachment\Method`, `NativeMethod`, the registry `Methods`, the filter `wp_media_helper_attachment_methods`, the setting and filter `wp_media_helper_attachment_method` (arguments `$id`, `$postId`, `$postType`) and the constant `WP_MEDIA_HELPER_CONTRACT` = 1 are on `main` of Media Helper. One addition to the contract: **`may_remove( int $attachmentId, string $context = 'remove' )`**, the context being `remove` (Remove from library) or `trash` (the file goes to the trash after the user was asked, and the entries disappear from every post); `native` refuses `remove` when the item is attached to a post and accepts `trash`. Not there yet: `wp_media_helper_get_attached_media()`, the use of `posts_of()` for the column, the events, the panel filters and the declarative fields (steps 2 to 4). A method must implement the ten methods of the interface (`attached()` and `posts_of()` included).
