@@ -89,6 +89,7 @@ final class LinkBlock {
 
 		if ( $type && ! empty( $type->editor_script_handles ) ) {
 			$choices = array();
+			$icons   = array();
 
 			foreach ( $this->modes->all() as $mode ) {
 				$choices[] = array(
@@ -97,14 +98,31 @@ final class LinkBlock {
 				);
 			}
 
-			wp_add_inline_script( $type->editor_script_handles[0], 'window.modesLink = ' . wp_json_encode( array( 'modes' => $choices ) ) . ';', 'before' );
+			foreach ( LinkIcons::all() as $slug => $icon ) {
+				$icons[] = array(
+					'value' => (string) $slug,
+					'label' => $icon['label'],
+					'svg'   => $icon['svg'],
+				);
+			}
+
+			wp_add_inline_script(
+				$type->editor_script_handles[0],
+				'window.modesLink = ' . wp_json_encode(
+					array(
+						'modes' => $choices,
+						'icons' => $icons,
+					)
+				) . ';',
+				'before'
+			);
 		}
 	}
 
 	/**
 	 * Renders the block.
 	 *
-	 * @param array          $attributes Attributes: `mode`, `label`.
+	 * @param array          $attributes Attributes: `mode`, `label`, `icon`.
 	 * @param string         $content    Rendered inner blocks.
 	 * @param \WP_Block|null $block      The block, for its context.
 	 * @return string The link, or an empty string when there is nothing to link to.
@@ -131,8 +149,12 @@ final class LinkBlock {
 
 		$label = isset( $attributes['label'] ) && is_string( $attributes['label'] ) ? trim( $attributes['label'] ) : '';
 
+		$icon = isset( $attributes['icon'] ) && is_string( $attributes['icon'] ) ? LinkIcons::svg( $attributes['icon'] ) : '';
+
 		if ( '' === trim( (string) $content ) ) {
-			$content = esc_html( '' !== $label ? $label : $target->label() );
+			// No content of its own: the icon when there is one (its name is then the label, or the label of the mode), else the label.
+			$content = '' !== $icon ? $icon : esc_html( '' !== $label ? $label : $target->label() );
+			$label   = '' !== $icon && '' === $label ? $target->label() : $label;
 		}
 
 		$name = '' !== $label ? ' aria-label="' . esc_attr( $label ) . '" title="' . esc_attr( $label ) . '"' : '';

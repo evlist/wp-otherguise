@@ -47,13 +47,12 @@ function og205_setup( $action ) {
 		return;
 	}
 
-	$svg = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M19 8H5v6h14z"/></svg>';
 	$tpl = '<!-- wp:post-title /-->' .
-		'<!-- wp:modes/link {"mode":"print","label":"Print version"} --><!-- wp:html -->' . $svg . '<!-- /wp:html --><!-- /wp:modes/link -->' .
-		'<!-- wp:modes/link {"mode":"web"} --><!-- /wp:modes/link -->' .
-		'<!-- wp:post-content /-->';
+	'<!-- wp:modes/link {"mode":"print","label":"Print version","icon":"print"} /-->' .
+	'<!-- wp:modes/link {"mode":"web"} --><!-- /wp:modes/link -->' .
+	'<!-- wp:post-content /-->';
 
-	$id = wp_insert_post(
+$id = wp_insert_post(
 		array(
 			'post_type'    => 'wp_template',
 			'post_name'    => 'single',

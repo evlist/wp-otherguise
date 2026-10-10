@@ -11,6 +11,6 @@
 defined( 'ABSPATH' ) || exit;
 
 return array(
-	'dependencies' => array( 'wp-blocks', 'wp-block-editor', 'wp-components', 'wp-element', 'wp-i18n' ),
-	'version'      => '205.1',
+	'dependencies' => array( 'wp-blocks', 'wp-block-editor', 'wp-components', 'wp-data', 'wp-element', 'wp-i18n' ),
+	'version'      => '205.2',
 );

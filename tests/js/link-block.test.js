@@ -11,8 +11,9 @@ const { JSDOM } = require( 'jsdom' );
 const source = fs.readFileSync( path.join( __dirname, '../../plugin/modules/modes/blocks/link/edit.js' ), 'utf8' );
 
 /** Runs the script with fake `wp` globals; returns the registered block and the elements the edit function built. */
-function load( settings ) {
+function load( settings, inner ) {
 	const dom = new JSDOM( '', { runScripts: 'outside-only' } );
+	dom.window.__inner = inner || [];
 	const registered = {};
 	const h = ( type, props, ...children ) => ( { type, props, children } );
 	const tag = ( name ) => name;
@@ -22,9 +23,10 @@ function load( settings ) {
 		blockEditor: {
 			useBlockProps: () => ( { className: 'x' } ),
 			InspectorControls: tag( 'InspectorControls' ),
-			InnerBlocks: Object.assign( tag( 'InnerBlocks' ), { Content: tag( 'InnerBlocks.Content' ) } ),
+			InnerBlocks: Object.assign( function InnerBlocks() {}, { Content: tag( 'InnerBlocks.Content' ) } ),
 		},
 		components: { PanelBody: tag( 'PanelBody' ), SelectControl: tag( 'SelectControl' ), TextControl: tag( 'TextControl' ) },
+		data: { useSelect: ( callback ) => callback( () => ( { getBlocks: () => dom.window.__inner || [] } ) ) },
 		blocks: { registerBlockType: ( name, def ) => ( registered.name = name, registered.def = def ) },
 	};
 	dom.window.modesLink = settings;
@@ -38,7 +40,8 @@ const plain = ( value ) => JSON.parse( JSON.stringify( value ) );
 /** Finds the first element of a tree whose type is `type`. */
 function find( node, type ) {
 	if ( ! node || typeof node !== 'object' ) return null;
-	if ( node.type === type ) return node;
+	const name = typeof node.type === 'function' ? node.type.name : node.type;
+	if ( name === type ) return node;
 	for ( const child of node.children || [] ) {
 		const found = find( child, type );
 		if ( found ) return found;
@@ -46,13 +49,13 @@ function find( node, type ) {
 	return null;
 }
 
-test( 'registers modes/link with a variation for the print version', () => {
+test( 'registers modes/link with variations for the print and the web versions, with an icon and no inner block', () => {
 	const { name, def } = load( { modes: [] } );
 	assert.strictEqual( name, 'modes/link' );
-	assert.strictEqual( def.variations.length, 1 );
-	assert.strictEqual( def.variations[ 0 ].attributes.mode, 'print' );
-	assert.strictEqual( def.variations[ 0 ].innerBlocks[ 0 ][ 0 ], 'core/html' );
-	assert.match( def.variations[ 0 ].innerBlocks[ 0 ][ 1 ].content, /^<svg[^>]*currentColor/ );
+	assert.deepStrictEqual( plain( def.variations.map( ( v ) => v.name ) ), [ 'print', 'web' ] );
+	assert.deepStrictEqual( plain( def.variations[ 0 ].attributes ), { mode: 'print', icon: 'print', label: 'Print version' } );
+	assert.deepStrictEqual( plain( def.variations[ 1 ].attributes ), { mode: 'web', icon: 'web', label: 'Web version' } );
+	assert.strictEqual( def.variations[ 0 ].innerBlocks, undefined );
 } );
 
 test( 'the mode select offers the modes of the site after a placeholder', () => {
@@ -69,6 +72,37 @@ test( 'the controls write the attributes', () => {
 	find( tree, 'SelectControl' ).props.onChange( 'web' );
 	find( tree, 'TextControl' ).props.onChange( 'Print' );
 	assert.deepStrictEqual( plain( set ), [ { mode: 'web' }, { label: 'Print' } ] );
+} );
+
+const ICONS = [ { value: 'print', label: 'Printer', svg: '<svg id="p"></svg>' } ];
+
+test( 'the icon stands for the content while the block has none, and gives way to inner blocks', () => {
+	const props = { clientId: 'c', attributes: { mode: 'print', label: '', icon: 'print' }, setAttributes() {} };
+	const empty = load( { modes: [], icons: ICONS }, [] ).def.edit( props );
+	const shown = find( empty, 'div' );
+	assert.strictEqual( shown.props.dangerouslySetInnerHTML.__html, '<svg id="p"></svg>' );
+	assert.strictEqual( find( empty, 'InnerBlocks' ), null );
+
+	const filled = load( { modes: [], icons: ICONS }, [ {} ] ).def.edit( props );
+	assert.ok( find( filled, 'InnerBlocks' ) );
+	assert.strictEqual( find( filled, 'div' ).props.dangerouslySetInnerHTML, undefined );
+
+	const none = load( { modes: [], icons: ICONS }, [] ).def.edit( { clientId: 'c', attributes: { mode: 'print', label: '', icon: '' }, setAttributes() {} } );
+	assert.ok( find( none, 'InnerBlocks' ), 'no icon: the inner blocks' );
+} );
+
+test( 'the icon select offers the icons after None and writes the attribute', () => {
+	const set = [];
+	const tree = load( { modes: [], icons: ICONS }, [] ).def.edit( { clientId: 'c', attributes: { mode: '', label: '', icon: '' }, setAttributes: ( a ) => set.push( a ) } );
+	const select = ( function findIcon( node ) {
+		if ( ! node || typeof node !== 'object' ) return null;
+		if ( node.type === 'SelectControl' && node.props.label === 'Icon' ) return node;
+		for ( const child of node.children || [] ) { const f = findIcon( child ); if ( f ) return f; }
+		return null;
+	}( tree ) );
+	assert.deepStrictEqual( plain( select.props.options.map( ( o ) => o.value ) ), [ '', 'print' ] );
+	select.props.onChange( 'print' );
+	assert.deepStrictEqual( plain( set ), [ { icon: 'print' } ] );
 } );
 
 test( 'works when the inline script did not run', () => {

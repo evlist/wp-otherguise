@@ -25,7 +25,7 @@ const check = (label, ok, detail = '') => { (ok ? pass++ : fail++); console.log(
     let l = links(h);
     check('web: exactly one link, to the print version', l.length === 1 && l[0].includes(`href="${BASE}/?p=${id}&#038;mode=print"`), l.join('|'));
     check('web: rel nofollow and accessible name', l[0] && l[0].includes('rel="nofollow"') && l[0].includes('aria-label="Print version"') && l[0].includes('title="Print version"'));
-    check('web: the icon is inside the link', /<a [^>]*modes-link[^>]*>\s*<svg/.test(h));
+    check('web: the icon of the block is inside the link', /<a [^>]*modes-link[^>]*>\s*<svg[^>]*aria-hidden="true"[^>]*><path fill="currentColor"/.test(h));
     check('web: body of the post still there', h.includes('Body of the post.'));
     // Print mode through the alias and through ?mode=: the link to print disappears, the link to web has no mode.
     for (const q of ['&print', '&print=print', '&mode=print']) {
@@ -59,7 +59,7 @@ const check = (label, ok, detail = '') => { (ok ? pass++ : fail++); console.log(
     // Insert the variation, select the block, set the mode with the inspector.
     await page.evaluate(() => {
       const v = wp.blocks.getBlockVariations('modes/link').find(x => x.name === 'print');
-      const b = wp.blocks.createBlocksFromInnerBlocksTemplate ? wp.blocks.createBlock('modes/link', v.attributes, wp.blocks.createBlocksFromInnerBlocksTemplate(v.innerBlocks)) : null;
+      const b = wp.blocks.createBlock('modes/link', v.attributes);
       wp.data.dispatch('core/block-editor').insertBlocks(b);
       wp.data.dispatch('core/block-editor').selectBlock(b.clientId);
     });
@@ -73,7 +73,8 @@ const check = (label, ok, detail = '') => { (ok ? pass++ : fail++); console.log(
     await select.selectOption('web');
     check('editor: the attribute follows the select', await page.evaluate(() => wp.data.select('core/block-editor').getBlocks().find(b => b.name === 'modes/link').attributes.mode) === 'web');
     const markup = await page.evaluate(() => wp.blocks.serialize(wp.data.select('core/block-editor').getBlocks().filter(b => b.name === 'modes/link')));
-    check('editor: serialized as a block comment around its inner blocks', /^<!-- wp:modes\/link \{"mode":"web"/.test(markup) && markup.includes('<!-- wp:html -->'), markup.slice(0, 160));
+    check('editor: serialized as one self-closing block with its icon, no inner block', /^<!-- wp:modes\/link \{"mode":"web"/.test(markup) && markup.includes('"icon":"print"') && markup.trim().endsWith('/-->') && !markup.includes('wp:html'), markup.slice(0, 160));
+    check('editor: the Icon select shows the printer', (await page.locator('select:has(option:text-is("Printer"))').first().inputValue()) === 'print');
     await page.screenshot({ path: (process.argv[2] || '.') + '/205-link-block-editor.png' });
     check('editor: no page error and no failed request', problems.length === 0, problems.join(' | '));
     await browser.close();

@@ -21,16 +21,17 @@ A dynamic block with inner blocks (the content of the link is whatever the autho
 |---|---|
 | `mode` | Slug of the target mode. |
 | `label` | Accessible name of the link (`aria-label`, and `title`), for a link whose content is only an icon. |
+| `icon` | Slug of an icon (`print`, `web`; the filter `modes_link_icons` adds more), drawn by the server as an inline SVG with `currentColor` **when the block has no content of its own**. |
 
 Server-side rendering:
 
 - **Address**: the permalink of the current post (block context `postId`, so it also works in a query loop), otherwise the address of the current request; any `mode` or alias (`?print`) is removed from it and `mode=slug` is added, unless the target is the default mode (then the address has no mode at all). Other query arguments and the fragment are kept. The pure function is `ModeUrl::build()`; `modes_url( $slug, $url = null )` is the public function for themes and plugins. The address uses `?mode=print`, not the alias `?print`, which stays only for links that already exist.
 - **Nothing is rendered** when the modes are disabled, when the target mode does not exist (a mode declared by a plugin that was deactivated), or when the target **is the mode of the request**: a link to the page one is on is useless, and it lets one template carry the link in every mode.
 - **`rel="nofollow"`**, so that crawlers do not follow every post to its print version.
-- If the block has no content, the link shows the label of the target mode.
+- If the block has no content, the link shows its **icon** when it has one (named for screen readers by the label, or by the name of the target mode), else the label of the target mode. A content of its own always wins over the icon.
 - A link inside the content would give nested anchors, which HTML forbids: the block does not check this; the editor says so in the description of the block.
 
-In the editor: a plain-JavaScript script (no build step; the module has no JavaScript tooling), a select for the mode in the inspector, a text control for the label, inner blocks. The modes are handed to the script with an inline script. A **block variation** "Link to the print version" is a ready-made printer icon (inline SVG with `currentColor`, so that nothing depends on the Dashicons font, which visitors do not load).
+In the editor: a plain-JavaScript script (no build step; the module has no JavaScript tooling), a select for the mode in the inspector, a text control for the label, inner blocks. The modes are handed to the script with an inline script. **Block variations** "Link to the print version" and "Link to the web version" are ready-made: the block with its mode, its label and its icon, no inner block (`<!-- wp:modes/link {"mode":"print","label":"Print version","icon":"print"} /-->`). The icons are inline SVG with `currentColor`, so that nothing depends on the Dashicons font, which visitors do not load. In the editor the icon is shown while the block has no inner block, and a select in the inspector chooses it ("None" to put your own content in the link).
 
 ## Not in this slice
 
@@ -42,8 +43,8 @@ PHPUnit: `ModeUrl` (default mode, removal of `mode` and aliases, kept arguments 
 
 ## Verified
 
-- PHPUnit: `ModesLinkTest` (10 address cases, rendering, escaping, the refusals, the link back); the boot hooks. 354 tests / 1394 assertions with a database.
-- jsdom (`cd tests/js && npm install && npm test`, 5 tests): registration, variation, select options, attributes, save.
+- PHPUnit: `ModesLinkTest` (10 address cases, rendering, escaping, the refusals, the link back, the icon); the boot hooks.
+- jsdom (`cd tests/js && npm install && npm test`, 7 tests): registration, variations, select options, the icon and the inner blocks, attributes, save.
 - **Real WordPress 7.1.3** ([`tests/real-wordpress/link-block/`](../../tests/real-wordpress/link-block/flow.js), 21 checks): a `single` template of the database using the block in place of the `javascript:` link; in web mode one link to `?p=ID&mode=print` with `rel`, `aria-label`, icon inside; in print mode (`?print`, `?print=print`, `?mode=print`) the link to print is gone and the link to the web version has no mode; an unknown mode behaves as web; disabled modes render nothing; `modes_url()`; in the block editor (Chromium) the block and its variation, the list of modes, the inspector select, the serialized markup, no page error. [Screenshot](../screenshots/205-link-block-editor.png).
 
 ## Not verified
@@ -59,3 +60,5 @@ The real site's own templates (the block is tried in a scratch `single` template
 5. Plain JavaScript for the editor, no `@wordpress/scripts` build.
 6. The variation's icon is an inline SVG printer.
 7. The print template ([`single-post-template-print.html`](../examples/single-post-template-print.html), copied unchanged) has no link back to the web version: only the QR code block in the first column. A `modes/link` to `web` could go there too; where is for Eric to say.
+
+> **Later change (icon built in):** the first version used a `wp:html` block inside the link for the SVG, which looked like the old HTML link and was heavy to read. The icon is now an attribute of the block (`icon`), drawn by the server; the variations have no inner block. The 21 checks on the real site became 22.

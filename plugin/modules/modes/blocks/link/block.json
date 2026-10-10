@@ -4,7 +4,7 @@
 	"name": "modes/link",
 	"title": "Link to a mode",
 	"category": "widgets",
-	"description": "A link to the same page in another mode (print, web...). Put no link inside it: anchors cannot be nested.",
+	"description": "A link to the same page in another mode (print, web...), shown as an icon or as content of your choice. Put no link inside it: anchors cannot be nested.",
 	"textdomain": "otherguise",
 	"attributes": {
 		"mode": {
@@ -12,6 +12,10 @@
 			"default": ""
 		},
 		"label": {
+			"type": "string",
+			"default": ""
+		},
+		"icon": {
 			"type": "string",
 			"default": ""
 		}

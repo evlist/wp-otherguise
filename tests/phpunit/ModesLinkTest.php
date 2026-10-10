@@ -9,6 +9,7 @@
  */
 
 use Otherguise\Modes\Link\LinkBlock;
+use Otherguise\Modes\Link\LinkIcons;
 use Otherguise\Modes\Link\ModeUrl;
 use Otherguise\Modes\Mode\ActiveMode;
 use Otherguise\Modes\Mode\ModeDefinition;
@@ -21,6 +22,7 @@ use PHPUnit\Framework\TestCase;
  *
  * @covers \Otherguise\Modes\Link\ModeUrl
  * @covers \Otherguise\Modes\Link\LinkBlock
+ * @covers \Otherguise\Modes\Link\LinkIcons
  */
 class ModesLinkTest extends TestCase {
 
@@ -143,6 +145,84 @@ class ModesLinkTest extends TestCase {
 				''
 			)
 		);
+	}
+
+	/**
+	 * Without content of its own, the block shows its icon; the icon is named by the label, or by the label of the mode.
+	 *
+	 * @return void
+	 */
+	public function test_the_icon_stands_for_the_content(): void {
+		$html = $this->block()->render(
+			array(
+				'mode' => 'print',
+				'icon' => 'print',
+				'label' => 'Print version',
+			),
+			''
+		);
+
+		$this->assertStringContainsString( '<svg ', $html );
+		$this->assertStringContainsString( 'currentColor', $html );
+		$this->assertStringContainsString( 'aria-hidden="true"', $html );
+		$this->assertStringContainsString( 'aria-label="Print version" title="Print version"', $html );
+		$this->assertStringEndsWith( '</svg></a>', $html );
+
+		$html = $this->block()->render(
+			array(
+				'mode' => 'print',
+				'icon' => 'print',
+			),
+			'  '
+		);
+
+		$this->assertStringContainsString( 'aria-label="Print" title="Print"', $html, 'No label: the name of the mode.' );
+		$this->assertStringContainsString( '<svg ', $html );
+
+		$this->assertStringContainsString(
+			'<circle',
+			$this->block( array( 'mode' => 'print' ) )->render(
+				array(
+					'mode' => 'web',
+					'icon' => 'web',
+				),
+				''
+			),
+			'The web icon.'
+		);
+	}
+
+	/**
+	 * A content of its own wins over the icon; an unknown icon is ignored.
+	 *
+	 * @return void
+	 */
+	public function test_the_content_wins_over_the_icon(): void {
+		$html = $this->block()->render(
+			array(
+				'mode' => 'print',
+				'icon' => 'print',
+			),
+			'<p>Mine</p>'
+		);
+
+		$this->assertStringContainsString( '<p>Mine</p>', $html );
+		$this->assertStringNotContainsString( '<svg', $html );
+		$this->assertStringNotContainsString( 'aria-label', $html );
+
+		$html = $this->block()->render(
+			array(
+				'mode' => 'print',
+				'icon' => 'nope',
+			),
+			''
+		);
+
+		$this->assertStringNotContainsString( '<svg', $html );
+		$this->assertStringContainsString( '>Print</a>', $html );
+		$this->assertStringContainsString( '<svg', LinkIcons::svg( 'print' ) );
+		$this->assertSame( '', LinkIcons::svg( 'nope' ) );
+		$this->assertSame( array( 'print', 'web' ), array_keys( LinkIcons::all() ) );
 	}
 
 	/**

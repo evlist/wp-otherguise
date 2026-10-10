@@ -3,22 +3,33 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
  * Editor of the block modes/link. Plain JavaScript, no build step: the dependencies are declared in edit.asset.php.
- * The modes come from window.modesLink.modes, set by an inline script.
+ * The modes and the icons come from window.modesLink, set by an inline script.
  */
 ( function ( wp, settings ) {
 	var el = wp.element.createElement;
 	var __ = wp.i18n.__;
 	var blockEditor = wp.blockEditor;
 	var components = wp.components;
+	var modes = ( settings && settings.modes ) || [];
+	var icons = ( settings && settings.icons ) || [];
 
-	var printer =
-		'<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" focusable="false">' +
-		'<path d="M19 8H5a3 3 0 0 0-3 3v6h4v4h12v-4h4v-6a3 3 0 0 0-3-3zm-3 11H8v-5h8v5zm3-7a1 1 0 1 1 0-2 1 1 0 0 1 0 2zM18 3H6v4h12V3z"/></svg>';
+	function svgOf( slug ) {
+		for ( var i = 0; i < icons.length; i++ ) {
+			if ( icons[ i ].value === slug ) {
+				return icons[ i ].svg;
+			}
+		}
+		return '';
+	}
 
 	function edit( props ) {
-		var modes = ( settings && settings.modes ) || [];
-		var options = [ { value: '', label: __( '— Choose a mode —', 'otherguise' ) } ].concat( modes );
 		var blockProps = blockEditor.useBlockProps();
+		var svg = svgOf( props.attributes.icon );
+		// The icon stands for the content of the link while the block has no inner block.
+		var inner = wp.data.useSelect( function ( select ) {
+			return select( blockEditor.store || 'core/block-editor' ).getBlocks( props.clientId ).length;
+		}, [ props.clientId ] );
+		var showIcon = '' !== svg && 0 === inner;
 
 		return el(
 			wp.element.Fragment,
@@ -32,14 +43,25 @@
 					el( components.SelectControl, {
 						label: __( 'Target mode', 'otherguise' ),
 						value: props.attributes.mode,
-						options: options,
+						options: [ { value: '', label: __( '— Select —', 'otherguise' ) } ].concat( modes ),
 						onChange: function ( value ) {
 							props.setAttributes( { mode: value } );
 						},
 					} ),
+					el( components.SelectControl, {
+						label: __( 'Icon', 'otherguise' ),
+						help: __( 'Shown when the block has no content of its own. Choose "None" to put your own content in the link.', 'otherguise' ),
+						value: props.attributes.icon,
+						options: [ { value: '', label: __( 'None', 'otherguise' ) } ].concat( icons.map( function ( icon ) {
+							return { value: icon.value, label: icon.label };
+						} ) ),
+						onChange: function ( value ) {
+							props.setAttributes( { icon: value } );
+						},
+					} ),
 					el( components.TextControl, {
 						label: __( 'Accessible label', 'otherguise' ),
-						help: __( 'Read by screen readers; useful when the content is only an icon.', 'otherguise' ),
+						help: __( 'Read by screen readers; useful when the content is only an icon. Empty: the name of the mode.', 'otherguise' ),
 						value: props.attributes.label,
 						onChange: function ( value ) {
 							props.setAttributes( { label: value } );
@@ -47,7 +69,9 @@
 					} )
 				)
 			),
-			el( 'div', blockProps, el( blockEditor.InnerBlocks, { template: [ [ 'core/paragraph', {} ] ] } ) )
+			showIcon
+				? el( 'div', Object.assign( {}, blockProps, { dangerouslySetInnerHTML: { __html: svg } } ) )
+				: el( 'div', blockProps, el( blockEditor.InnerBlocks, { template: [ [ 'core/paragraph', {} ] ] } ) )
 		);
 	}
 
@@ -61,8 +85,15 @@
 				name: 'print',
 				title: __( 'Link to the print version', 'otherguise' ),
 				description: __( 'A printer icon that links to the print version.', 'otherguise' ),
-				attributes: { mode: 'print', label: __( 'Print version', 'otherguise' ) },
-				innerBlocks: [ [ 'core/html', { content: printer } ] ],
+				attributes: { mode: 'print', icon: 'print', label: __( 'Print version', 'otherguise' ) },
+				scope: [ 'inserter' ],
+				isDefault: false,
+			},
+			{
+				name: 'web',
+				title: __( 'Link to the web version', 'otherguise' ),
+				description: __( 'A globe icon that links to the web version.', 'otherguise' ),
+				attributes: { mode: 'web', icon: 'web', label: __( 'Web version', 'otherguise' ) },
 				scope: [ 'inserter' ],
 				isDefault: false,
 			},
