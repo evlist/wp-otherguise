@@ -7,7 +7,7 @@ Status: **done**; the choices below are **to confirm**. Dependencies: slices 200
 
 ## Goal
 
-Let a template, a page or a post offer a link to the same content in another mode: the discreet printer icon next to "Écrit par…" on the web version, and (later) the link back to the web version on the printable one. Today this is a `wp:html` block holding a `javascript:` link that rewrites `window.location.search` (see [`docs/examples/single-post-template.html`](../examples/single-post-template.html), the single-post template of the site, copied unchanged; its print counterpart is next to it).
+Let a template, a page or a post offer a link to the same content in another mode: the discreet printer icon next to "Écrit par…" on the web version, and (later) the link back to the web version on the printable one. Today this is a `wp:html` block holding a `javascript:` link that rewrites `window.location.search` (see [`docs/examples/single-post-template.html`](../examples/single-post-template.html), the single-post template of the site, copied unchanged; its print counterpart is next to it, and [`templates.md`](../examples/templates.md) compares the two).
 
 ## Decision (Eric)
 
