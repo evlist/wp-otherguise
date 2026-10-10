@@ -11,6 +11,7 @@
 use Otherguise\Modes\Admin\Admin;
 use Otherguise\Modes\Admin\AdminActions;
 use Otherguise\Modes\Admin\AdminPage;
+use Otherguise\Modes\Admin\SettingsPanel;
 use Otherguise\Modes\Admin\VariantsScreen;
 use Otherguise\Modes\Module;
 
@@ -79,7 +80,7 @@ class ModesAdminDbTest extends Otherguise_Test_Database_Case {
 		$variants          = $this->site->modes->variants();
 		$this->environment = new Otherguise_Test_Modes_Environment();
 		$this->actions     = new AdminActions( $this->environment, $variants, $this->site->modes->modes() );
-		$this->page        = new AdminPage( $this->environment, new VariantsScreen( $this->environment, $this->site->modes->modes(), $variants, $this->site->lookup ) );
+		$this->page        = new AdminPage( $this->environment, new VariantsScreen( $this->environment, $this->site->modes->modes(), $variants, $this->site->lookup, new SettingsPanel( $this->environment, $this->site->modes->settings() ) ) );
 	}
 
 	/**
@@ -330,6 +331,36 @@ class ModesAdminDbTest extends Otherguise_Test_Database_Case {
 	}
 
 	/**
+	 * The setting that enables the modes: the form, its state, the warning, and the option registered with the Settings API.
+	 *
+	 * @return void
+	 */
+	public function test_the_setting_that_enables_the_modes(): void {
+		$html = $this->html();
+
+		$this->assertStringContainsString( '<form method="post" action="http://example.test/wp-admin/options.php">', $html );
+		$this->assertStringContainsString( 'name="option_page" value="modes_settings_group"', $html );
+		$this->assertStringContainsString( 'name="modes_settings[enabled]" value="1" checked="checked"', $html );
+		$this->assertStringNotContainsString( 'The modes are disabled', $html );
+
+		update_option( 'modes_settings', array( 'enabled' => false ) );
+
+		$html = $this->html();
+
+		$this->assertStringNotContainsString( 'checked="checked"', $html );
+		$this->assertStringContainsString( 'The modes are disabled', $html );
+		$this->assertStringContainsString( 'name="action" value="modes_declare"', $html, 'The variants can still be edited while the modes are disabled.' );
+
+		$panel = new SettingsPanel( $this->environment, $this->site->modes->settings() );
+		$panel->register();
+
+		$this->assertSame( 'register_setting', $GLOBALS['otherguise_test_calls'][0][0] );
+		$this->assertSame( 'modes_settings_group', $GLOBALS['otherguise_test_calls'][0][1] );
+		$this->assertSame( 'modes_settings', $GLOBALS['otherguise_test_calls'][0][2] );
+		$this->assertSame( 'edit_theme_options', $panel->capability() );
+	}
+
+	/**
 	 * Without the capability nothing is printed.
 	 *
 	 * @return void
@@ -406,7 +437,7 @@ class ModesAdminDbTest extends Otherguise_Test_Database_Case {
 		$this->assertSame( array( 'add_submenu_page', 'tools.php', 'Modes', 'Modes', 'edit_theme_options', 'modes', array( $this->page, 'render' ) ), $GLOBALS['otherguise_test_calls'][0] );
 
 		$added = array();
-		$admin = new Admin( $this->environment, $this->site->modes->modes(), $this->site->modes->variants(), $this->site->lookup );
+		$admin = new Admin( $this->environment, $this->site->modes->modes(), $this->site->modes->variants(), $this->site->lookup, $this->site->modes->settings() );
 
 		$admin->register(
 			static function ( $hook ) use ( &$added ) {
@@ -414,7 +445,7 @@ class ModesAdminDbTest extends Otherguise_Test_Database_Case {
 			}
 		);
 
-		$this->assertSame( array( 'admin_menu', 'admin_post_modes_declare', 'admin_post_modes_withdraw', 'admin_post_modes_remove' ), $added );
+		$this->assertSame( array( 'admin_menu', 'admin_init', 'option_page_capability_modes_settings_group', 'admin_post_modes_declare', 'admin_post_modes_withdraw', 'admin_post_modes_remove' ), $added );
 
 		foreach ( array( false, true ) as $in_admin ) {
 			$recorded = array();

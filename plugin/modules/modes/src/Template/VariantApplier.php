@@ -156,9 +156,13 @@ final class VariantApplier {
 			return $parsed_block;
 		}
 
+		if ( ! ( $this->is_front )() ) {
+			return $parsed_block;
+		}
+
 		$theme = $parsed_block['attrs']['theme'] ?? ( $this->theme )();
 
-		if ( ! is_string( $theme ) || ( $this->theme )() !== $theme || ! ( $this->is_front )() ) {
+		if ( ! is_string( $theme ) || ( $this->theme )() !== $theme ) {
 			return $parsed_block;
 		}
 

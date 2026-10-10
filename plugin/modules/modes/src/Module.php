@@ -19,6 +19,7 @@ use Otherguise\Modes\Integration\TriplesIntegration;
 use Otherguise\Modes\Mode\ActiveMode;
 use Otherguise\Modes\Mode\ModeDefinition;
 use Otherguise\Modes\Mode\ModeRegistry;
+use Otherguise\Modes\Settings\Settings;
 use Otherguise\Modes\Template\TemplateLookup;
 use Otherguise\Modes\Template\VariantApplier;
 use Otherguise\Modes\Variant\Variants;
@@ -104,6 +105,13 @@ final class Module implements ModuleInterface {
 	private $is_admin;
 
 	/**
+	 * Settings.
+	 *
+	 * @var Settings
+	 */
+	private $settings;
+
+	/**
 	 * Applies the variants.
 	 *
 	 * @var VariantApplier
@@ -131,6 +139,7 @@ final class Module implements ModuleInterface {
 		$this->apply_filters = $apply_filters ?? 'apply_filters';
 		$this->lookup        = $lookup ?? new TemplateLookup();
 		$this->is_admin      = $is_admin ?? 'is_admin';
+		$this->settings      = new Settings();
 		$this->is_front      = $is_front ?? static function () {
 			return ! is_admin() && ! ( defined( 'REST_REQUEST' ) && REST_REQUEST );
 		};
@@ -161,8 +170,22 @@ final class Module implements ModuleInterface {
 				return ( $this->apply_filters )( 'modes_default_mode', 'web' );
 			}
 		);
-		$this->active  = new ActiveMode( $this->modes, $query ?? array( $this, 'read_query' ) );
-		$this->applier = new VariantApplier( array( $this, 'variants_of_the_request' ), array( $this->lookup, 'stylesheet' ), $this->is_front );
+		$reader        = $query ?? array( $this, 'read_query' );
+		$front         = $this->is_front;
+		$this->active  = new ActiveMode(
+			$this->modes,
+			function () use ( $reader ) {
+				// With the modes disabled the query string is not read: every request is in the default mode.
+				return $this->settings->is_enabled() ? $reader() : array();
+			}
+		);
+		$this->applier = new VariantApplier(
+			array( $this, 'variants_of_the_request' ),
+			array( $this->lookup, 'stylesheet' ),
+			function () use ( $front ) {
+				return $this->settings->is_enabled() && $front();
+			}
+		);
 	}
 
 	/**
@@ -213,7 +236,7 @@ final class Module implements ModuleInterface {
 		( $this->add_action )( 'init', array( $this, 'register_variant_filters' ), 20, 0 );
 
 		if ( ( $this->is_admin )() ) {
-			( new Admin( new Environment(), $this->modes, $this->variants(), $this->lookup ) )->register( $this->add_action );
+			( new Admin( new Environment(), $this->modes, $this->variants(), $this->lookup, $this->settings ) )->register( $this->add_action );
 		}
 	}
 
@@ -223,7 +246,16 @@ final class Module implements ModuleInterface {
 	 * @return void
 	 */
 	public function uninstall() {
-		// Nothing to remove: the module stores nothing itself.
+		delete_option( Settings::OPTION );
+	}
+
+	/**
+	 * Returns the settings.
+	 *
+	 * @return Settings
+	 */
+	public function settings() {
+		return $this->settings;
 	}
 
 	/**
@@ -308,7 +340,12 @@ final class Module implements ModuleInterface {
 	 * @return string[]
 	 */
 	public function body_class( $classes ) {
-		$classes   = is_array( $classes ) ? $classes : array();
+		$classes = is_array( $classes ) ? $classes : array();
+
+		if ( ! $this->settings->is_enabled() ) {
+			return $classes;
+		}
+
 		$classes[] = 'modes-mode-' . $this->active->mode()->slug();
 
 		return $classes;

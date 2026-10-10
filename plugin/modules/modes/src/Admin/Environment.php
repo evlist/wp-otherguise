@@ -67,6 +67,16 @@ class Environment {
 	}
 
 	/**
+	 * Prints the hidden fields of the Settings API (option page, nonce, referer) for a settings group.
+	 *
+	 * @param string $group Group.
+	 * @return void
+	 */
+	public function print_settings_fields( $group ) {
+		settings_fields( $group );
+	}
+
+	/**
 	 * Returns an URL of the administration.
 	 *
 	 * @param string $path Path relative to the admin directory.

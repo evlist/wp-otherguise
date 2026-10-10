@@ -75,6 +75,26 @@ const check = (label, ok, detail = '') => { (ok ? pass++ : fail++); console.log(
   check('template part: the front end shows the part variant in print mode only (an archive, whose template has the header part and no variant)', front(`cat=${cat}&print`).includes('OG204-HEADER-PRINT') && !front(`cat=${cat}`).includes('OG204-HEADER-PRINT'));
   await shot('22-parts');
 
+  // 5b. Disable and enable the modes
+  const settingsForm = page.locator('form[action$="options.php"]');
+  await page.goto(BASE + '/wp-admin/tools.php?page=modes');
+  check('the setting is on the page, checked by default', (await settingsForm.locator('input[name="modes_settings[enabled]"]').isChecked()));
+  await settingsForm.locator('input[name="modes_settings[enabled]"]').uncheck();
+  await Promise.all([page.waitForNavigation(), settingsForm.locator('input[type=submit]').click()]);
+  await phpErrors('after saving the setting'); await shot('25-disabled');
+  check('disabled: saved through options.php and the page says so', wp('option get modes_settings --format=json').includes('"enabled":false') && (await body()).includes('The modes are disabled') && !(await settingsForm.locator('input[name="modes_settings[enabled]"]').isChecked()), page.url().split('?')[1]);
+  const off = front(`p=${post}&print`);
+  check('disabled: ?print shows the normal template and the body has no mode class', !off.includes('OG204-SINGLE-PRINT') && !off.includes('modes-mode-'));
+  check('disabled: ?mode=print is ignored too, and parts are the normal ones', !front(`p=${post}&mode=print`).includes('OG204-SINGLE-PRINT') && !front(`cat=${cat}&print`).includes('OG204-HEADER-PRINT'));
+  check('disabled: the variants are kept and can still be edited', (await page.locator('input[value="Withdraw from Print"]').count()) >= 1 && (await addForm('template').count()) === 1 && count() === 2);
+  check('disabled: the Modes functions answer with the default mode', wp('eval \'echo modes_active_mode()->slug();\'') === 'web');
+  await settingsForm.locator('input[name="modes_settings[enabled]"]').check();
+  await Promise.all([page.waitForNavigation(), settingsForm.locator('input[type=submit]').click()]);
+  check('enabled again: saved and the warning is gone', wp('option get modes_settings --format=json').includes('"enabled":true') && !(await body()).includes('The modes are disabled'));
+  const on = front(`p=${post}&print`);
+  check('enabled again: the variant and the class are back at once', on.includes('OG204-SINGLE-PRINT') && on.includes('modes-mode-print'));
+  wp('option delete modes_settings >/dev/null 2>&1; true');
+
   // 6. A template that disappears
   wp('eval \'foreach ( get_posts( array( "post_type" => "wp_template", "name" => "og204-single-print", "numberposts" => 1 ) ) as $p ) { wp_delete_post( $p->ID, true ); }\'');
   await page.goto(BASE + '/wp-admin/tools.php?page=modes');

@@ -85,6 +85,16 @@ class Otherguise_Test_Modes_Environment extends Environment {
 	}
 
 	/**
+	 * Prints a marker for the fields of the Settings API.
+	 *
+	 * @param string $group Group.
+	 * @return void
+	 */
+	public function print_settings_fields( $group ) {
+		echo '<input type="hidden" name="option_page" value="' . esc_attr( $group ) . '" />';
+	}
+
+	/**
 	 * Returns an URL of the administration.
 	 *
 	 * @param string $path Path.

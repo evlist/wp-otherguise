@@ -52,18 +52,27 @@ final class VariantsScreen {
 	private $lookup;
 
 	/**
+	 * Panel of the setting.
+	 *
+	 * @var SettingsPanel
+	 */
+	private $panel;
+
+	/**
 	 * Builds the screen.
 	 *
 	 * @param Environment    $environment Environment.
 	 * @param ModeRegistry   $modes       Modes.
 	 * @param Variants       $variants    Variants.
 	 * @param TemplateLookup $lookup      Lookup of templates.
+	 * @param SettingsPanel  $panel        Panel of the setting that enables the modes.
 	 */
-	public function __construct( Environment $environment, ModeRegistry $modes, Variants $variants, TemplateLookup $lookup ) {
+	public function __construct( Environment $environment, ModeRegistry $modes, Variants $variants, TemplateLookup $lookup, SettingsPanel $panel ) {
 		$this->environment = $environment;
 		$this->modes       = $modes;
 		$this->variants    = $variants;
 		$this->lookup      = $lookup;
+		$this->panel       = $panel;
 	}
 
 	/**
@@ -72,6 +81,7 @@ final class VariantsScreen {
 	 * @return void
 	 */
 	public function render() {
+		$this->panel->render();
 		$this->modes_table();
 		$this->section( TemplateRef::TEMPLATE, 'wp_template', __( 'Templates', 'modes' ), __( 'Template', 'modes' ) );
 		$this->section( TemplateRef::PART, 'wp_template_part', __( 'Template parts', 'modes' ), __( 'Template part', 'modes' ) );

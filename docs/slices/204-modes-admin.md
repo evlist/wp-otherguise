@@ -19,6 +19,15 @@ One page, no JavaScript:
 - **Templates** and **Template parts**: one table each. A row is a relation (template, variant) with the modes it serves; each mode has a button **Withdraw from …** and the row has **Remove** (every mode). Labels link to the site editor; a template or variant that no longer exists is marked **(missing)** ([screenshot](../screenshots/204-missing-template.png)).
 - **Add a variant** under each table: *template* has the variant *template* in the mode *mode* (lists of the templates of the active theme: block templates from the database and from files, and for a classic theme the PHP files at the root of the theme). The two lists are the same, since a variant is another template of the same theme.
 
+## Enabling and disabling the modes
+
+At the top of the screen, a checkbox **Enable the modes on this site** (saved through the Settings API, option `modes_settings`, key `enabled`; enabled by default; [screenshot](../screenshots/204-modes-disabled.png)). When it is off:
+
+- the query string is not read: `?mode=` and aliases such as `?print` are ignored and every request is in the default mode (`modes_active_mode()` answers with it);
+- no variant is applied to templates or template parts, and the body gets no `modes-mode-…` class;
+- the screen, the variants and the registrations in Triples stay, with a warning at the top, so that the modes can be set up and enabled again;
+- the setting is read at each request: enabling or disabling takes effect at once. Uninstalling the plugin removes the option.
+
 The page is not shown to users without the capability, and the notices say the result (declared, withdrawn, removed) or why a request was refused (the rules of slice 202: a template cannot be its own variant, a second variant in the same mode, a template or mode that does not exist...).
 
 ## Handlers
@@ -34,13 +43,14 @@ Three `admin_post_` actions, `modes_declare`, `modes_withdraw` and `modes_remove
 ## Other changes
 
 - `Variants::relations( $kind )` (every relation with its modes) and `Variants::describe()`; `TemplateLookup::templates( $type )` for the lists.
-- `Module` takes an optional `$is_admin`.
+- `Module` takes an optional `$is_admin`; `Settings` (the option), `SettingsPanel` (the form, the registration with the Settings API, the capability of the option page through `option_page_capability_modes_settings_group`).
+- `VariantApplier::block_data()` now tests the kind of request before it asks for the theme.
 
 ## Tests
 
 - Integration (database), `ModesAdminDbTest` (10 tests): capability and nonce of each handler (including the nonce of another action), declare (idempotent), every refusal as a notice with its code and nothing stored, withdraw and remove, the page (modes, aliases, links, relations with their modes, buttons, forms, nonces, lists, escaping of a title that contains `<script>`), a missing template, the empty states, the page refused, the notices, the menu entry and the hooks, in the administration only.
-- Unit and integration of `Variants::relations()`.
-- **On a real WordPress 7.1.3 in Chromium** ([`tests/real-wordpress/modes-screen/`](../../tests/real-wordpress/modes-screen/flow.js), 28 checks, no PHP error and no failed request): opening the page under Tools; declaring a variant with the form and seeing it on the front end in print mode and not otherwise; a second mode on the same relation and its withdrawal (a variant of the default mode applies to requests without a mode); the refusals as messages; a template part variant (on an archive, whose template has the header part); a template deleted behind the screen's back, shown as missing while the front end still answers 200; remove; a missing or false nonce refused (403); an editor and a subscriber (no `edit_theme_options`) refused, also with a valid nonce of another action; the Triples screen still lists the new types and predicates.
+- Unit and integration of `Variants::relations()`; `ModesSettingsTest` (7 tests: default, disabled and enabled again, sanitizing, the module in both states, read at each request, uninstall) and the form of the setting in `ModesAdminDbTest`.
+- **On a real WordPress 7.1.3 in Chromium** ([`tests/real-wordpress/modes-screen/`](../../tests/real-wordpress/modes-screen/flow.js), 37 checks, no PHP error and no failed request): opening the page under Tools; declaring a variant with the form and seeing it on the front end in print mode and not otherwise; a second mode on the same relation and its withdrawal (a variant of the default mode applies to requests without a mode); the refusals as messages; a template part variant (on an archive, whose template has the header part); a template deleted behind the screen's back, shown as missing while the front end still answers 200; remove; a missing or false nonce refused (403); an editor and a subscriber (no `edit_theme_options`) refused, also with a valid nonce of another action; the setting: disabling it through `options.php` makes `?print` and `?mode=print` show the normal templates and parts with no mode class (while the variants stay listed and editable), enabling it brings everything back at once; the Triples screen still lists the new types and predicates.
 
 ## Not verified
 
@@ -48,6 +58,7 @@ Other browsers, narrow screens, keyboard use and contrast; multisite; child them
 
 ## To confirm
 
+0. The setting that enables the modes: on by default, one checkbox on the screen, the data kept while it is off.
 1. The screen is **Tools → Modes**, one page with the modes, two tables and two forms, no JavaScript.
 2. Capability `edit_theme_options` with the filter `modes_admin_capability`.
 3. No confirmation page for withdrawing a mode or removing a relation.
