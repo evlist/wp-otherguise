@@ -23,3 +23,6 @@ tests/real-wordpress/201-template-hooks/run.sh /path/to/wordpress http://127.0.0
 ```
 
 `WP` names the WP-CLI command (default `wp`). The script creates and removes its fixtures (templates, a template part, a classic theme, an option) and restores the active theme. **Never run it on a site that matters.** The last run is recorded in the document of the slice, with the versions it ran on.
+
+
+The script that copies a production site onto a test copy, [`tools/staging/sync-site.sh`](../../tools/staging/sync-site.sh), has its own tests with stand-ins for Docker: [`tests/staging/sync-site-test.sh`](../staging/sync-site-test.sh).
