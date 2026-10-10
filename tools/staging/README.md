@@ -13,6 +13,16 @@ tools/staging/sync-site.sh --yes --skip-uploads
 
 The defaults are those of Eric's setup (containers `docker-e-vli-st_wordpress_1` and `docker-sb-vli-st_wordpress-sb_1`, volumes `/volumes/e-vli-st/wordpress` and `/volumes/sb-vli-st/wordpress`, addresses `https://e.vli.st` and `https://sb.vli.st`); every one can be changed with an environment variable, listed at the top of the script.
 
+## Example: leaving a big directory out
+
+On Eric's site 67 GB of the 80 GB are in `wp-content/gallery` (images of the NextGen Gallery plugin, which is to be dropped), and 14 GB in `uploads`. To skip the galleries (the pages that show them will have broken images on the copy, nothing else changes):
+
+```sh
+EXCLUDES='/wp-content/gallery' tools/staging/sync-site.sh --dry-run
+```
+
+Anything that exists **only on the test site** is deleted by the copy (rsync `--delete`), except the mounts of the test container and `wp-config.php`. The dry run lists such plugin directories under `*deleting`; add them to `EXCLUDES` (`EXCLUDES='/wp-content/plugins/loco-translate'`) to keep them.
+
 ## What it does
 
 1. **Checks**: refuses when both containers, volumes, addresses or databases are the same, when the production site does not say it is `PROD_URL`, or when the test site says it is neither `STAGING_URL` nor `PROD_URL`. WP-CLI is **copied from the production container** into the test one when missing (nothing is downloaded; copy it again after the container is recreated, the script does it).
