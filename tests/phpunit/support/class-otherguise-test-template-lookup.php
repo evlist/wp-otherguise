@@ -36,6 +36,25 @@ class Otherguise_Test_Template_Lookup extends TemplateLookup {
 	public $theme = 'twentytwentyfive';
 
 	/**
+	 * Types of content of the test.
+	 *
+	 * @var array<string, string>
+	 */
+	public $types = array(
+		'post' => 'Post',
+		'page' => 'Page',
+	);
+
+	/**
+	 * Returns the types of content of the test.
+	 *
+	 * @return array<string, string>
+	 */
+	public function post_types() {
+		return $this->types;
+	}
+
+	/**
 	 * Returns the stylesheet.
 	 *
 	 * @return string

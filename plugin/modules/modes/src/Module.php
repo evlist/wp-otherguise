@@ -20,10 +20,12 @@ use Otherguise\Modes\Link\LinkBlock;
 use Otherguise\Modes\Mode\ActiveMode;
 use Otherguise\Modes\Mode\ModeDefinition;
 use Otherguise\Modes\Mode\ModeRegistry;
+use Otherguise\Modes\Settings\DefaultTemplates;
 use Otherguise\Modes\Settings\Settings;
 use Otherguise\Modes\Stylesheet\StylesheetFiles;
 use Otherguise\Modes\Stylesheet\StylesheetLoader;
 use Otherguise\Modes\Stylesheet\Stylesheets;
+use Otherguise\Modes\Template\NewPostTemplate;
 use Otherguise\Modes\Template\TemplateLookup;
 use Otherguise\Modes\Template\VariantApplier;
 use Otherguise\Modes\Variant\Variants;
@@ -123,6 +125,13 @@ final class Module implements ModuleInterface {
 	private $applier;
 
 	/**
+	 * The template of new posts.
+	 *
+	 * @var DefaultTemplates
+	 */
+	private $default_templates;
+
+	/**
 	 * Files of the Media Library that are stylesheets.
 	 *
 	 * @var StylesheetFiles
@@ -166,6 +175,7 @@ final class Module implements ModuleInterface {
 		$this->lookup        = $lookup ?? new TemplateLookup();
 		$this->is_admin      = $is_admin ?? 'is_admin';
 		$this->stylesheet_files = $stylesheet_files ?? new StylesheetFiles();
+		$this->default_templates = new DefaultTemplates( $this->lookup );
 		$this->settings      = new Settings();
 		$this->is_front      = $is_front ?? static function () {
 			return ! is_admin() && ! ( defined( 'REST_REQUEST' ) && REST_REQUEST );
@@ -262,9 +272,10 @@ final class Module implements ModuleInterface {
 		( $this->add_action )( 'init', array( $this, 'register_variant_filters' ), 20, 0 );
 		( $this->add_action )( 'init', array( $this, 'register_link_block' ), 10, 0 );
 		( $this->add_action )( 'init', array( $this, 'register_stylesheet_loader' ), 20, 0 );
+		( $this->add_action )( 'wp_insert_post', array( new NewPostTemplate( $this->default_templates ), 'apply' ), 10, 3 );
 
 		if ( ( $this->is_admin )() ) {
-			( new Admin( new Environment(), $this->modes, $this->variants(), $this->lookup, $this->settings, $this->stylesheets(), $this->stylesheet_files ) )->register( $this->add_action );
+			( new Admin( new Environment(), $this->modes, $this->variants(), $this->lookup, $this->settings, $this->stylesheets(), $this->stylesheet_files, $this->default_templates ) )->register( $this->add_action );
 		}
 	}
 
@@ -275,6 +286,7 @@ final class Module implements ModuleInterface {
 	 */
 	public function uninstall() {
 		delete_option( Settings::OPTION );
+		delete_option( DefaultTemplates::OPTION );
 	}
 
 	/**

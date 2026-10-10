@@ -66,22 +66,31 @@ final class VariantsScreen {
 	private $stylesheets;
 
 	/**
+	 * Section of the template of new posts, when there is one.
+	 *
+	 * @var DefaultTemplatesScreen|null
+	 */
+	private $defaults;
+
+	/**
 	 * Builds the screen.
 	 *
-	 * @param Environment            $environment Environment.
-	 * @param ModeRegistry           $modes       Modes.
-	 * @param Variants               $variants    Variants.
-	 * @param TemplateLookup         $lookup      Lookup of templates.
-	 * @param SettingsPanel          $panel       Panel of the setting that enables the modes.
-	 * @param StylesheetsScreen|null $stylesheets Section of the stylesheets, printed after the variants.
+	 * @param Environment                 $environment Environment.
+	 * @param ModeRegistry                $modes       Modes.
+	 * @param Variants                    $variants    Variants.
+	 * @param TemplateLookup              $lookup      Lookup of templates.
+	 * @param SettingsPanel               $panel       Panel of the setting that enables the modes.
+	 * @param StylesheetsScreen|null      $stylesheets Section of the stylesheets, printed after the variants.
+	 * @param DefaultTemplatesScreen|null $defaults Section of the template of new posts, printed last.
 	 */
-	public function __construct( Environment $environment, ModeRegistry $modes, Variants $variants, TemplateLookup $lookup, SettingsPanel $panel, ?StylesheetsScreen $stylesheets = null ) {
+	public function __construct( Environment $environment, ModeRegistry $modes, Variants $variants, TemplateLookup $lookup, SettingsPanel $panel, ?StylesheetsScreen $stylesheets = null, ?DefaultTemplatesScreen $defaults = null ) {
 		$this->environment = $environment;
 		$this->modes       = $modes;
 		$this->variants    = $variants;
 		$this->lookup      = $lookup;
 		$this->panel       = $panel;
 		$this->stylesheets = $stylesheets;
+		$this->defaults    = $defaults;
 	}
 
 	/**
@@ -97,6 +106,10 @@ final class VariantsScreen {
 
 		if ( null !== $this->stylesheets ) {
 			$this->stylesheets->render();
+		}
+
+		if ( null !== $this->defaults ) {
+			$this->defaults->render();
 		}
 	}
 

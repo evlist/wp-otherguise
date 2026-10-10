@@ -112,6 +112,7 @@ class ModesModuleTest extends TestCase {
 					array( Module::class, 'register_link_block', 10, 0 ),
 					array( Module::class, 'register_stylesheet_loader', 20, 0 ),
 				),
+				'wp_insert_post'                => array( array( \Otherguise\Modes\Template\NewPostTemplate::class, 'apply', 10, 3 ) ),
 			),
 			$hooks
 		);

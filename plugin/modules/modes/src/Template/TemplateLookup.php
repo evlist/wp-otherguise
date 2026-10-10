@@ -55,6 +55,30 @@ class TemplateLookup {
 	}
 
 	/**
+	 * Lists the types of content that are edited in the block editor and shown in the administration: the types that can have a template
+	 * of their own.
+	 *
+	 * @return array<string, string> Label by slug of the type, `attachment` excluded.
+	 */
+	public function post_types() {
+		$types = array();
+
+		foreach ( get_post_types(
+			array(
+				'public' => true,
+				'show_ui' => true,
+			),
+			'objects'
+		) as $slug => $type ) {
+			if ( 'attachment' !== $slug && post_type_supports( $slug, 'editor' ) ) {
+				$types[ $slug ] = (string) $type->labels->singular_name;
+			}
+		}
+
+		return $types;
+	}
+
+	/**
 	 * Returns the link that opens a template in the site editor.
 	 *
 	 * @param string $id   Id.

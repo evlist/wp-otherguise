@@ -444,7 +444,7 @@ class ModesAdminDbTest extends Otherguise_Test_Database_Case {
 		$this->assertSame( array( 'add_submenu_page', 'options-general.php', 'Otherguise modes', 'Otherguise modes', 'edit_theme_options', 'modes', array( $this->page, 'render' ) ), $GLOBALS['otherguise_test_calls'][0] );
 
 		$added = array();
-		$admin = new Admin( $this->environment, $this->site->modes->modes(), $this->site->modes->variants(), $this->site->lookup, $this->site->modes->settings(), $this->site->modes->stylesheets(), new Otherguise_Test_Stylesheet_Files() );
+		$admin = new Admin( $this->environment, $this->site->modes->modes(), $this->site->modes->variants(), $this->site->lookup, $this->site->modes->settings(), $this->site->modes->stylesheets(), new Otherguise_Test_Stylesheet_Files(), new \Otherguise\Modes\Settings\DefaultTemplates( $this->site->lookup ) );
 
 		$admin->register(
 			static function ( $hook ) use ( &$added ) {
@@ -452,7 +452,7 @@ class ModesAdminDbTest extends Otherguise_Test_Database_Case {
 			}
 		);
 
-		$this->assertSame( array( 'admin_menu', 'admin_init', 'option_page_capability_modes_settings_group', 'admin_post_modes_declare', 'admin_post_modes_withdraw', 'admin_post_modes_remove', 'admin_post_modes_add_stylesheet', 'admin_post_modes_remove_stylesheet' ), $added );
+		$this->assertSame( array( 'admin_menu', 'admin_init', 'admin_init', 'option_page_capability_modes_settings_group', 'option_page_capability_modes_default_templates_group', 'admin_post_modes_declare', 'admin_post_modes_withdraw', 'admin_post_modes_remove', 'admin_post_modes_add_stylesheet', 'admin_post_modes_remove_stylesheet' ), $added );
 
 		foreach ( array( false, true ) as $in_admin ) {
 			$recorded = array();
