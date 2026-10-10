@@ -252,6 +252,29 @@ class ModesVariantsDbTest extends Otherguise_Test_Database_Case {
 	}
 
 	/**
+	 * The relations, with their modes, for the screens.
+	 *
+	 * @return void
+	 */
+	public function test_relations(): void {
+		$this->assertSame( array(), $this->variants->relations() );
+
+		$this->variants->declare( $this->variants->template( 'single' ), $this->mode( 'print' ), $this->variants->template( 'single-print' ) );
+		$this->variants->declare( $this->variants->template( 'single' ), $this->mode( 'web' ), $this->variants->template( 'single-print' ) );
+		$this->variants->declare( $this->variants->template( 'page' ), $this->mode( 'print' ), $this->variants->template( 'page-print' ) );
+		$this->variants->declare( $this->variants->part( 'header' ), $this->mode( 'print' ), $this->variants->part( 'header-print' ) );
+
+		$relations = $this->variants->relations();
+
+		$this->assertCount( 2, $relations );
+		$this->assertSame( 'template:twentytwentyfive//single', (string) $relations[0]['source'] );
+		$this->assertSame( 'template:twentytwentyfive//single-print', (string) $relations[0]['variant'] );
+		$this->assertSame( array( 'print', 'web' ), $relations[0]['modes'] );
+		$this->assertSame( array( 'print' ), $relations[1]['modes'] );
+		$this->assertCount( 1, $this->variants->relations( 'template_part' ) );
+	}
+
+	/**
 	 * Without the Triples module the variants are not available.
 	 *
 	 * @return void

@@ -12,6 +12,8 @@ namespace Otherguise\Modes;
 
 use Otherguise\Core\ModuleInterface;
 use Otherguise\Core\Modules;
+use Otherguise\Modes\Admin\Admin;
+use Otherguise\Modes\Admin\Environment;
 use Otherguise\Modes\Integration\TemplateIntegration;
 use Otherguise\Modes\Integration\TriplesIntegration;
 use Otherguise\Modes\Mode\ActiveMode;
@@ -95,6 +97,13 @@ final class Module implements ModuleInterface {
 	private $is_front;
 
 	/**
+	 * Tells whether the request is in the administration.
+	 *
+	 * @var callable
+	 */
+	private $is_admin;
+
+	/**
 	 * Applies the variants.
 	 *
 	 * @var VariantApplier
@@ -114,12 +123,14 @@ final class Module implements ModuleInterface {
 	 * @param TemplateLookup|null $lookup  What the module asks WordPress about templates.
 	 * @param callable|null       $is_front      Tells whether the request is a page of the site, as opposed to the administration or REST;
 	 *                                           defaults to a test of `is_admin()` and `REST_REQUEST`.
+	 * @param callable|null       $is_admin      Tells whether this is an administration request; defaults to WordPress `is_admin`.
 	 */
-	public function __construct( $do_action = null, $add_action = null, $query = null, $apply_filters = null, $statements = null, ?TemplateLookup $lookup = null, $is_front = null ) {
+	public function __construct( $do_action = null, $add_action = null, $query = null, $apply_filters = null, $statements = null, ?TemplateLookup $lookup = null, $is_front = null, $is_admin = null ) {
 		$this->do_action     = $do_action ?? 'do_action';
 		$this->add_action    = $add_action ?? 'add_action';
 		$this->apply_filters = $apply_filters ?? 'apply_filters';
 		$this->lookup        = $lookup ?? new TemplateLookup();
+		$this->is_admin      = $is_admin ?? 'is_admin';
 		$this->is_front      = $is_front ?? static function () {
 			return ! is_admin() && ! ( defined( 'REST_REQUEST' ) && REST_REQUEST );
 		};
@@ -200,6 +211,10 @@ final class Module implements ModuleInterface {
 		( $this->add_action )( 'body_class', array( $this, 'body_class' ), 10, 1 );
 		( $this->add_action )( 'init', array( $this, 'load_textdomain' ), 10, 1 );
 		( $this->add_action )( 'init', array( $this, 'register_variant_filters' ), 20, 0 );
+
+		if ( ( $this->is_admin )() ) {
+			( new Admin( new Environment(), $this->modes, $this->variants(), $this->lookup ) )->register( $this->add_action );
+		}
 	}
 
 	/**

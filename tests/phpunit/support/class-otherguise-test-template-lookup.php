@@ -75,4 +75,24 @@ class Otherguise_Test_Template_Lookup extends TemplateLookup {
 	public function edit_url( $id, $type ) {
 		return 'editor?' . $type . '=' . $id;
 	}
+
+	/**
+	 * Lists the templates of a type: those of the test, with their titles.
+	 *
+	 * @param string $type Type.
+	 * @return array<string, string>
+	 */
+	public function templates( $type ) {
+		$list = array();
+
+		foreach ( $this->templates as $key => $template ) {
+			if ( 0 === strpos( $key, $type . '|' ) ) {
+				$list[ $template->id ] = '' !== $template->title ? $template->title . ' (' . $template->slug . ')' : $template->slug;
+			}
+		}
+
+		asort( $list );
+
+		return $list;
+	}
 }

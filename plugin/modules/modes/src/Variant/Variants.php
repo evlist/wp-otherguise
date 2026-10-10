@@ -210,6 +210,51 @@ final class Variants {
 	}
 
 	/**
+	 * Describes an entity for a screen: a label, a link when there is one, and whether it exists (null when its type cannot tell).
+	 *
+	 * @param EntityRef $entity Template, template part or mode.
+	 * @return array{label: string, url: string|null, exists: bool|null}
+	 */
+	public function describe( EntityRef $entity ) {
+		return $this->statements->describe( $entity );
+	}
+
+	/**
+	 * Returns every relation of a kind with the modes it serves, for the screens.
+	 *
+	 * @param string $kind `template` or `template_part`.
+	 * @return array<int, array{source: EntityRef, variant: EntityRef, modes: string[]}> In the order of creation. A relation that serves no mode
+	 *                                                                                 (it cannot be made by `declare()`) has an empty list.
+	 */
+	public function relations( $kind = TemplateRef::TEMPLATE ) {
+		$predicate = self::PREDICATES[ $kind ] ?? self::PREDICATES[ TemplateRef::TEMPLATE ];
+		$links     = $this->statements->match( null, $predicate );
+		$relations = array();
+
+		if ( array() === $links ) {
+			return $relations;
+		}
+
+		$qualifications = $this->statements->qualifications_of( $links );
+
+		foreach ( $links as $link ) {
+			$modes = array();
+
+			foreach ( $qualifications[ $link->id() ]['modes/mode'] ?? array() as $in_mode ) {
+				$modes[] = $in_mode->object()->id();
+			}
+
+			$relations[] = array(
+				'source'  => $link->subject(),
+				'variant' => $link->object(),
+				'modes'   => $modes,
+			);
+		}
+
+		return $relations;
+	}
+
+	/**
 	 * Reads the two ends of a relation and returns them with the predicate that fits their kind.
 	 *
 	 * @param mixed $source  Template or part.

@@ -64,4 +64,33 @@ class TemplateLookup {
 	public function edit_url( $id, $type ) {
 		return admin_url( 'site-editor.php?postType=' . rawurlencode( $type ) . '&postId=' . rawurlencode( $id ) . '&canvas=edit' );
 	}
+
+	/**
+	 * Lists the templates or the template parts of the active theme, for the lists of the screens: block templates (database and files),
+	 * and, for a classic theme and for templates, the PHP files at the root of the theme.
+	 *
+	 * @param string $type `wp_template` or `wp_template_part`.
+	 * @return array<string, string> Label by id (`stylesheet//slug`), sorted by label.
+	 */
+	public function templates( $type ) {
+		$list = array();
+
+		foreach ( get_block_templates( array(), $type ) as $template ) {
+			$list[ $template->id ] = '' !== (string) $template->title ? $template->title . ' (' . $template->slug . ')' : $template->slug;
+		}
+
+		if ( 'wp_template' === $type && ! wp_is_block_theme() ) {
+			foreach ( array_keys( wp_get_theme()->get_files( 'php', 0, false ) ) as $file ) {
+				$slug = preg_replace( '/\.php\z/', '', $file );
+
+				if ( 'functions' !== $slug && 1 === preg_match( '/^[A-Za-z0-9_.\-]+\z/', $slug ) ) {
+					$list[ $this->stylesheet() . '//' . $slug ] = $slug;
+				}
+			}
+		}
+
+		asort( $list, SORT_NATURAL | SORT_FLAG_CASE );
+
+		return $list;
+	}
 }
