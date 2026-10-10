@@ -12,3 +12,7 @@ vendor/
 
 # JavaScript test dependencies
 tests/js/node_modules/
+.vscode/*.bak.*
+.devcontainer/tmp/
+.devcontainer/var/
+.composer/
