@@ -27,7 +27,9 @@ Numbering: `0xx` foundation, `1xx` Triples, `2xx` Modes, `3xx` Books.
 
 ## Planned
 
-None at the moment.
+| Slice | Title |
+|---|---|
+| [206](206-modes-screen-save.md) | Modes: edit the variants in place and save with a button (to confirm) |
 
 ## Candidates (not planned yet)
 
