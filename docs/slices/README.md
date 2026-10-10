@@ -29,7 +29,9 @@ Numbering: `0xx` foundation, `1xx` Triples, `2xx` Modes, `3xx` Books.
 
 ## Planned
 
-None at the moment.
+| Slice | Title |
+|---|---|
+| [209](209-modes-default-template.md) | Modes: the default template of new posts (to confirm; checked: WordPress has no such setting) |
 
 ## Candidates (not planned yet)
 
@@ -41,5 +43,4 @@ Titles only. Each one is to be planned with Eric, from the decisions recorded in
 - `208` Modes, a contract for other plugins: the filters `modes_active_mode` and `modes_option` and per-mode options set on the screen ([planned in detail](208-modes-plugin-contract.md), **not needed for now**: parameters of a block are better set in its call, in each template; useful for plugins without a block).
 - `206` Modes, edit the variants in place and save with a button ([planned in detail](206-modes-screen-save.md), **not a priority**): change the template, the variant and the modes of a row, one **Save changes** button, all or nothing.
 - `2xx` Modes, create a variant by copying: in the form **Add a variant** of **Settings → Otherguise modes**, an option "create the variant as a copy of the template" (with a name), so that a print version can be started from the web template without going through the site editor. Eric's request after finding that the list of templates of the editor offers only *Edit* and *Reset* (the **Add Template** button is at the top right of that list, and the template can then be filled through the code editor). Open: what the copy keeps (the whole content and the parts it uses), and whether it also declares the relation.
-- `2xx` Modes, default template per post type (Eric's request, not fundamental): the template that serves the **default mode** for a post type (`publication-randonnee` for posts) is the one given to new posts, instead of picking it by hand each time, and the other modes reach their own version through the relations (`publication-randonnee-print`). Proposed in [`../design/modes.md`](../design/modes.md); whether WordPress or the theme can already preselect a template was **not checked**.
 - Integration with Media Helper (attachments qualified by mode, one image attached to several posts).
