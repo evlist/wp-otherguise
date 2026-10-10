@@ -49,7 +49,7 @@ const check = (label, ok, detail = '') => { (ok ? pass++ : fail++); console.log(
   check('nothing declared yet', t.includes('No variant declared.'));
 
   // The modes are disabled until the administrator enables them: the screen says so, and the box enables them.
-  const firstForm = page.locator('form[action$="options.php"]');
+  const firstForm = page.locator('form:has(input[name="modes_settings[enabled]"])');
   check('disabled by default: the box is unchecked and the warning is shown', !(await firstForm.locator('input[name="modes_settings[enabled]"]').isChecked()) && t.includes('The modes are disabled (they are until you enable them)') && t.includes('have no effect until you enable the modes'));
   await firstForm.locator('input[name="modes_settings[enabled]"]').check();
   await Promise.all([page.waitForNavigation(), firstForm.locator('input[type=submit]').click()]);
@@ -83,7 +83,7 @@ const check = (label, ok, detail = '') => { (ok ? pass++ : fail++); console.log(
   await shot('22-parts');
 
   // 5b. Disable and enable the modes
-  const settingsForm = page.locator('form[action$="options.php"]');
+  const settingsForm = page.locator('form:has(input[name="modes_settings[enabled]"])');
   await page.goto(BASE + '/wp-admin/options-general.php?page=modes');
   check('the setting is on the page, checked once enabled', (await settingsForm.locator('input[name="modes_settings[enabled]"]').isChecked()));
   await settingsForm.locator('input[name="modes_settings[enabled]"]').uncheck();
