@@ -128,7 +128,7 @@ The case of the custom template chosen per post has been **tried on a real WordP
 
 ## Open ideas, not decided
 
-- **A default template for new posts.** Choosing `publication-randonnee` in the "Template" setting is a manual step on every post, with a risk of forgetting it. Making it the default for new posts would remove it. Whether WordPress can do this natively was not checked; if it cannot, the plugin could do it (listed in the [candidate slices](../slices/README.md)).
+- **A default template for new posts, tied to the default mode.** Choosing `publication-randonnee` in the "Template" setting is a manual step on every post, with a risk of forgetting it. Eric's idea: the template of the **default mode** for a post type is the default of new posts, which makes it a modes matter (see [`design/modes.md`](../design/modes.md), proposed). Whether WordPress can preselect a template natively was not checked.
 
 These come from reading the two files; nothing is planned.
 
