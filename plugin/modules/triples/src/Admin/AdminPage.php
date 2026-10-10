@@ -76,8 +76,8 @@ final class AdminPage {
 	public function register_menu() {
 		$hook = add_submenu_page(
 			'tools.php',
-			__( 'Relations', 'otherguise' ),
-			__( 'Relations', 'otherguise' ),
+			__( 'Otherguise relations', 'otherguise' ),
+			__( 'Otherguise relations', 'otherguise' ),
 			$this->environment->capability(),
 			Environment::PAGE,
 			array( $this, 'render' )
@@ -134,7 +134,7 @@ final class AdminPage {
 		$query  = $this->environment->query();
 		$active = isset( $query['tab'], $tabs[ $query['tab'] ] ) ? $query['tab'] : 'statements';
 
-		echo '<div class="wrap"><h1>' . esc_html__( 'Relations', 'otherguise' ) . '</h1>';
+		echo '<div class="wrap"><h1>' . esc_html__( 'Otherguise relations', 'otherguise' ) . '</h1>';
 		$this->notice( $query );
 		echo '<nav class="nav-tab-wrapper">';
 

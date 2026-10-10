@@ -3,7 +3,7 @@
  * SPDX-FileCopyrightText: 2026 Eric van der Vlist <vdv@dyomedea.com>
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * The page under Tools.
+ * The page under Settings.
  *
  * @package Otherguise
  */
@@ -42,15 +42,15 @@ final class AdminPage {
 	}
 
 	/**
-	 * Adds the entry to the Tools menu. Called on `admin_menu`.
+	 * Adds the entry to the Settings menu. Called on `admin_menu`.
 	 *
 	 * @return void
 	 */
 	public function register_menu() {
 		add_submenu_page(
-			'tools.php',
-			__( 'Modes', 'otherguise' ),
-			__( 'Modes', 'otherguise' ),
+			'options-general.php',
+			__( 'Otherguise modes', 'otherguise' ),
+			__( 'Otherguise modes', 'otherguise' ),
 			$this->environment->capability(),
 			Environment::PAGE,
 			array( $this, 'render' )
@@ -69,7 +69,7 @@ final class AdminPage {
 			return;
 		}
 
-		echo '<div class="wrap"><h1>' . esc_html__( 'Modes', 'otherguise' ) . '</h1>';
+		echo '<div class="wrap"><h1>' . esc_html__( 'Otherguise modes', 'otherguise' ) . '</h1>';
 		$this->notice( $this->environment->query() );
 		$this->screen->render();
 		echo '</div>';

@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Eric van der Vlist <vdv@dyomedea.com>
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
-// Slice 105: drives the administration screen (Tools > Relations) of the Triples module in a real browser, on a scratch WordPress site.
+// Slice 105: drives the administration screen (Tools > Otherguise relations) of the Triples module in a real browser, on a scratch WordPress site.
 // See README.md. Environment: BASE (site URL), WPSH (command that runs WP-CLI on the site), PLAYWRIGHT (path of the playwright module),
 // CHROMIUM (path of the browser, optional), and the admin account admin/admin.
 const { chromium } = require(process.env.PLAYWRIGHT || 'playwright');

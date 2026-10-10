@@ -132,7 +132,7 @@ class TriplesAdminScreensDbTest extends Otherguise_Test_Database_Case {
 	public function test_the_menu_entry(): void {
 		$this->page->register_menu();
 
-		$this->assertSame( array( 'add_submenu_page', 'tools.php', 'Relations', 'Relations', 'manage_options', 'triples', array( $this->page, 'render' ) ), $GLOBALS['otherguise_test_calls'][0] );
+		$this->assertSame( array( 'add_submenu_page', 'tools.php', 'Otherguise relations', 'Otherguise relations', 'manage_options', 'triples', array( $this->page, 'render' ) ), $GLOBALS['otherguise_test_calls'][0] );
 		$this->assertSame( array( $this->page, 'load' ), $this->added['load-tools_page_triples'] );
 
 		$this->page->load();
@@ -185,7 +185,7 @@ class TriplesAdminScreensDbTest extends Otherguise_Test_Database_Case {
 
 		$html = $this->html();
 
-		$this->assertStringContainsString( '<h1>Relations</h1>', $html );
+		$this->assertStringContainsString( '<h1>Otherguise relations</h1>', $html );
 		$this->assertStringContainsString( 'nav-tab-active', $html );
 		$this->assertStringContainsString( '&lt;script&gt;alert(1)&lt;/script&gt; &amp; Co', $html );
 		$this->assertStringNotContainsString( '<script>', $html );

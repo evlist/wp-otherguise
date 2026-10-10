@@ -18,7 +18,7 @@ defined( 'ABSPATH' ) || exit;
  */
 class Environment {
 	/**
-	 * Slug of the page, under Tools.
+	 * Slug of the page, under Settings.
 	 */
 	public const PAGE = 'modes';
 
@@ -93,7 +93,7 @@ class Environment {
 	 * @return string
 	 */
 	public function page_url( array $args = array() ) {
-		return $this->admin_url( 'tools.php?' . http_build_query( array( 'page' => self::PAGE ) + $args ) );
+		return $this->admin_url( 'options-general.php?' . http_build_query( array( 'page' => self::PAGE ) + $args ) );
 	}
 
 	/**

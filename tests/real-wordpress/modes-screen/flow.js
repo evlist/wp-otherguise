@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Eric van der Vlist <vdv@dyomedea.com>
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
-// Slice 204: drives the screen Tools > Modes in a real browser, on a scratch WordPress site (see ../README.md). Environment: BASE, WPSH,
+// Slice 204: drives the screen Settings > Otherguise modes in a real browser, on a scratch WordPress site (see ../README.md). Environment: BASE, WPSH,
 // PLAYWRIGHT, CHROMIUM (optional); the admin account is admin/admin. It creates the users `og204editor` and `og204sub`.
 const { chromium } = require(process.env.PLAYWRIGHT || 'playwright');
 const { execFileSync } = require('child_process');
@@ -40,12 +40,12 @@ const check = (label, ok, detail = '') => { (ok ? pass++ : fail++); console.log(
   await Promise.all([page.waitForNavigation(), page.click('#wp-submit')]);
 
   // 1. The screen
-  const r = await page.goto(BASE + '/wp-admin/tools.php?page=modes');
-  check('the screen opens under Tools (HTTP ' + r.status() + ')', r.status() === 200 && (await body()).includes('Modes'));
+  const r = await page.goto(BASE + '/wp-admin/options-general.php?page=modes');
+  check('the screen opens under Settings (HTTP ' + r.status() + ')', r.status() === 200 && (await body()).includes('Modes'));
   await phpErrors('screen'); await shot('20-modes');
   const t = await body();
   check('the modes and how to reach them are listed', t.includes('?mode=print') && t.includes('?print') && t.includes('?mode=web'));
-  check('the menu entry is under Tools', (await page.locator('#adminmenu a[href*="page=modes"]').count()) === 1);
+  check('the menu entry is under Settings', (await page.locator('#adminmenu a[href*="page=modes"]').count()) === 1);
   check('nothing declared yet', t.includes('No variant declared.'));
 
   // 2. Declare a variant of a template, in print mode
@@ -77,7 +77,7 @@ const check = (label, ok, detail = '') => { (ok ? pass++ : fail++); console.log(
 
   // 5b. Disable and enable the modes
   const settingsForm = page.locator('form[action$="options.php"]');
-  await page.goto(BASE + '/wp-admin/tools.php?page=modes');
+  await page.goto(BASE + '/wp-admin/options-general.php?page=modes');
   check('the setting is on the page, checked by default', (await settingsForm.locator('input[name="modes_settings[enabled]"]').isChecked()));
   await settingsForm.locator('input[name="modes_settings[enabled]"]').uncheck();
   await Promise.all([page.waitForNavigation(), settingsForm.locator('input[type=submit]').click()]);
@@ -97,7 +97,7 @@ const check = (label, ok, detail = '') => { (ok ? pass++ : fail++); console.log(
 
   // 6. A template that disappears
   wp('eval \'foreach ( get_posts( array( "post_type" => "wp_template", "name" => "og204-single-print", "numberposts" => 1 ) ) as $p ) { wp_delete_post( $p->ID, true ); }\'');
-  await page.goto(BASE + '/wp-admin/tools.php?page=modes');
+  await page.goto(BASE + '/wp-admin/options-general.php?page=modes');
   check('a template that was deleted is marked missing', (await body()).includes('(missing)'));
   await shot('23-missing');
   const code = sh(`curl -sS -o /dev/null -w "%{http_code}" "${BASE}/?p=${post}&print"`);
@@ -121,7 +121,7 @@ const check = (label, ok, detail = '') => { (ok ? pass++ : fail++); console.log(
   for (const [user, pass_] of [['og204editor', 'ed'], ['og204sub', 'sub']]) {
     const c = await browser.newContext(); const p = await c.newPage();
     await p.goto(BASE + '/wp-login.php'); await p.fill('#user_login', user); await p.fill('#user_pass', pass_); await Promise.all([p.waitForNavigation(), p.click('#wp-submit')]);
-    await p.goto(BASE + '/wp-admin/tools.php?page=modes');
+    await p.goto(BASE + '/wp-admin/options-general.php?page=modes');
     check(user + ': the page is refused', /not allowed to access this page|Sorry/.test(await p.locator('body').innerText()) && !(await p.locator('body').innerText()).includes('Add a variant'));
     await p.goto(BASE + '/wp-admin/profile.php');
     const nonce = (await p.locator('#_wpnonce').first().getAttribute('value')) || '';

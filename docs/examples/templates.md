@@ -106,7 +106,7 @@ The plugin makes explicit what the hack does by naming convention and a query-st
 
 | Today (the hack) | With the plugin |
 |---|---|
-| `?print` in the query string selects the `-print` template by name. | `?mode=print` (and the alias `?print`, so existing links keep working) selects the **mode**; the **relation** "`publication-randonnee` has the variant `publication-randonnee-print` in the mode `print`" is stored as a statement (Triples), declared on the screen **Tools → Modes**. |
+| `?print` in the query string selects the `-print` template by name. | `?mode=print` (and the alias `?print`, so existing links keep working) selects the **mode**; the **relation** "`publication-randonnee` has the variant `publication-randonnee-print` in the mode `print`" is stored as a statement (Triples), declared on the screen **Settings → Otherguise modes**. |
 | The header of the print version is chosen by the template itself. | The same screen declares the **part variant**: `header-large-title` has the variant `header` in the mode `print`. |
 | A link in `wp:html`, with JavaScript, to reach the print version. | The block `modes/link` (target mode as a parameter), rendered by the server, hidden when the target is the current mode. |
 | One more page type (a page, an archive, a category) needs a new hack. | One more relation. Other modes (a book, a video) are other values of the same parameter. |

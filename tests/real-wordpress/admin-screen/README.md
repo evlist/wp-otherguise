@@ -3,7 +3,7 @@
 
 # The administration screen, in a real browser
 
-Slice 105 delivered the screen **Tools → Relations** of the Triples module. This script drives it on a scratch WordPress site, with Playwright and Chromium: login, the three tabs, filters, the screen option, bulk deletion with its confirmation page, orphans (found, listed, deleted), the statements of a predicate that is no longer registered, the setting, forged and missing nonces, and a subscriber. It checks the page for PHP errors and the network for failed requests, and takes screenshots. 32 checks.
+Slice 105 delivered the screen **Tools → Otherguise relations** of the Triples module. This script drives it on a scratch WordPress site, with Playwright and Chromium: login, the three tabs, filters, the screen option, bulk deletion with its confirmation page, orphans (found, listed, deleted), the statements of a predicate that is no longer registered, the setting, forged and missing nonces, and a subscriber. It checks the page for PHP errors and the network for failed requests, and takes screenshots. 32 checks.
 
 ```sh
 # A scratch site, as for ../201-template-hooks/: WordPress, a block theme, plain permalinks, served at BASE, the admin account admin/admin.
