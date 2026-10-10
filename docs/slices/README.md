@@ -36,4 +36,5 @@ Titles only. Each one is to be planned with Eric, from the decisions recorded in
 - `1xx` Triples, after 105: 106 JSON export and import; later REST, then RDF export.
 - `2xx` Modes, after 205: propagation of the mode in internal links, a QR code to another mode, per-mode assets and options, side effects (`noindex`, `canonical`).
 - `3xx` Books: composition of a book (ordered `contains` statements, parts by date range); single book page; table of contents; page numbers (declared strategy); index; export; renderer backends.
+- Default template of new posts (Eric's request, not fundamental): choosing `publication-randonnee` automatically when a post is created, instead of picking it by hand each time. Whether WordPress or the theme can already do it was **not checked**; if not, the plugin could set the template of new posts (a filter on the post data, opt-in, per post type). Which module owns it is open (it is not about modes).
 - Integration with Media Helper (attachments qualified by mode, one image attached to several posts).

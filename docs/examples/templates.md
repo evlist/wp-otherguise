@@ -128,6 +128,8 @@ The case of the custom template chosen per post has been **tried on a real WordP
 
 ## Open ideas, not decided
 
+- **A default template for new posts.** Choosing `publication-randonnee` in the "Template" setting is a manual step on every post, with a risk of forgetting it. Making it the default for new posts would remove it. Whether WordPress can do this natively was not checked; if it cannot, the plugin could do it (listed in the [candidate slices](../slices/README.md)).
+
 These come from reading the two files; nothing is planned.
 
 - **The shared blocks are written twice.** Whether the plugin should help (a block that shows its content only in some modes, or a shared pattern) is an open question; the variant model of slice 202 deliberately keeps two full templates.
