@@ -59,20 +59,29 @@ final class VariantsScreen {
 	private $panel;
 
 	/**
+	 * Section of the stylesheets, when there is one.
+	 *
+	 * @var StylesheetsScreen|null
+	 */
+	private $stylesheets;
+
+	/**
 	 * Builds the screen.
 	 *
-	 * @param Environment    $environment Environment.
-	 * @param ModeRegistry   $modes       Modes.
-	 * @param Variants       $variants    Variants.
-	 * @param TemplateLookup $lookup      Lookup of templates.
-	 * @param SettingsPanel  $panel        Panel of the setting that enables the modes.
+	 * @param Environment            $environment Environment.
+	 * @param ModeRegistry           $modes       Modes.
+	 * @param Variants               $variants    Variants.
+	 * @param TemplateLookup         $lookup      Lookup of templates.
+	 * @param SettingsPanel          $panel       Panel of the setting that enables the modes.
+	 * @param StylesheetsScreen|null $stylesheets Section of the stylesheets, printed after the variants.
 	 */
-	public function __construct( Environment $environment, ModeRegistry $modes, Variants $variants, TemplateLookup $lookup, SettingsPanel $panel ) {
+	public function __construct( Environment $environment, ModeRegistry $modes, Variants $variants, TemplateLookup $lookup, SettingsPanel $panel, ?StylesheetsScreen $stylesheets = null ) {
 		$this->environment = $environment;
 		$this->modes       = $modes;
 		$this->variants    = $variants;
 		$this->lookup      = $lookup;
 		$this->panel       = $panel;
+		$this->stylesheets = $stylesheets;
 	}
 
 	/**
@@ -85,6 +94,10 @@ final class VariantsScreen {
 		$this->modes_table();
 		$this->section( TemplateRef::TEMPLATE, 'wp_template', __( 'Templates', 'otherguise' ), __( 'Template', 'otherguise' ) );
 		$this->section( TemplateRef::PART, 'wp_template_part', __( 'Template parts', 'otherguise' ), __( 'Template part', 'otherguise' ) );
+
+		if ( null !== $this->stylesheets ) {
+			$this->stylesheets->render();
+		}
 	}
 
 	/**

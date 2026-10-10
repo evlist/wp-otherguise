@@ -25,6 +25,13 @@ class Otherguise_Test_Modes_Environment extends Environment {
 	public $allowed = true;
 
 	/**
+	 * Whether the user may upload files.
+	 *
+	 * @var bool
+	 */
+	public $may_upload = true;
+
+	/**
 	 * Valid nonces: the actions they were made for.
 	 *
 	 * @var string[]
@@ -52,6 +59,15 @@ class Otherguise_Test_Modes_Environment extends Environment {
 	 */
 	public function can() {
 		return $this->allowed;
+	}
+
+	/**
+	 * Tells whether the user may upload files.
+	 *
+	 * @return bool
+	 */
+	public function can_upload() {
+		return $this->may_upload;
 	}
 
 	/**

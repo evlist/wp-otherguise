@@ -21,6 +21,9 @@ use Otherguise\Modes\Mode\ActiveMode;
 use Otherguise\Modes\Mode\ModeDefinition;
 use Otherguise\Modes\Mode\ModeRegistry;
 use Otherguise\Modes\Settings\Settings;
+use Otherguise\Modes\Stylesheet\StylesheetFiles;
+use Otherguise\Modes\Stylesheet\StylesheetLoader;
+use Otherguise\Modes\Stylesheet\Stylesheets;
 use Otherguise\Modes\Template\TemplateLookup;
 use Otherguise\Modes\Template\VariantApplier;
 use Otherguise\Modes\Variant\Variants;
@@ -120,6 +123,20 @@ final class Module implements ModuleInterface {
 	private $applier;
 
 	/**
+	 * Files of the Media Library that are stylesheets.
+	 *
+	 * @var StylesheetFiles
+	 */
+	private $stylesheet_files;
+
+	/**
+	 * The stylesheets of the modes, built at the first use.
+	 *
+	 * @var Stylesheets|null
+	 */
+	private $stylesheets = null;
+
+	/**
 	 * The block that links to another mode, built at the first use.
 	 *
 	 * @var LinkBlock|null
@@ -129,24 +146,26 @@ final class Module implements ModuleInterface {
 	/**
 	 * Builds the module.
 	 *
-	 * @param callable|null       $do_action     Runs an action; defaults to WordPress `do_action`.
-	 * @param callable|null       $add_action    Adds an action or a filter; defaults to WordPress `add_action`.
-	 * @param callable|null       $query         Returns the query string keys `mode` and the aliases that are present; defaults to a read of the
-	 *                                           request with `filter_input_array()`.
-	 * @param callable|null       $apply_filters Applies a filter; defaults to WordPress `apply_filters`.
-	 * @param callable|null       $statements    Returns the service of the statements (`Statements`) or null; defaults to the Triples module booted
-	 *                                           in this request.
-	 * @param TemplateLookup|null $lookup  What the module asks WordPress about templates.
-	 * @param callable|null       $is_front      Tells whether the request is a page of the site, as opposed to the administration or REST;
-	 *                                           defaults to a test of `is_admin()` and `REST_REQUEST`.
-	 * @param callable|null       $is_admin      Tells whether this is an administration request; defaults to WordPress `is_admin`.
+	 * @param callable|null        $do_action     Runs an action; defaults to WordPress `do_action`.
+	 * @param callable|null        $add_action    Adds an action or a filter; defaults to WordPress `add_action`.
+	 * @param callable|null        $query         Returns the query string keys `mode` and the aliases that are present; defaults to a read of the
+	 *                                            request with `filter_input_array()`.
+	 * @param callable|null        $apply_filters Applies a filter; defaults to WordPress `apply_filters`.
+	 * @param callable|null        $statements    Returns the service of the statements (`Statements`) or null; defaults to the Triples module booted
+	 *                                            in this request.
+	 * @param TemplateLookup|null  $lookup  What the module asks WordPress about templates.
+	 * @param callable|null        $is_front      Tells whether the request is a page of the site, as opposed to the administration or REST;
+	 *                                            defaults to a test of `is_admin()` and `REST_REQUEST`.
+	 * @param callable|null        $is_admin      Tells whether this is an administration request; defaults to WordPress `is_admin`.
+	 * @param StylesheetFiles|null $stylesheet_files The files of the Media Library that are stylesheets; defaults to the real ones.
 	 */
-	public function __construct( $do_action = null, $add_action = null, $query = null, $apply_filters = null, $statements = null, ?TemplateLookup $lookup = null, $is_front = null, $is_admin = null ) {
+	public function __construct( $do_action = null, $add_action = null, $query = null, $apply_filters = null, $statements = null, ?TemplateLookup $lookup = null, $is_front = null, $is_admin = null, ?StylesheetFiles $stylesheet_files = null ) {
 		$this->do_action     = $do_action ?? 'do_action';
 		$this->add_action    = $add_action ?? 'add_action';
 		$this->apply_filters = $apply_filters ?? 'apply_filters';
 		$this->lookup        = $lookup ?? new TemplateLookup();
 		$this->is_admin      = $is_admin ?? 'is_admin';
+		$this->stylesheet_files = $stylesheet_files ?? new StylesheetFiles();
 		$this->settings      = new Settings();
 		$this->is_front      = $is_front ?? static function () {
 			return ! is_admin() && ! ( defined( 'REST_REQUEST' ) && REST_REQUEST );
@@ -242,9 +261,10 @@ final class Module implements ModuleInterface {
 		( $this->add_action )( 'body_class', array( $this, 'body_class' ), 10, 1 );
 		( $this->add_action )( 'init', array( $this, 'register_variant_filters' ), 20, 0 );
 		( $this->add_action )( 'init', array( $this, 'register_link_block' ), 10, 0 );
+		( $this->add_action )( 'init', array( $this, 'register_stylesheet_loader' ), 20, 0 );
 
 		if ( ( $this->is_admin )() ) {
-			( new Admin( new Environment(), $this->modes, $this->variants(), $this->lookup, $this->settings ) )->register( $this->add_action );
+			( new Admin( new Environment(), $this->modes, $this->variants(), $this->lookup, $this->settings, $this->stylesheets(), $this->stylesheet_files ) )->register( $this->add_action );
 		}
 	}
 
@@ -302,6 +322,59 @@ final class Module implements ModuleInterface {
 		}
 
 		return $this->variants;
+	}
+
+	/**
+	 * Returns the stylesheets of the modes.
+	 *
+	 * @return Stylesheets
+	 * @throws \LogicException When the Triples module is not enabled.
+	 */
+	public function stylesheets() {
+		if ( null === $this->stylesheets ) {
+			$statements = ( $this->statements )();
+
+			if ( null === $statements ) {
+				throw new \LogicException( 'The Triples module is not enabled.' );
+			}
+
+			$this->stylesheets = new Stylesheets( $statements, $this->stylesheet_files );
+		}
+
+		return $this->stylesheets;
+	}
+
+	/**
+	 * Hooks the loading of the stylesheets of the mode of the request. Action `init`, priority 20, so that the filter of the priority
+	 * has been added by plugins and themes.
+	 *
+	 * @return void
+	 */
+	public function register_stylesheet_loader() {
+		$loader = new StylesheetLoader(
+			function () {
+				return $this->settings->is_enabled();
+			},
+			function () {
+				return $this->active->mode();
+			},
+			function () {
+				return null === ( $this->statements )() ? null : $this->stylesheets();
+			},
+			$this->stylesheet_files
+		);
+
+		/**
+		 * Filters the priority at which the stylesheets of a mode are enqueued (`wp_enqueue_scripts`).
+		 *
+		 * The styles of a theme are enqueued at the default priority, 10: the 100 of the modes comes after them, so that the stylesheet of a
+		 * mode can override them without `!important`.
+		 *
+		 * @param int $priority Priority; 100 by default.
+		 */
+		$priority = (int) ( $this->apply_filters )( 'modes_stylesheet_priority', 100 );
+
+		( $this->add_action )( 'wp_enqueue_scripts', array( $loader, 'enqueue' ), $priority, 0 );
 	}
 
 	/**

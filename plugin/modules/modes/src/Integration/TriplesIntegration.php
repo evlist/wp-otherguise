@@ -18,8 +18,9 @@ use Otherguise\Triples\Predicate\PredicateDefinition;
 defined( 'ABSPATH' ) || exit;
 
 /**
- * The entity type `mode` (its ids are the slugs of the registered modes, a `ModeDefinition` object stands for one) and the predicate
- * `modes/mode`, the qualifier that says in which mode a statement is shown. Hooked to the registration actions of the Triples module.
+ * The entity type `mode` (its ids are the slugs of the registered modes, a `ModeDefinition` object stands for one) and the predicates
+ * `modes/mode`, the qualifier that says in which mode a statement is shown, and `modes/stylesheet`, which gives a mode a stylesheet (a file of
+ * the Media Library). Hooked to the registration actions of the Triples module.
  */
 final class TriplesIntegration {
 	/**
@@ -88,6 +89,17 @@ final class TriplesIntegration {
 					'label'         => __( 'In mode', 'otherguise' ),
 					'subject_types' => array( 'statement' ),
 					'object_types'  => array( 'mode' ),
+				)
+			)
+		);
+		$predicates->register(
+			PredicateDefinition::from_array(
+				array(
+					'slug'          => 'modes/stylesheet',
+					'label'         => __( 'Has stylesheet', 'otherguise' ),
+					'inverse_label' => __( 'Stylesheet of', 'otherguise' ),
+					'subject_types' => array( 'mode' ),
+					'object_types'  => array( 'attachment' ),
 				)
 			)
 		);

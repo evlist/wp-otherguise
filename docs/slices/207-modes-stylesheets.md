@@ -3,7 +3,7 @@
 
 # Slice 207 — Modes: a stylesheet per mode
 
-Status: **planned**, to confirm with Eric before any code. Dependencies: slices 200 (modes), 203 (applying the variants), 204 (the screen); the Triples module. Module: `Modes`.
+Status: **done** (the choices below were confirmed by Eric). Dependencies: slices 200 (modes), 203 (applying the variants), 204 (the screen); the Triples module. Module: `Modes`.
 
 ## Goal
 
@@ -45,6 +45,13 @@ A section **Stylesheets** under the tables of variants, on **Settings → Otherg
 
 Handlers `admin_post_`: capability **`edit_theme_options` and `upload_files`**, own nonce, input read and validated before any write (a registered mode, an attachment that exists and is a stylesheet, file extension and detected type both `css`). No new handler of the screen is added if slice 206 comes first: it will be part of its single form.
 
+## What was built
+
+- The predicate **`modes/stylesheet`** (subject `mode`, object `attachment`), registered with the module; `Stylesheet\Stylesheets` (add, remove, list in the order of the ids), `Stylesheet\StylesheetFiles` (the only class that asks WordPress about attachments: describes a CSS file, lists them, receives an upload), `Stylesheet\StylesheetLoader` (enqueues on `wp_enqueue_scripts`, priority 100 by default, registered on `init` priority 20 so that the filter `modes_stylesheet_priority` can be added by a theme; handle `modes-{mode}-{id}`, version = modification time of the file).
+- The section **Stylesheets** of **Settings → Otherguise modes** (`Admin\StylesheetsScreen`) and the handlers `modes_add_stylesheet` and `modes_remove_stylesheet` (`Admin\StylesheetActions`). Capability `edit_theme_options` and, to add, `upload_files`; own nonces; the form is read before anything is written; refusals are notices (`invalid_request`, `not_a_stylesheet`, `upload_failed`, `too_large`).
+- **Uploads accept `.css` only**, whatever the site allows (the filter `upload_mimes` is narrowed to `css` during the upload), the check of the type by content (which may call a stylesheet `text/plain`) is overridden for the extension `css`, and the size limit is 512 KB (filter `modes_stylesheet_max_bytes`); a file over the limit is deleted from the Media Library.
+- The file stays in the Media Library when it is taken away from a mode; when the file is deleted, Triples removes the statement.
+
 ## Not changed
 
 Templates and variants, the way a mode is found, the setting that enables the modes. Nothing happens for a mode without stylesheet.
@@ -53,7 +60,16 @@ Templates and variants, the way a mode is found, the setting that enables the mo
 
 PHPUnit (no database for the pure parts): the list of the stylesheets of a mode, the enqueue (handles, addresses, versions, priority, filter), nothing when the modes are disabled or in the administration; with a database: the handler (capability, nonce, refusals, the relation stored, the cleanup when the attachment is deleted), the screen. On a real WordPress: upload of a CSS file, the print page of the test copy styled, the web page unchanged, the stylesheet removed.
 
-## To confirm
+## Verified
+
+- PHPUnit (12 tests in `ModesStylesheetsDbTest`, plus the hook tests of the module and of the screen): the service (idempotent add, order of the ids, a `ModeDefinition` as well as a reference, refusals that store nothing, removal), the loader (handles, addresses, versions, nothing for another mode, with the modes disabled, without the service or for a file that is gone), the handlers (capability, upload capability, nonce of each action and of the other one, every refusal as a notice with its code, upload and existing file), the section (rows, missing files, escaping, nonces, the form, only the upload when the library has no stylesheet) and the priority of the loader.
+- **Real WordPress 7.1.3 in Chromium** ([`tests/real-wordpress/stylesheets/`](../../tests/real-wordpress/stylesheets/flow.js), 27 checks, no PHP error and no failed request): uploading a CSS file from the screen; it is linked once in print mode (`?print` and `?mode=print`), after the styles of the theme, not in web mode, and served as `text/css`; a `.php` file, a file over the limit and a form without file refused with a message and nothing kept; adding a file of the Media Library to the default mode and removing it; disabled modes; a file deleted behind the screen's back (the relation is cleaned up and the screen still opens).
+
+## Not verified
+
+An upload by a user who has `edit_theme_options` but not `upload_files` (only tested with doubles); multisite (where the allowed file types are a network setting); the look of the screen on a narrow screen; very many stylesheets (the list of the library is limited to 200 files); the print CSS of Eric's site itself (tried with a scratch file, not with the CSS of his hack).
+
+## To confirm (answered)
 
 1. The stylesheet is a file of the Media Library, referenced by `modes/stylesheet`, rather than a longer literal in the statements.
 2. Several stylesheets per mode, in the order of their ids.

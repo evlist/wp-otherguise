@@ -91,6 +91,10 @@ final class AdminPage {
 			$message = __( 'Variant withdrawn from the mode.', 'otherguise' );
 		} elseif ( 'removed' === $notice ) {
 			$message = __( 'Variant removed.', 'otherguise' );
+		} elseif ( 'stylesheet_added' === $notice ) {
+			$message = __( 'Stylesheet added to the mode.', 'otherguise' );
+		} elseif ( 'stylesheet_removed' === $notice ) {
+			$message = __( 'Stylesheet removed from the mode.', 'otherguise' );
 		} elseif ( 'error' === $notice ) {
 			$message = $this->error_message( $query['code'] ?? '' );
 			$class   = 'notice-error';
@@ -116,6 +120,9 @@ final class AdminPage {
 			'theme_mismatch'      => __( 'A variant belongs to the theme of the template it replaces.', 'otherguise' ),
 			'not_a_mode'          => __( 'Choose a mode.', 'otherguise' ),
 			'mode_already_served' => __( 'This template already has another variant in this mode: withdraw it first.', 'otherguise' ),
+			'not_a_stylesheet'    => __( 'Choose a CSS file of the Media Library.', 'otherguise' ),
+			'upload_failed'       => __( 'The file could not be uploaded: choose a .css file.', 'otherguise' ),
+			'too_large'           => __( 'The stylesheet is too large.', 'otherguise' ),
 		);
 
 		if ( isset( $messages[ $code ] ) ) {

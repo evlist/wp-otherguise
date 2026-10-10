@@ -693,3 +693,15 @@ class WP_List_Table {
 require_once dirname( __DIR__, 2 ) . '/plugin/includes/Core/Autoloader.php';
 
 \Otherguise\Core\Autoloader::register( dirname( __DIR__, 2 ) . '/plugin/' );
+
+if ( ! function_exists( 'size_format' ) ) {
+    /**
+     * Stub of size_format().
+     *
+     * @param int $bytes Bytes.
+     * @return string
+     */
+    function size_format( $bytes ) {
+        return $bytes . ' B';
+    }
+}

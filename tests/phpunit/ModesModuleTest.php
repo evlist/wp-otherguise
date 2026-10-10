@@ -99,10 +99,29 @@ class ModesModuleTest extends TestCase {
 				'init'                          => array(
 					array( Module::class, 'register_variant_filters', 20, 0 ),
 					array( Module::class, 'register_link_block', 10, 0 ),
+					array( Module::class, 'register_stylesheet_loader', 20, 0 ),
 				),
 			),
 			$hooks
 		);
+	}
+
+	/**
+	 * The stylesheets of the modes are enqueued after the styles of the theme (priority 100), or where the filter says.
+	 *
+	 * @return void
+	 */
+	public function test_the_stylesheet_loader_priority(): void {
+		$hooks   = array();
+		$actions = array();
+		$this->module( array(), $hooks, $actions )->register_stylesheet_loader();
+
+		$this->assertSame( array( array( \Otherguise\Modes\Stylesheet\StylesheetLoader::class, 'enqueue', 100, 0 ) ), $hooks['wp_enqueue_scripts'] );
+
+		$hooks = array();
+		$this->module( array(), $hooks, $actions, array( 'modes_stylesheet_priority' => 55 ) )->register_stylesheet_loader();
+
+		$this->assertSame( 55, $hooks['wp_enqueue_scripts'][0][2] );
 	}
 
 	/**

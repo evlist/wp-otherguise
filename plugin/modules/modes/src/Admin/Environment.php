@@ -35,6 +35,15 @@ class Environment {
 	}
 
 	/**
+	 * Tells whether the current user may upload files, as the form that adds a stylesheet needs.
+	 *
+	 * @return bool
+	 */
+	public function can_upload() {
+		return current_user_can( 'upload_files' );
+	}
+
+	/**
 	 * Returns the capability the screen asks for.
 	 *
 	 * @return string
@@ -160,6 +169,8 @@ class Environment {
 				'source'       => FILTER_UNSAFE_RAW,
 				'variant'      => FILTER_UNSAFE_RAW,
 				'mode'         => FILTER_UNSAFE_RAW,
+				'how'          => FILTER_UNSAFE_RAW,
+				'attachment'   => FILTER_UNSAFE_RAW,
 				'_wpnonce'     => FILTER_UNSAFE_RAW,
 			),
 			false

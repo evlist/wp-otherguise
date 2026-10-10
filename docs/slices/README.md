@@ -24,12 +24,11 @@ Numbering: `0xx` foundation, `1xx` Triples, `2xx` Modes, `3xx` Books.
 | [203](203-modes-apply-variants.md) | Modes: applying the variants |
 | [204](204-modes-admin.md) | Modes: the screen of the variants |
 | [205](205-modes-link-block.md) | Modes: the link to another mode (block `modes/link`) |
+| [207](207-modes-stylesheets.md) | Modes: a stylesheet per mode |
 
 ## Planned
 
-| Slice | Title |
-|---|---|
-| [207](207-modes-stylesheets.md) | Modes: a stylesheet per mode (to confirm) |
+None at the moment.
 
 ## Candidates (not planned yet)
 

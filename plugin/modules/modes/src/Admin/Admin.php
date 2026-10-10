@@ -12,6 +12,8 @@ namespace Otherguise\Modes\Admin;
 
 use Otherguise\Modes\Mode\ModeRegistry;
 use Otherguise\Modes\Settings\Settings;
+use Otherguise\Modes\Stylesheet\StylesheetFiles;
+use Otherguise\Modes\Stylesheet\Stylesheets;
 use Otherguise\Modes\Template\TemplateLookup;
 use Otherguise\Modes\Variant\Variants;
 
@@ -43,22 +45,32 @@ final class Admin {
 	private $panel;
 
 	/**
+	 * The handlers of the stylesheets.
+	 *
+	 * @var StylesheetActions
+	 */
+	private $stylesheet_actions;
+
+	/**
 	 * Builds the screen.
 	 *
-	 * @param Environment    $environment Environment.
-	 * @param ModeRegistry   $modes       Modes.
-	 * @param Variants       $variants    Variants.
-	 * @param TemplateLookup $lookup      Lookup of templates.
-	 * @param Settings       $settings    Settings.
+	 * @param Environment     $environment Environment.
+	 * @param ModeRegistry    $modes       Modes.
+	 * @param Variants        $variants    Variants.
+	 * @param TemplateLookup  $lookup      Lookup of templates.
+	 * @param Settings        $settings    Settings.
+	 * @param Stylesheets     $stylesheets Stylesheets of the modes.
+	 * @param StylesheetFiles $files       Files of the Media Library.
 	 */
-	public function __construct( Environment $environment, ModeRegistry $modes, Variants $variants, TemplateLookup $lookup, Settings $settings ) {
-		$this->panel   = new SettingsPanel( $environment, $settings );
-		$this->actions = new AdminActions( $environment, $variants, $modes );
-		$this->page    = new AdminPage( $environment, new VariantsScreen( $environment, $modes, $variants, $lookup, $this->panel ) );
+	public function __construct( Environment $environment, ModeRegistry $modes, Variants $variants, TemplateLookup $lookup, Settings $settings, Stylesheets $stylesheets, StylesheetFiles $files ) {
+		$this->panel              = new SettingsPanel( $environment, $settings );
+		$this->actions            = new AdminActions( $environment, $variants, $modes );
+		$this->stylesheet_actions = new StylesheetActions( $environment, $stylesheets, $files, $modes );
+		$this->page               = new AdminPage( $environment, new VariantsScreen( $environment, $modes, $variants, $lookup, $this->panel, new StylesheetsScreen( $environment, $modes, $stylesheets, $files ) ) );
 	}
 
 	/**
-	 * Adds the callbacks to WordPress: the menu, the setting and the three handlers.
+	 * Adds the callbacks to WordPress: the menu, the setting and the handlers.
 	 *
 	 * @param callable $add_action Adds an action: `add_action`.
 	 * @return void
@@ -70,5 +82,7 @@ final class Admin {
 		$add_action( 'admin_post_modes_declare', array( $this->actions, 'declare_variant' ) );
 		$add_action( 'admin_post_modes_withdraw', array( $this->actions, 'withdraw_variant' ) );
 		$add_action( 'admin_post_modes_remove', array( $this->actions, 'remove_variant' ) );
+		$add_action( 'admin_post_modes_add_stylesheet', array( $this->stylesheet_actions, 'add_stylesheet' ) );
+		$add_action( 'admin_post_modes_remove_stylesheet', array( $this->stylesheet_actions, 'remove_stylesheet' ) );
 	}
 }
