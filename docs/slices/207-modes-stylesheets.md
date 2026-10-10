@@ -59,4 +59,11 @@ PHPUnit (no database for the pure parts): the list of the stylesheets of a mode,
 2. Several stylesheets per mode, in the order of their ids.
 3. Loaded after the theme (priority 100), for every mode that has some, on the front end only.
 4. Upload `.css` only, from the screen, by users who can edit the theme options and upload files.
-5. Open: how the hack's own CSS is switched off on the site (it is injected by the plugin that carries the hack, outside this repository).
+5. ~~How the hack's own CSS is switched off~~ — settled by Eric: the CSS stops being injected as soon as the plugin that carries the hack (PDF helper) is deactivated; nothing to do here.
+
+## Possible improvements (not planned)
+
+- **A stylesheet per variant.** The hack injects the same CSS whatever the variant, so one stylesheet per mode is enough for Eric. The model would hardly grow if it were needed: the same predicate `modes/stylesheet`, with a *template* (the variant) as the subject instead of a mode, loaded when that variant is the one served. Nothing in the first slice prevents it.
+- An explicit order between the stylesheets of a mode (a qualifier).
+- A file of the theme or of a plugin as a second kind of source.
+- Loading the stylesheets in the block editor, so that the editor shows the mode.
