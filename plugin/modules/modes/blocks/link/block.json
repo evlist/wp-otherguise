@@ -1,0 +1,26 @@
+{
+	"$schema": "https://schemas.wp.org/trunk/block.json",
+	"apiVersion": 3,
+	"name": "modes/link",
+	"title": "Link to a mode",
+	"category": "widgets",
+	"description": "A link to the same page in another mode (print, web...). Put no link inside it: anchors cannot be nested.",
+	"textdomain": "modes",
+	"attributes": {
+		"mode": {
+			"type": "string",
+			"default": ""
+		},
+		"label": {
+			"type": "string",
+			"default": ""
+		}
+	},
+	"usesContext": [ "postId" ],
+	"supports": {
+		"html": false,
+		"color": { "text": true, "background": false },
+		"spacing": { "margin": true, "padding": true }
+	},
+	"editorScript": "file:./edit.js"
+}

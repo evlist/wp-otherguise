@@ -1,0 +1,7 @@
+{
+	"name": "otherguise-js-tests",
+	"private": true,
+	"license": "GPL-3.0-or-later",
+	"scripts": { "test": "node --test" },
+	"devDependencies": { "jsdom": "^26.0.0" }
+}

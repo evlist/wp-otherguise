@@ -36,3 +36,26 @@ if ( ! function_exists( 'modes_is_active' ) ) {
 		return null !== $mode && $mode->slug() === $slug;
 	}
 }
+
+if ( ! function_exists( 'modes_url' ) ) {
+	/**
+	 * Returns the address of a page in a mode: `?mode=slug`, no mode at all for the default mode; any other mode or alias of the address is replaced.
+	 *
+	 * @param string      $slug Slug of a mode.
+	 * @param string|null $url  Address; the one of the current request when null.
+	 * @return string Empty when the module is not enabled or the mode does not exist.
+	 */
+	function modes_url( $slug, $url = null ) {
+		$module = \Otherguise\Core\Modules::get( 'modes' );
+
+		if ( ! $module instanceof \Otherguise\Modes\Module || ! $module->modes()->has( $slug ) ) {
+			return '';
+		}
+
+		if ( null === $url ) {
+			$url = $module->link_block()->default_page_url( 0 );
+		}
+
+		return \Otherguise\Modes\Link\ModeUrl::build( $url, $module->modes()->get( $slug ), $module->modes() );
+	}
+}

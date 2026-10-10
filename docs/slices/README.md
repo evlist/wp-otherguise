@@ -23,6 +23,7 @@ Numbering: `0xx` foundation, `1xx` Triples, `2xx` Modes, `3xx` Books.
 | [202](202-modes-variants.md) | Modes: variants of templates and template parts |
 | [203](203-modes-apply-variants.md) | Modes: applying the variants |
 | [204](204-modes-admin.md) | Modes: the screen of the variants |
+| [205](205-modes-link-block.md) | Modes: the link to another mode (block `modes/link`) |
 
 ## Planned
 
@@ -33,6 +34,6 @@ None at the moment.
 Titles only. Each one is to be planned with Eric, from the decisions recorded in [`../design/`](../design/README.md), before any code is written.
 
 - `1xx` Triples, after 105: 106 JSON export and import; later REST, then RDF export.
-- `2xx` Modes, after 204: links and propagation of the mode, per-mode assets and options, side effects (`noindex`, `canonical`).
+- `2xx` Modes, after 205: propagation of the mode in internal links, a QR code to another mode, per-mode assets and options, side effects (`noindex`, `canonical`).
 - `3xx` Books: composition of a book (ordered `contains` statements, parts by date range); single book page; table of contents; page numbers (declared strategy); index; export; renderer backends.
 - Integration with Media Helper (attachments qualified by mode, one image attached to several posts).

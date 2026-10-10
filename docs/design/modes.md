@@ -22,7 +22,7 @@ Decided details:
 Proposed details:
 
 - Optional side effects per mode: `noindex`, `rel=canonical` to the normal version, a CSS class on `<body>`, mode-specific styles and scripts.
-- Internal links and pagination keep the active mode; a "printable version" link is exposed.
+- Internal links and pagination keep the active mode (not done yet, to be off by default). The link to another mode is the block `modes/link` (**decided**, slice 205): one container block with the target mode as a parameter; the QR code of the print version stays the existing `wppqr/wp-printable-qrcode` block for now.
 - No chaining of relations by default; detect cycles when saving.
 - Security: allow-list of modes, the query-string value never designates a file path, only administrators edit relations.
 - Page caches must vary on the query string.

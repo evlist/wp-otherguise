@@ -10,6 +10,7 @@ What the PHPUnit suite cannot show, because it runs on stubs: how WordPress core
 | [`admin-screen/`](admin-screen/README.md) | [105](../../docs/slices/105-triples-admin.md) | The administration screen of Triples in Chromium. |
 | [`variants/`](variants/run.php) | [202](../../docs/slices/202-modes-variants.md) | Variants of templates and parts with real `WP_Block_Template` objects (`wp eval-file`). |
 | [`modes-screen/`](modes-screen/flow.js) | [204](../../docs/slices/204-modes-admin.md) | The screen Tools → Modes in Chromium (Playwright), with the front end and users without the capability. |
+| [`link-block/`](link-block/flow.js) | [205](../../docs/slices/205-modes-link-block.md) | The block `modes/link` on the front end (a `single` template that uses it) and in the block editor, in Chromium. |
 | [`apply-variants/`](apply-variants/run.sh) | [203](../../docs/slices/203-modes-apply-variants.md) | The variants applied on the front end of a real site, REST untouched, a classic theme. |
 | [`201-template-hooks/`](201-template-hooks/) | [201](../../docs/slices/201-modes-template-hooks.md) | Four ways of replacing a template or a template part by its variant in a given mode. |
 

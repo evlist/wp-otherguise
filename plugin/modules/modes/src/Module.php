@@ -16,6 +16,7 @@ use Otherguise\Modes\Admin\Admin;
 use Otherguise\Modes\Admin\Environment;
 use Otherguise\Modes\Integration\TemplateIntegration;
 use Otherguise\Modes\Integration\TriplesIntegration;
+use Otherguise\Modes\Link\LinkBlock;
 use Otherguise\Modes\Mode\ActiveMode;
 use Otherguise\Modes\Mode\ModeDefinition;
 use Otherguise\Modes\Mode\ModeRegistry;
@@ -117,6 +118,13 @@ final class Module implements ModuleInterface {
 	 * @var VariantApplier
 	 */
 	private $applier;
+
+	/**
+	 * The block that links to another mode, built at the first use.
+	 *
+	 * @var LinkBlock|null
+	 */
+	private $link_block = null;
 
 	/**
 	 * Builds the module.
@@ -234,6 +242,7 @@ final class Module implements ModuleInterface {
 		( $this->add_action )( 'body_class', array( $this, 'body_class' ), 10, 1 );
 		( $this->add_action )( 'init', array( $this, 'load_textdomain' ), 10, 1 );
 		( $this->add_action )( 'init', array( $this, 'register_variant_filters' ), 20, 0 );
+		( $this->add_action )( 'init', array( $this, 'register_link_block' ), 10, 0 );
 
 		if ( ( $this->is_admin )() ) {
 			( new Admin( new Environment(), $this->modes, $this->variants(), $this->lookup, $this->settings ) )->register( $this->add_action );
@@ -294,6 +303,28 @@ final class Module implements ModuleInterface {
 		}
 
 		return $this->variants;
+	}
+
+	/**
+	 * Returns the block that links to another mode.
+	 *
+	 * @return LinkBlock
+	 */
+	public function link_block() {
+		if ( null === $this->link_block ) {
+			$this->link_block = new LinkBlock( $this->modes, $this->active, $this->settings );
+		}
+
+		return $this->link_block;
+	}
+
+	/**
+	 * Registers the block `modes/link`. Action `init`, priority 10.
+	 *
+	 * @return void
+	 */
+	public function register_link_block() {
+		$this->link_block()->register( __DIR__ . '/../blocks/link' );
 	}
 
 	/**

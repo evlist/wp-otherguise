@@ -99,6 +99,7 @@ class ModesModuleTest extends TestCase {
 				'init'                          => array(
 					array( Module::class, 'load_textdomain', 10, 1 ),
 					array( Module::class, 'register_variant_filters', 20, 0 ),
+					array( Module::class, 'register_link_block', 10, 0 ),
 				),
 			),
 			$hooks
