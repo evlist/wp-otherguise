@@ -79,3 +79,17 @@ Where it agrees with this note: Media Helper stays usable alone and knows nothin
 2. Otherguise: the module `media` (the predicate, the method, `post_parent` as primary parent) and the reading side.
 3. Media Helper: the events, the multi-post panel and the declarative fields; Otherguise: the fields of the method.
 4. Eric's blocks call the reading function; a WP-CLI command migrates `wpdfh.print` (an attachment, its parent post, the mode `print`); `wp-pdf-helper` is retired.
+
+## Names fixed by the Media Helper session (2026-10-10)
+
+Reported by that session after Eric confirmed, in it, the four decisions and the four amendments (its slice 042, commit `ce9db31`). **Nothing is coded in Media Helper yet**: step 1 of its plan (the interface, the `native` method, the registration filter) comes when Eric asks for it, and no released code of Otherguise may depend on these names before. The module `media` can be written against the contract in the meantime.
+
+- Interface `WP_Media_Helper\Attachment\Method`: `id`, `label`, `capabilities`, `describe`, `attach`, `detach`, `update`, `attached`, `posts_of`, `may_remove`; built-in method `native`.
+- Registration filter `wp_media_helper_attachment_methods` (array id to `Method` object); the active method is a setting and a filter, `wp_media_helper_attachment_method` (second argument: post type or post ID).
+- Reading function `wp_media_helper_get_attached_media( $post_id, $args )` (`mime_type`, `context`), delegating to `Method::attached()`; `native` is `get_attached_media()`.
+- Constant `WP_MEDIA_HELPER_CONTRACT` = 1, to check (with `interface_exists()`) before registering a method.
+- Actions `wp_media_helper_attached`, `wp_media_helper_detached`, `wp_media_helper_attachment_updated`; filters `wp_media_helper_panel_config` and `wp_media_helper_panel_item`.
+- `posts_of( int[] ): array<int, int[]>` for the column "Attached to"; Media Helper replaces the content of the column only when the active method has `multiple_posts`.
+- **The method owns the rule of the primary parent in `post_parent`**: when the primary parent is detached it designates another post, and clears the field only when none remains.
+
+A problem found in the contract is to be reported to Eric, who decides whether the Media Helper session amends its slice.
