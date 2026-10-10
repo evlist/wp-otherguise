@@ -44,24 +44,37 @@ Read in the repository `evlist/wp-media-helper` (public, commit `f18aca6`; files
 
 **3. Showing and editing the extra data in the panel.** A filter that adds data to each item sent to the panel (the modes an image is shown in), and a JavaScript hook (`wp.hooks`) in `editor-media-panel.js` through which a plugin adds a control to an item (one box per mode). Media Helper provides the slot; Otherguise provides the control. *Open: the structure of the panel script was not read in detail.*
 
-**4. Data (Triples).** One predicate between an attachment and a post, qualified by `modes/mode`, with an optional position qualifier: **no mode qualifier = shown in every mode; one or more = only in these**. Where it lives: a module of its own (`Attachments`, depending on `triples` and `modes`), since rule 4 of the module rules gives the names to a module; not inside `Modes`, which knows nothing of attachments.
+**4. Data (Triples).** A statement `post media/illustrated-by attachment` (the predicate already imagined in [`triples.md`](triples.md): it accepts the qualifiers `modes/mode` and `triples/position`), in a module of its own, `media` (depending on `triples` and `modes`), since rule 4 of the module rules gives the names to a module. **Correction of the first version of this note:** it said that no mode qualifier meant "shown in every mode". The **decided reading rule** says the opposite (a statement with no mode statement belongs to no mode, so that nothing becomes visible by deleting something and a mode declared later does not include old statements by surprise). So "web and print" is written as **two mode statements**, and the default offered by the panel ticks every mode that exists. A position per mode **is** supported by the model (a position on a mode statement is a scope pin: that mode only).
 
 **5. Compatibility with core.** `post_parent` stays the **primary** parent: set when an attachment gets its first post, left alone when others are added, moved to the next post (or 0) when the primary one is detached. The "Attached to" column and every plugin that reads `get_attached_media()` keep working.
 
 **6. Migration of the "Print" flag.** One WP-CLI command turns every `wpdfh.print` meta into a statement (the attachment, its parent post, the mode `print`); the flag was global to the attachment, so its parent post is the only post it can be migrated to. Then the column of `wp-pdf-helper` has no reason to exist: the panel field replaces it.
 
-**Order of the work** (each step in the session and the repository that know the code):
-
-1. Media Helper: the reading function and the hooks of points 1 to 3, with its own tests (their slices).
-2. Otherguise: the module `Attachments` and the adapter for the reading side.
-3. Both: the panel control (points 3), the writing side, `post_parent` as primary parent.
-4. Eric's blocks call the reading function; the migration command; `wp-pdf-helper` is retired (see the checklist in [`modes.md`](modes.md)).
-
 ## Open questions
 
 - Names of the hooks and of the function (the ones above are placeholders to agree with the other session).
 - The JavaScript extension mechanism of the panel.
-- A position per mode (the same post showing its images in another order in print): needed, or an order shared by all modes is enough.
 - What the panel shows for an item attached to several posts, instead of the protection and the red warning of slice 016.
 - Items that are not native attachments (`ext:youtube:ID`): a later step, with an entity type.
 - Image sizes per mode (Media Helper's slice 033, not implemented).
+
+## The proposal of the Media Helper session (its slice 042, 2026-10-10)
+
+[`042-attachment-methods.md`](https://github.com/evlist/wp-media-helper/blob/main/docs/slices/042-attachment-methods.md) was written in parallel by the session that develops Media Helper. It is more complete than the points above on the **writing side** and is the one to follow there: a filter `wp_media_helper_attachment_methods` registers a method (an object implementing an interface `Method`: `describe`, `attach`, `detach`, `update`, `may_remove`), the built-in `native` method keeps today's behaviour exactly, the events `wp_media_helper_attached` and `detached` are fired whatever the method, and the method **declares fields** (`modes` as a multi-select, `position` as an integer) that Media Helper draws in the panel, so that the adapter needs no JavaScript. The active method is a site setting.
+
+Where it agrees with this note: Media Helper stays usable alone and knows nothing of Otherguise; the adapter is a module of Otherguise (`media`) that registers the method; the predicate `media/illustrated-by` with `modes/mode` and `triples/position`; Triples already follows `deleted_post`.
+
+**Amendments to ask for** (to carry to that session):
+
+1. **A reading side is missing.** The contract covers the panel and the writes, but nothing lets the blocks of Eric (`wp-attached-gpx`, `wp-printable-gallery`) list *the media of a post for a mode, in order*; "the shortcode reads the method's data" leaves them depending on Otherguise. Add to the interface a method `attached( int $post_id, array $args ): int[]` (`$args`: `mime_type`, `context` = the slug of the mode, free for Media Helper), and a public function `wp_media_helper_get_attached_media( $post_id, $args )` that delegates to the active method; the `native` method is `get_attached_media()`. The blocks call that function and work with or without Otherguise.
+2. **The default of the field `modes`** is every mode that exists, written explicitly (see the correction above), not "no mode".
+3. **The position per mode** is supported by the model: the field `position` can later become one value per mode; the first version can keep one position.
+
+**Answers to its open decisions** (proposed, for Eric to confirm): (1) the adapter is a module of Otherguise, `media`; (2) the method keeps a **primary parent** in `post_parent` itself (the first post that gets the item; moved to the next post, or 0, when it is detached), so that the "Attached to" column of the media library stays meaningful and Media Helper does not have to know; (3) the method is chosen per site, with the filter available for a per-post-type choice; (4) declarative fields first (`multiselect`, `integer` are enough here), no JavaScript slot until a field cannot be expressed.
+
+## Order of the work (revised)
+
+1. Media Helper: the interface, the `native` method with today's behaviour, the reading function, the registration filter and the setting (its slice 042, steps 1 and the reading side).
+2. Otherguise: the module `media` (the predicate, the method, `post_parent` as primary parent) and the reading side.
+3. Media Helper: the events, the multi-post panel and the declarative fields; Otherguise: the fields of the method.
+4. Eric's blocks call the reading function; a WP-CLI command migrates `wpdfh.print` (an attachment, its parent post, the mode `print`); `wp-pdf-helper` is retired.
