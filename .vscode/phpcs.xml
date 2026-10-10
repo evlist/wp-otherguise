@@ -4,18 +4,73 @@ SPDX-FileCopyrightText: 2025, 2026 Eric van der Vlist <vdv@dyomedea.com>
 
 SPDX-License-Identifier: GPL-3.0-or-later OR MIT
 -->
-<ruleset name="codespaces-grafting PHPCS">
+<ruleset name="Otherguise PHPCS">
   <description>Shared PHPCS ruleset for VS Code and CI.</description>
 
   <file>./</file>
 
   <arg name="extensions" value="php"/>
+  <arg name="warning-severity" value="0"/>
 
+  <exclude-pattern>*/third-party/*</exclude-pattern>
   <exclude-pattern>*/vendor/*</exclude-pattern>
   <exclude-pattern>*/node_modules/*</exclude-pattern>
   <exclude-pattern>*/.devcontainer/*</exclude-pattern>
   <exclude-pattern>*/.vscode/*</exclude-pattern>
   <exclude-pattern>*/languages/*</exclude-pattern>
+  <exclude-pattern>*/tests/phpunit/bootstrap.php</exclude-pattern>
+  <exclude-pattern>*/scripts/*</exclude-pattern>
+
+  <config name="text_domain" value="otherguise,triples,modes"/>
 
   <rule ref="WordPress"/>
+
+  <rule ref="WordPress.NamingConventions.PrefixAllGlobals">
+    <properties>
+      <property name="prefixes" type="array">
+        <element value="otherguise"/>
+        <element value="triples"/>
+        <element value="modes"/>
+        <element value="books"/>
+        <element value="Otherguise"/>
+        <element value="Triples"/>
+        <element value="Modes"/>
+        <element value="Books"/>
+        <element value="OTHERGUISE"/>
+      </property>
+      <property name="custom_test_classes" type="array">
+        <element value="Otherguise_Test_Database_Case"/>
+      </property>
+    </properties>
+  </rule>
+
+  <!-- The tests run raw SQL on a throwaway database and replace the global database object. -->
+  <rule ref="WordPress.DB.DirectDatabaseQuery"><exclude-pattern>*/tests/*</exclude-pattern></rule>
+  <rule ref="WordPress.DB.PreparedSQL"><exclude-pattern>*/tests/*</exclude-pattern></rule>
+  <rule ref="WordPress.DB.RestrictedClasses"><exclude-pattern>*/tests/*</exclude-pattern></rule>
+  <rule ref="WordPress.DB.RestrictedFunctions"><exclude-pattern>*/tests/*</exclude-pattern></rule>
+  <rule ref="WordPress.WP.GlobalVariablesOverride"><exclude-pattern>*/tests/*</exclude-pattern></rule>
+
+  <!-- PSR-4 class files: the core and the modules do not use the class-*.php naming. -->
+  <rule ref="WordPress.Files.FileName">
+    <exclude-pattern>*/plugin/includes/*</exclude-pattern>
+    <exclude-pattern>*/plugin/modules/*</exclude-pattern>
+    <properties>
+      <property name="custom_test_classes" type="array">
+        <element value="Otherguise_Test_Database_Case"/>
+      </property>
+    </properties>
+  </rule>
+
+  <rule ref="./.vscode/phpcs-standard/Otherguise/Sniffs/Commenting/NoPhpcsIgnoreSniff.php">
+    <exclude-pattern>*/tests/*</exclude-pattern>
+  </rule>
+
+  <rule ref="./.vscode/phpcs-standard/Otherguise/Sniffs/Files/FileLengthSniff.php">
+    <exclude-pattern>*/tests/*</exclude-pattern>
+    <properties>
+      <property name="lineLimit" value="400"/>
+      <property name="absoluteLineLimit" value="700"/>
+    </properties>
+  </rule>
 </ruleset>
