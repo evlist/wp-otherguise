@@ -20,7 +20,7 @@ cat >"$T/bin/docker" <<'STUB'
 #!/usr/bin/env bash
 args="$*"
 case "$1" in
-  inspect) echo true; exit 0 ;;
+  inspect) case "$args" in *Mounts*) printf '%s\n' /var/www/html/wp-content/plugins/devplug /etc/elsewhere ;; *) echo true ;; esac; exit 0 ;;
   cp) echo "docker $args" >>"$LOG"; [ -n "${3:-}" ] && : >"$3" 2>/dev/null; exit 0 ;;
 esac
 # docker exec [options] container command...
@@ -50,7 +50,8 @@ echo "rsync $*" >>"$LOG"
 case "$*" in *--dry-run*)
   printf '%s\n' '>f+++++++++ wp-content/plugins/new-plugin/new.php' 'cd+++++++++ wp-content/plugins/new-plugin/' '>f.st...... wp-content/plugins/old-plugin/a.php' \
     '>f+++++++++ wp-content/uploads/2026/photo-150x150.jpg' '>f+++++++++ wp-config-sample.php' '*deleting   wp-content/plugins/gone-plugin/' \
-    'Number of regular files transferred: 4' 'Total file size: 1,000 bytes' ;;
+    'Number of regular files transferred: 4' 'Total file size: 1,000 bytes' "Total transferred file size: ${STUB_TRANSFER:-1,000} bytes" ;;
+  *--stats*) echo "Total transferred file size: ${STUB_TRANSFER:-1,000} bytes" ;;
 esac
 exit 0
 STUB
@@ -89,11 +90,18 @@ grep -q "wp-content/uploads: 1 entries" <<<"$out"; check "dry run: summary by pl
 grep -q " 2 wp-content/plugins/new-plugin" <<<"$out" && grep -q "gone-plugin" <<<"$out"; check "dry run: lists the plugin directories, with deletions" $?
 grep -q "Number of regular files transferred" <<<"$out"; check "dry run: shows the statistics" $?
 
+grep -q "Space: about 1000 bytes" <<<"$out"; check "dry run: reports the space needed and free" $?
+grep -q "left alone by rsync: /wp-content/plugins/devplug" <<<"$out"; check "dry run: reports the mounts of the test container" $?
+
 # Full run.
 : >"$LOG"; run --yes >"$T/out.txt" 2>&1; rc=$?
 check "full run succeeds" $rc
 [ $rc -eq 0 ] || sed -n 1,30p "$T/out.txt"
 grep -q "^rsync -a --delete --numeric-ids --exclude /wp-config.php" "$LOG"; check "rsync keeps wp-config.php" $?
+grep -q "^rsync .*--exclude /wp-content/plugins/devplug" "$LOG"; check "rsync leaves the mounts of the test container alone" $?
+! grep -q "^rsync .*--exclude /etc/elsewhere" "$LOG"; check "mounts outside /var/www/html are ignored" $?
+: >"$LOG"; STUB_TRANSFER=999999999999999999 run --yes >/dev/null 2>&1; rc=$?; check "refuses when there is not enough free space" $((! rc)); ! grep -q "docker-dump" "$LOG"; check "...and dumped nothing" $?
+: >"$LOG"; run --yes >/dev/null 2>&1
 grep -q "docker-dump .*-h db -P 3306 -u u prod_db" "$LOG"; check "dump: host and port split, production database" $?
 grep -q "docker-load .*-h db2 -u u stg_db" "$LOG"; check "load: test database" $?
 a=$(grep -n "^rsync" "$LOG" | head -1 | cut -d: -f1); b=$(grep -n "docker-dump" "$LOG" | head -1 | cut -d: -f1); c=$(grep -n "docker-load" "$LOG" | head -1 | cut -d: -f1)

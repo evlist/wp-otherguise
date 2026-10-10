@@ -62,18 +62,21 @@ done
 say() { printf '\n== %s\n' "$*"; }
 die() { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
 
+# wp-config.php often defines WP_DEBUG a second time for WP-CLI: the warning is noise, everything else is kept.
+quiet_warnings() { grep -v 'Constant WP_DEBUG already defined' || true; }
+
 # Runs WP-CLI in a container, as the web server's user, without touching the home directory.
 wp_in() {
   local container=$1
   shift
-  docker exec -u www-data -e WP_CLI_CACHE_DIR=/tmp/wp-cli-cache "$container" wp "$@"
+  docker exec -u www-data -e WP_CLI_CACHE_DIR=/tmp/wp-cli-cache "$container" wp "$@" 2> >(quiet_warnings >&2)
 }
 
 # Same, as root: wp-config.php is often not writable by the web server's user.
 wp_root() {
   local container=$1
   shift
-  docker exec -u root -e WP_CLI_CACHE_DIR=/tmp/wp-cli-cache "$container" wp --allow-root "$@"
+  docker exec -u root -e WP_CLI_CACHE_DIR=/tmp/wp-cli-cache "$container" wp --allow-root "$@" 2> >(quiet_warnings >&2)
 }
 
 # Splits a DB_HOST (host, host:port) into the arguments of the mysql clients.
@@ -138,10 +141,34 @@ S_NAME=$(cfg "$STAGING_CONTAINER" DB_NAME) S_USER=$(cfg "$STAGING_CONTAINER" DB_
 echo "Production : $PROD_URL  ($PROD_CONTAINER, $PROD_VOLUME, database $P_NAME)"
 echo "Test copy  : $STAGING_URL  ($STAGING_CONTAINER, $STAGING_VOLUME, database $S_NAME)"
 
+# Whatever the test container mounts under /var/www/html (the plugins under development, bind-mounted from git clones) is not part of the
+# volume: rsync must neither fill it with the production version nor delete the mount point under a running container.
+mount_excludes=()
+while IFS= read -r destination; do
+  case "$destination" in
+    /var/www/html/*) mount_excludes+=("${destination#/var/www/html}") ;;
+  esac
+done < <(docker inspect -f '{{range .Mounts}}{{println .Destination}}{{end}}' "$STAGING_CONTAINER")
+if [ "${#mount_excludes[@]}" -gt 0 ]; then
+  echo "Mounted in $STAGING_CONTAINER, left alone by rsync: ${mount_excludes[*]}"
+fi
+
+# Bytes that rsync would transfer according to a --stats listing, and the free space of the test volume.
+needed_bytes() { sed -n 's/^Total transferred file size: \([0-9,]*\) bytes.*/\1/p' "$1" | tr -d ','; }
+free_bytes() { df --output=avail -B1 "$STAGING_VOLUME" | tail -n 1 | tr -d ' '; }
+report_space() {
+  local needed free
+  needed=$(needed_bytes "$1")
+  free=$(free_bytes)
+  echo "Space: about ${needed:-0} bytes to transfer, $free bytes free on the volume of $STAGING_VOLUME."
+  [ "${needed:-0}" -le "$free" ] || echo "WARNING: not enough free space (deleted files free some, but do not count on it)."
+}
+
 # --- 2. files ----------------------------------------------------------------------------------------------------------------------
 rsync_args=(-a --delete --numeric-ids --exclude '/wp-config.php' --exclude '/wp-content/cache/' --exclude '/wp-content/upgrade/'
   --exclude '/wp-content/mu-plugins/staging-safety.php' --exclude '*.log' --exclude '/.maintenance')
 [ "$SKIP_UPLOADS" -eq 0 ] || rsync_args+=(--exclude '/wp-content/uploads/')
+for pattern in "${mount_excludes[@]}"; do rsync_args+=(--exclude "$pattern"); done
 for pattern in $EXCLUDES; do rsync_args+=(--exclude "$pattern"); done
 
 if [ "$DRY_RUN" -eq 1 ]; then
@@ -162,6 +189,7 @@ if [ "$DRY_RUN" -eq 1 ]; then
   grep -E '^\*deleting' "$list" | grep -E 'wp-content/plugins/[^/]+/?$' | sed 's/^/  /' || true
   echo
   grep -E '^(Number of|Total file size|Total transferred)' "$list"
+  report_space "$list"
   echo "(The full list is in $list; delete it when you have read it.)"
   echo "Dry run: stopping here. Nothing was written."
   exit 0
@@ -175,6 +203,13 @@ if [ "$YES" -eq 0 ]; then
 fi
 
 say "Files"
+space_list=$(mktemp)
+$RSYNC "${rsync_args[@]}" --dry-run --stats "$PROD_VOLUME/" "$STAGING_VOLUME/" >"$space_list"
+needed=$(needed_bytes "$space_list")
+free=$(free_bytes)
+rm -f "$space_list"
+echo "About ${needed:-0} bytes to transfer, $free bytes free."
+[ "${needed:-0}" -le "$free" ] || die "Not enough free space on the volume of $STAGING_VOLUME."
 $RSYNC "${rsync_args[@]}" "$PROD_VOLUME/" "$STAGING_VOLUME/"
 
 # --- 3. database -------------------------------------------------------------------------------------------------------------------
