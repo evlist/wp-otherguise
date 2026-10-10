@@ -65,8 +65,8 @@ final class MaintenanceScreen {
 	 * @return void
 	 */
 	public function render() {
-		echo '<h2>' . esc_html__( 'Orphans', 'triples' ) . '</h2>';
-		echo '<p>' . esc_html__( 'A statement is an orphan when one of its ends no longer exists. The table is scanned 200 statements at a time.', 'triples' ) . '</p>';
+		echo '<h2>' . esc_html__( 'Orphans', 'otherguise' ) . '</h2>';
+		echo '<p>' . esc_html__( 'A statement is an orphan when one of its ends no longer exists. The table is scanned 200 statements at a time.', 'otherguise' ) . '</p>';
 
 		$query = $this->environment->query();
 
@@ -80,10 +80,10 @@ final class MaintenanceScreen {
 						'after' => 0,
 					)
 				)
-			) . '">' . esc_html__( 'Scan the first 200 statements', 'triples' ) . '</a></p>';
+			) . '">' . esc_html__( 'Scan the first 200 statements', 'otherguise' ) . '</a></p>';
 		}
 
-		echo '<h2>' . esc_html__( 'Settings', 'triples' ) . '</h2>';
+		echo '<h2>' . esc_html__( 'Settings', 'otherguise' ) . '</h2>';
 
 		$this->settings->render_form();
 	}
@@ -101,7 +101,7 @@ final class MaintenanceScreen {
 		echo '<p>' . esc_html(
 			sprintf(
 				/* translators: 1: id of the first statement not scanned yet, minus one; 2: number of orphans found. */
-				_n( 'Statements up to #%1$d were scanned: %2$d orphan found.', 'Statements up to #%1$d were scanned: %2$d orphans found.', count( $rows ), 'triples' ),
+				_n( 'Statements up to #%1$d were scanned: %2$d orphan found.', 'Statements up to #%1$d were scanned: %2$d orphans found.', count( $rows ), 'otherguise' ),
 				$batch['last_id'],
 				count( $rows )
 			)
@@ -117,11 +117,11 @@ final class MaintenanceScreen {
 			echo '</ul><form method="post" action="' . esc_url( $this->environment->admin_url( 'admin-post.php' ) ) . '">';
 			echo '<input type="hidden" name="action" value="triples_delete_orphans" /><input type="hidden" name="after" value="' . esc_attr( (string) $after ) . '" />';
 			$this->environment->print_nonce_field( 'triples_delete_orphans' );
-			echo '<input type="submit" class="button button-primary" value="' . esc_attr__( 'Delete the orphans of this batch', 'triples' ) . '" /></form>';
+			echo '<input type="submit" class="button button-primary" value="' . esc_attr__( 'Delete the orphans of this batch', 'otherguise' ) . '" /></form>';
 		}
 
 		if ( $batch['done'] ) {
-			echo '<p>' . esc_html__( 'The end of the table was reached.', 'triples' ) . '</p>';
+			echo '<p>' . esc_html__( 'The end of the table was reached.', 'otherguise' ) . '</p>';
 
 			return;
 		}
@@ -133,6 +133,6 @@ final class MaintenanceScreen {
 					'after' => $batch['last_id'],
 				)
 			)
-		) . '">' . esc_html__( 'Scan the next 200 statements', 'triples' ) . '</a></p>';
+		) . '">' . esc_html__( 'Scan the next 200 statements', 'otherguise' ) . '</a></p>';
 	}
 }

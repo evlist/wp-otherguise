@@ -19,7 +19,7 @@ Instructions for Claude Code sessions working in this repository.
 ## Rules
 
 - Small vertical slices, test first when practical; document a slice in `docs/slices/` before coding it, and note its dependencies.
-- Respect the module rules of `docs/IA.md` ("Modules"): one-way dependencies checked by `tests/phpunit/ArchitectureTest.php`, names (tables, options, hooks, REST namespace, capabilities, text domain) that belong to the module, no catch-all "common" code.
+- Respect the module rules of `docs/IA.md` ("Modules"): one-way dependencies checked by `tests/phpunit/ArchitectureTest.php`, names (tables, options, hooks, REST namespace, capabilities) that belong to the module; the text domain is `otherguise` for the whole plugin, no catch-all "common" code.
 - Every file carries an SPDX header (GPL-3.0-or-later); keep `reuse lint` clean.
 - WordPress coding standards; no `phpcs:ignore` outside tests.
 - Capability and nonce checks, translatable strings and `uninstall` handling come with the feature, not afterwards.

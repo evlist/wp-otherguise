@@ -123,7 +123,7 @@ class Environment {
 	 * @return void
 	 */
 	public function deny() {
-		wp_die( esc_html__( 'You are not allowed to do this.', 'modes' ), '', array( 'response' => 403 ) );
+		wp_die( esc_html__( 'You are not allowed to do this.', 'otherguise' ), '', array( 'response' => 403 ) );
 	}
 
 	/**

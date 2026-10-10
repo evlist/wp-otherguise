@@ -85,12 +85,12 @@ final class SettingsPanel {
 		$name    = Settings::OPTION . '[' . Settings::ENABLED . ']';
 
 		if ( ! $enabled ) {
-			echo '<div class="notice notice-warning inline"><p>' . esc_html__( 'The modes are disabled: the site ignores ?mode= and ?print, shows the normal templates and adds no mode class to the page. The variants below are kept.', 'modes' ) . '</p></div>';
+			echo '<div class="notice notice-warning inline"><p>' . esc_html__( 'The modes are disabled: the site ignores ?mode= and ?print, shows the normal templates and adds no mode class to the page. The variants below are kept.', 'otherguise' ) . '</p></div>';
 		}
 
 		echo '<form method="post" action="' . esc_url( $this->environment->admin_url( 'options.php' ) ) . '">';
 		$this->environment->print_settings_fields( self::GROUP );
-		echo '<p><label><input type="checkbox" name="' . esc_attr( $name ) . '" value="1"' . ( $enabled ? ' checked="checked"' : '' ) . ' /> ' . esc_html__( 'Enable the modes on this site', 'modes' ) . '</label> ';
-		echo '<input type="submit" class="button" value="' . esc_attr__( 'Save', 'modes' ) . '" /></p></form>';
+		echo '<p><label><input type="checkbox" name="' . esc_attr( $name ) . '" value="1"' . ( $enabled ? ' checked="checked"' : '' ) . ' /> ' . esc_html__( 'Enable the modes on this site', 'otherguise' ) . '</label> ';
+		echo '<input type="submit" class="button" value="' . esc_attr__( 'Save', 'otherguise' ) . '" /></p></form>';
 	}
 }

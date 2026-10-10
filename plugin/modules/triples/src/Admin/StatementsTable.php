@@ -70,12 +70,12 @@ final class StatementsTable extends \WP_List_Table {
 	public function get_columns() {
 		return array(
 			'cb'        => '<input type="checkbox" />',
-			'id'        => esc_html__( 'Id', 'triples' ),
-			'subject'   => esc_html__( 'Subject', 'triples' ),
-			'predicate' => esc_html__( 'Predicate', 'triples' ),
-			'object'    => esc_html__( 'Object', 'triples' ),
-			'about'     => esc_html__( 'About it', 'triples' ),
-			'created'   => esc_html__( 'Created', 'triples' ),
+			'id'        => esc_html__( 'Id', 'otherguise' ),
+			'subject'   => esc_html__( 'Subject', 'otherguise' ),
+			'predicate' => esc_html__( 'Predicate', 'otherguise' ),
+			'object'    => esc_html__( 'Object', 'otherguise' ),
+			'about'     => esc_html__( 'About it', 'otherguise' ),
+			'created'   => esc_html__( 'Created', 'otherguise' ),
 		);
 	}
 
@@ -85,7 +85,7 @@ final class StatementsTable extends \WP_List_Table {
 	 * @return array<string, string>
 	 */
 	protected function get_bulk_actions() {
-		return array( 'delete' => esc_html__( 'Delete', 'triples' ) );
+		return array( 'delete' => esc_html__( 'Delete', 'otherguise' ) );
 	}
 
 	/**
@@ -113,7 +113,7 @@ final class StatementsTable extends \WP_List_Table {
 			)
 		);
 
-		return esc_html( (string) $item['id'] ) . $this->row_actions( array( 'delete' => '<a href="' . esc_url( $url ) . '">' . esc_html__( 'Delete', 'triples' ) . '</a>' ) );
+		return esc_html( (string) $item['id'] ) . $this->row_actions( array( 'delete' => '<a href="' . esc_url( $url ) . '">' . esc_html__( 'Delete', 'otherguise' ) . '</a>' ) );
 	}
 
 	/**
@@ -178,6 +178,6 @@ final class StatementsTable extends \WP_List_Table {
 	 * @return void
 	 */
 	public function no_items() {
-		esc_html_e( 'No statement found.', 'triples' );
+		esc_html_e( 'No statement found.', 'otherguise' );
 	}
 }

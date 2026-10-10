@@ -37,7 +37,7 @@ Three `admin_post_` actions, `modes_declare`, `modes_withdraw` and `modes_remove
 ## Capability and names
 
 - Capability: **`edit_theme_options`**, the one of the site editor, since the screen is about templates; the filter **`modes_admin_capability`** changes it. The module has its own `Environment` (capability, nonces, input, links) and does not use the one of Triples (module rule 4).
-- Text domain `modes`; the filter names, actions and the page slug (`tools.php?page=modes`) are the module's.
+- Text domain `otherguise` (changed from `modes`, see IA.md rule 4); the filter names, actions and the page slug (`tools.php?page=modes`) are the module's.
 - The screen is hooked **in the administration only** (`Module::boot()` with an injected `is_admin`).
 
 ## Other changes

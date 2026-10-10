@@ -5,7 +5,7 @@
 	"title": "Link to a mode",
 	"category": "widgets",
 	"description": "A link to the same page in another mode (print, web...). Put no link inside it: anchors cannot be nested.",
-	"textdomain": "modes",
+	"textdomain": "otherguise",
 	"attributes": {
 		"mode": {
 			"type": "string",

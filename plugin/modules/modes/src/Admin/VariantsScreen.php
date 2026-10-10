@@ -83,8 +83,8 @@ final class VariantsScreen {
 	public function render() {
 		$this->panel->render();
 		$this->modes_table();
-		$this->section( TemplateRef::TEMPLATE, 'wp_template', __( 'Templates', 'modes' ), __( 'Template', 'modes' ) );
-		$this->section( TemplateRef::PART, 'wp_template_part', __( 'Template parts', 'modes' ), __( 'Template part', 'modes' ) );
+		$this->section( TemplateRef::TEMPLATE, 'wp_template', __( 'Templates', 'otherguise' ), __( 'Template', 'otherguise' ) );
+		$this->section( TemplateRef::PART, 'wp_template_part', __( 'Template parts', 'otherguise' ), __( 'Template part', 'otherguise' ) );
 	}
 
 	/**
@@ -95,8 +95,8 @@ final class VariantsScreen {
 	private function modes_table() {
 		$default = $this->modes->default_mode()->slug();
 
-		echo '<h2>' . esc_html__( 'Modes', 'modes' ) . '</h2>';
-		echo '<table class="widefat striped"><thead><tr><th>' . esc_html__( 'Mode', 'modes' ) . '</th><th>' . esc_html__( 'Query string', 'modes' ) . '</th><th>' . esc_html__( 'Default', 'modes' ) . '</th><th></th></tr></thead><tbody>';
+		echo '<h2>' . esc_html__( 'Modes', 'otherguise' ) . '</h2>';
+		echo '<table class="widefat striped"><thead><tr><th>' . esc_html__( 'Mode', 'otherguise' ) . '</th><th>' . esc_html__( 'Query string', 'otherguise' ) . '</th><th>' . esc_html__( 'Default', 'otherguise' ) . '</th><th></th></tr></thead><tbody>';
 
 		foreach ( $this->modes->all() as $mode ) {
 			echo '<tr><td>' . esc_html( $mode->label() ) . ' <code>' . esc_html( $mode->slug() ) . '</code></td><td><code>?mode=' . esc_html( $mode->slug() ) . '</code>';
@@ -105,8 +105,8 @@ final class VariantsScreen {
 				echo ', <code>?' . esc_html( $mode->alias() ) . '</code>';
 			}
 
-			echo '</td><td>' . ( $mode->slug() === $default ? esc_html__( 'yes', 'modes' ) : '' ) . '</td><td>';
-			echo '<a href="' . esc_url( $this->environment->front_url( array( 'mode' => $mode->slug() ) ) ) . '">' . esc_html__( 'Open the home page in this mode', 'modes' ) . '</a></td></tr>';
+			echo '</td><td>' . ( $mode->slug() === $default ? esc_html__( 'yes', 'otherguise' ) : '' ) . '</td><td>';
+			echo '<a href="' . esc_url( $this->environment->front_url( array( 'mode' => $mode->slug() ) ) ) . '">' . esc_html__( 'Open the home page in this mode', 'otherguise' ) . '</a></td></tr>';
 		}
 
 		echo '</tbody></table>';
@@ -127,9 +127,9 @@ final class VariantsScreen {
 		echo '<h2>' . esc_html( $title ) . '</h2>';
 
 		if ( array() === $relations ) {
-			echo '<p>' . esc_html__( 'No variant declared.', 'modes' ) . '</p>';
+			echo '<p>' . esc_html__( 'No variant declared.', 'otherguise' ) . '</p>';
 		} else {
-			echo '<table class="widefat striped"><thead><tr><th>' . esc_html( $noun ) . '</th><th>' . esc_html__( 'Variant', 'modes' ) . '</th><th>' . esc_html__( 'In the modes', 'modes' ) . '</th><th></th></tr></thead><tbody>';
+			echo '<table class="widefat striped"><thead><tr><th>' . esc_html( $noun ) . '</th><th>' . esc_html__( 'Variant', 'otherguise' ) . '</th><th>' . esc_html__( 'In the modes', 'otherguise' ) . '</th><th></th></tr></thead><tbody>';
 
 			foreach ( $relations as $relation ) {
 				echo '<tr><td>';
@@ -145,12 +145,12 @@ final class VariantsScreen {
 						$relation,
 						$slug,
 						/* translators: %s: label of a mode. */
-						sprintf( __( 'Withdraw from %s', 'modes' ), $this->modes->has( $slug ) ? $this->modes->get( $slug )->label() : $slug )
+						sprintf( __( 'Withdraw from %s', 'otherguise' ), $this->modes->has( $slug ) ? $this->modes->get( $slug )->label() : $slug )
 					);
 				}
 
 				echo '</td><td>';
-				$this->form( 'modes_remove', $kind, $relation, null, __( 'Remove', 'modes' ) );
+				$this->form( 'modes_remove', $kind, $relation, null, __( 'Remove', 'otherguise' ) );
 				echo '</td></tr>';
 			}
 
@@ -176,7 +176,7 @@ final class VariantsScreen {
 		}
 
 		if ( false === $description['exists'] ) {
-			echo ' <strong>' . esc_html__( '(missing)', 'modes' ) . '</strong>';
+			echo ' <strong>' . esc_html__( '(missing)', 'otherguise' ) . '</strong>';
 		}
 
 		echo '<br /><small><code>' . esc_html( $entity->id() ) . '</code></small>';
@@ -216,10 +216,10 @@ final class VariantsScreen {
 	private function add_form( $kind, $post_type, $noun ) {
 		$templates = $this->lookup->templates( $post_type );
 
-		echo '<h3>' . esc_html__( 'Add a variant', 'modes' ) . '</h3>';
+		echo '<h3>' . esc_html__( 'Add a variant', 'otherguise' ) . '</h3>';
 
 		if ( array() === $templates ) {
-			echo '<p>' . esc_html__( 'The active theme has nothing to choose from.', 'modes' ) . '</p>';
+			echo '<p>' . esc_html__( 'The active theme has nothing to choose from.', 'otherguise' ) . '</p>';
 
 			return;
 		}
@@ -229,15 +229,15 @@ final class VariantsScreen {
 		$this->environment->print_nonce_field( 'modes_declare' );
 		echo '<label style="display:inline-block;margin:0 1em .5em 0">' . esc_html( $noun ) . ' ';
 		$this->select( 'source', $templates );
-		echo '</label><label style="display:inline-block;margin:0 1em .5em 0">' . esc_html__( 'has the variant', 'modes' ) . ' ';
+		echo '</label><label style="display:inline-block;margin:0 1em .5em 0">' . esc_html__( 'has the variant', 'otherguise' ) . ' ';
 		$this->select( 'variant', $templates );
-		echo '</label><label style="display:inline-block;margin:0 1em .5em 0">' . esc_html__( 'in the mode', 'modes' ) . ' <select name="mode">';
+		echo '</label><label style="display:inline-block;margin:0 1em .5em 0">' . esc_html__( 'in the mode', 'otherguise' ) . ' <select name="mode">';
 
 		foreach ( $this->modes->all() as $mode ) {
 			echo '<option value="' . esc_attr( $mode->slug() ) . '">' . esc_html( $mode->label() ) . '</option>';
 		}
 
-		echo '</select></label><input type="submit" class="button button-primary" value="' . esc_attr__( 'Add', 'modes' ) . '" /></form>';
+		echo '</select></label><input type="submit" class="button button-primary" value="' . esc_attr__( 'Add', 'otherguise' ) . '" /></form>';
 	}
 
 	/**

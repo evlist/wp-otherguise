@@ -94,8 +94,8 @@ final class SettingsPage {
 
 		echo '<form method="post" action="' . esc_url( $this->environment->admin_url( 'options.php' ) ) . '">';
 		$this->print_settings_fields();
-		echo '<p><label><input type="checkbox" name="' . esc_attr( $name ) . '" value="1"' . ( $checked ? ' checked="checked"' : '' ) . ' /> ' . esc_html__( 'Delete all the data of the statements when the plugin is deleted', 'triples' ) . '</label></p>';
-		echo '<input type="submit" class="button button-primary" value="' . esc_attr__( 'Save', 'triples' ) . '" /></form>';
+		echo '<p><label><input type="checkbox" name="' . esc_attr( $name ) . '" value="1"' . ( $checked ? ' checked="checked"' : '' ) . ' /> ' . esc_html__( 'Delete all the data of the statements when the plugin is deleted', 'otherguise' ) . '</label></p>';
+		echo '<input type="submit" class="button button-primary" value="' . esc_attr__( 'Save', 'otherguise' ) . '" /></form>';
 	}
 
 	/**

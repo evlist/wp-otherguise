@@ -119,7 +119,6 @@ class TriplesCleanupTest extends TestCase {
 				'deleted_post' => array( WordPressCleanup::class, 'post', 10, 1 ),
 				'deleted_term' => array( WordPressCleanup::class, 'term', 10, 1 ),
 				'deleted_user' => array( WordPressCleanup::class, 'user', 10, 1 ),
-				'init'         => array( Module::class, 'load_textdomain', 10, 1 ),
 			),
 			$recorded
 		);

@@ -203,22 +203,9 @@ final class Module implements ModuleInterface {
 
 		( new SchemaManager( $this->database() ) )->maybe_upgrade();
 		( new WordPressCleanup( $this->statements() ) )->register( $this->add_action );
-		( $this->add_action )( 'init', array( $this, 'load_textdomain' ), 10, 1 );
 
 		if ( ( $this->is_admin )() ) {
 			$this->admin( new Environment() )->register( $this->add_action );
-		}
-	}
-
-	/**
-	 * Loads the translations of the module (text domain `triples`) from the `languages` directory of the module, next to its sources.
-	 * WordPress.org language packs are found by WordPress itself.
-	 *
-	 * @return void
-	 */
-	public function load_textdomain() {
-		if ( defined( 'OTHERGUISE_PLUGIN_FILE' ) ) {
-			load_plugin_textdomain( 'triples', false, dirname( plugin_basename( OTHERGUISE_PLUGIN_FILE ) ) . '/modules/triples/languages' );
 		}
 	}
 

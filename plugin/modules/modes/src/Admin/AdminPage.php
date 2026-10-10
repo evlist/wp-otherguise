@@ -49,8 +49,8 @@ final class AdminPage {
 	public function register_menu() {
 		add_submenu_page(
 			'tools.php',
-			__( 'Modes', 'modes' ),
-			__( 'Modes', 'modes' ),
+			__( 'Modes', 'otherguise' ),
+			__( 'Modes', 'otherguise' ),
 			$this->environment->capability(),
 			Environment::PAGE,
 			array( $this, 'render' )
@@ -69,7 +69,7 @@ final class AdminPage {
 			return;
 		}
 
-		echo '<div class="wrap"><h1>' . esc_html__( 'Modes', 'modes' ) . '</h1>';
+		echo '<div class="wrap"><h1>' . esc_html__( 'Modes', 'otherguise' ) . '</h1>';
 		$this->notice( $this->environment->query() );
 		$this->screen->render();
 		echo '</div>';
@@ -86,11 +86,11 @@ final class AdminPage {
 		$class  = 'notice-success';
 
 		if ( 'declared' === $notice ) {
-			$message = __( 'Variant declared.', 'modes' );
+			$message = __( 'Variant declared.', 'otherguise' );
 		} elseif ( 'withdrawn' === $notice ) {
-			$message = __( 'Variant withdrawn from the mode.', 'modes' );
+			$message = __( 'Variant withdrawn from the mode.', 'otherguise' );
 		} elseif ( 'removed' === $notice ) {
-			$message = __( 'Variant removed.', 'modes' );
+			$message = __( 'Variant removed.', 'otherguise' );
 		} elseif ( 'error' === $notice ) {
 			$message = $this->error_message( $query['code'] ?? '' );
 			$class   = 'notice-error';
@@ -109,19 +109,19 @@ final class AdminPage {
 	 */
 	private function error_message( $code ) {
 		$messages = array(
-			'invalid_request'     => __( 'The form was incomplete.', 'modes' ),
-			'not_a_template'      => __( 'Choose a template or a template part.', 'modes' ),
-			'kind_mismatch'       => __( 'A template and a template part cannot be variants of each other.', 'modes' ),
-			'same_template'       => __( 'A template cannot be its own variant.', 'modes' ),
-			'theme_mismatch'      => __( 'A variant belongs to the theme of the template it replaces.', 'modes' ),
-			'not_a_mode'          => __( 'Choose a mode.', 'modes' ),
-			'mode_already_served' => __( 'This template already has another variant in this mode: withdraw it first.', 'modes' ),
+			'invalid_request'     => __( 'The form was incomplete.', 'otherguise' ),
+			'not_a_template'      => __( 'Choose a template or a template part.', 'otherguise' ),
+			'kind_mismatch'       => __( 'A template and a template part cannot be variants of each other.', 'otherguise' ),
+			'same_template'       => __( 'A template cannot be its own variant.', 'otherguise' ),
+			'theme_mismatch'      => __( 'A variant belongs to the theme of the template it replaces.', 'otherguise' ),
+			'not_a_mode'          => __( 'Choose a mode.', 'otherguise' ),
+			'mode_already_served' => __( 'This template already has another variant in this mode: withdraw it first.', 'otherguise' ),
 		);
 
 		if ( isset( $messages[ $code ] ) ) {
 			return $messages[ $code ];
 		}
 
-		return 0 === strpos( $code, 'triples_' ) ? __( 'That template or mode does not exist or is not accepted.', 'modes' ) : __( 'The variant could not be saved.', 'modes' );
+		return 0 === strpos( $code, 'triples_' ) ? __( 'That template or mode does not exist or is not accepted.', 'otherguise' ) : __( 'The variant could not be saved.', 'otherguise' );
 	}
 }

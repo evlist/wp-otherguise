@@ -34,7 +34,7 @@ final class Markup {
 		}
 
 		if ( ! empty( $node['missing'] ) ) {
-			$label = '<span class="triples-missing" style="color:#b32d2e">' . $label . '</span> <strong>' . esc_html__( '(missing)', 'triples' ) . '</strong>';
+			$label = '<span class="triples-missing" style="color:#b32d2e">' . $label . '</span> <strong>' . esc_html__( '(missing)', 'otherguise' ) . '</strong>';
 		}
 
 		return $label . ( (string) $node['label'] === (string) $node['raw'] ? '' : ' <small><code>' . esc_html( (string) $node['raw'] ) . '</code></small>' );
@@ -54,7 +54,7 @@ final class Markup {
 		}
 
 		if ( empty( $predicate['registered'] ) ) {
-			$html .= ' <strong>' . esc_html__( '(not registered)', 'triples' ) . '</strong>';
+			$html .= ' <strong>' . esc_html__( '(not registered)', 'otherguise' ) . '</strong>';
 		}
 
 		return $html;
@@ -67,7 +67,7 @@ final class Markup {
 	 * @return string
 	 */
 	public static function types( array $types ) {
-		return array() === $types ? esc_html__( 'any entity', 'triples' ) : '<code>' . implode( '</code>, <code>', array_map( 'esc_html', $types ) ) . '</code>';
+		return array() === $types ? esc_html__( 'any entity', 'otherguise' ) : '<code>' . implode( '</code>, <code>', array_map( 'esc_html', $types ) ) . '</code>';
 	}
 
 	/**
@@ -87,6 +87,6 @@ final class Markup {
 	 * @return string
 	 */
 	public static function yes_no( $value ) {
-		return $value ? esc_html__( 'yes', 'triples' ) : esc_html__( 'no', 'triples' );
+		return $value ? esc_html__( 'yes', 'otherguise' ) : esc_html__( 'no', 'otherguise' );
 	}
 }

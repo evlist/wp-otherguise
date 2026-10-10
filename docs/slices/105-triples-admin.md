@@ -113,3 +113,5 @@ Still not verified after this run: other browsers and narrow screens, keyboard u
 ## Done when
 
 PHPUnit (unit and integration), phpcs and `reuse lint` pass; the architecture test passes; this document, `docs/IA.md` and `docs/design/triples.md` describe the delivered classes; the "not verified" section above is still true or has been corrected.
+
+> **Later change:** the modules no longer have a text domain of their own: every string uses `otherguise` (the slug of the plugin, which Plugin Check and WordPress.org require), and the modules no longer load a domain. See [IA.md](../IA.md), rule 4. What is written above about `triples` and `modes` as text domains is history.

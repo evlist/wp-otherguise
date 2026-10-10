@@ -84,3 +84,5 @@ Choices made while implementing:
 ## Done when
 
 PHPUnit, phpcs and `reuse lint` pass, the architecture test still passes, and this document and `docs/IA.md` describe the delivered classes. (All done.)
+
+> **Later change:** the modules no longer have a text domain of their own: every string uses `otherguise` (the slug of the plugin, which Plugin Check and WordPress.org require), and the modules no longer load a domain. See [IA.md](../IA.md), rule 4. What is written above about `triples` and `modes` as text domains is history.

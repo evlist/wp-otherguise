@@ -61,8 +61,8 @@ final class TemplateIntegration {
 			PredicateDefinition::from_array(
 				array(
 					'slug'          => 'modes/has-variant',
-					'label'         => __( 'Has variant', 'modes' ),
-					'inverse_label' => __( 'Variant of', 'modes' ),
+					'label'         => __( 'Has variant', 'otherguise' ),
+					'inverse_label' => __( 'Variant of', 'otherguise' ),
 					'subject_types' => array( TemplateRef::TEMPLATE ),
 					'object_types'  => array( TemplateRef::TEMPLATE ),
 					'qualified_by'  => array( 'modes/mode' ),
@@ -73,8 +73,8 @@ final class TemplateIntegration {
 			PredicateDefinition::from_array(
 				array(
 					'slug'          => 'modes/has-part-variant',
-					'label'         => __( 'Has template part variant', 'modes' ),
-					'inverse_label' => __( 'Template part variant of', 'modes' ),
+					'label'         => __( 'Has template part variant', 'otherguise' ),
+					'inverse_label' => __( 'Template part variant of', 'otherguise' ),
 					'subject_types' => array( TemplateRef::PART ),
 					'object_types'  => array( TemplateRef::PART ),
 					'qualified_by'  => array( 'modes/mode' ),

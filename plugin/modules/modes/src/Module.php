@@ -159,8 +159,8 @@ final class Module implements ModuleInterface {
 
 		$this->modes  = new ModeRegistry(
 			function ( $registry ) {
-				$registry->register( new ModeDefinition( 'web', __( 'Web', 'modes' ) ) );
-				$registry->register( new ModeDefinition( 'print', __( 'Print', 'modes' ), 'print' ) );
+				$registry->register( new ModeDefinition( 'web', __( 'Web', 'otherguise' ) ) );
+				$registry->register( new ModeDefinition( 'print', __( 'Print', 'otherguise' ), 'print' ) );
 
 				/**
 				 * Lets a plugin or a theme declare modes.
@@ -240,7 +240,6 @@ final class Module implements ModuleInterface {
 		( $this->add_action )( 'triples_register_entity_types', array( $templates, 'register_entity_types' ), 10, 1 );
 		( $this->add_action )( 'triples_register_predicates', array( $templates, 'register_predicates' ), 10, 1 );
 		( $this->add_action )( 'body_class', array( $this, 'body_class' ), 10, 1 );
-		( $this->add_action )( 'init', array( $this, 'load_textdomain' ), 10, 1 );
 		( $this->add_action )( 'init', array( $this, 'register_variant_filters' ), 20, 0 );
 		( $this->add_action )( 'init', array( $this, 'register_link_block' ), 10, 0 );
 
@@ -380,17 +379,6 @@ final class Module implements ModuleInterface {
 		$classes[] = 'modes-mode-' . $this->active->mode()->slug();
 
 		return $classes;
-	}
-
-	/**
-	 * Loads the translations of the module (text domain `modes`) from the `languages` directory next to its sources.
-	 *
-	 * @return void
-	 */
-	public function load_textdomain() {
-		if ( defined( 'OTHERGUISE_PLUGIN_FILE' ) ) {
-			load_plugin_textdomain( 'modes', false, dirname( plugin_basename( OTHERGUISE_PLUGIN_FILE ) ) . '/modules/modes/languages' );
-		}
 	}
 
 	/**

@@ -76,8 +76,8 @@ final class AdminPage {
 	public function register_menu() {
 		$hook = add_submenu_page(
 			'tools.php',
-			__( 'Relations', 'triples' ),
-			__( 'Relations', 'triples' ),
+			__( 'Relations', 'otherguise' ),
+			__( 'Relations', 'otherguise' ),
 			$this->environment->capability(),
 			Environment::PAGE,
 			array( $this, 'render' )
@@ -97,7 +97,7 @@ final class AdminPage {
 		add_screen_option(
 			'per_page',
 			array(
-				'label'   => __( 'Statements per page', 'triples' ),
+				'label'   => __( 'Statements per page', 'otherguise' ),
 				'default' => 20,
 				'option'  => Environment::PER_PAGE_OPTION,
 			)
@@ -134,7 +134,7 @@ final class AdminPage {
 		$query  = $this->environment->query();
 		$active = isset( $query['tab'], $tabs[ $query['tab'] ] ) ? $query['tab'] : 'statements';
 
-		echo '<div class="wrap"><h1>' . esc_html__( 'Relations', 'triples' ) . '</h1>';
+		echo '<div class="wrap"><h1>' . esc_html__( 'Relations', 'otherguise' ) . '</h1>';
 		$this->notice( $query );
 		echo '<nav class="nav-tab-wrapper">';
 
@@ -162,9 +162,9 @@ final class AdminPage {
 	 */
 	private function tabs() {
 		return array(
-			'statements'  => __( 'Statements', 'triples' ),
-			'registered'  => __( 'Registered', 'triples' ),
-			'maintenance' => __( 'Maintenance', 'triples' ),
+			'statements'  => __( 'Statements', 'otherguise' ),
+			'registered'  => __( 'Registered', 'otherguise' ),
+			'maintenance' => __( 'Maintenance', 'otherguise' ),
 		);
 	}
 
@@ -180,10 +180,10 @@ final class AdminPage {
 
 		if ( 'deleted' === $code || 'orphans_deleted' === $code || 'predicate_deleted' === $code ) {
 			/* translators: %d: number of statements deleted. */
-			$message = sprintf( _n( '%d statement deleted.', '%d statements deleted.', $count, 'triples' ), $count );
+			$message = sprintf( _n( '%d statement deleted.', '%d statements deleted.', $count, 'otherguise' ), $count );
 			$class   = 'notice-success';
 		} elseif ( 'predicate_refused' === $code ) {
-			$message = __( 'This predicate is registered: its statements were not deleted.', 'triples' );
+			$message = __( 'This predicate is registered: its statements were not deleted.', 'otherguise' );
 			$class   = 'notice-error';
 		} else {
 			return;

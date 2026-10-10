@@ -73,11 +73,11 @@ final class RegisteredScreen {
 			return false;
 		}
 
-		echo '<h2>' . esc_html__( 'Delete these statements?', 'triples' ) . '</h2>';
+		echo '<h2>' . esc_html__( 'Delete these statements?', 'otherguise' ) . '</h2>';
 		echo '<p>' . esc_html(
 			sprintf(
 				/* translators: 1: number of statements, 2: predicate slug. */
-				_n( '%1$d statement of the predicate %2$s, and the statements about it, will be deleted. This cannot be undone.', '%1$d statements of the predicate %2$s, and the statements about them, will be deleted. This cannot be undone.', $unregistered[ $predicate ], 'triples' ),
+				_n( '%1$d statement of the predicate %2$s, and the statements about it, will be deleted. This cannot be undone.', '%1$d statements of the predicate %2$s, and the statements about them, will be deleted. This cannot be undone.', $unregistered[ $predicate ], 'otherguise' ),
 				$unregistered[ $predicate ],
 				$predicate
 			)
@@ -85,8 +85,8 @@ final class RegisteredScreen {
 		echo '<form method="post" action="' . esc_url( $this->environment->admin_url( 'admin-post.php' ) ) . '">';
 		echo '<input type="hidden" name="action" value="triples_delete_predicate" /><input type="hidden" name="predicate" value="' . esc_attr( $predicate ) . '" />';
 		$this->environment->print_nonce_field( 'triples_delete_predicate_' . $predicate );
-		echo '<input type="submit" class="button button-primary" value="' . esc_attr__( 'Delete', 'triples' ) . '" /> ';
-		echo '<a class="button" href="' . esc_url( $this->environment->page_url( array( 'tab' => 'registered' ) ) ) . '">' . esc_html__( 'Cancel', 'triples' ) . '</a></form>';
+		echo '<input type="submit" class="button button-primary" value="' . esc_attr__( 'Delete', 'otherguise' ) . '" /> ';
+		echo '<a class="button" href="' . esc_url( $this->environment->page_url( array( 'tab' => 'registered' ) ) ) . '">' . esc_html__( 'Cancel', 'otherguise' ) . '</a></form>';
 
 		return true;
 	}
@@ -103,9 +103,9 @@ final class RegisteredScreen {
 			return;
 		}
 
-		echo '<h2>' . esc_html__( 'Predicates that are no longer registered', 'triples' ) . '</h2>';
-		echo '<p>' . esc_html__( 'A plugin that registered these predicates may be deactivated. Deleting their statements cannot be undone.', 'triples' ) . '</p>';
-		echo '<table class="widefat striped"><thead><tr><th>' . esc_html__( 'Predicate', 'triples' ) . '</th><th>' . esc_html__( 'Statements', 'triples' ) . '</th><th></th></tr></thead><tbody>';
+		echo '<h2>' . esc_html__( 'Predicates that are no longer registered', 'otherguise' ) . '</h2>';
+		echo '<p>' . esc_html__( 'A plugin that registered these predicates may be deactivated. Deleting their statements cannot be undone.', 'otherguise' ) . '</p>';
+		echo '<table class="widefat striped"><thead><tr><th>' . esc_html__( 'Predicate', 'otherguise' ) . '</th><th>' . esc_html__( 'Statements', 'otherguise' ) . '</th><th></th></tr></thead><tbody>';
 
 		foreach ( $unregistered as $slug => $count ) {
 			$url = $this->environment->page_url(
@@ -116,7 +116,7 @@ final class RegisteredScreen {
 			);
 
 			echo '<tr><td><code>' . esc_html( (string) $slug ) . '</code></td><td>' . esc_html( (string) $count ) . '</td><td>';
-			echo '<a class="button" href="' . esc_url( $url ) . '">' . esc_html__( 'Delete these statements…', 'triples' ) . '</a></td></tr>';
+			echo '<a class="button" href="' . esc_url( $url ) . '">' . esc_html__( 'Delete these statements…', 'otherguise' ) . '</a></td></tr>';
 		}
 
 		echo '</tbody></table>';
@@ -128,7 +128,7 @@ final class RegisteredScreen {
 	 * @return void
 	 */
 	private function predicates() {
-		echo '<h2>' . esc_html__( 'Predicates', 'triples' ) . '</h2><table class="widefat striped"><thead><tr>';
+		echo '<h2>' . esc_html__( 'Predicates', 'otherguise' ) . '</h2><table class="widefat striped"><thead><tr>';
 
 		foreach ( array( 'Predicate', 'Subjects', 'Objects', 'Limits', 'Symmetric', 'On delete', 'Qualified by', 'Qualifies', 'Statements' ) as $heading ) {
 			echo '<th>' . esc_html( $this->translate_heading( $heading ) ) . '</th>';
@@ -143,7 +143,7 @@ final class RegisteredScreen {
 			$html .= esc_html(
 				sprintf(
 					/* translators: 1: maximum number of objects per subject, 2: maximum number of subjects per object. */
-					__( 'objects per subject: %1$s; subjects per object: %2$s', 'triples' ),
+					__( 'objects per subject: %1$s; subjects per object: %2$s', 'otherguise' ),
 					null === $row['max_objects'] ? '∞' : (string) $row['max_objects'],
 					null === $row['max_subjects'] ? '∞' : (string) $row['max_subjects']
 				)
@@ -164,7 +164,7 @@ final class RegisteredScreen {
 	 * @return void
 	 */
 	private function entity_types() {
-		echo '<h2>' . esc_html__( 'Entity types', 'triples' ) . '</h2><table class="widefat striped"><thead><tr><th>' . esc_html__( 'Type', 'triples' ) . '</th><th>' . esc_html__( 'Checks existence', 'triples' ) . '</th><th>' . esc_html__( 'Recognizes objects', 'triples' ) . '</th><th>' . esc_html__( 'Loads objects', 'triples' ) . '</th><th>' . esc_html__( 'Describes', 'triples' ) . '</th></tr></thead><tbody>';
+		echo '<h2>' . esc_html__( 'Entity types', 'otherguise' ) . '</h2><table class="widefat striped"><thead><tr><th>' . esc_html__( 'Type', 'otherguise' ) . '</th><th>' . esc_html__( 'Checks existence', 'otherguise' ) . '</th><th>' . esc_html__( 'Recognizes objects', 'otherguise' ) . '</th><th>' . esc_html__( 'Loads objects', 'otherguise' ) . '</th><th>' . esc_html__( 'Describes', 'otherguise' ) . '</th></tr></thead><tbody>';
 
 		foreach ( $this->view->entity_types() as $row ) {
 			echo wp_kses_post( '<tr><td>' . esc_html( $row['label'] ) . ' <code>' . esc_html( $row['slug'] ) . '</code></td><td>' . Markup::yes_no( $row['exists'] ) . '</td><td>' . Markup::yes_no( $row['identify'] ) . '</td><td>' . Markup::yes_no( $row['load'] ) . '</td><td>' . Markup::yes_no( $row['describe'] ) . '</td></tr>' );
@@ -179,7 +179,7 @@ final class RegisteredScreen {
 	 * @return void
 	 */
 	private function datatypes() {
-		echo '<h2>' . esc_html__( 'Datatypes', 'triples' ) . '</h2><table class="widefat striped"><thead><tr><th>' . esc_html__( 'Name', 'triples' ) . '</th><th>' . esc_html__( 'XSD type', 'triples' ) . '</th></tr></thead><tbody>';
+		echo '<h2>' . esc_html__( 'Datatypes', 'otherguise' ) . '</h2><table class="widefat striped"><thead><tr><th>' . esc_html__( 'Name', 'otherguise' ) . '</th><th>' . esc_html__( 'XSD type', 'otherguise' ) . '</th></tr></thead><tbody>';
 
 		foreach ( $this->view->datatypes() as $row ) {
 			echo '<tr><td><code>' . esc_html( $row['name'] ) . '</code></td><td><code>' . esc_html( $row['datatype'] ) . '</code></td></tr>';
@@ -196,15 +196,15 @@ final class RegisteredScreen {
 	 */
 	private function translate_heading( $heading ) {
 		$headings = array(
-			'Predicate'    => __( 'Predicate', 'triples' ),
-			'Subjects'     => __( 'Subjects', 'triples' ),
-			'Objects'      => __( 'Objects', 'triples' ),
-			'Limits'       => __( 'Limits', 'triples' ),
-			'Symmetric'    => __( 'Symmetric', 'triples' ),
-			'On delete'    => __( 'On delete', 'triples' ),
-			'Qualified by' => __( 'Qualified by', 'triples' ),
-			'Qualifies'    => __( 'Qualifies', 'triples' ),
-			'Statements'   => __( 'Statements', 'triples' ),
+			'Predicate'    => __( 'Predicate', 'otherguise' ),
+			'Subjects'     => __( 'Subjects', 'otherguise' ),
+			'Objects'      => __( 'Objects', 'otherguise' ),
+			'Limits'       => __( 'Limits', 'otherguise' ),
+			'Symmetric'    => __( 'Symmetric', 'otherguise' ),
+			'On delete'    => __( 'On delete', 'otherguise' ),
+			'Qualified by' => __( 'Qualified by', 'otherguise' ),
+			'Qualifies'    => __( 'Qualifies', 'otherguise' ),
+			'Statements'   => __( 'Statements', 'otherguise' ),
 		);
 
 		return $headings[ $heading ] ?? $heading;

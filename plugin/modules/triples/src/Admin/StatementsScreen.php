@@ -107,9 +107,9 @@ final class StatementsScreen {
 		if ( null !== $page['next_after'] ) {
 			$next = $this->environment->page_url( array( 'tab' => 'statements' ) + $filters->to_args() + array( 'after' => $page['next_after'] ) );
 
-			echo '<p><a class="button" href="' . esc_url( $next ) . '">' . esc_html__( 'Look for more orphans', 'triples' ) . '</a></p>';
+			echo '<p><a class="button" href="' . esc_url( $next ) . '">' . esc_html__( 'Look for more orphans', 'otherguise' ) . '</a></p>';
 		} elseif ( $filters->orphans ) {
-			echo '<p>' . esc_html__( 'The end of the table was reached.', 'triples' ) . '</p>';
+			echo '<p>' . esc_html__( 'The end of the table was reached.', 'otherguise' ) . '</p>';
 		}
 	}
 
@@ -123,27 +123,27 @@ final class StatementsScreen {
 		echo '<form method="get" action="' . esc_url( $this->environment->admin_url( 'tools.php' ) ) . '" class="triples-filters" style="margin:1em 0">';
 		echo '<input type="hidden" name="page" value="' . esc_attr( Environment::PAGE ) . '" /><input type="hidden" name="tab" value="statements" />';
 
-		echo '<label style="display:inline-block;margin:0 1em .5em 0">' . esc_html__( 'Predicate', 'triples' ) . ' <select name="predicate"><option value="">' . esc_html__( 'All', 'triples' ) . '</option>';
+		echo '<label style="display:inline-block;margin:0 1em .5em 0">' . esc_html__( 'Predicate', 'otherguise' ) . ' <select name="predicate"><option value="">' . esc_html__( 'All', 'otherguise' ) . '</option>';
 
 		foreach ( array_keys( $this->predicates->all() ) as $slug ) {
 			echo '<option value="' . esc_attr( $slug ) . '"' . ( $slug === $filters->predicate ? ' selected="selected"' : '' ) . '>' . esc_html( $slug ) . '</option>';
 		}
 
-		echo '<option value="' . esc_attr( StatementsFilters::UNREGISTERED ) . '"' . ( StatementsFilters::UNREGISTERED === $filters->predicate ? ' selected="selected"' : '' ) . '>' . esc_html__( 'Not registered', 'triples' ) . '</option></select></label> ';
+		echo '<option value="' . esc_attr( StatementsFilters::UNREGISTERED ) . '"' . ( StatementsFilters::UNREGISTERED === $filters->predicate ? ' selected="selected"' : '' ) . '>' . esc_html__( 'Not registered', 'otherguise' ) . '</option></select></label> ';
 
-		echo '<label style="display:inline-block;margin:0 1em .5em 0">' . esc_html__( 'Type', 'triples' ) . ' <select name="entity_type"><option value="">' . esc_html__( 'All', 'triples' ) . '</option>';
+		echo '<label style="display:inline-block;margin:0 1em .5em 0">' . esc_html__( 'Type', 'otherguise' ) . ' <select name="entity_type"><option value="">' . esc_html__( 'All', 'otherguise' ) . '</option>';
 
 		foreach ( array_keys( $this->types->all() ) as $slug ) {
 			echo '<option value="' . esc_attr( $slug ) . '"' . ( $slug === $filters->type ? ' selected="selected"' : '' ) . '>' . esc_html( $slug ) . '</option>';
 		}
 
 		echo '</select></label> ';
-		echo '<label style="display:inline-block;margin:0 1em .5em 0">' . esc_html__( 'Entity', 'triples' ) . ' <input type="text" name="entity" placeholder="post:12" value="' . esc_attr( null === $filters->entity ? '' : (string) $filters->entity ) . '" /></label> ';
-		echo '<label style="display:inline-block;margin:0 1em .5em 0"><input type="checkbox" name="with_qualifiers" value="1"' . ( $filters->with_qualifiers ? ' checked="checked"' : '' ) . ' /> ' . esc_html__( 'Include statements about statements', 'triples' ) . '</label> ';
-		echo '<label style="display:inline-block;margin:0 1em .5em 0"><input type="checkbox" name="orphans" value="1"' . ( $filters->orphans ? ' checked="checked"' : '' ) . ' /> ' . esc_html__( 'Orphans only', 'triples' ) . '</label> ';
-		echo '<label style="display:inline-block;margin:0 1em .5em 0">' . esc_html__( 'Order', 'triples' ) . ' <select name="orderby"><option value="id"' . ( 'id' === $filters->orderby ? ' selected="selected"' : '' ) . '>' . esc_html__( 'Id', 'triples' ) . '</option><option value="created_gmt"' . ( 'created_gmt' === $filters->orderby ? ' selected="selected"' : '' ) . '>' . esc_html__( 'Date of creation', 'triples' ) . '</option></select></label> ';
-		echo '<label><select name="order"><option value="asc">' . esc_html__( 'Ascending', 'triples' ) . '</option><option value="desc"' . ( $filters->descending ? ' selected="selected"' : '' ) . '>' . esc_html__( 'Descending', 'triples' ) . '</option></select></label> ';
-		echo '<input type="submit" class="button" value="' . esc_attr__( 'Filter', 'triples' ) . '" /></form>';
+		echo '<label style="display:inline-block;margin:0 1em .5em 0">' . esc_html__( 'Entity', 'otherguise' ) . ' <input type="text" name="entity" placeholder="post:12" value="' . esc_attr( null === $filters->entity ? '' : (string) $filters->entity ) . '" /></label> ';
+		echo '<label style="display:inline-block;margin:0 1em .5em 0"><input type="checkbox" name="with_qualifiers" value="1"' . ( $filters->with_qualifiers ? ' checked="checked"' : '' ) . ' /> ' . esc_html__( 'Include statements about statements', 'otherguise' ) . '</label> ';
+		echo '<label style="display:inline-block;margin:0 1em .5em 0"><input type="checkbox" name="orphans" value="1"' . ( $filters->orphans ? ' checked="checked"' : '' ) . ' /> ' . esc_html__( 'Orphans only', 'otherguise' ) . '</label> ';
+		echo '<label style="display:inline-block;margin:0 1em .5em 0">' . esc_html__( 'Order', 'otherguise' ) . ' <select name="orderby"><option value="id"' . ( 'id' === $filters->orderby ? ' selected="selected"' : '' ) . '>' . esc_html__( 'Id', 'otherguise' ) . '</option><option value="created_gmt"' . ( 'created_gmt' === $filters->orderby ? ' selected="selected"' : '' ) . '>' . esc_html__( 'Date of creation', 'otherguise' ) . '</option></select></label> ';
+		echo '<label><select name="order"><option value="asc">' . esc_html__( 'Ascending', 'otherguise' ) . '</option><option value="desc"' . ( $filters->descending ? ' selected="selected"' : '' ) . '>' . esc_html__( 'Descending', 'otherguise' ) . '</option></select></label> ';
+		echo '<input type="submit" class="button" value="' . esc_attr__( 'Filter', 'otherguise' ) . '" /></form>';
 	}
 
 	/**
@@ -156,7 +156,7 @@ final class StatementsScreen {
 		$chosen = $this->store->find_many( $ids );
 
 		if ( array() === $chosen ) {
-			echo '<p>' . esc_html__( 'Nothing was selected.', 'triples' ) . '</p>';
+			echo '<p>' . esc_html__( 'Nothing was selected.', 'otherguise' ) . '</p>';
 
 			return;
 		}
@@ -165,11 +165,11 @@ final class StatementsScreen {
 		$total    = count( $this->store->ids_with_dependents( $existing ) );
 		$rows     = $this->view->rows( $chosen );
 
-		echo '<h2>' . esc_html__( 'Delete these statements?', 'triples' ) . '</h2>';
+		echo '<h2>' . esc_html__( 'Delete these statements?', 'otherguise' ) . '</h2>';
 		echo '<p>' . esc_html(
 			sprintf(
 				/* translators: 1: number of statements chosen, 2: number of statements that will be deleted in all, the statements about them included. */
-				_n( '%1$d statement is selected; %2$d statements will be deleted in all, with the statements about it.', '%1$d statements are selected; %2$d statements will be deleted in all, with the statements about them.', count( $existing ), 'triples' ),
+				_n( '%1$d statement is selected; %2$d statements will be deleted in all, with the statements about it.', '%1$d statements are selected; %2$d statements will be deleted in all, with the statements about them.', count( $existing ), 'otherguise' ),
 				count( $existing ),
 				$total
 			)
@@ -187,7 +187,7 @@ final class StatementsScreen {
 			echo '<input type="hidden" name="statement[]" value="' . esc_attr( (string) $id ) . '" />';
 		}
 
-		echo '<input type="submit" class="button button-primary" value="' . esc_attr__( 'Delete', 'triples' ) . '" /> ';
-		echo '<a class="button" href="' . esc_url( $this->environment->page_url( array( 'tab' => 'statements' ) ) ) . '">' . esc_html__( 'Cancel', 'triples' ) . '</a></form>';
+		echo '<input type="submit" class="button button-primary" value="' . esc_attr__( 'Delete', 'otherguise' ) . '" /> ';
+		echo '<a class="button" href="' . esc_url( $this->environment->page_url( array( 'tab' => 'statements' ) ) ) . '">' . esc_html__( 'Cancel', 'otherguise' ) . '</a></form>';
 	}
 }

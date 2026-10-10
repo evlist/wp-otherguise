@@ -78,3 +78,5 @@ Other plugins still register entity types, datatypes and predicates with the thr
 4. The class `modes-mode-{slug}` on the body, always.
 5. The access through `Core\Modules` and the function `triples_statements()`; a function per module, not a global container.
 6. The `ModeDefinition` object stands for its mode in the statements API.
+
+> **Later change:** the modules no longer have a text domain of their own: every string uses `otherguise` (the slug of the plugin, which Plugin Check and WordPress.org require), and the modules no longer load a domain. See [IA.md](../IA.md), rule 4. What is written above about `triples` and `modes` as text domains is history.

@@ -21,7 +21,7 @@ SPDX-License-Identifier: GPL-3.0-or-later OR MIT
   <exclude-pattern>*/tests/phpunit/bootstrap.php</exclude-pattern>
   <exclude-pattern>*/scripts/*</exclude-pattern>
 
-  <config name="text_domain" value="otherguise,triples,modes"/>
+  <config name="text_domain" value="otherguise"/>
 
   <rule ref="WordPress"/>
 

@@ -17,7 +17,7 @@
 
 	function edit( props ) {
 		var modes = ( settings && settings.modes ) || [];
-		var options = [ { value: '', label: __( '— Choose a mode —', 'modes' ) } ].concat( modes );
+		var options = [ { value: '', label: __( '— Choose a mode —', 'otherguise' ) } ].concat( modes );
 		var blockProps = blockEditor.useBlockProps();
 
 		return el(
@@ -28,9 +28,9 @@
 				null,
 				el(
 					components.PanelBody,
-					{ title: __( 'Link to a mode', 'modes' ) },
+					{ title: __( 'Link to a mode', 'otherguise' ) },
 					el( components.SelectControl, {
-						label: __( 'Target mode', 'modes' ),
+						label: __( 'Target mode', 'otherguise' ),
 						value: props.attributes.mode,
 						options: options,
 						onChange: function ( value ) {
@@ -38,8 +38,8 @@
 						},
 					} ),
 					el( components.TextControl, {
-						label: __( 'Accessible label', 'modes' ),
-						help: __( 'Read by screen readers; useful when the content is only an icon.', 'modes' ),
+						label: __( 'Accessible label', 'otherguise' ),
+						help: __( 'Read by screen readers; useful when the content is only an icon.', 'otherguise' ),
 						value: props.attributes.label,
 						onChange: function ( value ) {
 							props.setAttributes( { label: value } );
@@ -59,9 +59,9 @@
 		variations: [
 			{
 				name: 'print',
-				title: __( 'Link to the print version', 'modes' ),
-				description: __( 'A printer icon that links to the print version.', 'modes' ),
-				attributes: { mode: 'print', label: __( 'Print version', 'modes' ) },
+				title: __( 'Link to the print version', 'otherguise' ),
+				description: __( 'A printer icon that links to the print version.', 'otherguise' ),
+				attributes: { mode: 'print', label: __( 'Print version', 'otherguise' ) },
 				innerBlocks: [ [ 'core/html', { content: printer } ] ],
 				scope: [ 'inserter' ],
 				isDefault: false,

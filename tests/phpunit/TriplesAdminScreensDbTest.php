@@ -458,13 +458,12 @@ class TriplesAdminScreensDbTest extends Otherguise_Test_Database_Case {
 
 		( new Module( static function () {}, $this->wpdb, $add, static fn() => true ) )->boot();
 
-		$this->assertSame( array( 'deleted_post', 'deleted_term', 'deleted_user', 'init' ), $front );
+		$this->assertSame( array( 'deleted_post', 'deleted_term', 'deleted_user' ), $front );
 		$this->assertSame(
 			array(
 				'deleted_post',
 				'deleted_term',
 				'deleted_user',
-				'init',
 				'admin_menu',
 				'admin_init',
 				'option_page_capability_triples_settings_group',

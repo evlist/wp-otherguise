@@ -85,7 +85,7 @@ final class TriplesIntegration {
 			PredicateDefinition::from_array(
 				array(
 					'slug'          => 'modes/mode',
-					'label'         => __( 'In mode', 'modes' ),
+					'label'         => __( 'In mode', 'otherguise' ),
 					'subject_types' => array( 'statement' ),
 					'object_types'  => array( 'mode' ),
 				)

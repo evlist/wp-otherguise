@@ -19,7 +19,7 @@ Namespaces are necessary but not sufficient. The eight rules that keep the split
 1. **One-way dependencies, checked by an automated test** (`deptrac` or equivalent): `Triples` knows nothing, `Modes` sees only `Triples`, `Books` sees only the other two.
 2. **Talk through a public API, not concrete classes.** `Modes` never writes SQL in the `Triples` tables; it goes through interfaces and hooks (for example registering the `mode` entity type).
 3. **Each module owns its data:** creation and migration of its tables, its schema version in its own option, its own cleanup in `uninstall`.
-4. **Names belong to the module, not to the umbrella:** table names (`triples_statements`, not `otherguise_statements`), options, hooks, REST namespace (`triples/v1`), capabilities and text domain. This is the costliest to fix afterwards, because renaming stored data and settings needs a migration.
+4. **Names belong to the module, not to the umbrella:** table names (`triples_statements`, not `otherguise_statements`), options, hooks, REST namespace (`triples/v1`), capabilities (the text domain is the exception: one for the plugin, `otherguise`, as WordPress.org requires). This is the costliest to fix afterwards, because renaming stored data and settings needs a migration.
 5. **A directory layout that lets a module be lifted out:** `plugin/modules/triples/`, `modules/modes/`, `modules/books/`, each with its own sources, tests, translation files and admin scripts.
 6. **Tests per module** that run without loading the other modules (except the ones it depends on). This is the real proof that the separation exists.
 7. **A module loader:** each module has its own bootstrap, and the plugin loads the list of enabled modules.
