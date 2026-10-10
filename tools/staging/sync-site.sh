@@ -32,6 +32,7 @@
 #   PROD_DB_CONTAINER, STAGING_DB_CONTAINER
 #                                       Containers of the database servers, only when the WordPress containers have no mysql client
 #                                       (the official wordpress image has none): the dump and the load are then run in them.
+#   PLUGIN_DIR                          Directory of the plugin under development in wp-content/plugins (for the hint at the end).
 #   WORKDIR                             Where the dump is put (default: a private temporary directory).
 set -euo pipefail
 
@@ -45,6 +46,7 @@ RSYNC=${RSYNC:-rsync}
 EXCLUDES=${EXCLUDES:-}
 PROD_DB_CONTAINER=${PROD_DB_CONTAINER:-}
 STAGING_DB_CONTAINER=${STAGING_DB_CONTAINER:-}
+PLUGIN_DIR=${PLUGIN_DIR:-wp-otherguise}
 
 DRY_RUN=0 YES=0 SKIP_UPLOADS=0 KEEP_DUMP=0 KEEP_CRON=0
 for arg in "$@"; do
@@ -63,7 +65,8 @@ say() { printf '\n== %s\n' "$*"; }
 die() { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
 
 # wp-config.php often defines WP_DEBUG a second time for WP-CLI: the warning is noise, everything else is kept.
-quiet_warnings() { grep -v 'Constant WP_DEBUG already defined' || true; }
+# The notice of WordPress 6.7+ about a plugin that loads its translations too early (webspellchecker, here) is repeated by every command.
+quiet_warnings() { grep -v -e 'Constant WP_DEBUG already defined' -e 'Function _load_textdomain_just_in_time was called' || true; }
 
 # Runs WP-CLI in a container, as the web server's user, without touching the home directory.
 wp_in() {
@@ -235,7 +238,11 @@ staging_host=${STAGING_URL#*://}
 wp_in "$STAGING_CONTAINER" search-replace "$PROD_URL" "$STAGING_URL" --all-tables --skip-columns=guid --report-changed-only
 wp_in "$STAGING_CONTAINER" search-replace "//$prod_host" "//$staging_host" --all-tables --skip-columns=guid --report-changed-only
 leftovers=$(wp_in "$STAGING_CONTAINER" search-replace "$prod_host" "$staging_host" --all-tables --skip-columns=guid --dry-run --format=count)
-echo "Other mentions of $prod_host left in the database (not changed: mail addresses, text...): $leftovers"
+echo "Other mentions of $prod_host left in the database (not changed on purpose: mail addresses, text...): $leftovers"
+if [ "${leftovers:-0}" -gt 0 ]; then
+  echo "Where (table, column, number):"
+  wp_in "$STAGING_CONTAINER" search-replace "$prod_host" "$staging_host" --all-tables --skip-columns=guid --dry-run --report-changed-only --format=table | sed 's/^/  /'
+fi
 
 # --- 5. a safe copy ----------------------------------------------------------------------------------------------------------------
 say "Making the copy safe"
@@ -287,5 +294,7 @@ say "Done"
 wp_in "$STAGING_CONTAINER" option get siteurl
 wp_in "$STAGING_CONTAINER" plugin list --fields=name,status,version
 echo
-echo "Next: activate the plugin under development on the test site (wp plugin activate otherguise), then open $STAGING_URL/wp-admin/."
+echo "Next: activate the plugin under development on the test site:"
+echo "  docker exec -u www-data $STAGING_CONTAINER wp plugin activate $PLUGIN_DIR"
+echo "then open $STAGING_URL/wp-admin/."
 [ "$KEEP_DUMP" -eq 0 ] || echo "The dump was kept: $DUMP_FILE (personal data: delete it when done)."

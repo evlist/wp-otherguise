@@ -45,7 +45,7 @@ Anything that exists **only on the test site** is deleted by the copy (rsync `--
 
 - Nothing is **anonymized**: the copy holds the users, e-mail addresses and comments of production. Keep it private (HTTP authentication, not indexed).
 - **API keys and services** of production plugins (analytics, payment, backup, newsletters) are not disabled one by one; check them in the copy before logging in as a customer would. Disabling cron and mail covers what leaves WordPress by itself, not what a plugin calls from a page view.
-- The plugin under development is not installed: it is in your own volume. Activate it on the copy (`wp plugin activate otherguise`), which also creates its tables.
+- The plugin under development is not installed: it is in your own volume. Activate it on the copy (`docker exec -u www-data <test container> wp plugin activate wp-otherguise`; the directory is `PLUGIN_DIR`), which also creates its tables.
 
 ## Tested
 
