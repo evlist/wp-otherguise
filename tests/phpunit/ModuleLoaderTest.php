@@ -170,6 +170,6 @@ class ModuleLoaderTest extends TestCase {
 		$modules = require dirname( __DIR__, 2 ) . '/plugin/includes/modules.php';
 		$order   = ( new ModuleLoader( array_reverse( $modules ) ) )->order();
 
-		$this->assertSame( array( 'triples', 'modes', 'books' ), $order );
+		$this->assertSame( array( 'triples', 'modes', 'books', 'media' ), $order );
 	}
 }

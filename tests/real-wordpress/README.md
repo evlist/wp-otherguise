@@ -13,6 +13,7 @@ What the PHPUnit suite cannot show, because it runs on stubs: how WordPress core
 | [`link-block/`](link-block/flow.js) | [205](../../docs/slices/205-modes-link-block.md) | The block `modes/link` on the front end (a `single` template that uses it) and in the block editor, in Chromium. |
 | [`stylesheets/`](stylesheets/flow.js) | [207](../../docs/slices/207-modes-stylesheets.md) | The stylesheets of the modes in Chromium: upload from the screen, the front end in each mode, the refusals, removal, disabled modes. |
 | [`default-template/`](default-template/flow.js) | [209](../../docs/slices/209-modes-default-template.md) | The template new posts start with, in Chromium, with the modes disabled: the setting on the screen, a new post, the author's choice, a page, WP-CLI. |
+| [`media-method/`](media-method/run.php) | [210](../../docs/slices/210-media-method.md) | The attachment method of Otherguise through the real Media Helper: `wp eval-file run.php` (attach, read, update, detach, primary parent), and `column.js` (the column "Uploaded to" in Chromium). Needs Media Helper active. |
 | [`apply-variants/`](apply-variants/run.sh) | [203](../../docs/slices/203-modes-apply-variants.md) | The variants applied on the front end of a real site, REST untouched, a classic theme. |
 | [`201-template-hooks/`](201-template-hooks/) | [201](../../docs/slices/201-modes-template-hooks.md) | Four ways of replacing a template or a template part by its variant in a given mode. |
 

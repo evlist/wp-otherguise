@@ -15,5 +15,6 @@ defined( 'ABSPATH' ) || exit;
 return array(
 	new \Otherguise\Triples\Module(),
 	new \Otherguise\Modes\Module(),
+	new \Otherguise\Media\Module(),
 	new \Otherguise\Books\Module(),
 );

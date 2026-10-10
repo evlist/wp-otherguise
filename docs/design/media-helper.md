@@ -111,3 +111,7 @@ What a `Method` of Otherguise can now rely on:
 - **Not done there:** choosing the modes in the same step as attaching (attach uses the defaults, changed afterwards with *Edit link…*), and fields in bulk.
 
 The module `media` of Otherguise can now be written against all of this; expect adjustments when it connects to the real thing.
+
+### The module `media` is written (slice 210, 2026-10-10)
+
+See [slice 210](../slices/210-media-method.md): the method `otherguise`, tried with the real Media Helper on a scratch site (27 checks and the column of the media library), not yet through its panel. Still to do: the WP-CLI migration of `wpdfh.print`, the change of Eric's two blocks (`wp_media_helper_get_attached_media()`), and a try of the panel with this method on a copy of Eric's site.

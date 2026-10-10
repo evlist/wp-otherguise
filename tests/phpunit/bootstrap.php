@@ -705,3 +705,36 @@ if ( ! function_exists( 'size_format' ) ) {
         return $bytes . ' B';
     }
 }
+
+if ( ! class_exists( 'WP_Error' ) ) {
+    /**
+     * Minimal stand-in for WP_Error.
+     */
+    class WP_Error {
+        /**
+         * Code.
+         *
+         * @var string
+         */
+        private $code;
+
+        /**
+         * Builds the error.
+         *
+         * @param string $code    Code.
+         * @param string $message Message.
+         */
+        public function __construct( $code = '', $message = '' ) {
+            $this->code = $code;
+        }
+
+        /**
+         * Returns the code.
+         *
+         * @return string
+         */
+        public function get_error_code() {
+            return $this->code;
+        }
+    }
+}
