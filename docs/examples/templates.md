@@ -5,8 +5,10 @@
 
 The two templates of a blog post as they are used today on Eric's site (Twenty Twenty-Five theme), copied unchanged:
 
-- [`single-post-template.html`](single-post-template.html): the **web** version (the template `single`);
-- [`single-post-template-print.html`](single-post-template-print.html): the **print** version (the template `single-print`, selected today by the `?print` hack).
+- [`single-post-template.html`](single-post-template.html): the **web** version, the custom template **`publication-randonnee`** ("publication de randonnée");
+- [`single-post-template-print.html`](single-post-template-print.html): the **print** version, the custom template **`publication-randonnee-print`**, selected today by the `?print` hack.
+
+Both are templates of the database (created in the site editor, theme `twentytwentyfive`). Both started as a copy of the standard template `single` of the theme, which Eric left untouched for fear that a theme update would overwrite a modification (see [the question of updates](#modifying-single-or-using-custom-templates) below). The files keep the names `single-post-template*` for what they are: the template of a single post. The slugs of the site are the ones above.
 
 This page describes what they contain and where they differ, because those differences are exactly what the plugin has to express: **the same post, presented by two templates**. How the plugin ties them together is at the end.
 
@@ -14,7 +16,7 @@ What is read from the files is stated as such; what is inferred (the purpose of 
 
 ## The same post, two pages
 
-| | Web (`single`) | Print (`-print`) |
+| | Web (`publication-randonnee`) | Print (`publication-randonnee-print`) |
 |---|---|---|
 | Header | part `header-large-title` | part `header` (the theme's standard one) |
 | Title | `post-title`, alone, above the image | `post-title` and the date on **one line**: *Title (12 mars 2026)*, in a small grey flex group (`title-date-line`) |
@@ -104,11 +106,25 @@ The plugin makes explicit what the hack does by naming convention and a query-st
 
 | Today (the hack) | With the plugin |
 |---|---|
-| `?print` in the query string selects the `-print` template by name. | `?mode=print` (and the alias `?print`, so existing links keep working) selects the **mode**; the **relation** "`single` has the variant `single-print` in the mode `print`" is stored as a statement (Triples), declared on the screen **Tools → Modes**. |
+| `?print` in the query string selects the `-print` template by name. | `?mode=print` (and the alias `?print`, so existing links keep working) selects the **mode**; the **relation** "`publication-randonnee` has the variant `publication-randonnee-print` in the mode `print`" is stored as a statement (Triples), declared on the screen **Tools → Modes**. |
 | The header of the print version is chosen by the template itself. | The same screen declares the **part variant**: `header-large-title` has the variant `header` in the mode `print`. |
 | A link in `wp:html`, with JavaScript, to reach the print version. | The block `modes/link` (target mode as a parameter), rendered by the server, hidden when the target is the current mode. |
 | One more page type (a page, an archive, a category) needs a new hack. | One more relation. Other modes (a book, a video) are other values of the same parameter. |
 | Nothing says which template belongs to which. | The relations are queryable and shown (`modes/has-variant`, `modes/has-part-variant`), and a template deleted behind the screen's back is flagged as missing. |
+
+## Modifying `single` or using custom templates
+
+A template of a theme comes from a file (`templates/single.html`). When it is edited in the site editor, WordPress does not change the file: it saves the modification as a `wp_template` post in the database, tied to the theme, and uses it instead of the file. Two consequences, from how WordPress works (not tried on Eric's site):
+
+- A **theme update does not overwrite** a modified `single`: it replaces the files, and the database copy keeps winning. "Reset" in the editor deletes the copy and goes back to the file. A custom template such as `publication-randonnee` is stored the same way, so it has no more protection than a modified `single`.
+- The price of modifying `single` is the reverse: later improvements of the theme's `single.html` are no longer seen, as for any copy. Templates are tied to the theme that is active (its stylesheet): after a change of theme, or with a child theme, the copies have to be made again. Back up the database before big changes.
+
+Neither choice matters to the plugin: a variant is any template of the active theme, so it can be `single`, a custom template or a template of a custom post type.
+
+- With a **modified `single`**, every post uses it, no per-post choice is needed and there is only one relation to declare (`single` has the variant `single-print`), but all posts get the same layout.
+- With **custom templates** chosen in the "Template" setting of a post (as today), only the posts that choose it get the hike layout, and the relation is declared on those two templates.
+
+The case of the custom template chosen per post has been **tried on a real WordPress 7.1.3** with scratch templates: a post whose template is a custom one shows it, shows the variant under `?print` and `?mode=print`, and nothing changes without them.
 
 ## Open ideas, not decided
 
