@@ -3,7 +3,7 @@
 
 # Slice 206 — Modes: edit the variants in place and save with a button
 
-Status: **planned**, to confirm with Eric before any code. Dependencies: slices 202 (variants), 204 (the screen). Module: `Modes`.
+Status: **planned, not a priority** (Eric: these parameters are rarely changed); to confirm before any code. Dependencies: slices 202 (variants), 204 (the screen). Module: `Modes`.
 
 ## Goal
 
@@ -21,7 +21,7 @@ One `admin_post` request per click: *declare*, *Withdraw from a mode*, *Remove*.
 **One form per screen, one button "Save changes".** Nothing is written until the button is pressed.
 
 - Each existing relation is a row with:
-  - the **template** (fixed text: it is the identity of the row);
+  - the **template**, a list like the variant: for the user a row says "replace this template by that one", and a wrong choice must be correctable. Technically the identity of the relation is the pair (template, variant), so each row carries a hidden **original** pair and a change of template or of variant is the withdrawal of the original relation and the declaration of the new one;
   - the **variant**, a list of the templates of the theme (an editable choice);
   - the **modes**, one checkbox per mode other than the default one (a variant of the default mode is allowed, as today: every mode is offered, each with its checkbox);
   - a **Remove** checkbox, which marks the row for deletion (the row is struck through by a few lines of CSS only when JavaScript is present; the box works without it).
@@ -38,7 +38,7 @@ The server receives the whole desired state of the rows, **never trusts** it, an
 3. computes the **difference** with what is stored and applies it with `Variants::declare()`, `withdraw()` and `remove()` inside **one Triples transaction**: everything is saved or nothing is, and the screen shows the rows with the messages;
 4. refuses a form built on an **old state** (a token of what was stored when the form was printed, from `last_changed` of the statements): "The relations changed since this page was opened; reload and redo your changes." Without it, a stale page would delete what another administrator added.
 
-A row whose variant is changed is a withdrawal of the old relation and a declaration of the new one; a row whose modes are all unticked is a removal. The notice says how many relations were declared, changed and removed, or why nothing was saved.
+A row whose template or variant is changed is a withdrawal of the original relation and a declaration of the new one; a row whose modes are all unticked is a removal. The notice says how many relations were declared, changed and removed, or why nothing was saved.
 
 ### Not changed
 
@@ -57,7 +57,7 @@ Large numbers of rows, keyboard use of the rows, other browsers, multisite.
 ## To confirm
 
 1. One **Save changes** button for both tables, nothing written before it.
-2. The template of a row is fixed (to change it, remove the row and add another); the variant and the modes are editable.
+2. The template, the variant and the modes of a row are all editable (decided by Eric).
 3. The default mode appears among the checkboxes like the others.
 4. A stale page is refused with a message, not merged.
 5. All or nothing: one invalid row stops the whole save.
