@@ -28,7 +28,9 @@ Numbering: `0xx` foundation, `1xx` Triples, `2xx` Modes, `3xx` Books.
 
 ## Planned
 
-None at the moment.
+| Slice | Title |
+|---|---|
+| [208](208-modes-plugin-contract.md) | Modes: the contract for other plugins — filters and per-mode options (to confirm) |
 
 ## Candidates (not planned yet)
 
