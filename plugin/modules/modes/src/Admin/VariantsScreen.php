@@ -231,10 +231,22 @@ final class VariantsScreen {
 		$this->select( 'source', $templates );
 		echo '</label><label style="display:inline-block;margin:0 1em .5em 0">' . esc_html__( 'has the variant', 'otherguise' ) . ' ';
 		$this->select( 'variant', $templates );
-		echo '</label><label style="display:inline-block;margin:0 1em .5em 0">' . esc_html__( 'in the mode', 'otherguise' ) . ' <select name="mode">';
+		echo '</label><label style="display:inline-block;margin:0 1em .5em 0">' . esc_html__( 'in the mode', 'otherguise' ) . ' <select name="mode" required>';
 
-		foreach ( $this->modes->all() as $mode ) {
-			echo '<option value="' . esc_attr( $mode->slug() ) . '">' . esc_html( $mode->label() ) . '</option>';
+		// The default mode is the least likely to be chosen: the first of the others is selected, unless there is no other.
+		$modes    = $this->modes->all();
+		$default  = $this->modes->default_mode()->slug();
+		$selected = (string) key( $modes );
+
+		foreach ( $modes as $slug => $mode ) {
+			if ( $slug !== $default ) {
+				$selected = (string) $slug;
+				break;
+			}
+		}
+
+		foreach ( $modes as $slug => $mode ) {
+			echo '<option value="' . esc_attr( $mode->slug() ) . '"' . ( (string) $slug === $selected ? ' selected="selected"' : '' ) . '>' . esc_html( $mode->label() ) . '</option>';
 		}
 
 		echo '</select></label><input type="submit" class="button button-primary" value="' . esc_attr__( 'Add', 'otherguise' ) . '" /></form>';
@@ -248,7 +260,8 @@ final class VariantsScreen {
 	 * @return void
 	 */
 	private function select( $name, array $templates ) {
-		echo '<select name="' . esc_attr( $name ) . '">';
+		echo '<select name="' . esc_attr( $name ) . '" required>';
+		echo '<option value="">' . esc_html__( '— Select —', 'otherguise' ) . '</option>';
 
 		foreach ( $templates as $id => $label ) {
 			echo '<option value="' . esc_attr( $id ) . '">' . esc_html( $label ) . '</option>';

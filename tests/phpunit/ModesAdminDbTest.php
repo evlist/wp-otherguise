@@ -291,6 +291,11 @@ class ModesAdminDbTest extends Otherguise_Test_Database_Case {
 		$this->assertStringContainsString( 'name="action" value="modes_declare"', $html );
 		$this->assertStringContainsString( '<option value="twentytwentyfive//page-print">Title of page-print (page-print)</option>', $html );
 		$this->assertStringContainsString( '<option value="twentytwentyfive//header-print">header-print</option>', $html );
+		// The forms start on a neutral choice, and the mode on the first mode that is not the default one.
+		$this->assertSame( 2, substr_count( $html, '<select name="source" required><option value="">— Select —</option>' ) );
+		$this->assertSame( 2, substr_count( $html, '<select name="variant" required><option value="">— Select —</option>' ) );
+		$this->assertSame( 2, substr_count( $html, '<option value="print" selected="selected">Print</option>' ) );
+		$this->assertSame( 0, substr_count( $html, '<option value="web" selected="selected">' ) );
 		$this->assertStringContainsString( '&lt;script&gt;alert(1)&lt;/script&gt;', $html );
 		$this->assertStringNotContainsString( '<script>', $html );
 		$this->assertSame( 1, substr_count( $html, '>Template parts<' ) );
