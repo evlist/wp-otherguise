@@ -18,7 +18,7 @@ defined( 'ABSPATH' ) || exit;
  * When they are not, the site behaves as if the module did not change anything: `?mode=` and aliases such as `?print` are ignored, the
  * request is in the default mode, no variant is applied to the templates or the template parts, and the body gets no mode class. The
  * data (the modes, the variants) and the administration screen stay, so that the modes can be set up and enabled again. They are
- * enabled by default.
+ * **disabled by default**: they do nothing until variants or stylesheets are declared, so an administrator enables them on purpose.
  */
 final class Settings {
 	/**
@@ -39,7 +39,7 @@ final class Settings {
 	public function is_enabled() {
 		$settings = get_option( self::OPTION, array() );
 
-		return ! is_array( $settings ) || ! array_key_exists( self::ENABLED, $settings ) || (bool) $settings[ self::ENABLED ];
+		return is_array( $settings ) && ! empty( $settings[ self::ENABLED ] );
 	}
 
 	/**

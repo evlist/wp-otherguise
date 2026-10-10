@@ -25,6 +25,16 @@ use PHPUnit\Framework\TestCase;
 class ModesLinkTest extends TestCase {
 
 	/**
+	 * The modes are disabled by default: these tests need them.
+	 *
+	 * @return void
+	 */
+	protected function setUp(): void {
+		update_option( \Otherguise\Modes\Settings\Settings::OPTION, array( 'enabled' => true ) );
+	}
+
+
+	/**
 	 * Cleans the options.
 	 *
 	 * @return void

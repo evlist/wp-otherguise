@@ -85,7 +85,7 @@ final class SettingsPanel {
 		$name    = Settings::OPTION . '[' . Settings::ENABLED . ']';
 
 		if ( ! $enabled ) {
-			echo '<div class="notice notice-warning inline"><p>' . esc_html__( 'The modes are disabled: the site ignores ?mode= and ?print, shows the normal templates and adds no mode class to the page. The variants below are kept.', 'otherguise' ) . '</p></div>';
+			echo '<div class="notice notice-warning inline"><p>' . esc_html__( 'The modes are disabled (they are until you enable them): the site ignores ?mode= and ?print, shows the normal templates and adds no mode class to the page. The variants and stylesheets declared below are kept, and have no effect until you enable the modes.', 'otherguise' ) . '</p></div>';
 		}
 
 		echo '<form method="post" action="' . esc_url( $this->environment->admin_url( 'options.php' ) ) . '">';

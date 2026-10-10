@@ -40,6 +40,8 @@ trap cleanup EXIT
 
 echo "WordPress $(w core version), theme $THEME"
 w eval-file "$HERE/setup.php" create
+# The modes are disabled until they are enabled.
+w option update modes_settings '{"enabled":true}' --format=json >/dev/null
 
 echo "--- Templates: the variant of single in print mode"
 body=$(get "p=$POST"); absent "$body" 'OG203-SINGLE-PRINT'; check "default mode: the normal template" $?
@@ -108,6 +110,8 @@ w theme activate "$THEME" >/dev/null
 
 echo "--- The relations of another theme do not apply after a switch of theme"
 body=$(get "p=$POST&print"); absent "$body" 'OG203-CLASSIC'; check "back on the block theme: no trace of the classic theme" $?
+
+w option delete modes_settings >/dev/null 2>&1
 
 echo
 echo "$PASS passed, $FAIL failed"

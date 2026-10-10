@@ -26,12 +26,23 @@ require_once __DIR__ . '/support/class-otherguise-test-wpdb.php';
 class ModesModuleTest extends TestCase {
 
 	/**
+	 * The modes are disabled by default: these tests need them.
+	 *
+	 * @return void
+	 */
+	protected function setUp(): void {
+		update_option( \Otherguise\Modes\Settings\Settings::OPTION, array( 'enabled' => true ) );
+	}
+
+
+	/**
 	 * Forgets the loader.
 	 *
 	 * @return void
 	 */
 	protected function tearDown(): void {
 		Modules::set( null );
+		otherguise_test_reset();
 	}
 
 	/**

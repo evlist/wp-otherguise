@@ -21,7 +21,7 @@ One page, no JavaScript:
 
 ## Enabling and disabling the modes
 
-At the top of the screen, a checkbox **Enable the modes on this site** (saved through the Settings API, option `modes_settings`, key `enabled`; enabled by default; [screenshot](../screenshots/204-modes-disabled.png)). When it is off:
+At the top of the screen, a checkbox **Enable the modes on this site** (saved through the Settings API, option `modes_settings`, key `enabled`; **disabled by default since the change below**; [screenshot](../screenshots/204-modes-disabled.png)). When it is off:
 
 - the query string is not read: `?mode=` and aliases such as `?print` are ignored and every request is in the default mode (`modes_active_mode()` answers with it);
 - no variant is applied to templates or template parts, and the body gets no `modes-mode-…` class;
@@ -58,7 +58,7 @@ Other browsers, narrow screens, keyboard use and contrast; multisite; child them
 
 ## To confirm
 
-0. The setting that enables the modes: on by default, one checkbox on the screen, the data kept while it is off.
+0. The setting that enables the modes: ~~on by default~~ **off by default** (changed after Eric's tests on a copy of his site: the modes do nothing until something is declared), one checkbox on the screen, the data kept while it is off.
 1. The screen is **Settings → Otherguise modes**, one page with the modes, two tables and two forms, no JavaScript.
 2. Capability `edit_theme_options` with the filter `modes_admin_capability`.
 3. No confirmation page for withdrawing a mode or removing a relation.
@@ -66,3 +66,5 @@ Other browsers, narrow screens, keyboard use and contrast; multisite; child them
 5. A relation to a missing template is shown and removable, not hidden.
 
 > **Later change (menus):** the entries are named after the plugin so that an administrator who has just installed it can find them: **Tools → Otherguise relations** and, since the modes screen is mostly a setting, **Settings → Otherguise modes** (`options-general.php?page=modes`). The page slugs are unchanged. The screenshots above show the earlier titles.
+
+> **Later change (disabled by default):** the modes are **off** until an administrator ticks the box. An absent or unreadable setting means disabled. The screen says so at the top, with the box, and adds that the variants and stylesheets declared below have no effect until the modes are enabled (which is also the warning after declaring a variant while they are off). The real-site scripts enable them first.

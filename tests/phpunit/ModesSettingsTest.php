@@ -21,6 +21,15 @@ use PHPUnit\Framework\TestCase;
 class ModesSettingsTest extends TestCase {
 
 	/**
+	 * Starts without any option, whatever the other tests left.
+	 *
+	 * @return void
+	 */
+	protected function setUp(): void {
+		otherguise_test_reset();
+	}
+
+	/**
 	 * Cleans the options.
 	 *
 	 * @return void
@@ -40,20 +49,32 @@ class ModesSettingsTest extends TestCase {
 	}
 
 	/**
-	 * The modes are enabled by default, and when the option has no such key.
+	 * The modes are disabled by default (they do nothing until something is declared), when the option has no such key, and when it is garbage.
 	 *
 	 * @return void
 	 */
-	public function test_enabled_by_default(): void {
+	public function test_disabled_by_default(): void {
 		$settings = new Settings();
 
-		$this->assertTrue( $settings->is_enabled() );
+		$this->assertFalse( $settings->is_enabled() );
 
 		update_option( Settings::OPTION, array( 'other' => 1 ) );
-		$this->assertTrue( $settings->is_enabled() );
+		$this->assertFalse( $settings->is_enabled() );
 
 		update_option( Settings::OPTION, 'garbage' );
-		$this->assertTrue( $settings->is_enabled() );
+		$this->assertFalse( $settings->is_enabled() );
+	}
+
+	/**
+	 * Without the setting, the module ignores the query string.
+	 *
+	 * @return void
+	 */
+	public function test_the_module_by_default(): void {
+		$module = $this->module( array( 'print' => '' ) );
+
+		$this->assertSame( 'web', $module->active()->mode()->slug() );
+		$this->assertSame( array(), $module->body_class( array() ) );
 	}
 
 	/**
@@ -113,6 +134,8 @@ class ModesSettingsTest extends TestCase {
 	 * @return void
 	 */
 	public function test_the_module_when_enabled(): void {
+		update_option( Settings::OPTION, array( Settings::ENABLED => true ) );
+
 		$module = $this->module( array( 'print' => '' ) );
 
 		$this->assertSame( 'print', $module->active()->mode()->slug() );

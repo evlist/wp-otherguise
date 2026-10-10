@@ -16,6 +16,7 @@ const check = (label, ok, detail = '') => { (ok ? pass++ : fail++); console.log(
 
 (async () => {
   const out = wp('eval-file ' + SETUP + ' create');
+  wp('option update modes_settings \'{"enabled":true}\' --format=json');
   const id = out.match(/post (\d+)/)[1];
   const links = (html) => (html.match(/<a [^>]*class="[^"]*wp-block-modes-link[^"]*"[^>]*>/g) || []);
   try {
@@ -37,7 +38,7 @@ const check = (label, ok, detail = '') => { (ok ? pass++ : fail++); console.log(
     // Modes disabled: no link at all.
     wp('option update modes_settings \'{"enabled":0}\' --format=json');
     h = front('?p=' + id); check('modes disabled: no link', links(h).length === 0);
-    wp('option delete modes_settings');
+    wp('option update modes_settings \'{"enabled":true}\' --format=json');
     h = front('?p=' + id); check('modes enabled again: the link is back', links(h).length === 1);
     check('modes_url() on the site', wp('eval \'echo modes_url("print", "https://e.org/p/?print=1#a") . " " . modes_url("web", "https://e.org/p/?mode=print") . " [" . modes_url("nope", "https://e.org/") . "]";\'') === 'https://e.org/p/?mode=print#a https://e.org/p/ []');
 

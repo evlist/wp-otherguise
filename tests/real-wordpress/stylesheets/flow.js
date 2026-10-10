@@ -30,7 +30,7 @@ const statements = () => parseInt(wp('eval \'echo count(triples_statements()->ma
   fs.writeFileSync(big, '/*' + 'x'.repeat(600 * 1024) + '*/\n');
 
   const post = wp('post create --post_status=publish --post_title="og207 post" --post_content=x --porcelain');
-  wp('option delete modes_settings');
+  wp('option update modes_settings \'{"enabled":true}\' --format=json');
   const before = parseInt(cssCount(), 10);
   const browser = await chromium.launch(process.env.CHROMIUM ? { executablePath: process.env.CHROMIUM } : {});
   const page = await (await browser.newContext({ viewport: { width: 1280, height: 900 } })).newPage();
@@ -102,7 +102,7 @@ const statements = () => parseInt(wp('eval \'echo count(triples_statements()->ma
     // Disabled modes.
     wp('option update modes_settings \'{"enabled":0}\' --format=json');
     check('modes disabled: no stylesheet', links(front(`p=${post}&print`)).length === 0);
-    wp('option delete modes_settings');
+    wp('option update modes_settings \'{"enabled":true}\' --format=json');
     check('modes enabled again: back', links(front(`p=${post}&print`)).length === 1);
 
     // The file deleted behind the screen's back.

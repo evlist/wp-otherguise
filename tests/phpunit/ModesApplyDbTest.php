@@ -23,6 +23,17 @@ require_once __DIR__ . '/support/class-otherguise-test-modes-site.php';
 class ModesApplyDbTest extends Otherguise_Test_Database_Case {
 
 	/**
+	 * The modes are disabled by default: these tests need them.
+	 *
+	 * @return void
+	 */
+	protected function setUp(): void {
+		parent::setUp();
+		update_option( \Otherguise\Modes\Settings\Settings::OPTION, array( 'enabled' => true ) );
+	}
+
+
+	/**
 	 * Builds a site whose request has a query string, with the templates and relations of the examples.
 	 *
 	 * @param array $query Query string.

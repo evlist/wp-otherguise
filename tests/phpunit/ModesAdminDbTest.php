@@ -67,6 +67,7 @@ class ModesAdminDbTest extends Otherguise_Test_Database_Case {
 	 */
 	protected function setUp(): void {
 		parent::setUp();
+		update_option( \Otherguise\Modes\Settings\Settings::OPTION, array( 'enabled' => true ) );
 
 		$this->site = new Otherguise_Test_Modes_Site( $this->wpdb );
 

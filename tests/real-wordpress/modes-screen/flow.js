@@ -48,6 +48,13 @@ const check = (label, ok, detail = '') => { (ok ? pass++ : fail++); console.log(
   check('the menu entry is under Settings', (await page.locator('#adminmenu a[href*="page=modes"]').count()) === 1);
   check('nothing declared yet', t.includes('No variant declared.'));
 
+  // The modes are disabled until the administrator enables them: the screen says so, and the box enables them.
+  const firstForm = page.locator('form[action$="options.php"]');
+  check('disabled by default: the box is unchecked and the warning is shown', !(await firstForm.locator('input[name="modes_settings[enabled]"]').isChecked()) && t.includes('The modes are disabled (they are until you enable them)') && t.includes('have no effect until you enable the modes'));
+  await firstForm.locator('input[name="modes_settings[enabled]"]').check();
+  await Promise.all([page.waitForNavigation(), firstForm.locator('input[type=submit]').click()]);
+  check('enabled from the screen: the warning is gone', !(await body()).includes('The modes are disabled') && wp('option get modes_settings --format=json').includes('"enabled":true'));
+
   // 2. Declare a variant of a template, in print mode
   await add('template', `${theme}//single`, `${theme}//og204-single-print`, 'print');
   await phpErrors('after declare'); await shot('21-declared');
@@ -78,7 +85,7 @@ const check = (label, ok, detail = '') => { (ok ? pass++ : fail++); console.log(
   // 5b. Disable and enable the modes
   const settingsForm = page.locator('form[action$="options.php"]');
   await page.goto(BASE + '/wp-admin/options-general.php?page=modes');
-  check('the setting is on the page, checked by default', (await settingsForm.locator('input[name="modes_settings[enabled]"]').isChecked()));
+  check('the setting is on the page, checked once enabled', (await settingsForm.locator('input[name="modes_settings[enabled]"]').isChecked()));
   await settingsForm.locator('input[name="modes_settings[enabled]"]').uncheck();
   await Promise.all([page.waitForNavigation(), settingsForm.locator('input[type=submit]').click()]);
   await phpErrors('after saving the setting'); await shot('25-disabled');
@@ -93,7 +100,6 @@ const check = (label, ok, detail = '') => { (ok ? pass++ : fail++); console.log(
   check('enabled again: saved and the warning is gone', wp('option get modes_settings --format=json').includes('"enabled":true') && !(await body()).includes('The modes are disabled'));
   const on = front(`p=${post}&print`);
   check('enabled again: the variant and the class are back at once', on.includes('OG204-SINGLE-PRINT') && on.includes('modes-mode-print'));
-  wp('option delete modes_settings >/dev/null 2>&1; true');
 
   // 6. A template that disappears
   wp('eval \'foreach ( get_posts( array( "post_type" => "wp_template", "name" => "og204-single-print", "numberposts" => 1 ) ) as $p ) { wp_delete_post( $p->ID, true ); }\'');
