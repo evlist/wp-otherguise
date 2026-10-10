@@ -14,12 +14,14 @@
 #
 # It never writes to the production site: it only reads its files and dumps its database.
 #
-# Usage: sync-site.sh [--dry-run] [--yes] [--skip-uploads] [--keep-dump] [--keep-cron]
+# Usage: sync-site.sh [--dry-run] [--yes] [--skip-uploads] [--keep-dump] [--keep-cron] [--safety-only]
 #   --dry-run        show the files rsync would change and stop. The only thing written is WP-CLI in the test container, if it is missing.
 #   --yes            do not ask for confirmation.
 #   --skip-uploads   do not copy wp-content/uploads (the test site keeps its own, and gets none of the images, thumbnails included, of
 #                    production). Without it, the uploads are copied.
 #   --keep-dump      keep the SQL dump (it holds personal data: mode 600, in $WORKDIR).
+#   --safety-only    do not copy anything: only apply the last step (the options and the safety plugin of the test site), for instance
+#                    after an update of this script.
 #   --keep-cron      leave WP-Cron enabled on the test site (it is disabled by default: scheduled tasks of the production plugins
 #                    would run on the copy, and may publish, mail or call external services).
 #
@@ -47,8 +49,10 @@ EXCLUDES=${EXCLUDES:-}
 PROD_DB_CONTAINER=${PROD_DB_CONTAINER:-}
 STAGING_DB_CONTAINER=${STAGING_DB_CONTAINER:-}
 PLUGIN_DIR=${PLUGIN_DIR:-wp-otherguise}
+prod_host=${PROD_URL#*://}
+staging_host=${STAGING_URL#*://}
 
-DRY_RUN=0 YES=0 SKIP_UPLOADS=0 KEEP_DUMP=0 KEEP_CRON=0
+DRY_RUN=0 YES=0 SKIP_UPLOADS=0 KEEP_DUMP=0 KEEP_CRON=0 SAFETY_ONLY=0
 for arg in "$@"; do
   case "$arg" in
     --dry-run) DRY_RUN=1 ;;
@@ -56,6 +60,7 @@ for arg in "$@"; do
     --skip-uploads) SKIP_UPLOADS=1 ;;
     --keep-dump) KEEP_DUMP=1 ;;
     --keep-cron) KEEP_CRON=1 ;;
+    --safety-only) SAFETY_ONLY=1 ;;
     -h | --help) sed -n '2,40p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
     *) echo "Unknown option: $arg" >&2; exit 2 ;;
   esac
@@ -156,6 +161,8 @@ if [ "${#mount_excludes[@]}" -gt 0 ]; then
   echo "Mounted in $STAGING_CONTAINER, left alone by rsync: ${mount_excludes[*]}"
 fi
 
+if [ "$SAFETY_ONLY" -eq 0 ]; then
+
 # Bytes that rsync would transfer according to a --stats listing, and the free space of the test volume.
 needed_bytes() { sed -n 's/^Total transferred file size: \([0-9,]*\) bytes.*/\1/p' "$1" | tr -d ','; }
 free_bytes() { df --output=avail -B1 "$STAGING_VOLUME" | tail -n 1 | tr -d ' '; }
@@ -233,8 +240,6 @@ docker exec -i -e MYSQL_PWD="$S_PASS" "$LOAD_CONTAINER" "$LOAD_CMD" --default-ch
 
 # --- 4. addresses ------------------------------------------------------------------------------------------------------------------
 say "Addresses: $PROD_URL -> $STAGING_URL (serialized data handled by WP-CLI, guid left alone)"
-prod_host=${PROD_URL#*://}
-staging_host=${STAGING_URL#*://}
 wp_in "$STAGING_CONTAINER" search-replace "$PROD_URL" "$STAGING_URL" --all-tables --skip-columns=guid --report-changed-only
 wp_in "$STAGING_CONTAINER" search-replace "//$prod_host" "//$staging_host" --all-tables --skip-columns=guid --report-changed-only
 leftovers=$(wp_in "$STAGING_CONTAINER" search-replace "$prod_host" "$staging_host" --all-tables --skip-columns=guid --dry-run --format=count)
@@ -243,6 +248,8 @@ if [ "${leftovers:-0}" -gt 0 ]; then
   echo "Where (table, column, number):"
   wp_in "$STAGING_CONTAINER" search-replace "$prod_host" "$staging_host" --all-tables --skip-columns=guid --dry-run --report-changed-only --format=table | sed 's/^/  /'
 fi
+
+fi # SAFETY_ONLY
 
 # --- 5. a safe copy ----------------------------------------------------------------------------------------------------------------
 say "Making the copy safe"
@@ -272,8 +279,7 @@ add_action(
 		\$bar->add_node(
 			array(
 				'id'    => 'staging-copy',
-				'title' => 'TEST COPY of $prod_host',
-				'href'  => '$PROD_URL',
+				'title' => 'TEST COPY ($staging_host), not $prod_host',
 			)
 		);
 	},

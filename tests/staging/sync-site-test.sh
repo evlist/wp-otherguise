@@ -113,6 +113,12 @@ grep -q "config set DISABLE_WP_CRON true" "$LOG"; check "cron disabled" $?
 grep -q "option update blog_public 0" "$LOG"; check "search engines discouraged" $?
 php -l "$T/stg/wp-content/mu-plugins/staging-safety.php" >/dev/null 2>&1; check "the mu-plugin is valid PHP" $?
 grep -q "https://e.test" "$T/stg/wp-content/mu-plugins/staging-safety.php"; check "the mu-plugin names the production address" $?
+! grep -q "href" "$T/stg/wp-content/mu-plugins/staging-safety.php"; check "the admin bar entry of the mu-plugin is not a link" $?
+grep -q "TEST COPY (sb.test), not e.test" "$T/stg/wp-content/mu-plugins/staging-safety.php"; check "the admin bar names the test site and the production site" $?
+rm -f "$T/stg/wp-content/mu-plugins/staging-safety.php"; : >"$LOG"; run --safety-only >/dev/null 2>&1; rc=$?
+check "--safety-only succeeds" $rc
+! grep -q "^rsync\|docker-dump\|docker-load\|search-replace" "$LOG"; check "--safety-only copies nothing" $?
+[ -f "$T/stg/wp-content/mu-plugins/staging-safety.php" ]; check "--safety-only rewrites the safety plugin" $?
 [ -z "$(ls "$T"/tmp.* 2>/dev/null)" ]; check "no dump left behind" $?
 : >"$LOG"; run --yes --keep-cron >/dev/null 2>&1; ! grep -q "DISABLE_WP_CRON" "$LOG"; check "--keep-cron leaves cron alone" $?
 : >"$LOG"; STAGING_HAS_WP=no run --yes >/dev/null 2>&1; grep -q "docker cp .*stg:/usr/local/bin/wp" "$LOG"; check "WP-CLI copied into the test container when missing" $?

@@ -23,6 +23,14 @@ The script writes nothing else into the volumes from the host: the safety plugin
 
 The defaults are those of Eric's setup (containers `docker-e-vli-st_wordpress_1` and `docker-sb-vli-st_wordpress-sb_1`, volumes `/volumes/e-vli-st/wordpress` and `/volumes/sb-vli-st/wordpress`, addresses `https://e.vli.st` and `https://sb.vli.st`); every one can be changed with an environment variable, listed at the top of the script.
 
+## Re-applying only the safety step
+
+`--safety-only` copies nothing: it only re-applies the last step (the options, the constants and the safety plugin of the test site). Use it after an update of this script, for instance to refresh the "TEST COPY" entry of the admin bar (which is **not a link**: a link to production in the administration of the test site is an invitation to edit the wrong site).
+
+```sh
+tools/staging/sync-site.sh --safety-only --yes
+```
+
 ## Example: leaving a big directory out
 
 On Eric's site 67 GB of the 80 GB are in `wp-content/gallery` (images of the NextGen Gallery plugin, which is to be dropped), and 14 GB in `uploads`. To skip the galleries (the pages that show them will have broken images on the copy, nothing else changes):
