@@ -131,6 +131,10 @@ class MediaMethodDbTest extends Otherguise_Test_Database_Case {
 		$this->assertTrue( $capabilities['multiple_posts'] );
 		$this->assertSame( array( 'modes', 'position' ), array_column( $capabilities['fields'], 'key' ) );
 		$this->assertSame( 'multiselect', $capabilities['fields'][0]['type'] );
+		$this->assertTrue( $capabilities['fields'][0]['filter'], 'The modes filter the panel.' );
+		$this->assertArrayNotHasKey( 'filter_default', $capabilities['fields'][0], 'Unchecked values are left to Media Helper: every mode and none.' );
+		$this->assertSame( 'admin-site', $capabilities['fields'][0]['options'][0]['icon'] );
+		$this->assertStringStartsWith( 'M6 3h12', $capabilities['fields'][0]['options'][1]['icon_svg'] );
 		$this->assertSame( array( 'web', 'print' ), array_column( $capabilities['fields'][0]['options'], 'value' ) );
 		$this->assertSame( array( 'web', 'print' ), $capabilities['fields'][0]['default'] );
 		$this->assertSame( 'integer', $capabilities['fields'][1]['type'] );

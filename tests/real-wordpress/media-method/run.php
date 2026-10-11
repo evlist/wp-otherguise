@@ -52,6 +52,10 @@ $check( 'the method of Otherguise is the one in use once chosen', 'otherguise' =
 $fields = $method->capabilities()['fields'];
 $check( 'it declares the fields modes (every mode written out) and position', array( 'modes', 'position' ) === array_column( $fields, 'key' ) && array( 'web', 'print' ) === $fields[0]['default'], wp_json_encode( $fields[0]['default'] ) );
 
+$normalized = \WP_Media_Helper\Attachment\Fields::normalize( $fields );
+$check( 'Media Helper keeps the filter flag of the modes field', ! empty( $normalized[0]['filter'] ), wp_json_encode( $normalized[0] ) );
+$check( 'Media Helper keeps the pictograms (globe, printer)', 'admin-site' === ( $normalized[0]['options'][0]['icon'] ?? null ) && 0 === strpos( (string) ( $normalized[0]['options'][1]['icon_svg'] ?? '' ), 'M6 3h12' ) );
+
 // Attach.
 $check( 'attach to the first post, with the default modes', true === $method->attach( $img, $one, array( 'modes' => array( 'web', 'print' ), 'position' => null ) ) );
 $check( 'the first post is the primary parent', $one === (int) get_post_field( 'post_parent', $img ) );

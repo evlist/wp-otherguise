@@ -99,9 +99,12 @@ final class MediaHelperMethod implements Method {
 		$options = array();
 
 		foreach ( $this->modes->all() as $mode ) {
-			$options[] = array(
-				'value' => $mode->slug(),
-				'label' => $mode->label(),
+			$options[] = array_merge(
+				array(
+					'value' => $mode->slug(),
+					'label' => $mode->label(),
+				),
+				$this->pictogram( $mode->slug() )
 			);
 		}
 
@@ -112,6 +115,7 @@ final class MediaHelperMethod implements Method {
 					'key'     => 'modes',
 					'label'   => __( 'Shown in the modes', 'otherguise' ),
 					'type'    => 'multiselect',
+					'filter'  => true,
 					'options' => $options,
 					'default' => array_keys( $this->modes->all() ),
 				),
@@ -123,6 +127,30 @@ final class MediaHelperMethod implements Method {
 				),
 			),
 		);
+	}
+
+	/**
+	 * Returns the pictogram of a mode for the panel of Media Helper: `icon` (a Dashicon) or `icon_svg` (the `d` of an SVG path in a 24 x 24
+	 * box), or nothing.
+	 *
+	 * @param string $slug Slug of the mode.
+	 * @return array<string, string>
+	 */
+	private function pictogram( $slug ) {
+		$pictograms = array(
+			'web'   => array( 'icon' => 'admin-site' ),
+			'print' => array( 'icon_svg' => 'M6 3h12v5H6zM3 9h18v8h-3v-3H6v3H3zM8 15h8v6H8z' ),
+		);
+
+		/**
+		 * Filters the pictograms of the modes in the panel of Media Helper.
+		 *
+		 * @param array<string, array<string, string>> $pictograms By slug of mode: `icon` (Dashicon name) or `icon_svg` (`d` of an SVG path).
+		 */
+		$filtered = apply_filters( 'media_mode_pictograms', $pictograms );
+		$filtered = is_array( $filtered ) ? $filtered : $pictograms;
+
+		return isset( $filtered[ $slug ] ) && is_array( $filtered[ $slug ] ) ? $filtered[ $slug ] : array();
 	}
 
 	/**

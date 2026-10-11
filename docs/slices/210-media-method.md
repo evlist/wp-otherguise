@@ -16,6 +16,10 @@ Let a media item be attached to **several posts**, **in the modes the author cho
 - `Media\Method\MediaHelperMethod` implements `WP_Media_Helper\Attachment\Method`: `id` = `otherguise`; `capabilities()` = `multiple_posts` true and two declared fields, **`modes`** (multi-select, the options are the registered modes, the default is **every mode written out**) and **`position`** (integer, empty by default); `describe`, `attach`, `detach`, `update`, `attached`, `posts_of`, `may_remove`.
 - `Media\Method\PostParents`: the only class that reads and writes `post_parent` (the tests put a double in its place).
 
+## The filter by mode in the panel (addition)
+
+Media Helper's step 5 lets a `select` or `multiselect` field filter its panel. The field `modes` declares `'filter' => true` (no `filter_default`: every mode and "None" are checked at first), and each mode option carries a pictogram: a Dashicon for `web` (`admin-site`, a globe), the path `d` of an SVG for `print` (a printer, the same drawing as the `modes/link` block). The filter `media_mode_pictograms` changes them or adds those of other modes. With exactly one mode selected, *Attach* sends it as the value of `modes`. `describe()['data']['modes']` already lists the modes of the link (an empty list is matched by "None"). Verified: PHPUnit (capabilities) and the real Media Helper `8ab96c5` keeps the flag and the pictograms through `Fields::normalize()` (2 more checks in `media-method/run.php`, 29 in all). **Not tried:** the panel in the editor.
+
 ## Rules
 
 - **The reading rule of Triples**: a link with no mode statement is shown in no mode. `attached( $post, array( 'context' => 'print' ) )` returns the links that have the mode `print`, ordered (pinned ranks first, then the order of creation); with no context, or one that is not a registered mode, **every** link of the post (nothing is filtered).
