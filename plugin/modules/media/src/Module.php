@@ -12,9 +12,12 @@ namespace Otherguise\Media;
 
 use Otherguise\Core\ModuleInterface;
 use Otherguise\Core\Modules;
+use Otherguise\Media\Cli\MigrateCommand;
 use Otherguise\Media\Link\Links;
 use Otherguise\Media\Method\MediaHelperMethod;
 use Otherguise\Media\Method\PostParents;
+use Otherguise\Media\Migration\AttachmentSource;
+use Otherguise\Media\Migration\NativeLinksMigration;
 use Otherguise\Triples\Predicate\PredicateDefinition;
 
 defined( 'ABSPATH' ) || exit;
@@ -93,6 +96,32 @@ final class Module implements ModuleInterface {
 	public function boot() {
 		( $this->add_action )( 'triples_register_predicates', array( $this, 'register_predicate' ), 10, 1 );
 		( $this->add_action )( 'wp_media_helper_attachment_methods', array( $this, 'add_method' ), 10, 1 );
+		( $this->add_action )( 'cli_init', array( $this, 'register_command' ), 10, 0 );
+	}
+
+	/**
+	 * Registers the WP-CLI command `wp otherguise media migrate`. Action `cli_init`.
+	 *
+	 * @return void
+	 */
+	public function register_command() {
+		\WP_CLI::add_command( 'otherguise media migrate', new MigrateCommand( array( $this, 'migration' ) ) );
+	}
+
+	/**
+	 * Builds the migration of the native attachments, or returns null when a module it needs is not there.
+	 *
+	 * @return NativeLinksMigration|null
+	 */
+	public function migration() {
+		$triples = Modules::get( 'triples' );
+		$modes   = Modules::get( 'modes' );
+
+		if ( ! $triples instanceof \Otherguise\Triples\Module || ! $modes instanceof \Otherguise\Modes\Module ) {
+			return null;
+		}
+
+		return new NativeLinksMigration( new Links( $triples->statements() ), array_keys( $modes->modes()->all() ), new AttachmentSource() );
 	}
 
 	/**

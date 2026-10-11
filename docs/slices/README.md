@@ -26,6 +26,7 @@ Numbering: `0xx` foundation, `1xx` Triples, `2xx` Modes, `3xx` Books.
 | [205](205-modes-link-block.md) | Modes: the link to another mode (block `modes/link`) |
 | [207](207-modes-stylesheets.md) | Modes: a stylesheet per mode |
 | [210](210-media-method.md) | Media: the attachment method of Otherguise for Media Helper (several posts, modes, ranks) |
+| [211](211-media-migration.md) | Media: migration of the native attachments and of the `wpdfh.print` flag (WP-CLI) |
 | [209](209-modes-default-template.md) | Modes: the default template of new posts (WordPress has no such setting; independent of the modes) |
 | [204](204-modes-admin.md) | Modes: disabled by default (a change of slice 204: see its last note) |
 

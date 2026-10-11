@@ -419,6 +419,7 @@ class MediaMethodDbTest extends Otherguise_Test_Database_Case {
 			array(
 				'triples_register_predicates'       => array( array( 'register_predicate', 10, 1 ) ),
 				'wp_media_helper_attachment_methods' => array( array( 'add_method', 10, 1 ) ),
+				'cli_init'                          => array( array( 'register_command', 10, 0 ) ),
 			),
 			$hooks
 		);

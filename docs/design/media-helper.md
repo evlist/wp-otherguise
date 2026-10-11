@@ -114,4 +114,4 @@ The module `media` of Otherguise can now be written against all of this; expect 
 
 ### The module `media` is written (slice 210, 2026-10-10)
 
-See [slice 210](../slices/210-media-method.md): the method `otherguise`, tried with the real Media Helper on a scratch site (27 checks and the column of the media library), not yet through its panel. Still to do: the WP-CLI migration of `wpdfh.print`, the change of Eric's two blocks (`wp_media_helper_get_attached_media()`), and a try of the panel with this method on a copy of Eric's site.
+See [slice 210](../slices/210-media-method.md): the method `otherguise`, tried with the real Media Helper on a scratch site (27 checks and the column of the media library), not yet through its panel. The WP-CLI migration is [slice 211](../slices/211-media-migration.md). Still to do: the change of Eric's two blocks (`wp_media_helper_get_attached_media()`), and a try of the panel with this method on a copy of Eric's site.
