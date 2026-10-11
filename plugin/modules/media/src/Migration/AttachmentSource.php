@@ -41,7 +41,6 @@ class AttachmentSource {
 				'posts_per_page'      => (int) $limit,
 				'fields'              => 'ids',
 				'no_found_rows'       => true,
-				'suppress_filters'    => true,
 			)
 		);
 		$rows = array();
