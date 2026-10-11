@@ -115,3 +115,7 @@ The module `media` of Otherguise can now be written against all of this; expect 
 ### The module `media` is written (slice 210, 2026-10-10)
 
 See [slice 210](../slices/210-media-method.md): the method `otherguise`, tried with the real Media Helper on a scratch site (27 checks and the column of the media library), not yet through its panel. The WP-CLI migration is [slice 211](../slices/211-media-migration.md). Still to do: the change of Eric's two blocks (`wp_media_helper_get_attached_media()`), and a try of the panel with this method on a copy of Eric's site.
+
+## Cohabitation with the native method (decided by Eric, relayed by the Media Helper session)
+
+Media Helper does the cohabitation itself (its step 7, setting `wp_media_helper_attachment_cohabitation`): a file whose `post_parent` is the post and that the method says is not attached here counts as attached "the WordPress way", and the panel offers to attach or switch with a dialog for the fields (the modes). The method therefore stays strict: `describe()`, `attached()` and `posts_of()` answer from its **own statements only** (no union on the read side; the idea of a slice 212 is dropped). `attach()` keeps `post_parent` as the primary parent; `detach()` moves or clears it, and Media Helper re-attaches natively when needed. The command `wp otherguise media migrate` ([slice 211](../slices/211-media-migration.md)) stays useful for bulk migrations. Not tried with a real panel yet.
