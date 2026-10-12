@@ -128,10 +128,12 @@ case "$COMMAND" in
 status)
   say "Rollout status of the $SITE site ($CONTAINER)"
   fetch_all soft
+  width=10
+  for name in "${NAMES[@]}"; do [ "${#name}" -le "$width" ] || width=${#name}; done
   for i in "${!DIRS[@]}"; do
     tags=$(g "$i" tag --points-at HEAD --list 'rollout-*' | paste -sd, -)
     upstream=$(g "$i" rev-list --left-right --count "HEAD...origin/$(default_branch "$i")" 2>/dev/null | awk '{print "ahead " $1 ", behind " $2 " of origin"}' || true)
-    printf '%-24s %-18s %s  tags: %s  %s%s\n' "${NAMES[$i]}" "$(current "$i")" "$(g "$i" rev-parse --short HEAD)" "${tags:-none}" "${upstream:-no origin branch}" \
+    printf '%-*s  %-12s %s  tags: %s  %s%s\n' "$width" "${NAMES[$i]}" "$(current "$i")" "$(g "$i" rev-parse --short HEAD)" "${tags:-none}" "${upstream:-no origin branch}" \
       "$(dirty "$i" && echo '  LOCAL CHANGES' || true)"
   done
   ;;
