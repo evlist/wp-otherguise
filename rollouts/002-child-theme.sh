@@ -59,7 +59,21 @@ if [ "$(wp theme list --status=active --field=name 2>/dev/null)" = "$THEME" ]; t
 else
   step "Activate the theme $THEME" wp theme activate "$THEME"
 fi
-validate "AFTER THE THEME SWITCH, before anything else. $COMPARE What differs now comes from the switch itself: the usual suspects are the global styles of the site editor (fonts, colours, spacing: they are attached to the theme), the header, the missing footer and the lists of posts (the reusable block). Note what is different."
+validate "AFTER THE THEME SWITCH, before anything else. $COMPARE What differs now comes from the switch itself. Expected: the fonts (and perhaps the colours), which are global styles of the site editor, attached to the theme; they come back with the next step. Anything else (the header, the missing footer, the lists of posts) is a problem. Note what is different. Without a terminal: tools/staging/compare-sites.sh shows the fonts."
+
+# The global styles of the site editor (the fonts, the colours chosen there) are stored per theme: the child theme starts without them.
+GLOBAL_STYLES='$slug = "wp-global-styles-" . urlencode( $theme );
+$find = static function ( $name, $theme ) { return get_posts( array( "post_type" => "wp_global_styles", "name" => $name, "post_status" => array( "publish", "draft" ), "numberposts" => 1, "tax_query" => array( array( "taxonomy" => "wp_theme", "field" => "name", "terms" => $theme ) ) ) ); };
+$from = $find( "wp-global-styles-" . urlencode( $parent ), $parent );
+if ( array() !== $find( $slug, $theme ) ) { echo "the child theme has its own global styles already"; return; }
+if ( array() === $from ) { echo "nothing to copy: $parent has no global styles"; return; }
+$id = wp_insert_post( array( "post_type" => "wp_global_styles", "post_status" => "publish", "post_title" => "Custom Styles", "post_name" => $slug, "post_content" => $from[0]->post_content ) );
+if ( ! $id || is_wp_error( $id ) ) { echo "FAILED"; return; }
+wp_set_object_terms( $id, $theme, "wp_theme" );
+echo "copied from post " . $from[0]->ID . " to post " . $id;'
+step "Give the global styles of $PARENT to $THEME (fonts and colours chosen in the site editor)" wp eval "\$theme = '$THEME'; \$parent = '$PARENT'; $GLOBAL_STYLES"
+check_output "the child theme has global styles of its own" "yes" wp eval "\$p = get_posts( array( 'post_type' => 'wp_global_styles', 'name' => 'wp-global-styles-' . urlencode( '$THEME' ), 'post_status' => array( 'publish', 'draft' ), 'numberposts' => 1 ) ); echo \$p ? 'yes' : 'no';"
+validate "AFTER THE GLOBAL STYLES WERE GIVEN TO THE CHILD THEME. $COMPARE The fonts and the colours must be those of $OTHER again (without this step, Twenty Twenty-Five's default fonts, Manrope, replace the ones chosen in the site editor). Note what is still different."
 
 step "Move the variants of the modes from $PARENT to $THEME" wp otherguise modes variant retheme "$PARENT" "$THEME"
 validate "AFTER THE VARIANTS MOVED. Open ?mode=print (and ?print) on a post of each of the three kinds on $HOME_URL and on $OTHER_URL ($OTHER): the print version must be there, the same. Note what is different."
@@ -87,6 +101,4 @@ note "The global styles of the site editor, after" wp post list --post_type=wp_g
 
 validate "AT THE END. $COMPARE They must look the same. Whatever you noted after one of the steps above and that is still different is what the rollout has changed."
 validate "The PHP error log has nothing new (wp-content/debug.log)."
-manual "If the fonts or the colours of the site changed (you noted it after the theme switch): the global styles saved in the site editor were attached to $PARENT and did not follow. Go back (wp theme activate $PARENT, then wp otherguise modes variant retheme $THEME $PARENT) and tell Claude: the content of the global styles post has to be given to the new theme. If nothing changed, there is nothing to do." "the pages look the same as before."
-
 rollout_end

@@ -50,6 +50,8 @@ args="$*"
 echo "wp[$container] $args" >>"$LOG"
 case "$args" in
   "theme is-installed"*) exit "${STUB_NOT_INSTALLED:-0}" ;;
+  "eval "*"wp-global-styles-"*"copied from post"*) echo "${STUB_GS:-copied from post 1 to post 2}" ;;
+  "eval "*"wp_global_styles"*"echo \$p ?"*) echo "${STUB_GS_CHILD:-yes}" ;;
   "eval "*"lettrine"*) echo "${STUB_CSS_IN_THEME:-yes}" ;;
   "eval "*"wp_style_is"*) echo "${STUB_STYLE_ENQUEUED:-yes}" ;;
   "eval "*) echo "${STUB_THEME_EVAL:-ok}" ;;
@@ -71,7 +73,7 @@ export PATH="$T/bin:$PATH"
 
 run() { bash "$SCRIPT" "$@"; }
 answers() { printf '%s\n' "$@" >"$T/answers"; export ROLLOUT_TTY="$T/answers"; }
-reset() { : >"$LOG"; echo twentytwentyfive >"$T/active"; echo "template twentytwentyfive//a twentytwentyfive//b print" >"$T/variants"; unset STUB_BLOCK STUB_NOT_INSTALLED STUB_EXIT_ROLLOUT STUB_EXIT_TEMPLATES STUB_EXIT_VERIFY STUB_THEME_EVAL STUB_CSS_IN_THEME STUB_STYLE_ENQUEUED STUB_PLUGIN_INACTIVE STUB_SNIPPETS; printf 'wp-otherguise\taaa\nwp-theme\tbbb\n' >"$T/state_out"; }
+reset() { : >"$LOG"; echo twentytwentyfive >"$T/active"; echo "template twentytwentyfive//a twentytwentyfive//b print" >"$T/variants"; unset STUB_BLOCK STUB_NOT_INSTALLED STUB_EXIT_ROLLOUT STUB_EXIT_TEMPLATES STUB_EXIT_VERIFY STUB_THEME_EVAL STUB_CSS_IN_THEME STUB_STYLE_ENQUEUED STUB_PLUGIN_INACTIVE STUB_SNIPPETS STUB_GS STUB_GS_CHILD; printf 'wp-otherguise\taaa\nwp-theme\tbbb\n' >"$T/state_out"; }
 
 # Guards of the arguments.
 reset; run >/dev/null 2>&1; check "needs a site" $((! $?))
@@ -113,14 +115,22 @@ n() { grep -n "$1" "$T/out" | head -1 | cut -d: -f1; }
 [ "$(n '== Move the variants')" -lt "$(n 'AFTER THE VARIANTS MOVED')" ] && [ "$(n 'AFTER THE VARIANTS MOVED')" -lt "$(n '== Deactivate the plugin')" ]; check "...right after the variants moved" $?
 [ "$(n '== Deactivate the plugin')" -lt "$(n 'AFTER THE PLUGIN CUSTOM CSS')" ]; check "...right after the plugin is deactivated" $?
 grep -q "AT THE END" "$T/out"; check "...and at the end" $?
-grep -q "usual suspects are the global styles" "$T/out"; check "the comparison after the switch points at the global styles (fonts, colours)" $?
-reset; answers ""; run --site=staging --no-validate >"$T/out" 2>&1
-[ "$(grep -c 'Validation skipped' "$T/out")" -eq 6 ]; check "--no-validate skips the six comparisons and questions" $?
+grep -q "Expected: the fonts" "$T/out" && grep -q "AFTER THE GLOBAL STYLES WERE GIVEN" "$T/out"; check "the fonts are expected to differ after the switch and a comparison follows the global styles step" $?
+[ "$(n 'AFTER THE THEME SWITCH')" -lt "$(n '== Give the global styles')" ] && [ "$(n '== Give the global styles')" -lt "$(n 'AFTER THE GLOBAL STYLES')" ] && [ "$(n 'AFTER THE GLOBAL STYLES')" -lt "$(n '== Move the variants')" ]; check "the global styles are given between the switch and the variants" $?
+reset; unset ROLLOUT_TTY; run --site=staging --no-validate </dev/null >"$T/out" 2>&1
+[ "$(grep -c 'Validation skipped' "$T/out")" -eq 7 ]; check "--no-validate skips the seven comparisons and questions" $?
 rm -rf "$T/state"
 reset; answers "" "" "" "" "" "" ""; run --site=staging >/dev/null 2>&1
 reset; answers "" "" "" "" "" "" ""; run --site=prod --rollout=3 --yes >"$T/out" 2>&1
 ! grep -q "BEFORE any change" "$T/out"; check "on production there is no comparison before the change (the other site is already changed)" $?
 grep -q "AFTER THE THEME SWITCH" "$T/out"; check "...but there is after each step" $?
+
+# The global styles of the site editor.
+reset; answers "" "" "" "" "" "" ""; run --site=staging >"$T/out" 2>&1
+grep -q "copied from post 1 to post 2" "$T/out"; check "the global styles of the parent are copied to the child theme" $?
+reset; answers "" "" "" "" "" "" ""; STUB_GS="the child theme has its own global styles already" run --site=staging >"$T/out" 2>&1; rc=$?; check "a child theme that has its own global styles keeps them" $rc
+reset; answers "" "" "" "" "" "" ""; STUB_GS_CHILD=no run --site=staging >"$T/out" 2>&1; check "the script stops when the child theme still has no global styles" $((! $?))
+! grep -q "variant retheme" "$LOG"; check "...before the variants are moved" $?
 
 # The CSS of the blog and the plugin Custom CSS & JS.
 reset; answers "" "" "" "" "" "" ""; run --site=staging >/dev/null 2>&1
@@ -151,7 +161,7 @@ reset; answers "" "" "" "" "" "" ""; STUB_EXIT_TEMPLATES=1 run --site=staging >"
 grep -q "no database copy hides a file" "$T/out"; check "...and says so" $?
 rm -rf "$T/state"
 
-reset; answers "" ""; run --site=staging --no-validate >"$T/out" 2>&1; rc=$?; check "--no-validate still asks for the manual gesture" $rc
+reset; answers "" ""; run --site=staging --no-validate >"$T/out" 2>&1; rc=$?; check "--no-validate asks nothing: it runs without a terminal" $rc
 grep -q "Validation skipped" "$T/out"; check "...and says what it skipped" $?
 [ -z "$(ls "$T/state"/*.validated 2>/dev/null)" ]; check "a run without the validations is not recorded as a rehearsal" $?
 unset ROLLOUT_TTY
