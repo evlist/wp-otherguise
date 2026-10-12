@@ -113,6 +113,7 @@ class ModesModuleTest extends TestCase {
 					array( Module::class, 'register_stylesheet_loader', 20, 0 ),
 				),
 				'wp_insert_post'                => array( array( \Otherguise\Modes\Template\NewPostTemplate::class, 'apply', 10, 3 ) ),
+				'cli_init'                      => array( array( Module::class, 'register_commands', 10, 0 ) ),
 			),
 			$hooks
 		);

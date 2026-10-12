@@ -14,6 +14,7 @@ use Otherguise\Core\ModuleInterface;
 use Otherguise\Core\Modules;
 use Otherguise\Modes\Admin\Admin;
 use Otherguise\Modes\Admin\Environment;
+use Otherguise\Modes\Cli\VariantCommand;
 use Otherguise\Modes\Integration\TemplateIntegration;
 use Otherguise\Modes\Integration\TriplesIntegration;
 use Otherguise\Modes\Link\LinkBlock;
@@ -273,10 +274,27 @@ final class Module implements ModuleInterface {
 		( $this->add_action )( 'init', array( $this, 'register_link_block' ), 10, 0 );
 		( $this->add_action )( 'init', array( $this, 'register_stylesheet_loader' ), 20, 0 );
 		( $this->add_action )( 'wp_insert_post', array( new NewPostTemplate( $this->default_templates ), 'apply' ), 10, 3 );
+		( $this->add_action )( 'cli_init', array( $this, 'register_commands' ), 10, 0 );
 
 		if ( ( $this->is_admin )() ) {
 			( new Admin( new Environment(), $this->modes, $this->variants(), $this->lookup, $this->settings, $this->stylesheets(), $this->stylesheet_files, $this->default_templates ) )->register( $this->add_action );
 		}
+	}
+
+	/**
+	 * Registers the WP-CLI commands `wp otherguise modes variant ...`. Action `cli_init`.
+	 *
+	 * @return void
+	 */
+	public function register_commands() {
+		\WP_CLI::add_command(
+			'otherguise modes variant',
+			new VariantCommand(
+				function () {
+					return null === ( $this->statements )() ? null : $this->variants();
+				}
+			)
+		);
 	}
 
 	/**
