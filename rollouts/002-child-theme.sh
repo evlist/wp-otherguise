@@ -53,27 +53,15 @@ if [ "$SITE" != prod ]; then
   validate "BEFORE any change. $COMPARE Staging is a copy of production, so they must look the same: note every difference that is already there, so as not to blame the next steps for it."
 fi
 
+check_output "the fonts and the sizes of the blog are in the theme.json of the theme (they were global styles of the site editor, which are attached to a theme and do not follow)" "yes" wp eval "echo false !== strpos( (string) file_get_contents( wp_get_theme( '$THEME' )->get_stylesheet_directory() . '/theme.json' ), 'fira-sans' ) ? 'yes' : 'no';"
+
 # 4. The switch, one change at a time, with a comparison after each so as to know which one made a difference.
 if [ "$(wp theme list --status=active --field=name 2>/dev/null)" = "$THEME" ]; then
   say "The theme $THEME is already active"
 else
   step "Activate the theme $THEME" wp theme activate "$THEME"
 fi
-validate "AFTER THE THEME SWITCH, before anything else. $COMPARE What differs now comes from the switch itself. Expected: the fonts (and perhaps the colours), which are global styles of the site editor, attached to the theme; they come back with the next step. Anything else (the header, the missing footer, the lists of posts) is a problem. Note what is different. Without a terminal: tools/staging/compare-sites.sh shows the fonts."
-
-# The global styles of the site editor (the fonts, the colours chosen there) are stored per theme: the child theme starts without them.
-GLOBAL_STYLES='$slug = "wp-global-styles-" . urlencode( $theme );
-$find = static function ( $name, $theme ) { return get_posts( array( "post_type" => "wp_global_styles", "name" => $name, "post_status" => array( "publish", "draft" ), "numberposts" => 1, "tax_query" => array( array( "taxonomy" => "wp_theme", "field" => "name", "terms" => $theme ) ) ) ); };
-$from = $find( "wp-global-styles-" . urlencode( $parent ), $parent );
-if ( array() !== $find( $slug, $theme ) ) { echo "the child theme has its own global styles already"; return; }
-if ( array() === $from ) { echo "nothing to copy: $parent has no global styles"; return; }
-$id = wp_insert_post( array( "post_type" => "wp_global_styles", "post_status" => "publish", "post_title" => "Custom Styles", "post_name" => $slug, "post_content" => $from[0]->post_content ) );
-if ( ! $id || is_wp_error( $id ) ) { echo "FAILED"; return; }
-wp_set_object_terms( $id, $theme, "wp_theme" );
-echo "copied from post " . $from[0]->ID . " to post " . $id;'
-step "Give the global styles of $PARENT to $THEME (fonts and colours chosen in the site editor)" wp eval "\$theme = '$THEME'; \$parent = '$PARENT'; $GLOBAL_STYLES"
-check_output "the child theme has global styles of its own" "yes" wp eval "\$p = get_posts( array( 'post_type' => 'wp_global_styles', 'name' => 'wp-global-styles-' . urlencode( '$THEME' ), 'post_status' => array( 'publish', 'draft' ), 'numberposts' => 1 ) ); echo \$p ? 'yes' : 'no';"
-validate "AFTER THE GLOBAL STYLES WERE GIVEN TO THE CHILD THEME. $COMPARE The fonts and the colours must be those of $OTHER again (without this step, Twenty Twenty-Five's default fonts, Manrope, replace the ones chosen in the site editor). Note what is still different."
+validate "AFTER THE THEME SWITCH, before anything else. $COMPARE The fonts (Fira Sans, Literata), the sizes and the colours must be those of $OTHER: they now come from the theme.json of the theme, no longer from the global styles of the site editor. Anything that differs comes from the switch itself: the header, the missing footer, the lists of posts. Note what is different. tools/staging/compare-sites.sh lists the fonts."
 
 step "Move the variants of the modes from $PARENT to $THEME" wp otherguise modes variant retheme "$PARENT" "$THEME"
 validate "AFTER THE VARIANTS MOVED. Open ?mode=print (and ?print) on a post of each of the three kinds on $HOME_URL and on $OTHER_URL ($OTHER): the print version must be there, the same. Note what is different."
