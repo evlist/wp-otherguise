@@ -102,12 +102,14 @@ need_clean() {
   for i in "${!DIRS[@]}"; do if dirty "$i"; then bad+=("${NAMES[$i]}"); fi; done
   [ "${#bad[@]}" -eq 0 ] || die "Local changes in: ${bad[*]}. Commit or discard them first; nothing was changed."
 }
-# Fetches the branches and the tags of every repository; git's own message is shown when it fails. With `soft`, a failure is only a
+# Fetches the branches and the rollout tags of every repository; git's own message is shown when it fails. With `soft`, a failure is only a
 # warning (status still shows the local state).
 fetch_all() {
   local i out
   for i in "${!DIRS[@]}"; do
-    if ! out=$(g "$i" fetch --tags --prune origin 2>&1); then
+    # The branches, then only the rollout tags: other tags (a `nightly` tag that a workflow moves at every push, for example) are none of
+    # our business and git refuses to update a tag that moved. A rollout tag that moved is an anomaly: git's refusal is shown.
+    if ! out=$(g "$i" fetch --prune origin 2>&1 && g "$i" fetch origin 'refs/tags/rollout-*:refs/tags/rollout-*' 2>&1); then
       if [ "${1:-}" = soft ]; then echo "WARNING: git fetch failed in ${NAMES[$i]} (${DIRS[$i]}), showing the local state: $out" >&2
       else die "git fetch failed in ${NAMES[$i]} (${DIRS[$i]}): $out"; fi
     fi

@@ -72,9 +72,16 @@ ro update --site=staging >"$T/out" 2>&1; rc=$?
 [ "$rc" -ne 0 ] && grep -q "ERROR: git fetch failed in plug-a" "$T/out" && grep -q "missing.git" "$T/out"; check "update stops with git's message when a fetch fails" $?
 git -C "$T/stg/plug-a" remote set-url origin "$T/github/plug-a.git"
 
+# A tag that moves on GitHub and is none of ours (a nightly tag) must not break the fetch.
+(cd "$T/seed/plug-a" && git tag nightly-main && git push -q origin nightly-main)
+git -C "$T/stg/plug-a" fetch -q origin 'refs/tags/nightly-main:refs/tags/nightly-main'
+(cd "$T/seed/plug-a" && git commit -q --allow-empty -m "nightly" && git tag -f nightly-main >/dev/null && git push -q -f origin nightly-main main)
+git -C "$T/stg/plug-a" fetch --tags origin >/dev/null 2>&1; [ "$?" -ne 0 ]; check "(the moved nightly tag does make a plain git fetch --tags fail)" $?
+ro status --site=staging >"$T/out" 2>&1; ! grep -q "WARNING" "$T/out"; check "a moved tag that is not a rollout tag does not break the fetch" $?
+
 # Update.
 push_commit plug-a
-ro update --site=staging --dry-run >"$T/out" 2>&1; grep -q "plug-a: main -> main, 1 new commit" "$T/out"; check "update --dry-run shows the new commits" $?
+ro update --site=staging --dry-run >"$T/out" 2>&1; grep -qE "plug-a: main -> main, [0-9]+ new commit" "$T/out"; check "update --dry-run shows the new commits" $?
 [ "$(head_of stg plug-a)" != "$(git -C "$T/seed/plug-a" rev-parse --short HEAD)" ]; check "...and changes nothing" $?
 ro update --site=staging >/dev/null 2>&1; [ "$(head_of stg plug-a)" = "$(git -C "$T/seed/plug-a" rev-parse --short HEAD)" ]; check "update brings staging to the latest commit" $?
 
