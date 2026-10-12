@@ -64,6 +64,14 @@ grep -q "plug-a *main" "$T/out" && grep -q "plug-b" "$T/out"; check "status list
 grep -q "plug-b *main" "$T/out" && ! grep -q "Not a git clone, left alone: /var/www/html/wp-content/plugins/plug-b" "$T/out"; check "a mount of a directory of a clone (clone/plugin) is the clone" $?
 grep -q "Not a git clone, left alone" "$T/out"; check "a mount that is not a git clone is left alone" $?
 
+# A fetch that fails shows git's message; status goes on with a warning, the other commands stop.
+git -C "$T/stg/plug-a" remote set-url origin "$T/github/missing.git"
+ro status --site=staging >"$T/out" 2>&1; rc=$?
+[ "$rc" -eq 0 ] && grep -q "WARNING: git fetch failed in plug-a" "$T/out" && grep -q "does not appear to be a git repository\|missing.git" "$T/out"; check "status warns, with git's message, when a fetch fails" $?
+ro update --site=staging >"$T/out" 2>&1; rc=$?
+[ "$rc" -ne 0 ] && grep -q "ERROR: git fetch failed in plug-a" "$T/out" && grep -q "missing.git" "$T/out"; check "update stops with git's message when a fetch fails" $?
+git -C "$T/stg/plug-a" remote set-url origin "$T/github/plug-a.git"
+
 # Update.
 push_commit plug-a
 ro update --site=staging --dry-run >"$T/out" 2>&1; grep -q "plug-a: main -> main, 1 new commit" "$T/out"; check "update --dry-run shows the new commits" $?
