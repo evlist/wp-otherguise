@@ -114,6 +114,11 @@ echo wrong | ro apply 2 --site=prod >/dev/null 2>&1; check "apply asks for the n
 ro apply 2 --site=prod --yes >"$T/out" 2>&1; rc=$?; check "apply succeeds" $rc
 [ "$(head_of prod plug-a)" = "$(git -C "$T/github/plug-a.git" rev-parse --short 'rollout-2^{commit}')" ] && [ "$(head_of prod plug-b)" = "$(git -C "$T/github/plug-b.git" rev-parse --short 'rollout-2^{commit}')" ]; check "production is on the commits of rollout-2" $?
 ! git -C "$T/prod/plug-a" symbolic-ref -q HEAD >/dev/null; check "...as a detached head" $?
+ro verify 2 --site=prod >"$T/out" 2>&1; rc=$?; check "verify succeeds when every repository is on the tag" $rc
+ro verify 1 --site=prod >"$T/out" 2>&1; [ "$?" -eq 1 ] && grep -q "Not on rollout-1" "$T/out"; check "verify fails, and names the repositories, when they are not on the tag" $?
+ro verify 9 --site=prod >/dev/null 2>&1; check "verify fails for a tag that does not exist" $((! $?))
+ro verify --site=prod >/dev/null 2>&1; check "verify needs a number" $((! $?))
+ro state --site=prod 2>/dev/null >"$T/out"; [ "$(wc -l <"$T/out")" -eq 2 ] && grep -qP "^plug-a\t[0-9a-f]{40}$" "$T/out"; check "state prints the name and the commit of each repository" $?
 # New commits on GitHub after the rollout do not reach production.
 push_commit plug-a; ro status --site=prod >"$T/out" 2>&1
 grep -q "plug-a .*rollout-2" "$T/out"; check "status shows the rollout tag on production" $?

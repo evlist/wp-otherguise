@@ -15,7 +15,12 @@
 #   validate "text"                asks Eric to look at something; skipped with --no-validate. "n" stops the script.
 #   manual "what to do" "what to check"    a gesture without a command: always asked (never skipped), stops without a terminal.
 #   wp ARGS...                     WP-CLI in the container of the site.
-#   rollout_end                    on staging, after a complete run with the validations, records that this script was rehearsed.
+#   rollout_versions               the versions of the repositories. Git is managed outside the scripts (the clones are put on the state to
+#                                  rehearse: a tag, a branch...): on staging and testing this notes the state and remembers it; on production
+#                                  it checks that the clones are on rollout-N (put there with `rollout.sh apply N`) and that this is the state
+#                                  that was rehearsed.
+#   rollout_end                    on staging, after a complete run with the validations, records that this script was rehearsed, with the
+#                                  state of the repositories.
 #
 # Every step should be safe to run twice. There is no rollback to write: production is backed up and staging can be synchronised again.
 #
@@ -181,12 +186,43 @@ manual() {
   [ "$answer" != n ] || die "Manual step refused: $1"
 }
 
+rollout_versions() {
+  local rehearsed now
+  if [ "$SITE" != prod ]; then
+    note "The repositories (the state that is being tried)" rollout_sh status --site="$SITE"
+    [ "$DRY_RUN" -eq 1 ] || STATE_NOW=$(rollout_sh state --site="$SITE")
+    return 0
+  fi
+  [[ "$ROLLOUT_NUMBER" =~ ^[0-9]+$ ]] || die "On production, say which rollout: --rollout=N (the tag made on staging), after: rollout.sh apply N --site=prod."
+  say "The repositories of production must be on rollout-$ROLLOUT_NUMBER"
+  [ "$DRY_RUN" -eq 0 ] || { echo "Dry run: checked here."; return 0; }
+  rollout_sh verify "$ROLLOUT_NUMBER" --site=prod || die "Put production on the tag first: rollout.sh apply $ROLLOUT_NUMBER --site=prod"
+  rehearsed=$(sed '1d' "$(rollout_state_file).validated" 2>/dev/null || true)
+  now=$(rollout_sh state --site=prod)
+  if [ -n "$rehearsed" ]; then
+    # Only the repositories that staging and production both have are compared.
+    local mismatch=""
+    while IFS=$'\t' read -r name commit; do
+      [ -n "$name" ] || continue
+      local there
+      there=$(printf '%s\n' "$now" | awk -F'\t' -v n="$name" '$1 == n { print $2 }')
+      if [ -n "$there" ] && [ "$there" != "$commit" ]; then mismatch="$mismatch $name"; fi
+    done <<<"$rehearsed"
+    if [ -n "$mismatch" ]; then
+      if [ "$FORCE" -eq 1 ]; then echo "WARNING: --force, not the rehearsed commits for:$mismatch"
+      else die "rollout-$ROLLOUT_NUMBER is not what was rehearsed on staging for:$mismatch. Rehearse the commits that the tag has, or tag what was rehearsed."; fi
+    else
+      echo "OK  the commits of rollout-$ROLLOUT_NUMBER are those that were rehearsed on staging"
+    fi
+  fi
+}
+
 rollout_end() {
   say "Done: $ROLLOUT_NAME on the $SITE site"
   [ "$DRY_RUN" -eq 0 ] || { echo "Dry run: nothing was recorded."; return 0; }
   if [ "$SITE" = staging ] && [ "$VALIDATED" -eq 1 ]; then
     mkdir -p "${ROLLOUT_STATE_DIR:-$STATE_DIR_DEFAULT}"
-    date -u +%Y-%m-%dT%H:%M:%SZ >"$(rollout_state_file).validated"
+    { date -u +%Y-%m-%dT%H:%M:%SZ; printf '%s\n' "${STATE_NOW:-}"; } >"$(rollout_state_file).validated"
     echo "Recorded: this text of $ROLLOUT_NAME was rehearsed on staging with the validations. It can run on production."
   elif [ "$SITE" = staging ]; then
     echo "Not recorded as a rehearsal: it ran without the validations. Run it once on staging with them before production."

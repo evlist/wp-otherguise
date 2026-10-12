@@ -19,6 +19,8 @@
 #   apply <N>               check out `rollout-N` in every repository of the site, remembering where each was, so that `rollback` can go
 #                           back. Refuses if one repository lacks the tag or has local changes, before touching any of them.
 #   rollback                put every repository back where it was before the last `apply`.
+#   state                   print "name<TAB>commit" for each repository (nothing is fetched or changed): the state to remember.
+#   verify <N>              check that every repository is on the commit of `rollout-N`; lists the ones that are not, exit code 1.
 #   --dry-run               (update, create, apply, rollback) say what would be done, change nothing.
 #   --yes                   do not ask for confirmation (apply and rollback ask you to type the name of the container).
 #
@@ -53,13 +55,13 @@ for arg in "$@"; do
 done
 case "$COMMAND" in
   help | -h | --help) sed -n '2,/^set -euo/{/^set -euo/!p}' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
-  status | update | create | apply | rollback) ;;
+  status | update | create | apply | rollback | state | verify) ;;
   *) die "Say what to do: status, update, create, apply <N> or rollback (see --help)." ;;
 esac
 [ -n "$SITE" ] || die "Say which site: --site=prod, --site=staging or --site=testing."
-[ "$COMMAND" = apply ] || [ -z "$NUMBER" ] || die "Only apply takes a number."
-if [ "$COMMAND" = apply ]; then
-  [[ "$NUMBER" =~ ^[0-9]+$ ]] || die "apply takes the number of a rollout, for example: apply 3 --site=prod."
+[ "$COMMAND" = apply ] || [ "$COMMAND" = verify ] || [ -z "$NUMBER" ] || die "Only apply and verify take a number."
+if [ "$COMMAND" = apply ] || [ "$COMMAND" = verify ]; then
+  [[ "$NUMBER" =~ ^[0-9]+$ ]] || die "$COMMAND takes the number of a rollout, for example: $COMMAND 3 --site=prod."
 fi
 [ "$BASELINE" -eq 0 ] || [ "$COMMAND/$SITE" = create/prod ] || die "--baseline only goes with: create --site=prod."
 case "$COMMAND/$SITE" in
@@ -89,7 +91,7 @@ while read -r source destination; do
     for known in "${DIRS[@]+"${DIRS[@]}"}"; do [ "$known" != "$top" ] || already=1; done
     [ "$already" -eq 1 ] || { DIRS+=("$top"); NAMES+=("$(basename "$destination")"); }
   else
-    echo "Not a git clone, left alone: $destination ($source)"
+    echo "Not a git clone, left alone: $destination ($source)" >&2
   fi
 done < <(docker inspect -f '{{range .Mounts}}{{if eq .Type "bind"}}{{println .Source .Destination}}{{end}}{{end}}' "$CONTAINER")
 [ "${#DIRS[@]}" -gt 0 ] || die "$CONTAINER mounts no git clone under wp-content/plugins or wp-content/themes."
@@ -226,6 +228,25 @@ apply)
     g "$i" -c advice.detachedHead=false checkout -q "refs/tags/$tag"
   done
   echo "Done. Check the site and the plugin versions; go back with: rollout.sh rollback --site=$SITE"
+  ;;
+
+state)
+  for i in "${!DIRS[@]}"; do printf '%s\t%s\n' "${NAMES[$i]}" "$(g "$i" rev-parse HEAD)"; done
+  ;;
+
+verify)
+  tag="rollout-$NUMBER"
+  wrong=()
+  for i in "${!DIRS[@]}"; do
+    want=$(g "$i" rev-parse -q --verify "refs/tags/$tag^{commit}" 2>/dev/null || true)
+    if [ -z "$want" ]; then wrong+=("${NAMES[$i]} (no tag $tag)")
+    elif [ "$(g "$i" rev-parse HEAD)" != "$want" ]; then wrong+=("${NAMES[$i]} (on $(g "$i" rev-parse --short HEAD), $tag is $(g "$i" rev-parse --short "$want"))"); fi
+  done
+  if [ "${#wrong[@]}" -gt 0 ]; then
+    printf 'Not on %s: %s\n' "$tag" "${wrong[*]}" >&2
+    exit 1
+  fi
+  echo "Every repository of the $SITE site is on $tag."
   ;;
 
 rollback)

@@ -17,10 +17,18 @@ check() { if [ "$2" -eq 0 ]; then PASS=$((PASS + 1)); echo "PASS  $1"; else FAIL
 mkdir -p "$T/repo/tools" "$T/bin"
 cp -r "$ROOT/tools/staging" "$T/repo/tools/staging"
 cp -r "$ROOT/rollouts" "$T/repo/rollouts"
-for tool in rollout.sh templates.sh; do
-  printf '#!/usr/bin/env bash\necho "%s $*" >>"$LOG"\nexit "${STUB_EXIT_%s:-0}"\n' "$tool" "$(echo "${tool%.sh}" | tr a-z A-Z)" >"$T/repo/tools/staging/$tool"
-  chmod +x "$T/repo/tools/staging/$tool"
-done
+printf '#!/usr/bin/env bash\necho "templates.sh $*" >>"$LOG"\nexit "${STUB_EXIT_TEMPLATES:-0}"\n' >"$T/repo/tools/staging/templates.sh"
+cat >"$T/repo/tools/staging/rollout.sh" <<'S'
+#!/usr/bin/env bash
+echo "rollout.sh $*" >>"$LOG"
+case "$1" in
+  state) cat "$T/state_out" ;;
+  verify) exit "${STUB_EXIT_VERIFY:-0}" ;;
+  *) exit "${STUB_EXIT_ROLLOUT:-0}" ;;
+esac
+S
+chmod +x "$T/repo/tools/staging/templates.sh" "$T/repo/tools/staging/rollout.sh"
+printf 'wp-otherguise\taaa\nwp-theme\tbbb\n' >"$T/state_out"
 SCRIPT="$T/repo/rollouts/002-child-theme.sh"
 export LOG="$T/calls.log" T
 export PROD_CONTAINER=prod STAGING_CONTAINER=stg STAGING_URL=https://sb.test
@@ -42,6 +50,7 @@ args="$*"
 echo "wp[$container] $args" >>"$LOG"
 case "$args" in
   "theme is-installed"*) exit "${STUB_NOT_INSTALLED:-0}" ;;
+  "eval "*) echo "${STUB_THEME_EVAL:-ok}" ;;
   "post get 32919 --field=post_type") echo "${STUB_BLOCK:-wp_block}" ;;
   "option get home") echo https://sb.test ;;
   "theme list --status=active --field=name") cat "$T/active" ;;
@@ -58,7 +67,7 @@ export PATH="$T/bin:$PATH"
 
 run() { bash "$SCRIPT" "$@"; }
 answers() { printf '%s\n' "$@" >"$T/answers"; export ROLLOUT_TTY="$T/answers"; }
-reset() { : >"$LOG"; echo twentytwentyfive >"$T/active"; echo "template twentytwentyfive//a twentytwentyfive//b print" >"$T/variants"; unset STUB_BLOCK STUB_NOT_INSTALLED STUB_EXIT_ROLLOUT STUB_EXIT_TEMPLATES; }
+reset() { : >"$LOG"; echo twentytwentyfive >"$T/active"; echo "template twentytwentyfive//a twentytwentyfive//b print" >"$T/variants"; unset STUB_BLOCK STUB_NOT_INSTALLED STUB_EXIT_ROLLOUT STUB_EXIT_TEMPLATES STUB_EXIT_VERIFY STUB_THEME_EVAL; printf 'wp-otherguise\taaa\nwp-theme\tbbb\n' >"$T/state_out"; }
 
 # Guards of the arguments.
 reset; run >/dev/null 2>&1; check "needs a site" $((! $?))
@@ -70,20 +79,22 @@ run --site=staging --help >/dev/null 2>&1; check "--help works" $?
 
 # Dry run.
 reset; run --site=staging --dry-run >"$T/out" 2>&1; rc=$?; check "a dry run succeeds" $rc
-! grep -q "theme activate\|variant retheme\|rollout.sh update" "$LOG"; check "...and runs nothing that changes anything" $?
+! grep -q "theme activate\|variant retheme" "$LOG"; check "...and runs nothing that changes anything" $?
 grep -q "Dry run" "$T/out"; check "...and says so" $?
 [ ! -d "$T/state" ] || [ -z "$(ls "$T/state" 2>/dev/null)" ]; check "...and records no rehearsal" $?
 
 # A full run on staging, with the validations: five answers (three validations, one manual gesture).
 reset; answers "" "" "" ""; run --site=staging >"$T/out" 2>&1; rc=$?; check "a full run on staging succeeds" $rc
 [ "$rc" -eq 0 ] || tail -20 "$T/out"
-grep -q "^rollout.sh update --site=staging" "$LOG"; check "staging is brought to the latest commits" $?
+! grep -q "^rollout.sh update\|^rollout.sh apply" "$LOG"; check "the script runs no git: it does not update the clones" $?
+grep -q "^rollout.sh state --site=staging" "$LOG"; check "it remembers the state of the clones" $?
 grep -q "wp\[stg\] theme activate wp-twenty-twenty-five-printable" "$LOG"; check "the theme is activated" $?
 grep -q "variant retheme twentytwentyfive wp-twenty-twenty-five-printable" "$LOG"; check "the variants are moved" $?
 a=$(grep -n "theme activate" "$LOG" | head -1 | cut -d: -f1); b=$(grep -n "variant retheme" "$LOG" | head -1 | cut -d: -f1)
 [ "$a" -lt "$b" ]; check "the theme is activated before the variants are moved" $?
 grep -q "^templates.sh check --site=staging" "$LOG"; check "the templates are checked" $?
 ls "$T/state"/*.validated >/dev/null 2>&1; check "a rehearsal is recorded" $?
+grep -q "wp-otherguise	aaa" "$T/state"/*.validated; check "...with the state of the clones" $?
 ls "$T/logs"/002-child-theme-staging-*.log >/dev/null 2>&1; check "a log is kept" $?
 
 # Running it again changes nothing that is already done.
@@ -97,6 +108,9 @@ reset; answers "" "" "" ""; STUB_BLOCK=page run --site=staging >"$T/out" 2>&1; c
 ! grep -q "theme activate" "$LOG"; check "...before anything is changed" $?
 grep -q "reusable block 32919" "$T/out"; check "...and says which one" $?
 reset; answers ""; STUB_NOT_INSTALLED=1 run --site=staging >/dev/null 2>&1; check "a theme that is not installed stops the script" $((! $?))
+reset; answers "" "" "" ""; STUB_THEME_EVAL="broken: Stylesheet is missing." run --site=staging >"$T/out" 2>&1; check "a theme that WordPress cannot read stops the script" $((! $?))
+grep -q "Stylesheet is missing" "$T/out"; check "...and says why" $?
+! grep -q "theme activate" "$LOG"; check "...before it is activated" $?
 reset; answers "" "" "" ""; STUB_EXIT_TEMPLATES=1 run --site=staging >"$T/out" 2>&1; check "a database copy that hides a file after the switch stops the script" $((! $?))
 grep -q "no database copy hides a file" "$T/out"; check "...and says so" $?
 rm -rf "$T/state"
@@ -115,11 +129,19 @@ grep -q "not rehearsed" "$T/out"; check "...with that reason" $?
 reset; answers "" "" "" ""; run --site=staging >/dev/null 2>&1
 reset; answers "" "" "" ""; run --site=prod --rollout=3 --yes >"$T/out" 2>&1; rc=$?; check "after the rehearsal production runs" $rc
 [ "$rc" -eq 0 ] || tail -20 "$T/out"
-grep -q "^rollout.sh apply 3 --site=prod --yes" "$LOG"; check "production gets the tag, not the latest commits" $?
-! grep -q "^rollout.sh update" "$LOG"; check "...and is never updated" $?
+grep -q "^rollout.sh verify 3 --site=prod" "$LOG"; check "production is checked to be on the tag" $?
+! grep -q "^rollout.sh update\|^rollout.sh apply" "$LOG"; check "...the script moves nothing" $?
 a=$(grep -n "db export" "$LOG" | head -1 | cut -d: -f1); b=$(grep -n "theme activate" "$LOG" | head -1 | cut -d: -f1)
 [ -n "$a" ] && [ "$a" -lt "$b" ]; check "the database is backed up before the first change" $?
 ls "$T/backups"/before-002-child-theme-*.sql >/dev/null 2>&1; check "the backup is copied out of the container" $?
+
+reset; answers "" "" "" ""; STUB_EXIT_VERIFY=1 run --site=prod --rollout=3 --yes >"$T/out" 2>&1; check "production is refused when it is not on the tag" $((! $?))
+grep -q "rollout.sh apply 3" "$T/out"; check "...and the message says how to put it there" $?
+! grep -q "theme activate" "$LOG"; check "...before anything is changed" $?
+reset; printf 'wp-otherguise\tzzz\nwp-theme\tbbb\n' >"$T/state_out"; answers "" "" "" ""; run --site=prod --rollout=3 --yes >"$T/out" 2>&1; check "production is refused when the tag is not the rehearsed state" $((! $?))
+grep -q "not what was rehearsed on staging for: wp-otherguise" "$T/out"; check "...and says for which repository" $?
+reset; printf 'wp-otherguise\tzzz\nwp-theme\tbbb\n' >"$T/state_out"; answers "" "" "" ""; run --site=prod --rollout=3 --yes --force >/dev/null 2>&1; check "--force goes on with a state that was not rehearsed" $?
+reset; printf 'wp-otherguise\taaa\nwp-theme\tbbb\nwp-extra\tccc\n' >"$T/state_out"; answers "" "" "" ""; run --site=prod --rollout=3 --yes >/dev/null 2>&1; check "a repository that staging does not have is not compared" $?
 
 reset; answers "wrong" "" "" "" ""; run --site=prod --rollout=3 >/dev/null 2>&1; check "production asks for the name of the container" $((! $?))
 ! grep -q "theme activate" "$LOG"; check "...and changes nothing without it" $?

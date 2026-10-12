@@ -8,8 +8,9 @@
 #
 # Usage: rollouts/002-child-theme.sh --site=staging [--no-validate] [--dry-run]
 #        rollouts/002-child-theme.sh --site=prod --rollout=N [--no-validate] [--yes] [--force]
-#   N is the number of the rollout (the tag rollout-N) that `rollout.sh create --site=staging` made after the rehearsal. On staging and on
-#   testing the clones are brought to the latest commits instead.
+#   The script does not run git: put the clones of the site on the state to try first (a tag, a branch, `rollout.sh update`). On staging it
+#   notes that state and remembers it; `rollout.sh create --site=staging` then tags it rollout-N; on production put the clones on the tag
+#   (`rollout.sh apply N --site=prod`) and the script checks that they are on it and that it is what was rehearsed.
 #
 # To go back, nothing is deleted by this script: `wp theme activate twentytwentyfive`, then
 # `wp otherguise modes variant retheme wp-twenty-twenty-five-printable twentytwentyfive`.
@@ -29,24 +30,21 @@ if [ "$SITE" = prod ]; then
 fi
 rollout_begin
 
-# 1. The versions: the same on every site, since they come from the tag.
-if [ "$SITE" = prod ]; then
-  step "Put the repositories on rollout-$ROLLOUT_NUMBER" rollout_sh apply "$ROLLOUT_NUMBER" --site=prod --yes
-else
-  step "Bring the repositories to the latest commits" rollout_sh update --site="$SITE"
-fi
-note "The repositories" rollout_sh status --site="$SITE"
+# 1. The versions. Git is managed outside this script: put the clones on the state to rehearse (a tag, a branch) first.
+rollout_versions
 
 # 2. What must be true before the switch.
 check "the child theme is installed ($THEME)" wp theme is-installed "$THEME"
+# `is-installed` only looks for the directory: a stale mount or a missing style.css would only show when the theme is activated.
+check_output "WordPress can read the child theme (its style.css, its parent)" "ok" wp eval "\$t = wp_get_theme( '$THEME' ); echo \$t->errors() ? 'broken: ' . \$t->errors()->get_error_message() : 'ok';"
 check_output "the reusable block $REUSABLE_BLOCK of the lists of posts exists" "wp_block" wp post get "$REUSABLE_BLOCK" --field=post_type
 
-# 3. Where we start from.
+# 3. Where we start from (what to compare with is the other site: production, or staging when this is production).
 note "The templates of the database, before" templates_sh check --site="$SITE"
 note "The variants declared, before" wp otherguise modes variant list
 note "The global styles of the site editor, before (they are stored per theme)" wp post list --post_type=wp_global_styles --fields=ID,post_name,post_status
 HOME_URL=$(wp option get home 2>/dev/null || echo "(the address of the site)")
-validate "BEFORE the switch, open on $HOME_URL and keep a screenshot of each: the home page; an archive (a category or a month); the search page ($HOME_URL/?s=test); a post that uses publication-randonnee, one that uses journee, one that uses 'Résumé mensuel randonnée', and one with the default template; and each of them with ?print and with ?mode=print. Note the header, the missing footer, the menus, the colours and the fonts."
+if [ "$SITE" = prod ]; then OTHER_URL=${STAGING_URL}; OTHER=staging; else OTHER_URL=${PROD_URL:-https://e.vli.st}; OTHER=production; fi
 
 # 4. The switch.
 if [ "$(wp theme list --status=active --field=name 2>/dev/null)" = "$THEME" ]; then
@@ -65,7 +63,7 @@ note "The templates of the database, after" templates_sh check --site="$SITE"
 note "The variants declared, after" wp otherguise modes variant list
 note "The global styles of the site editor, after" wp post list --post_type=wp_global_styles --fields=ID,post_name,post_status
 
-validate "AFTER the switch, open the same pages on $HOME_URL and compare them with the screenshots: they must look the same (lists of posts, header, no footer, colours, fonts), also with ?print and ?mode=print."
+validate "Compare $HOME_URL with $OTHER_URL ($OTHER), page by page: the home page; an archive (a category or a month); the search page (/?s=test); a post that uses publication-randonnee, one that uses journee, one that uses 'Résumé mensuel randonnée', and one with the default template; and each of them with ?print and with ?mode=print. They must look the same: lists of posts, header, no footer, menus, colours, fonts."
 validate "The PHP error log has nothing new (wp-content/debug.log)."
 manual "If the colours or the fonts of the site changed: the global styles saved in the site editor were attached to $PARENT and did not follow. Go back (wp theme activate $PARENT, then wp otherguise modes variant retheme $THEME $PARENT) and tell Claude: the content of the global styles post has to be given to the new theme. If nothing changed, there is nothing to do." "the pages look the same as before."
 

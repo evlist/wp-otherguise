@@ -57,6 +57,8 @@ rollout.sh create --baseline --site=prod   # the same for what runs on productio
 rollout.sh apply 3 --site=prod --dry-run   # what putting production on rollout-3 would change
 rollout.sh apply 3 --site=prod             # asks you to type the name of the container; --yes skips it
 rollout.sh rollback --site=prod            # back where every repository was before the last apply
+rollout.sh state --site=staging            # name and commit of each repository (what a rollout script remembers)
+rollout.sh verify 3 --site=prod            # every repository on rollout-3? (exit 1 and the list if not)
 ```
 
 - **`create` tags what runs on staging; it does not pull.** Pulling first would tag commits that were never rehearsed: `update` is the separate step that brings staging to the latest commit, and the rehearsal happens after it. `create` refuses local changes and commits that are not on GitHub (the tag would not be reproducible), and numbers the rollout one above the highest number found in any repository. If a push fails, nothing is left half done (the local tags and the pushed ones are taken back).
@@ -81,12 +83,13 @@ templates.sh delete --backup-dir ~/backup --site=staging              # backs th
 A rollout is a script, [`rollouts/NNN-name.sh`](../../rollouts/), built on [`rollout-lib.sh`](rollout-lib.sh) (model: [`rollouts/TEMPLATE.sh`](../../rollouts/TEMPLATE.sh)). It takes the site as a parameter and runs the same text on staging, testing and production:
 
 ```sh
-rollouts/002-child-theme.sh --site=staging                  # rehearse, as often as needed (synchronise staging again if it goes wrong)
+rollouts/002-child-theme.sh --site=staging                  # rehearse, as often as needed (synchronise staging again if it goes wrong); the clones are on the state to try
 tools/staging/rollout.sh create --site=staging              # tag what was rehearsed: rollout-N
-rollouts/002-child-theme.sh --site=prod --rollout=N         # production
+tools/staging/rollout.sh apply N --site=prod                # production: the clones on the tag
+rollouts/002-child-theme.sh --site=prod --rollout=N         # then the script: it checks the tag, the rehearsal, backs up, runs
 ```
 
-The library gives a script `step` (run a command, stop if it fails), `note` (show a state), `check` and `check_output` (what a command can decide), `validate` (a question for you, optional: `--no-validate` skips it once the rehearsal is trusted) and `manual` (a gesture without a command, always asked). On production it asks for the name of the container (`--yes` skips it), backs the database up to `~/rollout-backups` before the first change, and **refuses a script that was not rehearsed to the end on staging with the validations, in its current text** (the fingerprint of the script and of the library is recorded in `~/.local/state/vli-rollouts`; `--force` overrides). A log of every run is kept in `~/rollout-logs`. `--dry-run` prints what would be done. There is no rollback to write: production is backed up and staging can be synchronised again.
+The library gives a script `step` (run a command, stop if it fails), `note` (show a state), `check` and `check_output` (what a command can decide), `validate` (a question for you, optional: `--no-validate` skips it once the rehearsal is trusted) and `manual` (a gesture without a command, always asked). On production it asks for the name of the container (`--yes` skips it), backs the database up to `~/rollout-backups` before the first change, and **refuses a script that was not rehearsed to the end on staging with the validations, in its current text** (the fingerprint of the script and of the library is recorded in `~/.local/state/vli-rollouts`; `--force` overrides). **The script runs no git:** put the clones on the state to try first (a tag, a branch, `rollout.sh update`); on staging the script notes that state and remembers it with the rehearsal, and on production (`rollout.sh apply N --site=prod` first) it checks, with `rollout.sh verify N`, that the clones are on the tag **and that these are the commits that were rehearsed**. A log of every run is kept in `~/rollout-logs`. `--dry-run` prints what would be done. There is no rollback to write: production is backed up and staging can be synchronised again.
 
 ## Re-applying only the safety step
 
@@ -122,6 +125,6 @@ Anything that exists **only on the test site** is deleted by the copy (rsync `--
 
 ## Tested
 
-The rollout library and the script of rollout 002 ([`tests/staging/rollout-script-test.sh`](../../tests/staging/rollout-script-test.sh), 45 checks) were tested with stand-ins for `docker`, `rollout.sh` and `templates.sh`: the order of the steps, the checks, the questions, the guard of production, the backup. **Never run against real containers.**
+The rollout library and the script of rollout 002 ([`tests/staging/rollout-script-test.sh`](../../tests/staging/rollout-script-test.sh), 57 checks) were tested with stand-ins for `docker`, `rollout.sh` and `templates.sh`: the order of the steps, the checks, the questions, the guard of production, the backup. **Never run against real containers.**
 
 With **stand-ins for `docker` and `rsync`** ([`tests/staging/sync-site-test.sh`](../../tests/staging/sync-site-test.sh), 64 checks): the guards, the dry run, the order (files, dump, load, addresses), the arguments (host and port split, wp-config kept, guid skipped), the file written for the safety plugin (valid PHP), the targets, the date of the copy and `set-environment.sh` (it refuses production and any site that is not the one expected). The sync was run by Eric on his own site (the versions before the modes were added). The frame plugin was tested on a scratch WordPress with WP-CLI ([`tests/staging/site-environment-test.sh`](../../tests/staging/site-environment-test.sh), 12 checks: each environment, front, administration, login, print, the date, the admin bar) and seen once in Chromium (green frame, "TESTING"). The rollout script ([`tests/staging/rollout-test.sh`](../../tests/staging/rollout-test.sh), 53 checks) was tested with **real git repositories** (a bare repository standing for GitHub, a clone per site) and a stand-in for `docker`. The templates script ([`tests/staging/templates-test.sh`](../../tests/staging/templates-test.sh), 29 checks) was tested on a **scratch WordPress** with the real WP-CLI and the child theme active (check, export, delete with its backup). **Not tried:** the new scripts against real containers and a real GitHub, the plugin on production, and the look of the red and orange frames in the block editor.

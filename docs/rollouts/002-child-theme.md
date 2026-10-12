@@ -18,21 +18,22 @@ The templates exported from staging on 2026-10-12: 6 custom ones (`journee*`, `p
 The procedure is the script [`rollouts/002-child-theme.sh`](../../rollouts/002-child-theme.sh); this file says why and what to watch. The script is the same on every site, it can be run as often as needed on staging (synchronised again when something goes wrong), and it refuses production until **this text of it** was rehearsed to the end on staging with the validations.
 
 ```sh
-# staging: rehearse (the validations ask you to look at pages)
+# staging: put the clones on the state to try (a tag, a branch, rollout.sh update), then rehearse
 rollouts/002-child-theme.sh --site=staging
 # when it is right, tag what was rehearsed
 tools/staging/rollout.sh create --site=staging
-# production, with the number of the tag (a backup of the database is made first)
+# production: the clones on the tag, then the script (it checks the tag and the rehearsal, backs up the database first)
+tools/staging/rollout.sh apply N --site=prod
 rollouts/002-child-theme.sh --site=prod --rollout=N
 ```
 
-What it does, in this order: puts the repositories on the right versions (the latest commits on staging, the tag on production); checks that the theme is installed and that the reusable block `32919` of the lists of posts exists; notes the state before (the templates of the database, the variants, the global styles); asks you to look at the pages **before**; activates the theme; moves the variants to it (`wp otherguise modes variant retheme`); checks that no database copy hides a file of the theme and that no variant is left on Twenty Twenty-Five; asks you to look at the same pages **after**, and at the error log; and asks about the global styles (the only gesture that has no command).
+What it does, in this order: notes the versions of the repositories (it runs no git; on production it checks that they are on the tag and are what was rehearsed); checks that WordPress can read the theme and that the reusable block `32919` of the lists of posts exists; notes the state before (the templates of the database, the variants, the global styles); activates the theme; moves the variants to it (`wp otherguise modes variant retheme`); checks that no database copy hides a file of the theme and that no variant is left on Twenty Twenty-Five; asks you to compare the pages with the other site (production, or staging when this is production) and to look at the error log; and asks about the global styles (the only gesture that has no command).
 
 `--no-validate` skips the questions about the pages once Eric trusts the rehearsal; the question about the global styles is always asked.
 
 ## What to watch
 
-- **The pages, before and after:** the home page; an archive; the search page; a post of each of the three custom kinds and one with the default template; each of them with `?print` and with `?mode=print`. Keep screenshots.
+- **The pages, compared with production** (staging, testing) or with staging (production): the home page; an archive; the search page; a post of each of the three custom kinds and one with the default template; each of them with `?print` and with `?mode=print`.
 - **The global styles of the site editor**, stored per theme, are the one thing not tried: if the colours or the fonts change after the switch, the script says what to do (go back, tell Claude). Going back is `wp theme activate twentytwentyfive` and `wp otherguise modes variant retheme wp-twenty-twenty-five-printable twentytwentyfive`: nothing is deleted.
 - **Preconditions the script checks for itself:** the theme installed (the clone mounted as `wp-content/themes/wp-twenty-twenty-five-printable`) and the reusable block. The tag `rollout-1` exists (the baseline, [001](001-baseline.md)).
 
