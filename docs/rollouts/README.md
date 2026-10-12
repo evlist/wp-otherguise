@@ -11,3 +11,4 @@ The files are named `NNN-name.md`; the number `NNN` is the order of the iteratio
 |---|---|---|
 | [`TEMPLATE.md`](TEMPLATE.md) | the model to copy | - |
 | [`001-baseline.md`](001-baseline.md) | the baseline: record what already runs on production | written, not run |
+| [`002-child-theme.md`](002-child-theme.md) | the templates move into the child theme, which becomes the active theme | written, not run |
