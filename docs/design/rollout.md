@@ -40,31 +40,72 @@ For step 5 to stay manageable, **the iterations must stay small.** A rollout is 
 - **The synchronisation overwrites staging**, including the links created by the rehearsal. This is intended; the procedure must recreate what it needs each time (the migration command does).
 - **One step per iteration**, or two when they are independent. The media migration and the change of the blocks must not share an iteration.
 
+## Migrations are scripts (decision of 2026-10-12)
+
+**Decided** (Eric): what is done on staging is carried to production by a **migration script**, not by hand and not by copying the database.
+
+- **Not by synchronising the database:** production lives on between the copy and the rollout (comments, edited posts, sessions, scheduled tasks); any table replaced loses that, and the relations of Otherguise hold identifiers of posts and media that differ as soon as production has new ones.
+- **Not by hand, as a rule:** by hand only what has no command yet, listed as such in the file of the rollout (see below).
+- **Rule for the plugins:** every step of a migration that touches what a plugin is responsible for is offered as a **WP-CLI command that can be run twice** (it creates only what is missing and leaves the rest alone), with a **`--dry-run`**, a **report** of what it did, and a way to **check** the result. `wp otherguise media migrate` is the model. This rule is in the `CLAUDE.md` of the repository; the commands still missing are listed in [What the plugin still has to offer](#what-the-plugin-still-has-to-offer-in-wp-cli).
+- **A rollout has a file** ([`../rollouts/`](../rollouts/README.md)): the versions (the tag `rollout-N`), the preconditions, the backup, the commands, the manual steps with what to check after each, the verification and the rollback. It is written before it is run, run on staging **from the text**, then replayed on production as written.
+
+## The templates live in a child theme (decision of 2026-10-12)
+
+**Decided** (Eric): the templates of the blog move from the database into files, in a **child theme of Twenty Twenty-Five** kept in its own repository, [`evlist/wp-twenty-twenty-five-printable`](https://github.com/evlist/wp-twenty-twenty-five-printable). Twenty Twenty-Five stays untouched (its updates cannot overwrite anything), the templates are versioned and travel with the plugins as part of a rollout, and no tool for exporting and importing templates is needed. The templates of the blog are three web/print pairs (`journee`, `publication-randonnee`, "Résumé mensuel randonnée") plus a few others (for example one for a category); `publication-randonnee` is the most used.
+
+What was **tried** on a scratch WordPress 7.1.3 (and written down in the README of the theme):
+
+- A template saved in the site editor is stored in the database and **shadows the file** of the theme with the same slug.
+- A database copy attached to the **parent** theme is **ignored** by the child: after the switch, the customised templates stop applying until they are in the theme.
+- A `wp:template-part` that carries `"theme":"twentytwentyfive"` renders as **nothing, silently**, in the child theme: the `theme` attribute must be left out of the files.
+- The identifiers kept by the modes screen for the variants contain the theme (`twentytwentyfive//slug`), so **the variants must be declared again** for the new theme: a command that rewrites them is on the list below.
+
+**Not tried:** the global styles saved in the site editor (stored per theme, they may not follow the switch), and everything on the blog itself.
+
+The scripts for this are [`tools/staging/templates.sh`](../../tools/staging/README.md): `check` lists the templates of the database and says which ones shadow a file, `export` writes them as files (with the fragment of `theme.json` for the custom templates), `delete` removes the shadowing copies after a backup.
+
 ## Proposed order of the steps
 
-From the least to the most risky. Each step is one iteration (or two independent ones).
+From the least to the most risky. Each step is one iteration (or two independent ones). A rollout file is written for each ([`../rollouts/`](../rollouts/README.md)); the first one, [001](../rollouts/001-install-modes-disabled.md), is written.
 
 | # | Step | Visible effect on production |
 |---|---|---|
 | 1 | Install Otherguise and Media Helper, **modes disabled** (the default). | None. |
-| 2 | Bring the two templates (`publication-randonnee`, `publication-randonnee-print`) up to date for the modes (the block `modes/link`), declare the modes and the variants, enable the modes. | The `?mode=` addresses work; `?print` is still served by the old plugin until it is retired. |
-| 3 | Stylesheet per mode; default template of new posts. | The styles of the modes; new posts start from `publication-randonnee`. |
-| 4 | Media: `wp otherguise media migrate --dry-run`, read the report, run it; then choose the method `otherguise` in Media Helper. | None on the front end (the blocks still read `post_parent`, which is never changed); the panel offers several posts and modes. |
-| 5 | Change the two blocks (`wp-attached-gpx`, `wp-printable-gallery`) to call `wp_media_helper_get_attached_media()`. | The galleries and the tracks come from the links; this is the step that can change the rendering. |
-| 6 | Retire `wp-pdf-helper` (checklist in [modes.md](modes.md)). | The old `?print` hack and the "Print" column disappear. |
+| 2 | **The child theme**: export the templates of the database, put them in the theme, switch the theme, remove the shadowing copies; compare the two sites before and after (styles, menus). | None expected; this is the step to look at closely. |
+| 3 | Declare the modes and the variants **for the new theme**, make the templates use the block `modes/link`, enable the modes. | The `?mode=` addresses work; `?print` is still served by the old plugin until it is retired. |
+| 4 | Stylesheet per mode; default template of new posts. | The styles of the modes; new posts start from `publication-randonnee`. |
+| 5 | Media: `wp otherguise media migrate --dry-run`, read the report, run it; then choose the method `otherguise` in Media Helper. | None on the front end (the blocks still read `post_parent`, which is never changed); the panel offers several posts and modes. |
+| 6 | Change the two blocks (`wp-attached-gpx`, `wp-printable-gallery`) to call `wp_media_helper_get_attached_media()`. | The galleries and the tracks come from the links; this is the step that can change the rendering. |
+| 7 | Retire `wp-pdf-helper` (checklist in [modes.md](modes.md)). | The old `?print` hack and the "Print" column disappear. |
 
-Between steps 4 and 5 the galleries keep working because `post_parent` is untouched; this was checked on a scratch site, **not yet** on a copy of the blog.
+Between steps 5 and 6 the galleries keep working because `post_parent` is untouched; this was checked on a scratch site, **not yet** on a copy of the blog.
 
 ## Moving a template from staging to production
 
-**Proposed.** The templates exist on both sites; only their content is copied. A template is a post of type `wp_template`; WP-CLI has no command for it but the commands on posts are enough (`wp post get <ID> --field=post_content` on staging, `wp post update <ID> <file>` on production, after a backup and a `diff`). Replace the address of staging by that of production in the files first, and activate Otherguise on production **before** updating the templates (the block `modes/link` is unknown without it). Not tried on the blog.
+Superseded by the child theme (above): a template is changed in the repository of the theme, tried on testing, rehearsed on staging, and reaches production with the tag of the rollout. Until the switch (step 2), the templates of the database are exported with `tools/staging/templates.sh export`.
+
+## What the plugin still has to offer in WP-CLI
+
+**Proposed.** The list of what the migrations will need and that has no command yet. **Each one is written only when an iteration needs it**, with a `--dry-run` and a report, and tested like `media migrate`.
+
+| Needed by step | Command (proposed name) | Today |
+|---|---|---|
+| 3 | `wp otherguise modes variant list \| add <template> <variant> --mode=<mode> \| remove` (and the same for template parts) | the modes screen only |
+| 2 and 3 | `wp otherguise modes variant retheme <from-theme> <to-theme>`: rewrites the identifiers of the variants (`twentytwentyfive//slug` to `twentytwentyfive-printable//slug`) | does not exist |
+| 3 | `wp otherguise modes enable` / `disable` | `wp option update modes_settings` works but is not a gesture one remembers |
+| 4 | `wp otherguise modes stylesheet list \| add <mode> <file or attachment> \| remove` (a file is first imported with `wp media import`) | the modes screen only |
+| 4 | `wp otherguise modes default-template set <post type> <template>` | the modes screen, option `modes_default_templates` |
+| all | `wp otherguise modes status`: modes, variants, stylesheets, default templates, enabled or not, in a form that a script can compare with what was expected (the verification at the end of a rollout file) | does not exist |
+| 5 | `wp otherguise media migrate` | **exists** (slice 211) |
+| 5 | `wp otherguise media list <post>` (the links of a post with their modes), to look at the result | the panel of Media Helper |
+| any | `wp otherguise triples list \| add \| remove`, generic, if the commands above turn out to be too many | the screen "Otherguise relations" |
 
 ## Open
 
-- **Open**: whether to write the procedures in this repository (`docs/rollout/NNN-name.md`, one per iteration) or only in the conversation; the first would keep them for the next time.
-- **Open**: an export/import of the settings of the modes (see above).
+- **Open**: whether the rollout files stay in this repository (`docs/rollouts/`, where they are now) or move to a private repository of the blog: they name the containers and the settings of the site.
+- **Open**: the names of the other templates and of their slugs. "Résumé mensuel randonnée" has the slug `wp-custom-template-r-sum-mensuel-randonn-e` (made from the title when it was created); keeping it keeps the posts that use it working, renaming it needs a command that rewrites the template of those posts.
 - **Open**: how long a rollout is kept as a set (are old tags ever cleaned up?).
-- **Open**: what a "small" iteration is for the blocks of step 5 (both at once, or one block per iteration).
+- **Open**: what a "small" iteration is for the blocks of step 6 (both at once, or one block per iteration).
 
 ## Related
 

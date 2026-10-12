@@ -60,6 +60,19 @@ rollout.sh rollback --site=prod            # back where every repository was bef
 - **`apply` is all or nothing before it starts:** it fetches the tags, refuses if one repository lacks the tag or has local changes, and only then checks out `rollout-N` everywhere (detached head), remembering where each repository was so that `rollback` can go back. Production is never "updated to the latest": `update` refuses it, only a tag can be applied.
 - It only moves the code. What a plugin does when its version changes (tables, options) is up to the plugin; check the site afterwards.
 
+## The templates of the database: `templates.sh`
+
+The templates that the site editor stored in the database are not in git, and a database copy **hides** the file of the same slug in the theme. [`templates.sh`](templates.sh) (run on the Docker host, `--site=prod|staging|testing` always required) looks at them, for the move of the templates into the child theme [`evlist/wp-twenty-twenty-five-printable`](https://github.com/evlist/wp-twenty-twenty-five-printable):
+
+```sh
+templates.sh check --site=prod                       # each template of the database: SHADOWS (hides a file), DATABASE-ONLY, UNUSED (attached to another theme); exit 1 if one SHADOWS
+templates.sh export ~/templates-prod --site=prod     # every template and part as files + customTemplates.json (read-only)
+templates.sh delete --backup-dir ~/backup --site=staging --dry-run    # which copies would be deleted
+templates.sh delete --backup-dir ~/backup --site=staging              # backs them up, asks for the name of the container, deletes them
+```
+
+`export` removes the `theme` attribute of the template parts (it makes them render as nothing in a child theme, see the README of the theme) and writes the fragment of `theme.json` for the custom templates (the post type `post` is a guess: check it). Only the copies that **hide a file** are deleted, and never without a backup in the directory you give.
+
 ## Re-applying only the safety step
 
 `--safety-only` copies nothing: it only re-applies the last step (the options, the constants and the safety plugin of the test site). Use it after an update of this script, for instance to refresh the "TEST COPY" entry of the admin bar (which is **not a link**: a link to production in the administration of the test site is an invitation to edit the wrong site).
@@ -94,4 +107,4 @@ Anything that exists **only on the test site** is deleted by the copy (rsync `--
 
 ## Tested
 
-With **stand-ins for `docker` and `rsync`** ([`tests/staging/sync-site-test.sh`](../../tests/staging/sync-site-test.sh), 61 checks): the guards, the dry run, the order (files, dump, load, addresses), the arguments (host and port split, wp-config kept, guid skipped), the file written for the safety plugin (valid PHP), the targets, the date of the copy and `set-environment.sh` (it refuses production and any site that is not the one expected). The sync was run by Eric on his own site (the versions before the modes were added). The frame plugin was tested on a scratch WordPress with WP-CLI ([`tests/staging/site-environment-test.sh`](../../tests/staging/site-environment-test.sh), 12 checks: each environment, front, administration, login, print, the date, the admin bar) and seen once in Chromium (green frame, "TESTING"). The rollout script ([`tests/staging/rollout-test.sh`](../../tests/staging/rollout-test.sh), 40 checks) was tested with **real git repositories** (a bare repository standing for GitHub, a clone per site) and a stand-in for `docker`. **Not tried:** the new scripts against real containers and a real GitHub, the plugin on production, and the look of the red and orange frames in the block editor.
+With **stand-ins for `docker` and `rsync`** ([`tests/staging/sync-site-test.sh`](../../tests/staging/sync-site-test.sh), 61 checks): the guards, the dry run, the order (files, dump, load, addresses), the arguments (host and port split, wp-config kept, guid skipped), the file written for the safety plugin (valid PHP), the targets, the date of the copy and `set-environment.sh` (it refuses production and any site that is not the one expected). The sync was run by Eric on his own site (the versions before the modes were added). The frame plugin was tested on a scratch WordPress with WP-CLI ([`tests/staging/site-environment-test.sh`](../../tests/staging/site-environment-test.sh), 12 checks: each environment, front, administration, login, print, the date, the admin bar) and seen once in Chromium (green frame, "TESTING"). The rollout script ([`tests/staging/rollout-test.sh`](../../tests/staging/rollout-test.sh), 40 checks) was tested with **real git repositories** (a bare repository standing for GitHub, a clone per site) and a stand-in for `docker`. The templates script ([`tests/staging/templates-test.sh`](../../tests/staging/templates-test.sh), 26 checks) was tested on a **scratch WordPress** with the real WP-CLI and the child theme active (check, export, delete with its backup). **Not tried:** the new scripts against real containers and a real GitHub, the plugin on production, and the look of the red and orange frames in the block editor.

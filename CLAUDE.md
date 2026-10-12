@@ -25,5 +25,6 @@ Instructions for Claude Code sessions working in this repository.
 - Capability and nonce checks, translatable strings and `uninstall` handling come with the feature, not afterwards.
 - No `shell_exec` in product logic where a PHP implementation exists.
 - Say what ran only under automated tests and what was never tried on a real WordPress site.
+- A step of a migration that touches what a plugin is responsible for is a **WP-CLI command that can be run twice**, with `--dry-run`, a report and a way to check the result (the model: `wp otherguise media migrate`); the gestures that have no command yet are listed in the rollout file. See `docs/design/rollout.md`. The templates of the blog live in the child theme `evlist/wp-twenty-twenty-five-printable`, not in this repository.
 - The `.devcontainer/` and the `cs-grafting-*` workflows are grafted from `evlist/codespaces-grafting` and are not edited here.
 - Never ask for, store or commit tokens or passwords. Do not create pull requests or push to another branch unless asked.
