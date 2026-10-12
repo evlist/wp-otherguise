@@ -186,7 +186,7 @@ report_space() {
 
 # --- 2. files ----------------------------------------------------------------------------------------------------------------------
 rsync_args=(-a --delete --numeric-ids --exclude '/wp-config.php' --exclude '/wp-content/cache/' --exclude '/wp-content/upgrade/'
-  --exclude '/wp-content/mu-plugins/staging-safety.php' --exclude '/wp-content/mu-plugins/site-environment.php' --exclude '*.log' --exclude '/.maintenance')
+  --exclude '/wp-content/mu-plugins/staging-safety.php' --exclude '/wp-content/mu-plugins/site-environment.php' --exclude '/robots.txt' --exclude '*.log' --exclude '/.maintenance')
 [ "$SKIP_UPLOADS" -eq 0 ] || rsync_args+=(--exclude '/wp-content/uploads/')
 for pattern in "${mount_excludes[@]}"; do rsync_args+=(--exclude "$pattern"); done
 for pattern in $EXCLUDES; do rsync_args+=(--exclude "$pattern"); done
@@ -264,6 +264,9 @@ fi # SAFETY_ONLY
 # --- 5. a safe copy ----------------------------------------------------------------------------------------------------------------
 say "Making the copy safe"
 wp_in "$STAGING_CONTAINER" option update blog_public 0
+# A real robots.txt is served by the web server before WordPress is reached, so it would let the search engines in whatever the settings say:
+# the copy has none (the virtual one, made by site-environment.php, disallows everything).
+docker exec -u root "$STAGING_CONTAINER" rm -f /var/www/html/robots.txt
 # The environment (constant and must-use plugin of the coloured frame) is set by set-environment.sh, which refuses any site that is not
 # the sandbox; the date of the copy is recorded after the load, so that it is the one of this copy and not the one in the dump.
 STAGING_CONTAINER="$STAGING_CONTAINER" STAGING_URL="$STAGING_URL" "$HERE/set-environment.sh" "$TARGET"

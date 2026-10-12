@@ -41,5 +41,16 @@ out=$(footer production admin admin_footer); ! grep -q 'copy of' <<<"$out"; chec
 bar=$($WPSH --exec="define( 'WP_ENVIRONMENT_TYPE', 'production' );" eval 'require_once ABSPATH . WPINC . "/class-wp-admin-bar.php"; $b = new WP_Admin_Bar(); do_action_ref_array( "admin_bar_menu", array( &$b ) ); $n = $b->get_node( "otherguise-site-environment" ); echo $n ? $n->title : "none";' 2>/dev/null)
 grep -q 'production' <<<"$bar" && grep -q '#c62828' <<<"$bar"; check "the admin bar names the environment, on production too" $?
 
+# The search engines.
+robots() { $WPSH --exec="define( 'WP_ENVIRONMENT_TYPE', '$1' );" eval 'echo apply_filters( "robots_txt", "User-agent: *\nDisallow: /wp-admin/\n", true );' 2>/dev/null; }
+sitemaps() { $WPSH --exec="define( 'WP_ENVIRONMENT_TYPE', '$1' );" eval 'var_dump( apply_filters( "wp_sitemaps_enabled", true ) );' 2>/dev/null; }
+for env in staging development; do
+  out=$(robots $env); [ "$out" = "$(printf 'User-agent: *\nDisallow: /')" ]; check "$env: robots.txt disallows everything" $?
+  grep -q "false" <<<"$(sitemaps $env)"; check "$env: the sitemaps are off" $?
+done
+out=$(robots production); grep -q "Disallow: /wp-admin/" <<<"$out" && ! grep -qx "Disallow: /" <<<"$out"; check "production: robots.txt is left as it is" $?
+grep -q "true" <<<"$(sitemaps production)"; check "production: the sitemaps are left as they are" $?
+out=$($WPSH --exec="define( 'WP_ENVIRONMENT_TYPE', 'staging' );" eval 'ob_start(); wp_robots(); echo ob_get_clean();' 2>/dev/null); grep -q "noindex" <<<"$out"; check "staging: the pages carry a noindex meta tag" $?
+
 echo; echo "$PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ]

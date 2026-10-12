@@ -10,6 +10,10 @@
  * and `development` or `local`, shown as "testing". The sync script of staging also records the date of the copy in the option
  * `otherguise_site_synced_at`, shown in the label.
  *
+ * On a copy (staging, testing) it also keeps the search engines away, whatever the settings say: the virtual `robots.txt` of WordPress
+ * disallows everything, the pages ask not to be indexed (meta tag and header `X-Robots-Tag`) and the sitemaps are off. A real file
+ * `robots.txt` in the directory of the site is served by the web server before WordPress is reached: the sync script removes it from the copy.
+ *
  * @package Otherguise
  */
 
@@ -97,3 +101,31 @@ function otherguise_site_environment_admin_bar( $bar ) {
 	);
 }
 add_action( 'admin_bar_menu', 'otherguise_site_environment_admin_bar', 2 );
+
+/**
+ * Keeps the search engines away from a copy: nothing is indexed, nothing is listed. Not on production.
+ *
+ * @return void
+ */
+function otherguise_site_environment_keep_robots_away() {
+	if ( ! otherguise_site_environment()['everywhere'] ) {
+		return;
+	}
+
+	add_filter(
+		'robots_txt',
+		static function () {
+			return "User-agent: *\nDisallow: /\n";
+		},
+		PHP_INT_MAX
+	);
+	add_filter( 'wp_robots', 'wp_robots_no_robots', PHP_INT_MAX );
+	add_filter( 'wp_sitemaps_enabled', '__return_false' );
+	add_action(
+		'send_headers',
+		static function () {
+			header( 'X-Robots-Tag: noindex, nofollow', true );
+		}
+	);
+}
+otherguise_site_environment_keep_robots_away();
