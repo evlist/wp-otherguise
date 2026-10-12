@@ -10,7 +10,7 @@
 #   3. rsyncs the files of the production volume onto the test volume (wp-config.php, caches and anything in EXCLUDES are left alone);
 #   4. dumps the database of the production site and loads it into the test database;
 #   5. replaces the address of the production site by the address of the test site, with `wp search-replace`, which handles serialized data;
-#   6. makes the copy safe: no mail, no indexing, no scheduled tasks, environment type "staging".
+#   6. makes the copy safe: no mail, no indexing, no scheduled tasks, warnings logged and not displayed, environment type of the target.
 #
 # It never writes to the production site: it only reads its files and dumps its database.
 #
@@ -268,6 +268,10 @@ wp_in "$STAGING_CONTAINER" option update blog_public 0
 # the sandbox; the date of the copy is recorded after the load, so that it is the one of this copy and not the one in the dump.
 STAGING_CONTAINER="$STAGING_CONTAINER" STAGING_URL="$STAGING_URL" "$HERE/set-environment.sh" "$TARGET"
 [ "$SAFETY_ONLY" -eq 1 ] || wp_in "$STAGING_CONTAINER" option update otherguise_site_synced_at "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+# Warnings of production plugins (a notice about translations loaded too early, for instance) must not be printed in the pages of the copy:
+# they send the headers early and break what needs them (sessions, redirects). They go to wp-content/debug.log.
+wp_root "$STAGING_CONTAINER" config set WP_DEBUG_DISPLAY false --raw --type=constant
+wp_root "$STAGING_CONTAINER" config set WP_DEBUG_LOG true --raw --type=constant
 if [ "$KEEP_CRON" -eq 0 ]; then
   wp_root "$STAGING_CONTAINER" config set DISABLE_WP_CRON true --raw --type=constant
   echo "WP-Cron disabled on the test site (use --keep-cron to leave it on)."

@@ -91,7 +91,7 @@ Superseded by the child theme (above): a template is changed in the repository o
 | Needed by step | Command (proposed name) | Today |
 |---|---|---|
 | 3 | `wp otherguise modes variant list \| add <template> <variant> --mode=<mode> \| remove` (and the same for template parts) | the modes screen only |
-| 2 and 3 | `wp otherguise modes variant retheme <from-theme> <to-theme>`: rewrites the identifiers of the variants (`twentytwentyfive//slug` to `twentytwentyfive-printable//slug`) | does not exist |
+| 2 and 3 | `wp otherguise modes variant retheme <from-theme> <to-theme>`: rewrites the identifiers of the variants (`twentytwentyfive//slug` to `wp-twenty-twenty-five-printable//slug`, the name of the directory of the theme) | does not exist |
 | 3 | `wp otherguise modes enable` / `disable` | `wp option update modes_settings` works but is not a gesture one remembers |
 | 4 | `wp otherguise modes stylesheet list \| add <mode> <file or attachment> \| remove` (a file is first imported with `wp media import`) | the modes screen only |
 | 4 | `wp otherguise modes default-template set <post type> <template>` | the modes screen, option `modes_default_templates` |

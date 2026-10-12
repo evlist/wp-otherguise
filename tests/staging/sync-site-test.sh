@@ -113,6 +113,7 @@ grep -q "search-replace https://e.test https://sb.test --all-tables --skip-colum
 grep -q "search-replace //e.test //sb.test" "$LOG"; check "scheme-less addresses replaced" $?
 grep -q "config set DISABLE_WP_CRON true" "$LOG"; check "cron disabled" $?
 grep -q "option update blog_public 0" "$LOG"; check "search engines discouraged" $?
+grep -q "config set WP_DEBUG_DISPLAY false --raw --type=constant" "$LOG" && grep -q "config set WP_DEBUG_LOG true --raw --type=constant" "$LOG"; check "warnings are logged, not displayed" $?
 php -l "$T/stg/wp-content/mu-plugins/staging-safety.php" >/dev/null 2>&1; check "the mu-plugin is valid PHP" $?
 grep -q "https://e.test" "$T/stg/wp-content/mu-plugins/staging-safety.php"; check "the mu-plugin names the production address" $?
 ! grep -q "href" "$T/stg/wp-content/mu-plugins/staging-safety.php"; check "the admin bar entry of the mu-plugin is not a link" $?
