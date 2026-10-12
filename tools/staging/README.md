@@ -23,6 +23,22 @@ The script writes nothing else into the volumes from the host: the safety plugin
 
 The defaults are those of Eric's setup (containers `docker-e-vli-st_wordpress_1` and `docker-sb-vli-st_wordpress-sb_1`, volumes `/volumes/e-vli-st/wordpress` and `/volumes/sb-vli-st/wordpress`, addresses `https://e.vli.st` and `https://sb.vli.st`); every one can be changed with an environment variable, listed at the top of the script.
 
+## Which site is this? A coloured frame and a label
+
+[`site-environment.php`](site-environment.php) is a must-use plugin for the **three** sites. It draws a thin coloured frame around the window and a small label in the bottom right corner, both transparent to clicks (they never hide a button) and **not printed** (nothing in the PDF of a page):
+
+| Site | Colour and label | Where |
+|---|---|---|
+| production | red, `production` | the administration (and the admin bar of the public pages, which only logged-in users see) |
+| staging (sandbox, a fresh copy to rehearse a procedure) | orange, `staging` | every page: public, administration, login |
+| testing (sandbox, free experiments) | green, `testing` | every page |
+
+It reads `WP_ENVIRONMENT_TYPE`, which WordPress already knows: `production` (what you get when nothing is defined, so **nothing to configure on production**), `staging`, and `development` or `local` (shown as "testing"). On a copy the label also shows the date of the copy (`staging (copy of 2026-10-12 10:03)`), recorded by the sync script in the option `otherguise_site_synced_at`.
+
+- **The sandbox:** `sync-site.sh --mode=staging` (default) or `--mode=testing` sets the environment and installs the plugin. To change it **without copying anything**: `tools/staging/set-environment.sh testing` (or `staging`); without argument it shows the current one. The script refuses a site that does not say it is `STAGING_URL`.
+- **Production:** install it **by hand**, the scripts never write there: copy `site-environment.php` into `wp-content/mu-plugins/` of the production site. If production has it, the sync brings it to the sandbox, which then overwrites it with its own copy.
+- The "TEST COPY" entry of the admin bar (`staging-safety.php`) stays: it says which production site the copy is **not**.
+
 ## Re-applying only the safety step
 
 `--safety-only` copies nothing: it only re-applies the last step (the options, the constants and the safety plugin of the test site). Use it after an update of this script, for instance to refresh the "TEST COPY" entry of the admin bar (which is **not a link**: a link to production in the administration of the test site is an invitation to edit the wrong site).
@@ -57,4 +73,4 @@ Anything that exists **only on the test site** is deleted by the copy (rsync `--
 
 ## Tested
 
-With **stand-ins for `docker` and `rsync`** ([`tests/staging/sync-site-test.sh`](../../tests/staging/sync-site-test.sh), 26 checks): the guards, the dry run, the order (files, dump, load, addresses), the arguments (host and port split, wp-config kept, guid skipped), the file written for the safety plugin (valid PHP). It was **never run against real containers**: the first run should be `--dry-run`, then a full run on an expendable test site.
+With **stand-ins for `docker` and `rsync`** ([`tests/staging/sync-site-test.sh`](../../tests/staging/sync-site-test.sh), 57 checks): the guards, the dry run, the order (files, dump, load, addresses), the arguments (host and port split, wp-config kept, guid skipped), the file written for the safety plugin (valid PHP), the modes, the date of the copy and `set-environment.sh` (it refuses production and any site that is not the sandbox). The sync was run by Eric on his own site (the versions before the modes were added). The frame plugin was tested on a scratch WordPress with WP-CLI ([`tests/staging/site-environment-test.sh`](../../tests/staging/site-environment-test.sh), 12 checks: each environment, front, administration, login, print, the date, the admin bar) and seen once in Chromium (green frame, "TESTING"). **Not tried:** the new scripts against real containers, the plugin on production, and the look of the red and orange frames in the block editor.

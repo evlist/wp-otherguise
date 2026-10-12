@@ -33,6 +33,8 @@ case "$cmd" in
   *"mariadb-dump || command -v mysqldump"*) echo /usr/bin/mysqldump; exit 0 ;;
   *"mariadb || command -v mysql"*) echo /usr/bin/mysql; exit 0 ;;
   *"staging-safety.php"*) mkdir -p "$T/stg/wp-content/mu-plugins"; cat >"$T/stg/wp-content/mu-plugins/staging-safety.php"; exit 0 ;;
+  *"site-environment.php"*) mkdir -p "$T/stg/wp-content/mu-plugins"; cat >"$T/stg/wp-content/mu-plugins/site-environment.php"; exit 0 ;;
+  "wp eval"*) echo "${STG_ENV:-staging}"; exit 0 ;;
   "wp --info"*) exit 0 ;;
   "wp option get siteurl"*) if [ "$container" = prod ]; then echo "${PROD_SITEURL:-https://e.test}"; else echo "${STG_SITEURL:-https://sb.test}"; fi; exit 0 ;;
   "wp config get DB_NAME"*) [ "$container" = prod ] && echo prod_db || echo stg_db; exit 0 ;;
@@ -123,6 +125,28 @@ check "--safety-only succeeds" $rc
 : >"$LOG"; run --yes --keep-cron >/dev/null 2>&1; ! grep -q "DISABLE_WP_CRON" "$LOG"; check "--keep-cron leaves cron alone" $?
 : >"$LOG"; STAGING_HAS_WP=no run --yes >/dev/null 2>&1; grep -q "docker cp .*stg:/usr/local/bin/wp" "$LOG"; check "WP-CLI copied into the test container when missing" $?
 : >"$LOG"; run --yes --skip-uploads >/dev/null 2>&1; grep -q "^rsync .*--exclude /wp-content/uploads/" "$LOG"; check "--skip-uploads excludes uploads" $?
+
+# The environment of the sandbox: the mode of the sync, the date of the copy, and set-environment.sh.
+: >"$LOG"; run --yes >/dev/null 2>&1
+grep -q "config set WP_ENVIRONMENT_TYPE staging --type=constant" "$LOG"; check "default mode: staging" $?
+grep -q "option update otherguise_site_synced_at 20" "$LOG"; check "the date of the copy is recorded" $?
+php -l "$T/stg/wp-content/mu-plugins/site-environment.php" >/dev/null 2>&1; check "the coloured frame plugin is installed and valid PHP" $?
+: >"$LOG"; run --yes --mode=testing >/dev/null 2>&1
+grep -q "config set WP_ENVIRONMENT_TYPE development --type=constant" "$LOG"; check "--mode=testing sets development" $?
+: >"$LOG"; run --yes --mode=bogus >/dev/null 2>&1
+check "refuses an unknown mode" $((! $?)); ! grep -q "^rsync" "$LOG"; check "...and copied nothing" $?
+: >"$LOG"; run --safety-only --yes >/dev/null 2>&1
+! grep -q "otherguise_site_synced_at" "$LOG"; check "--safety-only keeps the date of the last copy" $?
+SETENV="$HERE/../../tools/staging/set-environment.sh"
+senv() { STAGING_CONTAINER=stg STAGING_URL=https://sb.test bash "$SETENV" "$@"; }
+: >"$LOG"; senv testing >/dev/null 2>&1; rc=$?
+check "set-environment testing succeeds" $rc
+grep -q "config set WP_ENVIRONMENT_TYPE development --type=constant" "$LOG"; check "set-environment testing: development" $?
+: >"$LOG"; senv staging >/dev/null 2>&1
+grep -q "config set WP_ENVIRONMENT_TYPE staging --type=constant" "$LOG"; check "set-environment staging: staging" $?
+: >"$LOG"; senv production >/dev/null 2>&1; check "set-environment refuses production" $((! $?)); ! grep -q "config set" "$LOG"; check "...and changes nothing" $?
+: >"$LOG"; STG_SITEURL=https://e.test senv staging >/dev/null 2>&1; check "set-environment refuses a site that is not the sandbox" $((! $?)); ! grep -q "config set" "$LOG"; check "...and changes nothing there" $?
+: >"$LOG"; out=$(STG_ENV=development senv 2>&1); grep -q "testing" <<<"$out"; check "set-environment without argument shows the environment" $?; ! grep -q "config set" "$LOG"; check "...and writes nothing" $?
 
 echo; echo "$PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ]

@@ -14,7 +14,9 @@
 #
 # It never writes to the production site: it only reads its files and dumps its database.
 #
-# Usage: sync-site.sh [--dry-run] [--yes] [--skip-uploads] [--keep-dump] [--keep-cron] [--safety-only]
+# Usage: sync-site.sh [--mode=staging|testing] [--dry-run] [--yes] [--skip-uploads] [--keep-dump] [--keep-cron] [--safety-only]
+#   --mode=<m>       what the test site is for, which its coloured frame says (site-environment.php): "staging" (default), a fresh copy
+#                    on which a procedure is rehearsed, or "testing", free experiments. It can be changed later with set-environment.sh.
 #   --dry-run        show the files rsync would change and stop. The only thing written is WP-CLI in the test container, if it is missing.
 #   --yes            do not ask for confirmation.
 #   --skip-uploads   do not copy wp-content/uploads (the test site keeps its own, and gets none of the images, thumbnails included, of
@@ -52,16 +54,19 @@ PLUGIN_DIR=${PLUGIN_DIR:-wp-otherguise}
 prod_host=${PROD_URL#*://}
 staging_host=${STAGING_URL#*://}
 
-DRY_RUN=0 YES=0 SKIP_UPLOADS=0 KEEP_DUMP=0 KEEP_CRON=0 SAFETY_ONLY=0
+DRY_RUN=0 YES=0 SKIP_UPLOADS=0 KEEP_DUMP=0 KEEP_CRON=0 SAFETY_ONLY=0 MODE=staging
+HERE=$(cd "$(dirname "$0")" && pwd)
 for arg in "$@"; do
   case "$arg" in
+    --mode=staging | --mode=testing) MODE=${arg#--mode=} ;;
+    --mode=*) echo "Unknown mode: ${arg#--mode=} (staging or testing)" >&2; exit 2 ;;
     --dry-run) DRY_RUN=1 ;;
     --yes) YES=1 ;;
     --skip-uploads) SKIP_UPLOADS=1 ;;
     --keep-dump) KEEP_DUMP=1 ;;
     --keep-cron) KEEP_CRON=1 ;;
     --safety-only) SAFETY_ONLY=1 ;;
-    -h | --help) sed -n '2,40p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    -h | --help) sed -n '2,/^set -euo/{/^set -euo/!p}' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
     *) echo "Unknown option: $arg" >&2; exit 2 ;;
   esac
 done
@@ -146,6 +151,7 @@ P_NAME=$(cfg "$PROD_CONTAINER" DB_NAME) P_USER=$(cfg "$PROD_CONTAINER" DB_USER) 
 S_NAME=$(cfg "$STAGING_CONTAINER" DB_NAME) S_USER=$(cfg "$STAGING_CONTAINER" DB_USER) S_PASS=$(cfg "$STAGING_CONTAINER" DB_PASSWORD) S_HOST=$(cfg "$STAGING_CONTAINER" DB_HOST)
 [ "$P_HOST/$P_NAME" != "$S_HOST/$S_NAME" ] || die "Both sites use the same database ($S_HOST/$S_NAME)."
 
+echo "Mode       : $MODE"
 echo "Production : $PROD_URL  ($PROD_CONTAINER, $PROD_VOLUME, database $P_NAME)"
 echo "Test copy  : $STAGING_URL  ($STAGING_CONTAINER, $STAGING_VOLUME, database $S_NAME)"
 
@@ -176,7 +182,7 @@ report_space() {
 
 # --- 2. files ----------------------------------------------------------------------------------------------------------------------
 rsync_args=(-a --delete --numeric-ids --exclude '/wp-config.php' --exclude '/wp-content/cache/' --exclude '/wp-content/upgrade/'
-  --exclude '/wp-content/mu-plugins/staging-safety.php' --exclude '*.log' --exclude '/.maintenance')
+  --exclude '/wp-content/mu-plugins/staging-safety.php' --exclude '/wp-content/mu-plugins/site-environment.php' --exclude '*.log' --exclude '/.maintenance')
 [ "$SKIP_UPLOADS" -eq 0 ] || rsync_args+=(--exclude '/wp-content/uploads/')
 for pattern in "${mount_excludes[@]}"; do rsync_args+=(--exclude "$pattern"); done
 for pattern in $EXCLUDES; do rsync_args+=(--exclude "$pattern"); done
@@ -254,7 +260,10 @@ fi # SAFETY_ONLY
 # --- 5. a safe copy ----------------------------------------------------------------------------------------------------------------
 say "Making the copy safe"
 wp_in "$STAGING_CONTAINER" option update blog_public 0
-wp_root "$STAGING_CONTAINER" config set WP_ENVIRONMENT_TYPE staging --type=constant
+# The environment (constant and must-use plugin of the coloured frame) is set by set-environment.sh, which refuses any site that is not
+# the sandbox; the date of the copy is recorded after the load, so that it is the one of this copy and not the one in the dump.
+STAGING_CONTAINER="$STAGING_CONTAINER" STAGING_URL="$STAGING_URL" "$HERE/set-environment.sh" "$MODE"
+[ "$SAFETY_ONLY" -eq 1 ] || wp_in "$STAGING_CONTAINER" option update otherguise_site_synced_at "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 if [ "$KEEP_CRON" -eq 0 ]; then
   wp_root "$STAGING_CONTAINER" config set DISABLE_WP_CRON true --raw --type=constant
   echo "WP-Cron disabled on the test site (use --keep-cron to leave it on)."
