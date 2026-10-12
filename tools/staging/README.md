@@ -74,6 +74,18 @@ templates.sh delete --backup-dir ~/backup --site=staging              # backs th
 
 `export` removes the `theme` attribute of the template parts (it makes them render as nothing in a child theme, see the README of the theme) and writes the fragment of `theme.json` for the custom templates (the post type `post` is a guess: check it). Only the copies that **hide a file** are deleted, and never without a backup in the directory you give. **When the templates move to the child theme there is nothing to delete**: the copies attached to Twenty Twenty-Five are not used by the child (they show as `UNUSED` after the switch), and no copy is attached to the child until someone saves a template in the site editor. `delete` is for that later accident, or for tidying.
 
+## The rollout scripts: `rollout-lib.sh` and `rollouts/`
+
+A rollout is a script, [`rollouts/NNN-name.sh`](../../rollouts/), built on [`rollout-lib.sh`](rollout-lib.sh) (model: [`rollouts/TEMPLATE.sh`](../../rollouts/TEMPLATE.sh)). It takes the site as a parameter and runs the same text on staging, testing and production:
+
+```sh
+rollouts/002-child-theme.sh --site=staging                  # rehearse, as often as needed (synchronise staging again if it goes wrong)
+tools/staging/rollout.sh create --site=staging              # tag what was rehearsed: rollout-N
+rollouts/002-child-theme.sh --site=prod --rollout=N         # production
+```
+
+The library gives a script `step` (run a command, stop if it fails), `note` (show a state), `check` and `check_output` (what a command can decide), `validate` (a question for you, optional: `--no-validate` skips it once the rehearsal is trusted) and `manual` (a gesture without a command, always asked). On production it asks for the name of the container (`--yes` skips it), backs the database up to `~/rollout-backups` before the first change, and **refuses a script that was not rehearsed to the end on staging with the validations, in its current text** (the fingerprint of the script and of the library is recorded in `~/.local/state/vli-rollouts`; `--force` overrides). A log of every run is kept in `~/rollout-logs`. `--dry-run` prints what would be done. There is no rollback to write: production is backed up and staging can be synchronised again.
+
 ## Re-applying only the safety step
 
 `--safety-only` copies nothing: it only re-applies the last step (the options, the constants and the safety plugin of the test site). Use it after an update of this script, for instance to refresh the "TEST COPY" entry of the admin bar (which is **not a link**: a link to production in the administration of the test site is an invitation to edit the wrong site).
@@ -107,5 +119,7 @@ Anything that exists **only on the test site** is deleted by the copy (rsync `--
 - The plugin under development is not installed: it is in your own volume. Activate it on the copy (`docker exec -u www-data <test container> wp plugin activate wp-otherguise`; the directory is `PLUGIN_DIR`), which also creates its tables.
 
 ## Tested
+
+The rollout library and the script of rollout 002 ([`tests/staging/rollout-script-test.sh`](../../tests/staging/rollout-script-test.sh), 45 checks) were tested with stand-ins for `docker`, `rollout.sh` and `templates.sh`: the order of the steps, the checks, the questions, the guard of production, the backup. **Never run against real containers.**
 
 With **stand-ins for `docker` and `rsync`** ([`tests/staging/sync-site-test.sh`](../../tests/staging/sync-site-test.sh), 62 checks): the guards, the dry run, the order (files, dump, load, addresses), the arguments (host and port split, wp-config kept, guid skipped), the file written for the safety plugin (valid PHP), the targets, the date of the copy and `set-environment.sh` (it refuses production and any site that is not the one expected). The sync was run by Eric on his own site (the versions before the modes were added). The frame plugin was tested on a scratch WordPress with WP-CLI ([`tests/staging/site-environment-test.sh`](../../tests/staging/site-environment-test.sh), 12 checks: each environment, front, administration, login, print, the date, the admin bar) and seen once in Chromium (green frame, "TESTING"). The rollout script ([`tests/staging/rollout-test.sh`](../../tests/staging/rollout-test.sh), 53 checks) was tested with **real git repositories** (a bare repository standing for GitHub, a clone per site) and a stand-in for `docker`. The templates script ([`tests/staging/templates-test.sh`](../../tests/staging/templates-test.sh), 29 checks) was tested on a **scratch WordPress** with the real WP-CLI and the child theme active (check, export, delete with its backup). **Not tried:** the new scripts against real containers and a real GitHub, the plugin on production, and the look of the red and orange frames in the block editor.

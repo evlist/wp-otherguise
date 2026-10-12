@@ -23,7 +23,7 @@ Functional tests of the plugins stay where they are cheap (automated tests, Code
 
 1. **Synchronise production onto staging** (and onto testing when the integration tests need fresh data) with `sync-site.sh`.
 2. **On staging, bring the plugins to the commits to rehearse** (`rollout.sh update`) **and configure them.**
-3. **Test and rehearse** the written procedure on staging.
+3. **Test and rehearse** the script of the iteration on staging.
 4. **Create the rollout** on staging: `rollout.sh create` tags the commits that were rehearsed, `rollout-N`, in every plugin repository, and pushes the tags to GitHub.
 5. **On production: back up, then `rollout.sh apply N --site=prod`, then reproduce by hand the manipulations of step 2.** There is **no automatic synchronisation from staging or testing to production**: the tests may have changed things that must not reach it.
 6. Go back to 1.
@@ -34,9 +34,9 @@ For step 5 to stay manageable, **the iterations must stay small.** A rollout is 
 
 **Proposed** (Claude, 2026-10-12), to confirm.
 
-- **Write the procedure before running it.** For each iteration, the exact steps of step 2 (settings, commands) are written down first, then run **from that text** on staging right after the synchronisation, then replayed as written on production. Anything done outside the text is not reproduced, or the text is corrected and rehearsed again.
+- **The script is the procedure.** It is run on staging right after the synchronisation, as it is, then on production. Anything done outside the script is not reproduced; the script is corrected and rehearsed again.
 - **Prefer commands that can be run twice** to settings made by hand: `wp otherguise media migrate` creates only what is missing, leaves existing links alone, and has a `--dry-run`. If reproducing the settings of the modes screen (modes, variants, stylesheets, default templates) by hand becomes error-prone, a command or an export/import of these settings (candidate slice) would remove the risk. Not before it hurts.
-- **Back up production just before step 5:** `wp db export` (and a copy of the templates edited). Cheap, and the only simple way back for steps that write to the database; `rollout.sh rollback` only moves the code.
+- **Production is backed up by the script** before the first change (`wp db export`, copied to `~/rollout-backups`); the regular backups of the site are the other way back. `rollout.sh rollback` only moves the code.
 - **The synchronisation overwrites staging**, including the links created by the rehearsal. This is intended; the procedure must recreate what it needs each time (the migration command does).
 - **One step per iteration**, or two when they are independent. The media migration and the change of the blocks must not share an iteration.
 
@@ -47,7 +47,7 @@ For step 5 to stay manageable, **the iterations must stay small.** A rollout is 
 - **Not by synchronising the database:** production lives on between the copy and the rollout (comments, edited posts, sessions, scheduled tasks); any table replaced loses that, and the relations of Otherguise hold identifiers of posts and media that differ as soon as production has new ones.
 - **Not by hand, as a rule:** by hand only what has no command yet, listed as such in the file of the rollout (see below).
 - **Rule for the plugins:** every step of a migration that touches what a plugin is responsible for is offered as a **WP-CLI command that can be run twice** (it creates only what is missing and leaves the rest alone), with a **`--dry-run`**, a **report** of what it did, and a way to **check** the result. `wp otherguise media migrate` is the model. This rule is in the `CLAUDE.md` of the repository; the commands still missing are listed in [What the plugin still has to offer](#what-the-plugin-still-has-to-offer-in-wp-cli).
-- **A rollout has a file** ([`../rollouts/`](../rollouts/README.md)): the versions (the tag `rollout-N`), the preconditions, the backup, the commands, the manual steps with what to check after each, the verification and the rollback. It is written before it is run, run on staging **from the text**, then replayed on production as written.
+- **A rollout is a script** ([`rollouts/`](../../rollouts/), one per rollout, built on [`tools/staging/rollout-lib.sh`](../../tools/staging/README.md)), decided by Eric on 2026-10-12: it takes the site as a parameter (staging, testing or prod), runs the commands, **checks** what a command can decide, asks the **validations** that need an eye (optional: `--no-validate` once the rehearsal is trusted) and the **manual gestures** that have no command yet (always asked). It is run on staging as often as needed, staging being synchronised again when something goes wrong, and on production when it is right. **Production refuses a script that was not rehearsed to the end on staging, with the validations, in its current text** (`--force` overrides), and the database of production is backed up before the first change. **There is no rollback to write** (Eric: the site is backed up regularly and the backups were tried; a script that ran to the end on a recently synchronised staging is very unlikely to fail on production). A file of [`docs/rollouts/`](../rollouts/README.md) keeps what a script cannot say: why, what to watch, what was observed.
 
 ## The templates live in a child theme (decision of 2026-10-12)
 
