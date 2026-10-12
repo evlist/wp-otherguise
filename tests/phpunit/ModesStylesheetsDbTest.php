@@ -200,13 +200,14 @@ class ModesStylesheetsDbTest extends Otherguise_Test_Database_Case {
 	/**
 	 * Builds a loader that records what it enqueues.
 	 *
-	 * @param array  $enqueued Receives the calls.
-	 * @param bool   $enabled  Whether the modes are enabled.
-	 * @param string $mode     Mode of the request.
-	 * @param bool   $service  Whether the service can be had.
+	 * @param array         $enqueued Receives the calls.
+	 * @param bool          $enabled  Whether the modes are enabled.
+	 * @param string        $mode     Mode of the request.
+	 * @param bool          $service  Whether the service can be had.
+	 * @param callable|null $theme_file Finder of the stylesheet of the theme; none by default.
 	 * @return StylesheetLoader
 	 */
-	private function loader( array &$enqueued, $enabled = true, $mode = 'print', $service = true ) {
+	private function loader( array &$enqueued, $enabled = true, $mode = 'print', $service = true, $theme_file = null ) {
 		return new StylesheetLoader(
 			static fn() => $enabled,
 			fn() => $this->site->modes->modes()->get( $mode ),
@@ -214,8 +215,41 @@ class ModesStylesheetsDbTest extends Otherguise_Test_Database_Case {
 			$this->files,
 			static function ( $handle, $url, $deps, $version ) use ( &$enqueued ) {
 				$enqueued[] = array( $handle, $url, $deps, $version );
-			}
+			},
+			$theme_file ?? static fn() => null
 		);
+	}
+
+	/**
+	 * The stylesheet `modes/<mode>.css` of the theme comes first, even when the service of the Media Library cannot be had.
+	 *
+	 * @return void
+	 */
+	public function test_the_loader_enqueues_the_stylesheet_of_the_theme_first(): void {
+		$this->stylesheets->add( new EntityRef( 'mode', 'print' ), 31 );
+		$asked = array();
+		$theme = static function ( $slug ) use ( &$asked ) {
+			$asked[] = $slug;
+			return array(
+				'url'     => 'http://example.test/theme/modes/' . $slug . '.css',
+				'version' => '99',
+			);
+		};
+
+		$enqueued = array();
+		$this->loader( $enqueued, true, 'print', true, $theme )->enqueue();
+
+		$this->assertSame( array( 'print' ), $asked );
+		$this->assertSame( array( 'modes-theme-print', 'http://example.test/theme/modes/print.css', array(), '99' ), $enqueued[0] );
+		$this->assertSame( 'modes-print-31', $enqueued[1][0] );
+
+		$enqueued = array();
+		$this->loader( $enqueued, true, 'print', false, $theme )->enqueue();
+		$this->assertSame( array( 'modes-theme-print' ), array_column( $enqueued, 0 ) );
+
+		$enqueued = array();
+		$this->loader( $enqueued, false, 'print', true, $theme )->enqueue();
+		$this->assertSame( array(), $enqueued );
 	}
 
 	/**
