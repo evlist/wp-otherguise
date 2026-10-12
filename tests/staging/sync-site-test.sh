@@ -126,27 +126,29 @@ check "--safety-only succeeds" $rc
 : >"$LOG"; STAGING_HAS_WP=no run --yes >/dev/null 2>&1; grep -q "docker cp .*stg:/usr/local/bin/wp" "$LOG"; check "WP-CLI copied into the test container when missing" $?
 : >"$LOG"; run --yes --skip-uploads >/dev/null 2>&1; grep -q "^rsync .*--exclude /wp-content/uploads/" "$LOG"; check "--skip-uploads excludes uploads" $?
 
-# The environment of the sandbox: the mode of the sync, the date of the copy, and set-environment.sh.
+# The environment of the copies: --target, the date of the copy, and set-environment.sh.
 : >"$LOG"; run --yes >/dev/null 2>&1
-grep -q "config set WP_ENVIRONMENT_TYPE staging --type=constant" "$LOG"; check "default mode: staging" $?
+grep -q "config set WP_ENVIRONMENT_TYPE staging --type=constant" "$LOG"; check "default target: staging" $?
 grep -q "option update otherguise_site_synced_at 20" "$LOG"; check "the date of the copy is recorded" $?
 php -l "$T/stg/wp-content/mu-plugins/site-environment.php" >/dev/null 2>&1; check "the coloured frame plugin is installed and valid PHP" $?
-: >"$LOG"; run --yes --mode=testing >/dev/null 2>&1
-grep -q "config set WP_ENVIRONMENT_TYPE development --type=constant" "$LOG"; check "--mode=testing sets development" $?
-: >"$LOG"; run --yes --mode=bogus >/dev/null 2>&1
-check "refuses an unknown mode" $((! $?)); ! grep -q "^rsync" "$LOG"; check "...and copied nothing" $?
+: >"$LOG"; run --yes --target=bogus >/dev/null 2>&1
+check "refuses an unknown target" $((! $?)); ! grep -q "^rsync" "$LOG"; check "...and copied nothing" $?
+: >"$LOG"; run --yes --target=testing >/dev/null 2>&1; check "--target=testing needs the settings of the testing site" $((! $?)); ! grep -q "^rsync" "$LOG"; check "...and copied nothing" $?
+: >"$LOG"; STG_SITEURL=https://t.test TESTING_CONTAINER=stg TESTING_VOLUME="$T/stg" TESTING_URL=https://t.test run --yes --target=testing >/dev/null 2>&1; rc=$?; check "--target=testing copies onto the testing site" $rc
+grep -q "search-replace https://e.test https://t.test" "$LOG"; check "the testing address replaces the production one" $?
+grep -q "config set WP_ENVIRONMENT_TYPE development --type=constant" "$LOG"; check "the testing site is development" $?
 : >"$LOG"; run --safety-only --yes >/dev/null 2>&1
 ! grep -q "otherguise_site_synced_at" "$LOG"; check "--safety-only keeps the date of the last copy" $?
 SETENV="$HERE/../../tools/staging/set-environment.sh"
-senv() { STAGING_CONTAINER=stg STAGING_URL=https://sb.test bash "$SETENV" "$@"; }
+senv() { STAGING_CONTAINER=stg STAGING_URL=https://sb.test TESTING_CONTAINER=stg TESTING_VOLUME="$T/stg" TESTING_URL=${TESTING_SITEURL:-https://sb.test} bash "$SETENV" "$@"; }
 : >"$LOG"; senv testing >/dev/null 2>&1; rc=$?
 check "set-environment testing succeeds" $rc
 grep -q "config set WP_ENVIRONMENT_TYPE development --type=constant" "$LOG"; check "set-environment testing: development" $?
 : >"$LOG"; senv staging >/dev/null 2>&1
 grep -q "config set WP_ENVIRONMENT_TYPE staging --type=constant" "$LOG"; check "set-environment staging: staging" $?
 : >"$LOG"; senv production >/dev/null 2>&1; check "set-environment refuses production" $((! $?)); ! grep -q "config set" "$LOG"; check "...and changes nothing" $?
-: >"$LOG"; STG_SITEURL=https://e.test senv staging >/dev/null 2>&1; check "set-environment refuses a site that is not the sandbox" $((! $?)); ! grep -q "config set" "$LOG"; check "...and changes nothing there" $?
-: >"$LOG"; out=$(STG_ENV=development senv 2>&1); grep -q "testing" <<<"$out"; check "set-environment without argument shows the environment" $?; ! grep -q "config set" "$LOG"; check "...and writes nothing" $?
+: >"$LOG"; STG_SITEURL=https://e.test senv staging >/dev/null 2>&1; check "set-environment refuses a site that is not the one expected" $((! $?)); ! grep -q "config set" "$LOG"; check "...and changes nothing there" $?
+: >"$LOG"; out=$(STG_ENV=development senv --show testing 2>&1); grep -q "testing (development)" <<<"$out"; check "set-environment --show says what the site thinks it is" $?; ! grep -q "config set" "$LOG"; check "...and writes nothing" $?
 
 echo; echo "$PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ]

@@ -1,9 +1,11 @@
 <!-- SPDX-FileCopyrightText: 2026 Eric van der Vlist <vdv@dyomedea.com> -->
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 
-# Copy a production site onto its test copy
+# Three sites: production, staging, testing
 
-[`sync-site.sh`](sync-site.sh) copies a WordPress site that runs in Docker onto a test copy: the files (rsync), the database (dump and load), the addresses (`wp search-replace`), then makes the copy safe. It reads the production site and never writes to it. Run it **on the Docker host**.
+**Decided** (Eric, 2026-10-12): there are three sites. **Production** (`e.vli.st`). **Staging** (today's `sb.vli.st`, renamed by its role): a fresh copy of production, pinned on a rollout, where a procedure is rehearsed. **Testing**: another copy, which follows the development branches and where anything goes, with the real articles and photos. The scripts of this directory work on the three: [`sync-site.sh`](sync-site.sh) copies production onto staging or testing (`--target=`), [`set-environment.sh`](set-environment.sh) declares what a site is, [`rollout.sh`](rollout.sh) puts the same versions of the plugins on staging and on production (see the end of this page).
+
+[`sync-site.sh`](sync-site.sh) copies a WordPress site that runs in Docker onto a copy (staging by default, testing with `--target=testing`): the files (rsync), the database (dump and load), the addresses (`wp search-replace`), then makes the copy safe. It reads the production site and never writes to it. Run it **on the Docker host**.
 
 ```sh
 tools/staging/sync-site.sh --dry-run     # a summary of what rsync would change; nothing else is touched
@@ -21,7 +23,9 @@ RSYNC='sudo rsync' tools/staging/sync-site.sh
 
 The script writes nothing else into the volumes from the host: the safety plugin is written through `docker exec`. rsync, even as root, only writes in `STAGING_VOLUME` (the production volume is the source) and the script refuses to start when the two volumes, containers or addresses are the same.
 
-The defaults are those of Eric's setup (containers `docker-e-vli-st_wordpress_1` and `docker-sb-vli-st_wordpress-sb_1`, volumes `/volumes/e-vli-st/wordpress` and `/volumes/sb-vli-st/wordpress`, addresses `https://e.vli.st` and `https://sb.vli.st`); every one can be changed with an environment variable, listed at the top of the script.
+The testing site has **no defaults** (its containers and address are yours to choose): give `TESTING_CONTAINER`, `TESTING_VOLUME`, `TESTING_URL` (and `TESTING_DB_CONTAINER` when its WordPress container has no mysql client) and run `sync-site.sh --target=testing`; see [`target.sh`](target.sh).
+
+The defaults, for production and staging, are those of Eric's setup (containers `docker-e-vli-st_wordpress_1` and `docker-sb-vli-st_wordpress-sb_1`, volumes `/volumes/e-vli-st/wordpress` and `/volumes/sb-vli-st/wordpress`, addresses `https://e.vli.st` and `https://sb.vli.st`); every one can be changed with an environment variable, listed at the top of the script.
 
 ## Which site is this? A coloured frame and a label
 
@@ -30,14 +34,31 @@ The defaults are those of Eric's setup (containers `docker-e-vli-st_wordpress_1`
 | Site | Colour and label | Where |
 |---|---|---|
 | production | red, `production` | the administration (and the admin bar of the public pages, which only logged-in users see) |
-| staging (sandbox, a fresh copy to rehearse a procedure) | orange, `staging` | every page: public, administration, login |
-| testing (sandbox, free experiments) | green, `testing` | every page |
+| staging (a fresh copy to rehearse a procedure) | orange, `staging` | every page: public, administration, login |
+| testing (free experiments, real data) | green, `testing` | every page |
 
 It reads `WP_ENVIRONMENT_TYPE`, which WordPress already knows: `production` (what you get when nothing is defined, so **nothing to configure on production**), `staging`, and `development` or `local` (shown as "testing"). On a copy the label also shows the date of the copy (`staging (copy of 2026-10-12 10:03)`), recorded by the sync script in the option `otherguise_site_synced_at`.
 
-- **The sandbox:** `sync-site.sh --mode=staging` (default) or `--mode=testing` sets the environment and installs the plugin. To change it **without copying anything**: `tools/staging/set-environment.sh testing` (or `staging`); without argument it shows the current one. The script refuses a site that does not say it is `STAGING_URL`.
-- **Production:** install it **by hand**, the scripts never write there: copy `site-environment.php` into `wp-content/mu-plugins/` of the production site. If production has it, the sync brings it to the sandbox, which then overwrites it with its own copy.
+- **Staging and testing:** `sync-site.sh` sets the environment of the site it refreshes (`staging`, or `development` for testing) and installs the plugin. On a **new server**, before its first copy, or after an update of `site-environment.php`: `tools/staging/set-environment.sh staging` (or `testing`); `set-environment.sh --show testing` says what the site thinks it is. The script refuses a site that does not say it is the address expected.
+- **Production:** install it **by hand**, the scripts never write there: copy `site-environment.php` into `wp-content/mu-plugins/` of the production site. If production has it, the sync brings it to the copy, which then overwrites it with its own.
 - The "TEST COPY" entry of the admin bar (`staging-safety.php`) stays: it says which production site the copy is **not**.
+
+## Rollouts: the same versions on staging and on production
+
+The plugins under development are git clones mounted into each container; the sync leaves them alone, so each site can be on another commit. [`rollout.sh`](rollout.sh) removes that drift. A **rollout** is a git tag `rollout-N`, put on the commit that runs on staging in **every** such repository, and pushed to GitHub; production then checks out that tag. The repositories are not configured: they are the bind mounts of the site's container under `wp-content/plugins` (and `themes`) that are git clones. Run it on the Docker host. `--site=prod|staging|testing` is always required (there is no default site, so no accidental production).
+
+```sh
+rollout.sh status --site=staging           # each repository: branch or tag, commit, rollout tags, local changes, distance from origin
+rollout.sh update --site=staging           # fast-forward each repository to the latest commit of its default branch (--dry-run shows them)
+rollout.sh create --site=staging           # tag the commits that run on staging rollout-N in every repository and push the tags
+rollout.sh apply 3 --site=prod --dry-run   # what putting production on rollout-3 would change
+rollout.sh apply 3 --site=prod             # asks you to type the name of the container; --yes skips it
+rollout.sh rollback --site=prod            # back where every repository was before the last apply
+```
+
+- **`create` tags what runs on staging; it does not pull.** Pulling first would tag commits that were never rehearsed: `update` is the separate step that brings staging to the latest commit, and the rehearsal happens after it. `create` refuses local changes and commits that are not on GitHub (the tag would not be reproducible), and numbers the rollout one above the highest number found in any repository. If a push fails, nothing is left half done (the local tags and the pushed ones are taken back).
+- **`apply` is all or nothing before it starts:** it fetches the tags, refuses if one repository lacks the tag or has local changes, and only then checks out `rollout-N` everywhere (detached head), remembering where each repository was so that `rollback` can go back. Production is never "updated to the latest": `update` refuses it, only a tag can be applied.
+- It only moves the code. What a plugin does when its version changes (tables, options) is up to the plugin; check the site afterwards.
 
 ## Re-applying only the safety step
 
@@ -73,4 +94,4 @@ Anything that exists **only on the test site** is deleted by the copy (rsync `--
 
 ## Tested
 
-With **stand-ins for `docker` and `rsync`** ([`tests/staging/sync-site-test.sh`](../../tests/staging/sync-site-test.sh), 57 checks): the guards, the dry run, the order (files, dump, load, addresses), the arguments (host and port split, wp-config kept, guid skipped), the file written for the safety plugin (valid PHP), the modes, the date of the copy and `set-environment.sh` (it refuses production and any site that is not the sandbox). The sync was run by Eric on his own site (the versions before the modes were added). The frame plugin was tested on a scratch WordPress with WP-CLI ([`tests/staging/site-environment-test.sh`](../../tests/staging/site-environment-test.sh), 12 checks: each environment, front, administration, login, print, the date, the admin bar) and seen once in Chromium (green frame, "TESTING"). **Not tried:** the new scripts against real containers, the plugin on production, and the look of the red and orange frames in the block editor.
+With **stand-ins for `docker` and `rsync`** ([`tests/staging/sync-site-test.sh`](../../tests/staging/sync-site-test.sh), 61 checks): the guards, the dry run, the order (files, dump, load, addresses), the arguments (host and port split, wp-config kept, guid skipped), the file written for the safety plugin (valid PHP), the targets, the date of the copy and `set-environment.sh` (it refuses production and any site that is not the one expected). The sync was run by Eric on his own site (the versions before the modes were added). The frame plugin was tested on a scratch WordPress with WP-CLI ([`tests/staging/site-environment-test.sh`](../../tests/staging/site-environment-test.sh), 12 checks: each environment, front, administration, login, print, the date, the admin bar) and seen once in Chromium (green frame, "TESTING"). The rollout script ([`tests/staging/rollout-test.sh`](../../tests/staging/rollout-test.sh), 40 checks) was tested with **real git repositories** (a bare repository standing for GitHub, a clone per site) and a stand-in for `docker`. **Not tried:** the new scripts against real containers and a real GitHub, the plugin on production, and the look of the red and orange frames in the block editor.

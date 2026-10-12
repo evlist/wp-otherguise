@@ -14,9 +14,9 @@
 #
 # It never writes to the production site: it only reads its files and dumps its database.
 #
-# Usage: sync-site.sh [--mode=staging|testing] [--dry-run] [--yes] [--skip-uploads] [--keep-dump] [--keep-cron] [--safety-only]
-#   --mode=<m>       what the test site is for, which its coloured frame says (site-environment.php): "staging" (default), a fresh copy
-#                    on which a procedure is rehearsed, or "testing", free experiments. It can be changed later with set-environment.sh.
+# Usage: sync-site.sh [--target=staging|testing] [--dry-run] [--yes] [--skip-uploads] [--keep-dump] [--keep-cron] [--safety-only]
+#   --target=<t>     which copy to refresh: "staging" (default), where a procedure is rehearsed, or "testing", where anything goes (see
+#                    target.sh for the TESTING_* settings). The coloured frame of the copy (site-environment.php) says which it is.
 #   --dry-run        show the files rsync would change and stop. The only thing written is WP-CLI in the test container, if it is missing.
 #   --yes            do not ask for confirmation.
 #   --skip-uploads   do not copy wp-content/uploads (the test site keeps its own, and gets none of the images, thumbnails included, of
@@ -51,15 +51,15 @@ EXCLUDES=${EXCLUDES:-}
 PROD_DB_CONTAINER=${PROD_DB_CONTAINER:-}
 STAGING_DB_CONTAINER=${STAGING_DB_CONTAINER:-}
 PLUGIN_DIR=${PLUGIN_DIR:-wp-otherguise}
-prod_host=${PROD_URL#*://}
-staging_host=${STAGING_URL#*://}
 
-DRY_RUN=0 YES=0 SKIP_UPLOADS=0 KEEP_DUMP=0 KEEP_CRON=0 SAFETY_ONLY=0 MODE=staging
+DRY_RUN=0 YES=0 SKIP_UPLOADS=0 KEEP_DUMP=0 KEEP_CRON=0 SAFETY_ONLY=0 TARGET=staging
 HERE=$(cd "$(dirname "$0")" && pwd)
+# shellcheck source=target.sh
+. "$HERE/target.sh"
 for arg in "$@"; do
   case "$arg" in
-    --mode=staging | --mode=testing) MODE=${arg#--mode=} ;;
-    --mode=*) echo "Unknown mode: ${arg#--mode=} (staging or testing)" >&2; exit 2 ;;
+    --target=staging | --target=testing) TARGET=${arg#--target=} ;;
+    --target=*) echo "Unknown target: ${arg#--target=} (staging or testing)" >&2; exit 2 ;;
     --dry-run) DRY_RUN=1 ;;
     --yes) YES=1 ;;
     --skip-uploads) SKIP_UPLOADS=1 ;;
@@ -70,6 +70,10 @@ for arg in "$@"; do
     *) echo "Unknown option: $arg" >&2; exit 2 ;;
   esac
 done
+
+select_target "$TARGET" || exit 2
+prod_host=${PROD_URL#*://}
+staging_host=${STAGING_URL#*://}
 
 say() { printf '\n== %s\n' "$*"; }
 die() { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
@@ -151,7 +155,7 @@ P_NAME=$(cfg "$PROD_CONTAINER" DB_NAME) P_USER=$(cfg "$PROD_CONTAINER" DB_USER) 
 S_NAME=$(cfg "$STAGING_CONTAINER" DB_NAME) S_USER=$(cfg "$STAGING_CONTAINER" DB_USER) S_PASS=$(cfg "$STAGING_CONTAINER" DB_PASSWORD) S_HOST=$(cfg "$STAGING_CONTAINER" DB_HOST)
 [ "$P_HOST/$P_NAME" != "$S_HOST/$S_NAME" ] || die "Both sites use the same database ($S_HOST/$S_NAME)."
 
-echo "Mode       : $MODE"
+echo "Target     : $TARGET"
 echo "Production : $PROD_URL  ($PROD_CONTAINER, $PROD_VOLUME, database $P_NAME)"
 echo "Test copy  : $STAGING_URL  ($STAGING_CONTAINER, $STAGING_VOLUME, database $S_NAME)"
 
@@ -262,7 +266,7 @@ say "Making the copy safe"
 wp_in "$STAGING_CONTAINER" option update blog_public 0
 # The environment (constant and must-use plugin of the coloured frame) is set by set-environment.sh, which refuses any site that is not
 # the sandbox; the date of the copy is recorded after the load, so that it is the one of this copy and not the one in the dump.
-STAGING_CONTAINER="$STAGING_CONTAINER" STAGING_URL="$STAGING_URL" "$HERE/set-environment.sh" "$MODE"
+STAGING_CONTAINER="$STAGING_CONTAINER" STAGING_URL="$STAGING_URL" "$HERE/set-environment.sh" "$TARGET"
 [ "$SAFETY_ONLY" -eq 1 ] || wp_in "$STAGING_CONTAINER" option update otherguise_site_synced_at "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 if [ "$KEEP_CRON" -eq 0 ]; then
   wp_root "$STAGING_CONTAINER" config set DISABLE_WP_CRON true --raw --type=constant
