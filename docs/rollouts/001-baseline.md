@@ -3,7 +3,7 @@
 
 # Rollout 001: baseline
 
-Status: **written, not run**. Tag: `rollout-N` (to be filled in by `rollout.sh create --baseline`; expected: `rollout-1`).
+Status: **applied on production on 2026-10-12** (`rollout.sh create --baseline --site=prod`). Tag: `rollout-1`, in the four repositories.
 
 ## Goal and visible effect
 
@@ -62,4 +62,13 @@ Nothing to undo on the site. To delete the baseline (nothing depends on it yet):
 
 ## Log
 
-(Dates, who ran it, what differed from this text.)
+2026-10-12, production, Eric: `create --baseline --site=prod` created and pushed `rollout-1` in four repositories:
+
+| Repository | Commit tagged |
+|---|---|
+| `wp-otherguise` | `4450ef2` (Eric had pulled since the status: the commits after `dba206f` only touch the tools, the tests and the documentation, so the plugin code is the same) |
+| `wp-scatter-elsewhere` | `60439b9` |
+| `wp-media-helper` | `8ab96c5` |
+| `wp-twenty-twenty-five-printable` | `98cf9a3` (the clone was already mounted on production, in the themes directory; the theme is **not activated**) |
+
+Differences from the text: the theme clone was already mounted (a precondition of the next rollouts, now true); the baseline was taken at `4450ef2` and not at `dba206f`; the output message said "apply 1 on production", which is wrong for a baseline (corrected in the script: nothing to apply). Not yet done: WP-CLI in the image of production, the database backup, the verification table.

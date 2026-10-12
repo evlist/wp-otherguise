@@ -197,7 +197,11 @@ create)
     for i in "${done_indexes[@]}"; do g "$i" push -q origin ":refs/tags/$tag" || echo "WARNING: $tag is still on GitHub for ${NAMES[$i]}: delete it by hand." >&2; done
     die "The rollout was not created."
   fi
-  echo "Created and pushed $tag in ${#DIRS[@]} repositories. On production: rollout.sh apply ${tag#rollout-} --site=prod"
+  if [ "$BASELINE" -eq 1 ]; then
+    echo "Created and pushed $tag in ${#DIRS[@]} repositories: the baseline, what runs on production now. Nothing to apply."
+  else
+    echo "Created and pushed $tag in ${#DIRS[@]} repositories. On production: rollout.sh apply ${tag#rollout-} --site=prod"
+  fi
   ;;
 
 apply)
