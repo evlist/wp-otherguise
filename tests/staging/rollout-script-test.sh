@@ -50,7 +50,11 @@ args="$*"
 echo "wp[$container] $args" >>"$LOG"
 case "$args" in
   "theme is-installed"*) exit "${STUB_NOT_INSTALLED:-0}" ;;
+  "eval "*"lettrine"*) echo "${STUB_CSS_IN_THEME:-yes}" ;;
+  "eval "*"wp_style_is"*) echo "${STUB_STYLE_ENQUEUED:-yes}" ;;
   "eval "*) echo "${STUB_THEME_EVAL:-ok}" ;;
+  "plugin is-active custom-css-js") exit "${STUB_PLUGIN_INACTIVE:-0}" ;;
+  "post list --post_type=custom-css-js"*) echo "${STUB_SNIPPETS:-33286}" ;;
   "post get 32919 --field=post_type") echo "${STUB_BLOCK:-wp_block}" ;;
   "option get home") echo https://sb.test ;;
   "theme list --status=active --field=name") cat "$T/active" ;;
@@ -67,7 +71,7 @@ export PATH="$T/bin:$PATH"
 
 run() { bash "$SCRIPT" "$@"; }
 answers() { printf '%s\n' "$@" >"$T/answers"; export ROLLOUT_TTY="$T/answers"; }
-reset() { : >"$LOG"; echo twentytwentyfive >"$T/active"; echo "template twentytwentyfive//a twentytwentyfive//b print" >"$T/variants"; unset STUB_BLOCK STUB_NOT_INSTALLED STUB_EXIT_ROLLOUT STUB_EXIT_TEMPLATES STUB_EXIT_VERIFY STUB_THEME_EVAL; printf 'wp-otherguise\taaa\nwp-theme\tbbb\n' >"$T/state_out"; }
+reset() { : >"$LOG"; echo twentytwentyfive >"$T/active"; echo "template twentytwentyfive//a twentytwentyfive//b print" >"$T/variants"; unset STUB_BLOCK STUB_NOT_INSTALLED STUB_EXIT_ROLLOUT STUB_EXIT_TEMPLATES STUB_EXIT_VERIFY STUB_THEME_EVAL STUB_CSS_IN_THEME STUB_STYLE_ENQUEUED STUB_PLUGIN_INACTIVE STUB_SNIPPETS; printf 'wp-otherguise\taaa\nwp-theme\tbbb\n' >"$T/state_out"; }
 
 # Guards of the arguments.
 reset; run >/dev/null 2>&1; check "needs a site" $((! $?))
@@ -100,6 +104,21 @@ ls "$T/logs"/002-child-theme-staging-*.log >/dev/null 2>&1; check "a log is kept
 # Running it again changes nothing that is already done.
 : >"$LOG"; answers "" "" "" ""; run --site=staging >/dev/null 2>&1; rc=$?; check "a second run succeeds" $rc
 ! grep -q "theme activate" "$LOG"; check "an active theme is not activated again" $?
+
+# The CSS of the blog and the plugin Custom CSS & JS.
+reset; answers "" "" "" ""; run --site=staging >/dev/null 2>&1
+grep -q "wp\[stg\] plugin deactivate custom-css-js" "$LOG"; check "the plugin Custom CSS & JS is deactivated" $?
+a=$(grep -n "theme activate" "$LOG" | head -1 | cut -d: -f1); b=$(grep -n "plugin deactivate custom-css-js" "$LOG" | head -1 | cut -d: -f1)
+[ "$a" -lt "$b" ]; check "...after the theme is active" $?
+reset; answers "" "" "" ""; STUB_PLUGIN_INACTIVE=1 run --site=staging >/dev/null 2>&1; rc=$?; check "an inactive plugin is left alone" $rc
+! grep -q "plugin deactivate" "$LOG"; check "...it is not deactivated again" $?
+reset; answers "" "" "" ""; STUB_SNIPPETS="33286
+40001" run --site=staging >"$T/out" 2>&1; check "another active snippet stops the script" $((! $?))
+grep -q "the only active snippet" "$T/out"; check "...with that reason" $?
+! grep -q "plugin deactivate" "$LOG"; check "...and the plugin is not deactivated" $?
+reset; answers "" "" "" ""; STUB_CSS_IN_THEME=no run --site=staging >"$T/out" 2>&1; check "the plugin is not deactivated when the CSS is not in the theme" $((! $?))
+! grep -q "plugin deactivate" "$LOG"; check "...it stops before" $?
+reset; answers "" "" "" ""; STUB_STYLE_ENQUEUED=no run --site=staging >/dev/null 2>&1; check "the plugin is not deactivated when the theme does not load its stylesheet" $((! $?))
 
 # Questions.
 reset; answers "" n; run --site=staging >/dev/null 2>&1; rc=$?; check "a refused validation stops the script" $((! rc))

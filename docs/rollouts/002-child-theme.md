@@ -3,7 +3,7 @@
 
 # Rollout 002: the child theme
 
-Status: **written, not run** (a script, rehearsed with stand-ins only). Tag: `rollout-N` (given by `rollout.sh create --site=staging` after the rehearsal).
+Status: **to rehearse again on staging** (a script, rehearsed with stand-ins only; it ran to the end on staging on 2026-10-12 before the CSS was added to it). Tag: `rollout-N` (given by `rollout.sh create --site=staging` after the rehearsal).
 
 ## Goal and visible effect
 
@@ -27,11 +27,13 @@ tools/staging/rollout.sh apply N --site=prod
 rollouts/002-child-theme.sh --site=prod --rollout=N
 ```
 
-What it does, in this order: notes the versions of the repositories (it runs no git; on production it checks that they are on the tag and are what was rehearsed); checks that WordPress can read the theme and that the reusable block `32919` of the lists of posts exists; notes the state before (the templates of the database, the variants, the global styles); activates the theme; moves the variants to it (`wp otherguise modes variant retheme`); checks that no database copy hides a file of the theme and that no variant is left on Twenty Twenty-Five; asks you to compare the pages with the other site (production, or staging when this is production) and to look at the error log; and asks about the global styles (the only gesture that has no command).
+What it does, in this order: notes the versions of the repositories (it runs no git; on production it checks that they are on the tag and are what was rehearsed); checks that WordPress can read the theme and that the reusable block `32919` of the lists of posts exists; notes the state before (the templates of the database, the variants, the global styles); activates the theme; moves the variants to it (`wp otherguise modes variant retheme`); checks that the CSS of the blog is in the `style.css` of the theme and that the theme loads it, then deactivates the plugin Custom CSS & JS (after checking that snippet 33286 is its only active one); checks that no database copy hides a file of the theme and that no variant is left on Twenty Twenty-Five; asks you to compare the pages with the other site (production, or staging when this is production) and to look at the error log; and asks about the global styles (the only gesture that has no command).
 
 `--no-validate` skips the questions about the pages once Eric trusts the rehearsal; the question about the global styles is always asked.
 
 ## What to watch
+
+- **The CSS now comes from the theme.** The snippet 33286 of Custom CSS & JS (galleries, alignment of images, maps, the drop cap; frontend, header, priority 5) is in the `style.css` of the theme, and the plugin is deactivated. The plugin printed it very early in the page; the theme's stylesheet loads after the parent's, so a rule of the theme that the old order let win could now lose or the other way round: look at galleries, images aligned left or right, maps and the drop cap. The drop cap uses the font `Ultra`, which has to be loaded by something else than this CSS. The classes of the print templates (`print-link`, `no-print`, ...) are not in this CSS; where they are styled is still to find.
 
 - **The pages, compared with production** (staging, testing) or with staging (production): the home page; an archive; the search page; a post of each of the three custom kinds and one with the default template; each of them with `?print` and with `?mode=print`.
 - **The global styles of the site editor**, stored per theme, are the one thing not tried: if the colours or the fonts change after the switch, the script says what to do (go back, tell Claude). Going back is `wp theme activate twentytwentyfive` and `wp otherguise modes variant retheme wp-twenty-twenty-five-printable twentytwentyfive`: nothing is deleted.

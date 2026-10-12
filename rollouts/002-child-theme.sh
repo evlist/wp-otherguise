@@ -3,8 +3,9 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
 # Rollout 002: the child theme. The templates of the blog move from the database into the child theme
-# evlist/wp-twenty-twenty-five-printable (directory wp-twenty-twenty-five-printable), which becomes the active theme, and the variants of the
-# modes are moved to it. No visible change is expected. The story, the risks and what was observed are in docs/rollouts/002-child-theme.md.
+# evlist/wp-twenty-twenty-five-printable (directory wp-twenty-twenty-five-printable), which becomes the active theme, the variants of the
+# modes are moved to it, and the CSS that the plugin Custom CSS & JS injected (snippet 33286) now comes from the theme: the plugin is
+# deactivated. No visible change is expected. The story, the risks and what was observed are in docs/rollouts/002-child-theme.md.
 #
 # Usage: rollouts/002-child-theme.sh --site=staging [--no-validate] [--dry-run]
 #        rollouts/002-child-theme.sh --site=prod --rollout=N [--no-validate] [--yes] [--force]
@@ -54,7 +55,18 @@ else
 fi
 step "Move the variants of the modes from $PARENT to $THEME" wp otherguise modes variant retheme "$PARENT" "$THEME"
 
-# 5. What must be true afterwards.
+# 5. The CSS of the blog comes from the theme, no longer from the plugin Custom CSS & JS.
+SNIPPET=33286   # the only snippet of the plugin: frontend, header, priority 5, CSS
+check_output "the CSS of the blog is in the style.css of the theme" "yes" wp eval 'echo false !== strpos( (string) file_get_contents( get_stylesheet_directory() . "/style.css" ), ".lettrine:first-letter" ) ? "yes" : "no";'
+check_output "the stylesheet of the theme is loaded by the theme" "yes" wp eval 'do_action( "wp_enqueue_scripts" ); echo wp_style_is( "twentytwentyfive-printable-style", "enqueued" ) ? "yes" : "no";'
+if wp plugin is-active custom-css-js >/dev/null 2>&1; then
+  check_output "the only active snippet of Custom CSS & JS is $SNIPPET (the plugin would take the others with it)" "$SNIPPET" wp post list --post_type=custom-css-js --post_status=publish --field=ID
+  step "Deactivate the plugin Custom CSS & JS" wp plugin deactivate custom-css-js
+else
+  say "The plugin Custom CSS & JS is already inactive"
+fi
+
+# 6. What must be true afterwards.
 check_output "the active theme is $THEME" "$THEME" wp theme list --status=active --field=name
 check "no database copy hides a file of the theme" templates_sh check --site="$SITE"
 check_output "no variant is left on $PARENT" "" wp otherguise modes variant list --theme="$PARENT"
