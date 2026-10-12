@@ -10,4 +10,4 @@ The files are named `NNN-name.md`; the number `NNN` is the order of the iteratio
 | File | Iteration | State |
 |---|---|---|
 | [`TEMPLATE.md`](TEMPLATE.md) | the model to copy | - |
-| [`001-install-modes-disabled.md`](001-install-modes-disabled.md) | Otherguise and Media Helper installed, modes disabled | written, not run |
+| [`001-baseline.md`](001-baseline.md) | the baseline: record what already runs on production | written, not run |

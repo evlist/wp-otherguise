@@ -66,13 +66,14 @@ The scripts for this are [`tools/staging/templates.sh`](../../tools/staging/READ
 
 ## Proposed order of the steps
 
-From the least to the most risky. Each step is one iteration (or two independent ones). A rollout file is written for each ([`../rollouts/`](../rollouts/README.md)); the first one, [001](../rollouts/001-install-modes-disabled.md), is written.
+From the least to the most risky. Each step is one iteration (or two independent ones). A rollout file is written for each ([`../rollouts/`](../rollouts/README.md)); the first one, [001](../rollouts/001-baseline.md), is written.
 
 | # | Step | Visible effect on production |
 |---|---|---|
-| 1 | Install Otherguise and Media Helper, **modes disabled** (the default). | None. |
-| 2 | **The child theme**: export the templates of the database, put them in the theme, switch the theme, remove the shadowing copies; compare the two sites before and after (styles, menus). | None expected; this is the step to look at closely. |
-| 3 | Declare the modes and the variants **for the new theme**, make the templates use the block `modes/link`, enable the modes. | The `?mode=` addresses work; `?print` is still served by the old plugin until it is retired. |
+| 0 | **Done by hand before the rollouts** (state reported by Eric on 2026-10-12): Otherguise, Media Helper and Scatter Elsewhere installed from git clones; the modes enabled; the modes and the variants declared on the templates of Twenty Twenty-Five. No stylesheet, no default template, the templates untouched. | The `?mode=` addresses work; `?print` is still served by the old plugin. |
+| 1 | **Baseline** ([001](../rollouts/001-baseline.md)): `rollout.sh create --baseline --site=prod` records what runs on production now as `rollout-1`. | None. |
+| 2 | **The child theme**: export the templates of the database, put them in the theme, switch the theme, remove the shadowing copies, declare the variants again for the new theme; compare the two sites before and after (styles, menus). | None expected; this is the step to look at closely. |
+| 3 | Make the templates use the block `modes/link`. | The links between the modes. |
 | 4 | Stylesheet per mode; default template of new posts. | The styles of the modes; new posts start from `publication-randonnee`. |
 | 5 | Media: `wp otherguise media migrate --dry-run`, read the report, run it; then choose the method `otherguise` in Media Helper. | None on the front end (the blocks still read `post_parent`, which is never changed); the panel offers several posts and modes. |
 | 6 | Change the two blocks (`wp-attached-gpx`, `wp-printable-gallery`) to call `wp_media_helper_get_attached_media()`. | The galleries and the tracks come from the links; this is the step that can change the rendering. |

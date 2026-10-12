@@ -125,5 +125,16 @@ git -C "$T/prod/plug-a" symbolic-ref -q --short HEAD | grep -q main; check "prod
 [ "$(head_of prod plug-b)" = "$before" ]; check "...at the commit it was at" $?
 ro rollback --site=prod --yes >"$T/out" 2>&1; grep -q "nothing to go back to" "$T/out"; check "a second rollback has nothing to go back to" $?
 
+# Baseline: record what runs on production, which only tags.
+ro create --site=prod >/dev/null 2>&1; check "create on production needs --baseline" $((! $?))
+ro create --baseline --site=staging >/dev/null 2>&1; check "--baseline is for production only" $((! $?))
+ro update --baseline --site=prod >/dev/null 2>&1; check "--baseline only goes with create" $((! $?))
+before_prod=$(head_of prod plug-a)
+ro create --baseline --site=prod --dry-run >"$T/out" 2>&1; grep -q "as it is" "$T/out" && [ -z "$(git -C "$T/github/plug-a.git" tag --list 'rollout-3')" ]; check "create --baseline --dry-run tags nothing" $?
+ro create --baseline --site=prod >"$T/out" 2>&1; rc=$?; check "create --baseline succeeds on production" $rc
+[ "$(tags plug-a)" = "rollout-1,rollout-2,rollout-3" ] && [ "$(tags plug-b)" = "rollout-1,rollout-2,rollout-3" ]; check "the baseline is the next rollout, in every repository" $?
+[ "$(git -C "$T/github/plug-a.git" rev-parse 'rollout-3^{commit}' | cut -c1-7)" = "$before_prod" ] && [ "$(head_of prod plug-a)" = "$before_prod" ]; check "it is on the commit that runs on production, which did not move" $?
+git -C "$T/prod/plug-a" tag -n1 rollout-3 | grep -q "baseline"; check "the tag says it is a baseline" $?
+
 echo; echo "$PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ]

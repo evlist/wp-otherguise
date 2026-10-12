@@ -14,6 +14,8 @@
 #   update                  (staging, testing) bring each repository to the latest commit of its default branch (fast-forward only).
 #   create                  (staging only) tag the commit that runs on staging `rollout-N`, N being the next number, in every repository,
 #                           and push the tags. Refuses local changes and commits that were not pushed (the tag would not be reproducible).
+#   create --baseline       (production only) the same, to record what runs on production now: the starting point of the rollouts, when
+#                           production was set up before them. It only tags, it never changes the code.
 #   apply <N>               check out `rollout-N` in every repository of the site, remembering where each was, so that `rollback` can go
 #                           back. Refuses if one repository lacks the tag or has local changes, before touching any of them.
 #   rollback                put every repository back where it was before the last `apply`.
@@ -36,13 +38,14 @@ say() { printf '\n== %s\n' "$*"; }
 
 COMMAND=${1:-}
 [ -z "$COMMAND" ] || shift
-SITE="" DRY_RUN=0 YES=0 NUMBER=""
+SITE="" DRY_RUN=0 YES=0 NUMBER="" BASELINE=0
 for arg in "$@"; do
   case "$arg" in
     --site=prod | --site=staging | --site=testing) SITE=${arg#--site=} ;;
     --site=*) die "Unknown site: ${arg#--site=} (prod, staging or testing)." ;;
     --dry-run) DRY_RUN=1 ;;
     --yes) YES=1 ;;
+    --baseline) BASELINE=1 ;;
     -h | --help) COMMAND=help ;;
     -*) die "Unknown option: $arg" ;;
     *) [ -z "$NUMBER" ] || die "Too many arguments."; NUMBER=$arg ;;
@@ -58,9 +61,11 @@ esac
 if [ "$COMMAND" = apply ]; then
   [[ "$NUMBER" =~ ^[0-9]+$ ]] || die "apply takes the number of a rollout, for example: apply 3 --site=prod."
 fi
+[ "$BASELINE" -eq 0 ] || [ "$COMMAND/$SITE" = create/prod ] || die "--baseline only goes with: create --site=prod."
 case "$COMMAND/$SITE" in
   update/prod) die "Production is never updated to the latest commit: apply a rollout." ;;
-  create/prod | create/testing) die "Rollouts are created on staging, where they were rehearsed." ;;
+  create/prod) [ "$BASELINE" -eq 1 ] || die "Rollouts are created on staging, where they were rehearsed. To record what runs on production now: create --baseline --site=prod." ;;
+  create/testing) die "Rollouts are created on staging, where they were rehearsed." ;;
 esac
 
 if [ "$SITE" = prod ]; then
@@ -166,12 +171,15 @@ create)
     done < <(g "$i" tag --list 'rollout-*')
   done
   tag="rollout-$((last + 1))"
-  say "Rollout $tag on $STAGING_URL"
+  where=$STAGING_URL
+  [ "$BASELINE" -eq 0 ] || where="production ($CONTAINER), as it is"
+  say "Rollout $tag on $where"
   for i in "${!DIRS[@]}"; do
     printf '%-24s %s  %s\n' "${NAMES[$i]}" "$(g "$i" rev-parse --short HEAD)" "$(g "$i" log -1 --format=%s)"
   done
   if [ "$DRY_RUN" -eq 1 ]; then echo "Dry run: nothing tagged."; exit 0; fi
-  message="Rollout ${tag#rollout-}, rehearsed on $STAGING_URL, $(date -u +%Y-%m-%d)"
+  if [ "$BASELINE" -eq 1 ]; then message="Rollout ${tag#rollout-}, baseline: what runs on production, $(date -u +%Y-%m-%d)"
+  else message="Rollout ${tag#rollout-}, rehearsed on $STAGING_URL, $(date -u +%Y-%m-%d)"; fi
   done_indexes=() failed=0
   for i in "${!DIRS[@]}"; do
     g "$i" tag -a "$tag" -m "$message"
