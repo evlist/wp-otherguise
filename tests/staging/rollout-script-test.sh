@@ -77,7 +77,7 @@ reset() { : >"$LOG"; echo twentytwentyfive >"$T/active"; echo "template twentytw
 reset; run >/dev/null 2>&1; check "needs a site" $((! $?))
 run --site=nowhere >/dev/null 2>&1; check "refuses an unknown site" $((! $?))
 run --site=staging --bogus >/dev/null 2>&1; check "refuses an unknown option" $((! $?))
-reset; answers "" "" "" ""; run --site=prod --yes >/dev/null 2>&1; check "production needs --rollout=N" $((! $?))
+reset; answers "" "" "" "" "" "" ""; run --site=prod --yes >/dev/null 2>&1; check "production needs --rollout=N" $((! $?))
 ! grep -q "activate" "$LOG"; check "...and changes nothing" $?
 run --site=staging --help >/dev/null 2>&1; check "--help works" $?
 
@@ -88,7 +88,7 @@ grep -q "Dry run" "$T/out"; check "...and says so" $?
 [ ! -d "$T/state" ] || [ -z "$(ls "$T/state" 2>/dev/null)" ]; check "...and records no rehearsal" $?
 
 # A full run on staging, with the validations: five answers (three validations, one manual gesture).
-reset; answers "" "" "" ""; run --site=staging >"$T/out" 2>&1; rc=$?; check "a full run on staging succeeds" $rc
+reset; answers "" "" "" "" "" "" ""; run --site=staging >"$T/out" 2>&1; rc=$?; check "a full run on staging succeeds" $rc
 [ "$rc" -eq 0 ] || tail -20 "$T/out"
 ! grep -q "^rollout.sh update\|^rollout.sh apply" "$LOG"; check "the script runs no git: it does not update the clones" $?
 grep -q "^rollout.sh state --site=staging" "$LOG"; check "it remembers the state of the clones" $?
@@ -102,35 +102,52 @@ grep -q "wp-otherguise	aaa" "$T/state"/*.validated; check "...with the state of 
 ls "$T/logs"/002-child-theme-staging-*.log >/dev/null 2>&1; check "a log is kept" $?
 
 # Running it again changes nothing that is already done.
-: >"$LOG"; answers "" "" "" ""; run --site=staging >/dev/null 2>&1; rc=$?; check "a second run succeeds" $rc
+: >"$LOG"; answers "" "" "" "" "" "" ""; run --site=staging >/dev/null 2>&1; rc=$?; check "a second run succeeds" $rc
 ! grep -q "theme activate" "$LOG"; check "an active theme is not activated again" $?
 
+# A comparison with the other site after each change, so as to know which one made a difference.
+reset; answers "" "" "" "" "" "" ""; run --site=staging >"$T/out" 2>&1
+n() { grep -n "$1" "$T/out" | head -1 | cut -d: -f1; }
+[ "$(n 'BEFORE any change')" -lt "$(n '== Activate the theme')" ]; check "the sites are compared before any change" $?
+[ "$(n '== Activate the theme')" -lt "$(n 'AFTER THE THEME SWITCH')" ] && [ "$(n 'AFTER THE THEME SWITCH')" -lt "$(n '== Move the variants')" ]; check "they are compared right after the theme switch, before the variants move" $?
+[ "$(n '== Move the variants')" -lt "$(n 'AFTER THE VARIANTS MOVED')" ] && [ "$(n 'AFTER THE VARIANTS MOVED')" -lt "$(n '== Deactivate the plugin')" ]; check "...right after the variants moved" $?
+[ "$(n '== Deactivate the plugin')" -lt "$(n 'AFTER THE PLUGIN CUSTOM CSS')" ]; check "...right after the plugin is deactivated" $?
+grep -q "AT THE END" "$T/out"; check "...and at the end" $?
+grep -q "usual suspects are the global styles" "$T/out"; check "the comparison after the switch points at the global styles (fonts, colours)" $?
+reset; answers ""; run --site=staging --no-validate >"$T/out" 2>&1
+[ "$(grep -c 'Validation skipped' "$T/out")" -eq 6 ]; check "--no-validate skips the six comparisons and questions" $?
+rm -rf "$T/state"
+reset; answers "" "" "" "" "" "" ""; run --site=staging >/dev/null 2>&1
+reset; answers "" "" "" "" "" "" ""; run --site=prod --rollout=3 --yes >"$T/out" 2>&1
+! grep -q "BEFORE any change" "$T/out"; check "on production there is no comparison before the change (the other site is already changed)" $?
+grep -q "AFTER THE THEME SWITCH" "$T/out"; check "...but there is after each step" $?
+
 # The CSS of the blog and the plugin Custom CSS & JS.
-reset; answers "" "" "" ""; run --site=staging >/dev/null 2>&1
+reset; answers "" "" "" "" "" "" ""; run --site=staging >/dev/null 2>&1
 grep -q "wp\[stg\] plugin deactivate custom-css-js" "$LOG"; check "the plugin Custom CSS & JS is deactivated" $?
 a=$(grep -n "theme activate" "$LOG" | head -1 | cut -d: -f1); b=$(grep -n "plugin deactivate custom-css-js" "$LOG" | head -1 | cut -d: -f1)
 [ "$a" -lt "$b" ]; check "...after the theme is active" $?
-reset; answers "" "" "" ""; STUB_PLUGIN_INACTIVE=1 run --site=staging >/dev/null 2>&1; rc=$?; check "an inactive plugin is left alone" $rc
+reset; answers "" "" "" "" "" "" ""; STUB_PLUGIN_INACTIVE=1 run --site=staging >/dev/null 2>&1; rc=$?; check "an inactive plugin is left alone" $rc
 ! grep -q "plugin deactivate" "$LOG"; check "...it is not deactivated again" $?
-reset; answers "" "" "" ""; STUB_SNIPPETS="33286
+reset; answers "" "" "" "" "" "" ""; STUB_SNIPPETS="33286
 40001" run --site=staging >"$T/out" 2>&1; check "another active snippet stops the script" $((! $?))
 grep -q "the only active snippet" "$T/out"; check "...with that reason" $?
 ! grep -q "plugin deactivate" "$LOG"; check "...and the plugin is not deactivated" $?
-reset; answers "" "" "" ""; STUB_CSS_IN_THEME=no run --site=staging >"$T/out" 2>&1; check "the plugin is not deactivated when the CSS is not in the theme" $((! $?))
+reset; answers "" "" "" "" "" "" ""; STUB_CSS_IN_THEME=no run --site=staging >"$T/out" 2>&1; check "the plugin is not deactivated when the CSS is not in the theme" $((! $?))
 ! grep -q "plugin deactivate" "$LOG"; check "...it stops before" $?
-reset; answers "" "" "" ""; STUB_STYLE_ENQUEUED=no run --site=staging >/dev/null 2>&1; check "the plugin is not deactivated when the theme does not load its stylesheet" $((! $?))
+reset; answers "" "" "" "" "" "" ""; STUB_STYLE_ENQUEUED=no run --site=staging >/dev/null 2>&1; check "the plugin is not deactivated when the theme does not load its stylesheet" $((! $?))
 
 # Questions.
 reset; answers "" n; run --site=staging >/dev/null 2>&1; rc=$?; check "a refused validation stops the script" $((! rc))
 rm -rf "$T/state"
-reset; answers "" "" "" ""; STUB_BLOCK=page run --site=staging >"$T/out" 2>&1; check "a check that fails stops the script" $((! $?))
+reset; answers "" "" "" "" "" "" ""; STUB_BLOCK=page run --site=staging >"$T/out" 2>&1; check "a check that fails stops the script" $((! $?))
 ! grep -q "theme activate" "$LOG"; check "...before anything is changed" $?
 grep -q "reusable block 32919" "$T/out"; check "...and says which one" $?
 reset; answers ""; STUB_NOT_INSTALLED=1 run --site=staging >/dev/null 2>&1; check "a theme that is not installed stops the script" $((! $?))
-reset; answers "" "" "" ""; STUB_THEME_EVAL="broken: Stylesheet is missing." run --site=staging >"$T/out" 2>&1; check "a theme that WordPress cannot read stops the script" $((! $?))
+reset; answers "" "" "" "" "" "" ""; STUB_THEME_EVAL="broken: Stylesheet is missing." run --site=staging >"$T/out" 2>&1; check "a theme that WordPress cannot read stops the script" $((! $?))
 grep -q "Stylesheet is missing" "$T/out"; check "...and says why" $?
 ! grep -q "theme activate" "$LOG"; check "...before it is activated" $?
-reset; answers "" "" "" ""; STUB_EXIT_TEMPLATES=1 run --site=staging >"$T/out" 2>&1; check "a database copy that hides a file after the switch stops the script" $((! $?))
+reset; answers "" "" "" "" "" "" ""; STUB_EXIT_TEMPLATES=1 run --site=staging >"$T/out" 2>&1; check "a database copy that hides a file after the switch stops the script" $((! $?))
 grep -q "no database copy hides a file" "$T/out"; check "...and says so" $?
 rm -rf "$T/state"
 
@@ -141,12 +158,12 @@ unset ROLLOUT_TTY
 reset; run --site=staging </dev/null >"$T/out" 2>&1; check "without a terminal the validations are refused" $((! $?))
 
 # Production.
-reset; answers "" "" "" ""; run --site=prod --rollout=3 --yes >"$T/out" 2>&1; check "production is refused when the script was not rehearsed" $((! $?))
+reset; answers "" "" "" "" "" "" ""; run --site=prod --rollout=3 --yes >"$T/out" 2>&1; check "production is refused when the script was not rehearsed" $((! $?))
 grep -q "not rehearsed" "$T/out"; check "...with that reason" $?
 ! grep -q "wp\[prod\]" "$LOG"; check "...and nothing was touched" $?
 
-reset; answers "" "" "" ""; run --site=staging >/dev/null 2>&1
-reset; answers "" "" "" ""; run --site=prod --rollout=3 --yes >"$T/out" 2>&1; rc=$?; check "after the rehearsal production runs" $rc
+reset; answers "" "" "" "" "" "" ""; run --site=staging >/dev/null 2>&1
+reset; answers "" "" "" "" "" "" ""; run --site=prod --rollout=3 --yes >"$T/out" 2>&1; rc=$?; check "after the rehearsal production runs" $rc
 [ "$rc" -eq 0 ] || tail -20 "$T/out"
 grep -q "^rollout.sh verify 3 --site=prod" "$LOG"; check "production is checked to be on the tag" $?
 ! grep -q "^rollout.sh update\|^rollout.sh apply" "$LOG"; check "...the script moves nothing" $?
@@ -154,23 +171,23 @@ a=$(grep -n "db export" "$LOG" | head -1 | cut -d: -f1); b=$(grep -n "theme acti
 [ -n "$a" ] && [ "$a" -lt "$b" ]; check "the database is backed up before the first change" $?
 ls "$T/backups"/before-002-child-theme-*.sql >/dev/null 2>&1; check "the backup is copied out of the container" $?
 
-reset; answers "" "" "" ""; STUB_EXIT_VERIFY=1 run --site=prod --rollout=3 --yes >"$T/out" 2>&1; check "production is refused when it is not on the tag" $((! $?))
+reset; answers "" "" "" "" "" "" ""; STUB_EXIT_VERIFY=1 run --site=prod --rollout=3 --yes >"$T/out" 2>&1; check "production is refused when it is not on the tag" $((! $?))
 grep -q "rollout.sh apply 3" "$T/out"; check "...and the message says how to put it there" $?
 ! grep -q "theme activate" "$LOG"; check "...before anything is changed" $?
-reset; printf 'wp-otherguise\tzzz\nwp-theme\tbbb\n' >"$T/state_out"; answers "" "" "" ""; run --site=prod --rollout=3 --yes >"$T/out" 2>&1; check "production is refused when the tag is not the rehearsed state" $((! $?))
+reset; printf 'wp-otherguise\tzzz\nwp-theme\tbbb\n' >"$T/state_out"; answers "" "" "" "" "" "" ""; run --site=prod --rollout=3 --yes >"$T/out" 2>&1; check "production is refused when the tag is not the rehearsed state" $((! $?))
 grep -q "not what was rehearsed on staging for: wp-otherguise" "$T/out"; check "...and says for which repository" $?
-reset; printf 'wp-otherguise\tzzz\nwp-theme\tbbb\n' >"$T/state_out"; answers "" "" "" ""; run --site=prod --rollout=3 --yes --force >/dev/null 2>&1; check "--force goes on with a state that was not rehearsed" $?
-reset; printf 'wp-otherguise\taaa\nwp-theme\tbbb\nwp-extra\tccc\n' >"$T/state_out"; answers "" "" "" ""; run --site=prod --rollout=3 --yes >/dev/null 2>&1; check "a repository that staging does not have is not compared" $?
+reset; printf 'wp-otherguise\tzzz\nwp-theme\tbbb\n' >"$T/state_out"; answers "" "" "" "" "" "" ""; run --site=prod --rollout=3 --yes --force >/dev/null 2>&1; check "--force goes on with a state that was not rehearsed" $?
+reset; printf 'wp-otherguise\taaa\nwp-theme\tbbb\nwp-extra\tccc\n' >"$T/state_out"; answers "" "" "" "" "" "" ""; run --site=prod --rollout=3 --yes >/dev/null 2>&1; check "a repository that staging does not have is not compared" $?
 
-reset; answers "wrong" "" "" "" ""; run --site=prod --rollout=3 >/dev/null 2>&1; check "production asks for the name of the container" $((! $?))
+reset; answers "wrong" "" "" "" "" "" "" ""; run --site=prod --rollout=3 >/dev/null 2>&1; check "production asks for the name of the container" $((! $?))
 ! grep -q "theme activate" "$LOG"; check "...and changes nothing without it" $?
-reset; answers "prod" "" "" "" ""; run --site=prod --rollout=3 >/dev/null 2>&1; check "the right name goes on" $?
+reset; answers "prod" "" "" "" "" "" "" ""; run --site=prod --rollout=3 >/dev/null 2>&1; check "the right name goes on" $?
 
 # Changing the script invalidates the rehearsal.
 echo "# changed" >>"$SCRIPT"
-reset; answers "" "" "" ""; run --site=prod --rollout=3 --yes >"$T/out" 2>&1; check "a script that changed since its rehearsal is refused on production" $((! $?))
-reset; answers "" "" "" ""; run --site=prod --rollout=3 --yes --force >/dev/null 2>&1; check "--force goes on anyway" $?
-reset; answers "" "" "" ""; run --site=prod --rollout=3 --yes --no-validate --force >/dev/null 2>&1; check "--no-validate works on production" $?
+reset; answers "" "" "" "" "" "" ""; run --site=prod --rollout=3 --yes >"$T/out" 2>&1; check "a script that changed since its rehearsal is refused on production" $((! $?))
+reset; answers "" "" "" "" "" "" ""; run --site=prod --rollout=3 --yes --force >/dev/null 2>&1; check "--force goes on anyway" $?
+reset; answers "" "" "" "" "" "" ""; run --site=prod --rollout=3 --yes --no-validate --force >/dev/null 2>&1; check "--no-validate works on production" $?
 
 echo; echo "$PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ]

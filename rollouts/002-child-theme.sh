@@ -46,14 +46,23 @@ note "The variants declared, before" wp otherguise modes variant list
 note "The global styles of the site editor, before (they are stored per theme)" wp post list --post_type=wp_global_styles --fields=ID,post_name,post_status
 HOME_URL=$(wp option get home 2>/dev/null || echo "(the address of the site)")
 if [ "$SITE" = prod ]; then OTHER_URL=${STAGING_URL}; OTHER=staging; else OTHER_URL=${PROD_URL:-https://e.vli.st}; OTHER=production; fi
+PAGES="the home page; an archive (a category or a month); the search page (/?s=test); a post that uses publication-randonnee, one that uses journee, one that uses 'Résumé mensuel randonnée', and one with the default template; and each of the posts with ?print and with ?mode=print"
+COMPARE="Compare $HOME_URL with $OTHER_URL ($OTHER), page by page: $PAGES."
 
-# 4. The switch.
+if [ "$SITE" != prod ]; then
+  validate "BEFORE any change. $COMPARE Staging is a copy of production, so they must look the same: note every difference that is already there, so as not to blame the next steps for it."
+fi
+
+# 4. The switch, one change at a time, with a comparison after each so as to know which one made a difference.
 if [ "$(wp theme list --status=active --field=name 2>/dev/null)" = "$THEME" ]; then
   say "The theme $THEME is already active"
 else
   step "Activate the theme $THEME" wp theme activate "$THEME"
 fi
+validate "AFTER THE THEME SWITCH, before anything else. $COMPARE What differs now comes from the switch itself: the usual suspects are the global styles of the site editor (fonts, colours, spacing: they are attached to the theme), the header, the missing footer and the lists of posts (the reusable block). Note what is different."
+
 step "Move the variants of the modes from $PARENT to $THEME" wp otherguise modes variant retheme "$PARENT" "$THEME"
+validate "AFTER THE VARIANTS MOVED. Open ?mode=print (and ?print) on a post of each of the three kinds on $HOME_URL and on $OTHER_URL ($OTHER): the print version must be there, the same. Note what is different."
 
 # 5. The CSS of the blog comes from the theme, no longer from the plugin Custom CSS & JS.
 SNIPPET=33286   # the only snippet of the plugin: frontend, header, priority 5, CSS
@@ -62,6 +71,7 @@ check_output "the stylesheet of the theme is loaded by the theme" "yes" wp eval 
 if wp plugin is-active custom-css-js >/dev/null 2>&1; then
   check_output "the only active snippet of Custom CSS & JS is $SNIPPET (the plugin would take the others with it)" "$SNIPPET" wp post list --post_type=custom-css-js --post_status=publish --field=ID
   step "Deactivate the plugin Custom CSS & JS" wp plugin deactivate custom-css-js
+  validate "AFTER THE PLUGIN CUSTOM CSS & JS WAS DEACTIVATED (its CSS now comes from the theme). $COMPARE Look at the galleries, the images aligned left or right, the maps and the drop cap (the font Ultra); the theme's stylesheet now loads after the parent's, the plugin's CSS used to come very early. Note what is different."
 else
   say "The plugin Custom CSS & JS is already inactive"
 fi
@@ -75,8 +85,8 @@ note "The templates of the database, after" templates_sh check --site="$SITE"
 note "The variants declared, after" wp otherguise modes variant list
 note "The global styles of the site editor, after" wp post list --post_type=wp_global_styles --fields=ID,post_name,post_status
 
-validate "Compare $HOME_URL with $OTHER_URL ($OTHER), page by page: the home page; an archive (a category or a month); the search page (/?s=test); a post that uses publication-randonnee, one that uses journee, one that uses 'Résumé mensuel randonnée', and one with the default template; and each of them with ?print and with ?mode=print. They must look the same: lists of posts, header, no footer, menus, colours, fonts."
+validate "AT THE END. $COMPARE They must look the same. Whatever you noted after one of the steps above and that is still different is what the rollout has changed."
 validate "The PHP error log has nothing new (wp-content/debug.log)."
-manual "If the colours or the fonts of the site changed: the global styles saved in the site editor were attached to $PARENT and did not follow. Go back (wp theme activate $PARENT, then wp otherguise modes variant retheme $THEME $PARENT) and tell Claude: the content of the global styles post has to be given to the new theme. If nothing changed, there is nothing to do." "the pages look the same as before."
+manual "If the fonts or the colours of the site changed (you noted it after the theme switch): the global styles saved in the site editor were attached to $PARENT and did not follow. Go back (wp theme activate $PARENT, then wp otherguise modes variant retheme $THEME $PARENT) and tell Claude: the content of the global styles post has to be given to the new theme. If nothing changed, there is nothing to do." "the pages look the same as before."
 
 rollout_end
