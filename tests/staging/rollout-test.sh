@@ -18,7 +18,7 @@ export T
 for p in plug-a plug-b; do
   git init -q --bare -b main "$T/github/$p.git"
   git clone -q "$T/github/$p.git" "$T/seed/$p" 2>/dev/null
-  (cd "$T/seed/$p" && git checkout -q -b main && echo 1 >f && git add f && git commit -q -m "first" && git push -q origin main)
+  (cd "$T/seed/$p" && git checkout -q -b main && mkdir plugin && echo 1 >f && echo 1 >plugin/x && git add f plugin && git commit -q -m "first" && git push -q origin main)
   for site in stg prod; do git clone -q "$T/github/$p.git" "$T/$site/$p"; done
 done
 mkdir -p "$T/stg/plain" "$T/prod/plain"
@@ -31,7 +31,8 @@ case "$1" in
     case "$*" in
       *Running*) echo true ;;
       *) case "$*" in *prod*) site=prod ;; *) site=stg ;; esac
-         for p in plug-a plug-b; do echo "$T/$site/$p /var/www/html/wp-content/plugins/$p"; done
+         echo "$T/$site/plug-a /var/www/html/wp-content/plugins/plug-a"
+         echo "$T/$site/plug-b/plugin /var/www/html/wp-content/plugins/plug-b"
          echo "$T/$site/plain /var/www/html/wp-content/plugins/plain" ;;
     esac ;;
 esac
@@ -60,6 +61,7 @@ ro apply x --site=prod >/dev/null 2>&1; check "apply refuses a number that is no
 # Status.
 ro status --site=staging >"$T/out" 2>&1; check "status runs" $?
 grep -q "plug-a *main" "$T/out" && grep -q "plug-b" "$T/out"; check "status lists the clones" $?
+grep -q "plug-b *main" "$T/out" && ! grep -q "Not a git clone, left alone: /var/www/html/wp-content/plugins/plug-b" "$T/out"; check "a mount of a directory of a clone (clone/plugin) is the clone" $?
 grep -q "Not a git clone, left alone" "$T/out"; check "a mount that is not a git clone is left alone" $?
 
 # Update.

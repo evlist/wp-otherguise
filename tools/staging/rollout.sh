@@ -7,7 +7,7 @@
 # runs there is exactly what was rehearsed on staging. Meant to run on the Docker host, where the clones are.
 #
 # The repositories are not configured: they are the bind mounts of the site's container under wp-content/plugins (and wp-content/themes)
-# whose source is a git clone. Anything else (the plugins copied by the sync, mounts that are not git) is left alone.
+# whose source is a git clone or a directory of one (`<clone>/plugin`). Anything else (the plugins copied by the sync, mounts that are not git) is left alone.
 #
 # Usage: rollout.sh <command> --site=<prod|staging|testing> [options]
 #   status                  for each repository: branch or tag, commit, rollout tags on it, local changes, distance from origin.
@@ -71,15 +71,18 @@ else
 fi
 [ "$(docker inspect -f '{{.State.Running}}' "$CONTAINER" 2>/dev/null)" = "true" ] || die "Container $CONTAINER is not running."
 
-# The clones the site mounts: directory on the host and name in the site.
+# The clones the site mounts: the root of the repository on the host and the name in the site. What is mounted is often a directory of
+# the clone (`<clone>/plugin` for a plugin whose repository holds more than the plugin), so the repository is the root of its work tree.
 DIRS=() NAMES=()
 while read -r source destination; do
   case "$destination" in
     /var/www/html/wp-content/plugins/* | /var/www/html/wp-content/themes/*) ;;
     *) continue ;;
   esac
-  if [ "$(git -C "$source" rev-parse --show-toplevel 2>/dev/null)" = "$(readlink -f "$source")" ]; then
-    DIRS+=("$source") NAMES+=("$(basename "$destination")")
+  if top=$(git -C "$source" rev-parse --show-toplevel 2>/dev/null); then
+    already=0
+    for known in "${DIRS[@]+"${DIRS[@]}"}"; do [ "$known" != "$top" ] || already=1; done
+    [ "$already" -eq 1 ] || { DIRS+=("$top"); NAMES+=("$(basename "$destination")"); }
   else
     echo "Not a git clone, left alone: $destination ($source)"
   fi

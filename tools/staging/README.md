@@ -45,7 +45,7 @@ It reads `WP_ENVIRONMENT_TYPE`, which WordPress already knows: `production` (wha
 
 ## Rollouts: the same versions on staging and on production
 
-The plugins under development are git clones mounted into each container; the sync leaves them alone, so each site can be on another commit. [`rollout.sh`](rollout.sh) removes that drift. A **rollout** is a git tag `rollout-N`, put on the commit that runs on staging in **every** such repository, and pushed to GitHub; production then checks out that tag. The repositories are not configured: they are the bind mounts of the site's container under `wp-content/plugins` (and `themes`) that are git clones. Run it on the Docker host. `--site=prod|staging|testing` is always required (there is no default site, so no accidental production).
+The plugins under development are git clones mounted into each container; the sync leaves them alone, so each site can be on another commit. [`rollout.sh`](rollout.sh) removes that drift. A **rollout** is a git tag `rollout-N`, put on the commit that runs on staging in **every** such repository, and pushed to GitHub; production then checks out that tag. The repositories are not configured: they are the bind mounts of the site's container under `wp-content/plugins` (and `themes`) whose source is a git clone **or a directory of one** (`<clone>/plugin`, as for Eric's plugins). Run it on the Docker host. `--site=prod|staging|testing` is always required (there is no default site, so no accidental production).
 
 ```sh
 rollout.sh status --site=staging           # each repository: branch or tag, commit, rollout tags, local changes, distance from origin
