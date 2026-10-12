@@ -46,6 +46,8 @@ fixtures() { # create or remove ($1 = create|remove)
     $make( "wp_template", "og-db-only", $active, "<!-- wp:paragraph --><p>x</p><!-- /wp:paragraph -->" );
     $make( "wp_template", "og-parent-only", "twentytwentyfive", "<!-- wp:paragraph --><p>parent</p><!-- /wp:paragraph -->" );
     $make( "wp_template_part", "footer", $active, "<!-- wp:paragraph --><p>f</p><!-- /wp:paragraph -->" );
+    $file = _get_block_template_file( "wp_template", "index" );
+    $make( "wp_template", "index", $active, str_replace( "\"slug\":\"header\"", "\"slug\":\"header\",\"theme\":\"twentytwentyfive\"", file_get_contents( $file["path"] ) ) );
   ' >/dev/null 2>&1
 }
 trap 'fixtures remove; rm -rf "$T"' EXIT
@@ -65,11 +67,14 @@ grep -qP "^SHADOWS\twp_template_part\tfooter\t" <<<"$out"; check "so does a part
 grep -qP "^DATABASE-ONLY\twp_template\tog-db-only\t" <<<"$out"; check "a template with no file is DATABASE-ONLY" $?
 grep -qP "^UNUSED\twp_template\tog-parent-only\t.*twentytwentyfive\t" <<<"$out"; check "a copy attached to the parent theme is UNUSED by the child" $?
 grep -q "^ACTIVE" <<<"$out"; check "check names the active theme" $?
+grep -qP "^SHADOWS\twp_template_part\tfooter\t.*\tdiffers$" <<<"$out"; check "a copy that is a real customisation is marked differs" $?
+grep -qP "^SHADOWS\twp_template\tindex\t.*\tidentical$" <<<"$out"; check "a copy with the content of the file (apart from the theme attribute) is marked identical" $?
 
 ro export "$T/export" --site=staging >"$T/export.out" 2>&1; rc=$?; check "export succeeds" $rc
 [ -f "$T/export/templates/publication-randonnee.html" ] && [ -f "$T/export/templates/og-db-only.html" ] && [ -f "$T/export/parts/footer.html" ]; check "export writes templates/ and parts/" $?
 grep -q 'wp:template-part {"slug":"header"}' "$T/export/templates/publication-randonnee.html" && ! grep -q '"theme"' "$T/export/templates/publication-randonnee.html"; check "export removes the theme attribute of the template parts" $?
 php -r 'exit( is_array( json_decode( file_get_contents( $argv[1] ), true ) ) ? 0 : 1 );' "$T/export/customTemplates.json"; check "customTemplates.json is valid JSON" $?
+[ ! -f "$T/export/templates/og-parent-only.html" ]; check "export leaves out what is attached to another theme" $?
 grep -q '"name": "og-db-only"' "$T/export/customTemplates.json" && ! grep -q '"name": "footer"' "$T/export/customTemplates.json"; check "customTemplates.json lists the custom templates, not the parts" $?
 
 ro delete --site=staging --backup-dir "$T/backup" --dry-run >"$T/dry.out" 2>&1; rc=$?; check "delete --dry-run succeeds" $rc

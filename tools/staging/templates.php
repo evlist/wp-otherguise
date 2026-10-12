@@ -6,11 +6,14 @@
  * Run by tools/staging/templates.sh through `wp eval`, on the site: it looks at the templates and the template parts that the site
  * editor stored in the database. Not a plugin; the action comes from the variable $otherguise_action that templates.sh sets first.
  *
- * - check: one line per template of the database, "STATUS<TAB>type<TAB>slug<TAB>ID<TAB>theme<TAB>title", STATUS being
+ * - check: one line per template of the database, "STATUS<TAB>type<TAB>slug<TAB>ID<TAB>theme<TAB>title<TAB>same", STATUS being
  *   SHADOWS (attached to the active theme, which also has a file for it: the database copy is used and the file is ignored),
  *   DATABASE-ONLY (attached to the active theme, no file), or UNUSED (attached to another theme: the active theme does not use it).
- * - export-all, export-shadowing: the same templates as files, "@@FILE path" then the content, for templates.sh to write, with
- *   customTemplates.json for the custom ones; the "theme" attribute of the template parts is removed (see the theme's README).
+ *   "same" is "identical" when a SHADOWS copy has the content of the file (ignoring white space and the "theme" attribute of the template
+ *   parts), "differs" when it is a real customisation, and empty otherwise.
+ * - export-all: the templates and parts attached to the active theme (SHADOWS and DATABASE-ONLY, not those of other themes) as files,
+ *   "@@FILE path" then the content, for templates.sh to write, with customTemplates.json for the custom ones; the "theme" attribute of
+ *   the template parts is removed (see the theme's README). export-shadowing: only the SHADOWS ones.
  * - delete-shadowing: deletes the database copies that shadow a file (for good, not to the trash).
  *
  * @package Otherguise
@@ -24,6 +27,10 @@ defined( 'ABSPATH' ) || exit;
  * @return array<int, array<string, mixed>>
  */
 function otherguise_templates_inventory() {
+	$normalise = static function ( $content ) {
+		return preg_replace( '/\s+/', '', preg_replace( '/,"theme":"[^"]*"/', '', (string) $content ) );
+	};
+
 	$active = get_stylesheet();
 	$found  = array();
 
@@ -42,8 +49,15 @@ function otherguise_templates_inventory() {
 			$themes = wp_get_object_terms( $post->ID, 'wp_theme', array( 'fields' => 'names' ) );
 			$theme  = is_array( $themes ) && ! empty( $themes ) ? (string) $themes[0] : '';
 
+			$same = '';
+
 			if ( $theme === $active ) {
-				$status = null !== _get_block_template_file( $type, $post->post_name ) ? 'SHADOWS' : 'DATABASE-ONLY';
+				$file   = _get_block_template_file( $type, $post->post_name );
+				$status = null !== $file ? 'SHADOWS' : 'DATABASE-ONLY';
+
+				if ( null !== $file ) {
+					$same = $normalise( file_get_contents( $file['path'] ) ) === $normalise( $post->post_content ) ? 'identical' : 'differs';
+				}
 			} else {
 				$status = 'UNUSED';
 			}
@@ -55,6 +69,7 @@ function otherguise_templates_inventory() {
 				'slug'    => $post->post_name,
 				'theme'   => $theme,
 				'title'   => $post->post_title,
+				'same'    => $same,
 				'content' => $post->post_content,
 			);
 		}
@@ -108,11 +123,20 @@ function otherguise_templates_run( $action ) {
 		case 'check':
 			WP_CLI::line( "ACTIVE\t" . get_stylesheet() . ' (parent: ' . get_template() . ')' );
 			foreach ( $items as $item ) {
-				WP_CLI::line( implode( "\t", array( $item['status'], $item['type'], $item['slug'], $item['id'], $item['theme'], $item['title'] ) ) );
+				WP_CLI::line( implode( "\t", array( $item['status'], $item['type'], $item['slug'], $item['id'], $item['theme'], $item['title'], $item['same'] ) ) );
 			}
 			break;
 		case 'export-all':
-			otherguise_templates_print_files( $items );
+			otherguise_templates_print_files(
+				array_values(
+					array_filter(
+						$items,
+						static function ( $item ) {
+							return 'UNUSED' !== $item['status'];
+						}
+					)
+				)
+			);
 			break;
 		case 'export-shadowing':
 			otherguise_templates_print_files(

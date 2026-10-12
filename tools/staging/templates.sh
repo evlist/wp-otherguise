@@ -10,7 +10,10 @@
 #   check                      list the templates of the database and what each is to the active theme:
 #                              SHADOWS (the active theme has a file for it: the copy hides the file), DATABASE-ONLY (no file),
 #                              UNUSED (attached to another theme, for example the parent). Exit code 1 if something SHADOWS.
-#   export <dir>               write every template and part of the database as files under <dir> (templates/<slug>.html,
+#                              The last column of a SHADOWS line is "identical" (the copy has the content of the file, ignoring white
+#                              space and the theme attribute of the parts) or "differs" (a real customisation of a standard template).
+#   export <dir>               write the templates and parts of the database attached to the active theme (not those of other
+#                              themes) as files under <dir> (templates/<slug>.html,
 #                              parts/<slug>.html) with customTemplates.json, the fragment of theme.json for the custom templates
 #                              (post type "post" is a guess: check it). The "theme" attribute of the template parts is removed.
 #   delete --backup-dir <dir>  after writing a backup of them (export of the copies that shadow a file), delete those copies.
