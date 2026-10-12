@@ -91,6 +91,18 @@ rollouts/002-child-theme.sh --site=prod --rollout=N         # then the script: i
 
 The library gives a script `step` (run a command, stop if it fails), `note` (show a state), `check` and `check_output` (what a command can decide), `validate` (a question for you, optional: `--no-validate` skips it once the rehearsal is trusted) and `manual` (a gesture without a command, always asked). On production it asks for the name of the container (`--yes` skips it), backs the database up to `~/rollout-backups` before the first change, and **refuses a script that was not rehearsed to the end on staging with the validations, in its current text** (the fingerprint of the script and of the library is recorded in `~/.local/state/vli-rollouts`; `--force` overrides). **The script runs no git:** put the clones on the state to try first (a tag, a branch, `rollout.sh update`); on staging the script notes that state and remembers it with the rehearsal, and on production (`rollout.sh apply N --site=prod` first) it checks, with `rollout.sh verify N`, that the clones are on the tag **and that these are the commits that were rehearsed**. A log of every run is kept in `~/rollout-logs`. `--dry-run` prints what would be done. There is no rollback to write: production is backed up and staging can be synchronised again.
 
+## What differs between two sites? `compare-sites.sh`
+
+[`compare-sites.sh`](compare-sites.sh) (read-only, from any machine that reaches both sites) fetches the same page from production and from staging (`--with=testing` for testing), replaces the address of the copy by production's, and lists what differs: the stylesheets the page loads, the inline styles, the font files (`@font-face`) and **whether the copy can fetch them and from which origin**, the font families used, the classes of the body, the title. No screenshot needed:
+
+```sh
+tools/staging/compare-sites.sh                       # the home page
+tools/staging/compare-sites.sh --path=/some-post/ --print
+tools/staging/compare-sites.sh --path=/some-post/ --mode=print
+```
+
+When the copy is behind HTTP authentication give curl the credentials through `COMPARE_CURL_OPTS` (never in a file of the repository). Tested with a stand-in for curl ([`tests/staging/compare-sites-test.sh`](../../tests/staging/compare-sites-test.sh), 14 checks); never against the blog.
+
 ## Where is the CSS? `css-sources.sh`
 
 [`css-sources.sh`](css-sources.sh) (run on the Docker host, `--site=prod|staging|testing` always required, read-only) takes the classes that the templates and the parts of a theme use (`--theme=`, by default `wp-twenty-twenty-five-printable`) and says where each is styled: the additional CSS of each theme, the global styles, the snippets of the plugin Custom CSS & JS, the CSS files of the plugins, of the themes, of Custom CSS & JS and of WordPress. A class found nowhere is marked `-- NOT FOUND`. `--find=<term>` looks for extra terms in the same places (a font name, for instance); it also lists every snippet of Custom CSS & JS with its settings and the fonts of the font library.

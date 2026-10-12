@@ -47,7 +47,7 @@ note "The global styles of the site editor, before (they are stored per theme)" 
 HOME_URL=$(wp option get home 2>/dev/null || echo "(the address of the site)")
 if [ "$SITE" = prod ]; then OTHER_URL=${STAGING_URL}; OTHER=staging; else OTHER_URL=${PROD_URL:-https://e.vli.st}; OTHER=production; fi
 PAGES="the home page; an archive (a category or a month); the search page (/?s=test); a post that uses publication-randonnee, one that uses journee, one that uses 'Résumé mensuel randonnée', and one with the default template; and each of the posts with ?print and with ?mode=print"
-COMPARE="Compare $HOME_URL with $OTHER_URL ($OTHER), page by page: $PAGES."
+COMPARE="Compare $HOME_URL with $OTHER_URL ($OTHER), page by page: $PAGES. (tools/staging/compare-sites.sh --path=... [--print|--mode=print] lists what differs: stylesheets, inline styles, fonts, body classes.)"
 
 if [ "$SITE" != prod ]; then
   validate "BEFORE any change. $COMPARE Staging is a copy of production, so they must look the same: note every difference that is already there, so as not to blame the next steps for it."
