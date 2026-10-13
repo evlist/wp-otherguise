@@ -5,7 +5,9 @@
 # Rollout 002: the child theme. The templates of the blog move from the database into the child theme
 # evlist/wp-twenty-twenty-five-printable (directory wp-twenty-twenty-five-printable), which becomes the active theme, the variants of the
 # modes are moved to it, and the CSS that the plugin Custom CSS & JS injected (snippet 33286) now comes from the theme: the plugin is
-# deactivated. No visible change is expected. The story, the risks and what was observed are in docs/rollouts/002-child-theme.md.
+# deactivated. The theme also carries modes/print.css (the print format, loaded by the Modes module when the mode print is active) and loads
+# the font Dashicons for every visitor, as wp-pdf-helper did, which stays active. No visible change is expected on the pages as they are
+# today (only ?mode=print gains the print CSS). The story, the risks and what was observed are in docs/rollouts/002-child-theme.md.
 #
 # Usage: rollouts/002-child-theme.sh --site=staging [--no-validate] [--dry-run]
 #        rollouts/002-child-theme.sh --site=prod --rollout=N [--no-validate] [--yes] [--force]
@@ -38,22 +40,27 @@ rollout_versions
 check "the child theme is installed ($THEME)" wp theme is-installed "$THEME"
 # `is-installed` only looks for the directory: a stale mount or a missing style.css would only show when the theme is activated.
 check_output "WordPress can read the child theme (its style.css, its parent)" "ok" wp eval "\$t = wp_get_theme( '$THEME' ); echo \$t->errors() ? 'broken: ' . \$t->errors()->get_error_message() : 'ok';"
+check "the plugin offers the command that moves the variants (otherguise modes variant retheme)" wp cli has-command "otherguise modes variant retheme"
 check_output "the reusable block $REUSABLE_BLOCK of the lists of posts exists" "wp_block" wp post get "$REUSABLE_BLOCK" --field=post_type
 
 # 3. Where we start from (what to compare with is the other site: production, or staging when this is production).
+note "The plugin wp-pdf-helper (this rollout does not touch it: ?print is still served by it)" wp plugin get wp-pdf-helper --fields=name,status,version
 note "The templates of the database, before" templates_sh check --site="$SITE"
 note "The variants declared, before" wp otherguise modes variant list
 note "The global styles of the site editor, before (they are stored per theme)" wp post list --post_type=wp_global_styles --fields=ID,post_name,post_status
 HOME_URL=$(wp option get home 2>/dev/null || echo "(the address of the site)")
 if [ "$SITE" = prod ]; then OTHER_URL=${STAGING_URL}; OTHER=staging; else OTHER_URL=${PROD_URL:-https://e.vli.st}; OTHER=production; fi
 PAGES="the home page; an archive (a category or a month); the search page (/?s=test); a post that uses publication-randonnee, one that uses journee, one that uses 'Résumé mensuel randonnée', and one with the default template; and each of the posts with ?print and with ?mode=print"
-COMPARE="Compare $HOME_URL with $OTHER_URL ($OTHER), page by page: $PAGES. (tools/staging/compare-sites.sh --path=... [--print|--mode=print] lists what differs: stylesheets, inline styles, fonts, body classes.)"
+PRINT_NOTE="wp-pdf-helper is active on both sites, so ?print must look the same on both. ?mode=print is different on purpose: the theme loads modes/print.css only there, so it differs from $OTHER's ?mode=print until $OTHER has this rollout."
+COMPARE="Compare $HOME_URL with $OTHER_URL ($OTHER), page by page: $PAGES. $PRINT_NOTE (tools/staging/compare-sites.sh --path=... [--print|--mode=print] lists what differs: stylesheets, inline styles, fonts, body classes.)"
 
 if [ "$SITE" != prod ]; then
   validate "BEFORE any change. $COMPARE Staging is a copy of production, so they must look the same: note every difference that is already there, so as not to blame the next steps for it."
 fi
 
 check_output "the fonts and the sizes of the blog are in the theme.json of the theme (they were global styles of the site editor, which are attached to a theme and do not follow)" "yes" wp eval "echo false !== strpos( (string) file_get_contents( wp_get_theme( '$THEME' )->get_stylesheet_directory() . '/theme.json' ), 'fira-sans' ) ? 'yes' : 'no';"
+
+check_output "the print format is in the theme (modes/print.css)" "yes" wp eval "echo is_file( wp_get_theme( '$THEME' )->get_stylesheet_directory() . '/modes/print.css' ) ? 'yes' : 'no';"
 
 # 4. The switch, one change at a time, with a comparison after each so as to know which one made a difference.
 if [ "$(wp theme list --status=active --field=name 2>/dev/null)" = "$THEME" ]; then
@@ -65,6 +72,10 @@ validate "AFTER THE THEME SWITCH, before anything else. $COMPARE The fonts (Fira
 
 step "Move the variants of the modes from $PARENT to $THEME" wp otherguise modes variant retheme "$PARENT" "$THEME"
 validate "AFTER THE VARIANTS MOVED. Open ?mode=print (and ?print) on a post of each of the three kinds on $HOME_URL and on $OTHER_URL ($OTHER): the print version must be there, the same. Note what is different."
+
+# The stylesheet of the mode: modes/print.css is loaded when the mode print is active (and only then). Done in the process of WP-CLI, without HTTP.
+check_output "the mode print loads modes/print.css of the theme (handle modes-theme-print), the web mode does not" "yes" wp eval '$m = \Otherguise\Core\Modules::get( "modes" ); $on = static function ( $get ) use ( $m ) { wp_dequeue_style( "modes-theme-print" ); unset( $_GET["mode"] ); if ( $get ) { $_GET["mode"] = "print"; } $m->active()->reset(); do_action( "wp_enqueue_scripts" ); return wp_style_is( "modes-theme-print", "enqueued" ); }; echo $on( true ) && ! $on( false ) ? "yes" : "no";'
+check_output "the font Dashicons is loaded for every visitor (the print link is a Dashicon)" "yes" wp eval 'wp_dequeue_style( "dashicons" ); do_action( "wp_enqueue_scripts" ); echo wp_style_is( "dashicons", "enqueued" ) ? "yes" : "no";'
 
 # 5. The CSS of the blog comes from the theme, no longer from the plugin Custom CSS & JS.
 SNIPPET=33286   # the only snippet of the plugin: frontend, header, priority 5, CSS

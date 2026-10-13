@@ -50,6 +50,11 @@ args="$*"
 echo "wp[$container] $args" >>"$LOG"
 case "$args" in
   "theme is-installed"*) exit "${STUB_NOT_INSTALLED:-0}" ;;
+  "cli has-command"*) exit "${STUB_NO_RETHEME:-0}" ;;
+  "plugin get wp-pdf-helper"*) echo "wp-pdf-helper active" ;;
+  "eval "*"modes/print.css"*) echo "${STUB_PRINT_CSS_IN_THEME:-yes}" ;;
+  "eval "*"modes-theme-print"*) echo "${STUB_PRINT_MODE:-yes}" ;;
+  "eval "*"dashicons"*) echo "${STUB_DASHICONS:-yes}" ;;
   "eval "*"fira-sans"*) echo "${STUB_FONTS_IN_THEME:-yes}" ;;
   "eval "*"lettrine"*) echo "${STUB_CSS_IN_THEME:-yes}" ;;
   "eval "*"wp_style_is"*) echo "${STUB_STYLE_ENQUEUED:-yes}" ;;
@@ -72,7 +77,7 @@ export PATH="$T/bin:$PATH"
 
 run() { bash "$SCRIPT" "$@"; }
 answers() { printf '%s\n' "$@" >"$T/answers"; export ROLLOUT_TTY="$T/answers"; }
-reset() { : >"$LOG"; echo twentytwentyfive >"$T/active"; echo "template twentytwentyfive//a twentytwentyfive//b print" >"$T/variants"; unset STUB_BLOCK STUB_NOT_INSTALLED STUB_EXIT_ROLLOUT STUB_EXIT_TEMPLATES STUB_EXIT_VERIFY STUB_THEME_EVAL STUB_CSS_IN_THEME STUB_STYLE_ENQUEUED STUB_PLUGIN_INACTIVE STUB_SNIPPETS STUB_FONTS_IN_THEME; printf 'wp-otherguise\taaa\nwp-theme\tbbb\n' >"$T/state_out"; }
+reset() { : >"$LOG"; echo twentytwentyfive >"$T/active"; echo "template twentytwentyfive//a twentytwentyfive//b print" >"$T/variants"; unset STUB_BLOCK STUB_NOT_INSTALLED STUB_EXIT_ROLLOUT STUB_EXIT_TEMPLATES STUB_EXIT_VERIFY STUB_THEME_EVAL STUB_CSS_IN_THEME STUB_STYLE_ENQUEUED STUB_PLUGIN_INACTIVE STUB_SNIPPETS STUB_FONTS_IN_THEME STUB_NO_RETHEME STUB_PRINT_CSS_IN_THEME STUB_PRINT_MODE STUB_DASHICONS; printf 'wp-otherguise\taaa\nwp-theme\tbbb\n' >"$T/state_out"; }
 
 # Guards of the arguments.
 reset; run >/dev/null 2>&1; check "needs a site" $((! $?))
@@ -95,7 +100,7 @@ reset; answers "" "" "" "" "" "" ""; run --site=staging >"$T/out" 2>&1; rc=$?; c
 grep -q "^rollout.sh state --site=staging" "$LOG"; check "it remembers the state of the clones" $?
 grep -q "wp\[stg\] theme activate wp-twenty-twenty-five-printable" "$LOG"; check "the theme is activated" $?
 grep -q "variant retheme twentytwentyfive wp-twenty-twenty-five-printable" "$LOG"; check "the variants are moved" $?
-a=$(grep -n "theme activate" "$LOG" | head -1 | cut -d: -f1); b=$(grep -n "variant retheme" "$LOG" | head -1 | cut -d: -f1)
+a=$(grep -n "theme activate" "$LOG" | head -1 | cut -d: -f1); b=$(grep -n "otherguise modes variant retheme [a-z]" "$LOG" | head -1 | cut -d: -f1)
 [ "$a" -lt "$b" ]; check "the theme is activated before the variants are moved" $?
 grep -q "^templates.sh check --site=staging" "$LOG"; check "the templates are checked" $?
 ls "$T/state"/*.validated >/dev/null 2>&1; check "a rehearsal is recorded" $?
@@ -126,7 +131,7 @@ grep -q "AFTER THE THEME SWITCH" "$T/out"; check "...but there is after each ste
 # The fonts and the sizes of the blog come from the theme.json of the theme.
 reset; answers "" "" "" "" "" "" ""; STUB_FONTS_IN_THEME=no run --site=staging >"$T/out" 2>&1; check "the script stops when the fonts are not in the theme.json of the theme" $((! $?))
 grep -q "fonts and the sizes of the blog are in the theme.json" "$T/out"; check "...and says which check failed" $?
-! grep -q "variant retheme" "$LOG"; check "...before the variants are moved" $?
+! grep -q "otherguise modes variant retheme [a-z]" "$LOG"; check "...before the variants are moved" $?
 
 # The CSS of the blog and the plugin Custom CSS & JS.
 reset; answers "" "" "" "" "" "" ""; run --site=staging >/dev/null 2>&1
@@ -142,6 +147,15 @@ grep -q "the only active snippet" "$T/out"; check "...with that reason" $?
 reset; answers "" "" "" "" "" "" ""; STUB_CSS_IN_THEME=no run --site=staging >"$T/out" 2>&1; check "the plugin is not deactivated when the CSS is not in the theme" $((! $?))
 ! grep -q "plugin deactivate" "$LOG"; check "...it stops before" $?
 reset; answers "" "" "" "" "" "" ""; STUB_STYLE_ENQUEUED=no run --site=staging >/dev/null 2>&1; check "the plugin is not deactivated when the theme does not load its stylesheet" $((! $?))
+reset; answers "" "" "" "" "" "" ""; STUB_NO_RETHEME=1 run --site=staging >"$T/out" 2>&1; check "a plugin without the command retheme stops the script" $((! $?))
+! grep -q "theme activate" "$LOG"; check "...before the theme is activated" $?
+reset; answers "" "" "" "" "" "" ""; STUB_PRINT_CSS_IN_THEME=no run --site=staging >/dev/null 2>&1; check "a theme without modes/print.css stops the script" $((! $?))
+! grep -q "theme activate" "$LOG"; check "...before the theme is activated" $?
+reset; answers "" "" "" "" "" "" ""; STUB_PRINT_MODE=no run --site=staging >"$T/out" 2>&1; check "the script stops when the mode print does not load modes/print.css" $((! $?))
+grep -q "handle modes-theme-print" "$T/out"; check "...with that reason" $?
+reset; answers "" "" "" "" "" "" ""; STUB_DASHICONS=no run --site=staging >/dev/null 2>&1; check "the script stops when Dashicons is not loaded for visitors" $((! $?))
+reset; answers "" "" "" "" "" "" ""; run --site=staging >"$T/out" 2>&1; grep -q "^wp\[stg\] plugin get wp-pdf-helper" "$LOG"; check "the state of wp-pdf-helper is noted" $?
+! grep -q "plugin deactivate wp-pdf-helper" "$LOG"; check "...and the plugin is not touched" $?
 
 # Questions.
 reset; answers "" n; run --site=staging >/dev/null 2>&1; rc=$?; check "a refused validation stops the script" $((! rc))
