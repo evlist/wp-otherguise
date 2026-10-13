@@ -3,7 +3,7 @@
 
 # Rollout 002: the child theme
 
-Status: **to rehearse again on staging** (a script, rehearsed with stand-ins only; it ran to the end on staging on 2026-10-12 before the CSS was added to it). Tag: `rollout-N` (given by `rollout.sh create --site=staging` after the rehearsal).
+Status: **rehearsed on staging on 2026-10-13**, to the end and with the validations; tag `rollout-2` created and pushed. **Not yet applied on production.**
 
 ## Goal and visible effect
 
@@ -41,6 +41,20 @@ What it does, in this order: notes the versions of the repositories (it runs no 
 - **Going back** is `wp theme activate twentytwentyfive` and `wp otherguise modes variant retheme wp-twenty-twenty-five-printable twentytwentyfive`: nothing is deleted.
 - **Preconditions the script checks for itself:** the theme installed (the clone mounted as `wp-content/themes/wp-twenty-twenty-five-printable`) and the reusable block. The tag `rollout-1` exists (the baseline, [001](001-baseline.md)).
 
+## Versions
+
+`rollout.sh create --site=staging` (2026-10-13), tag `rollout-2` in four repositories; production is brought to it with `rollout.sh apply 2 --site=prod`:
+
+| Repository | Commit |
+|---|---|
+| `wp-media-helper` | `8ab96c5` |
+| `wp-twenty-twenty-five-printable` | `d549c77` |
+| `wp-scatter-elsewhere` | `60439b9` |
+| `wp-otherguise` | `a547565` |
+
+The script rehearsed is the one of `wp-otherguise` at that commit; a later change of the script or of the library makes production refuse it until it is rehearsed again. Plugins that are copies from Gitea (not git clones) are not in the tag.
+
 ## Log
 
-(Dates, sites, who ran it, what differed from the text and the correction made to it.)
+- **2026-10-13, staging** (Eric). A first run stopped at the check that the mode print loads `modes/print.css`: the check simulated `?mode=print` inside WP-CLI, but the Modes module reads the real query string (`filter_input_array`), so it could only answer "no". It was a fault of the script, not of the site (the page `?print=print` of staging did load the stylesheet). The check now asks the public address of the site over HTTP. Observed on the way: after the theme switch and before the variants moved, `?print=print` showed the web template (the print variants were still declared for Twenty Twenty-Five), so the column of the GPX map had the wrong width; once the variants were moved the print template and its two columns were there. `?print=print` also activates the mode `print` of Otherguise (an alias), so with `wp-pdf-helper` active both `wp-pdf-helper-print.css` and `modes/print.css` load on a `?print` page. The second run went to the end with the validations.
+- **Production:** not run yet.

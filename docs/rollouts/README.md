@@ -11,5 +11,5 @@ The files are named `NNN-name.md`; the number `NNN` is the order of the iteratio
 |---|---|---|
 | [`TEMPLATE.md`](TEMPLATE.md), [`../../rollouts/TEMPLATE.sh`](../../rollouts/TEMPLATE.sh) | the models to copy | - |
 | [`001-baseline.md`](001-baseline.md) | the baseline: record what already runs on production (one command, no script) | applied on production |
-| [`002-child-theme.md`](002-child-theme.md), [`../../rollouts/002-child-theme.sh`](../../rollouts/002-child-theme.sh) | the templates move into the child theme, which becomes the active theme | written, not run |
+| [`002-child-theme.md`](002-child-theme.md), [`../../rollouts/002-child-theme.sh`](../../rollouts/002-child-theme.sh) | the templates move into the child theme, which becomes the active theme | rehearsed on staging (2026-10-13), tag `rollout-2`, not applied on production |
 | [`003-print-format.md`](003-print-format.md) | `?mode=print` replaces `?print` and `wp-pdf-helper` is switched off | proposed, prerequisites not met, no script |
