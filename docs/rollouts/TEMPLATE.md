@@ -11,6 +11,16 @@ The procedure is the script `rollouts/NNN-name.sh` (copy [`../../rollouts/TEMPLA
 
 One or two sentences: what changes, and what a visitor or the administrator sees on production afterwards (often: nothing).
 
+## Prerequisites: what must exist before the rollout
+
+What has to be **implemented** in the plugins and in the theme, and **tried on testing**, before the rollout is rehearsed on staging: one line per feature, with the repository, the commit or the tag, and where it was tried. A rollout only moves what already works; it does not develop it. Mark each line when it is true.
+
+| Done | Feature | Repository and commit | Tried on testing |
+|---|---|---|---|
+| [ ] | | | |
+
+Plugins that are **not git clones mounted in the containers** (those copied from Gitea) are not covered by the tag `rollout-N` and are put back to the state of production at every synchronisation: say which ones, which commit to install, and how the script checks it (a functional check, not a version number).
+
 ## The script
 
 How to run it (staging, tag, production) and what it does, in a short paragraph; what `--no-validate` skips.
