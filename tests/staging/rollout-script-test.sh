@@ -219,6 +219,11 @@ echo "# changed" >>"$SCRIPT"
 reset; answers "" "" "" "" "" "" ""; run --site=prod --rollout=3 --yes >"$T/out" 2>&1; check "a script that changed since its rehearsal is refused on production" $((! $?))
 reset; answers "" "" "" "" "" "" ""; run --site=prod --rollout=3 --yes --force >/dev/null 2>&1; check "--force goes on anyway" $?
 reset; answers "" "" "" "" "" "" ""; run --site=prod --rollout=3 --yes --no-validate --force >/dev/null 2>&1; check "--no-validate works on production" $?
+reset; : >"$T/answers"; export ROLLOUT_TTY="$T/answers"; run --site=prod --rollout=3 --yes --force >"$T/out" 2>&1; rc=$?; check "production asks no validation: it runs with no answer at all" $rc
+grep -q "LATER" "$T/out"; check "...the validations are shown as to be looked at afterwards" $?
+grep -q "To look at now that it is done" "$T/out"; check "...and listed again at the end" $?
+grep -q "AT THE END" "$T/out"; check "...with their texts" $?
+reset; : >"$T/answers"; run --site=staging >/dev/null 2>&1; check "staging still asks the validations (no answer stops it)" $((! $?))
 
 echo; echo "$PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ]

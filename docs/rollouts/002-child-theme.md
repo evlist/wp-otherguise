@@ -3,7 +3,7 @@
 
 # Rollout 002: the child theme
 
-Status: **rehearsed on staging on 2026-10-13**, to the end and with the validations; tag `rollout-2` created and pushed. **Not yet applied on production.**
+Status: **applied on production on 2026-10-13**, after a rehearsal on staging the same day, to the end and with the validations. Tag `rollout-2`.
 
 ## Goal and visible effect
 
@@ -57,4 +57,5 @@ The script rehearsed is the one of `wp-otherguise` at that commit; a later chang
 ## Log
 
 - **2026-10-13, staging** (Eric). A first run stopped at the check that the mode print loads `modes/print.css`: the check simulated `?mode=print` inside WP-CLI, but the Modes module reads the real query string (`filter_input_array`), so it could only answer "no". It was a fault of the script, not of the site (the page `?print=print` of staging did load the stylesheet). The check now asks the public address of the site over HTTP. Observed on the way: after the theme switch and before the variants moved, `?print=print` showed the web template (the print variants were still declared for Twenty Twenty-Five), so the column of the GPX map had the wrong width; once the variants were moved the print template and its two columns were there. `?print=print` also activates the mode `print` of Otherguise (an alias), so with `wp-pdf-helper` active both `wp-pdf-helper-print.css` and `modes/print.css` load on a `?print` page. The second run went to the end with the validations.
-- **Production:** not run yet.
+- **2026-10-13, production** (Eric), `rollout.sh apply 2 --site=prod` then `rollouts/002-child-theme.sh --site=prod --rollout=2`. Two stops before any change, both caused by the container and not by the script: the image of WordPress had **no MySQL client** (the backup with `wp db export` failed; the package `mariadb-client` was added to the image, which was rebuilt), then the theme **mount was wrong again** ("the stylesheet is missing": the check that WordPress can read the theme stopped the script, on production as on testing). Each time the script stopped at the backup or at the check, before the first change. The third run went to the end. Lesson for the next rollouts: on production the validations are no longer asked (see `tools/staging/README.md`), so the checks of the script are the safety net, and what must be true of the container (MySQL client, WP-CLI, the mounts) is checked at the start, before the backup.
+- **Note for later:** the script of 002 checks that the theme loads Dashicons, which is true of the theme at `rollout-2` only; the theme no longer loads it once the print links are blocks (rollout 003). Do not run 002 again on a later state of the theme: it has been applied.

@@ -12,7 +12,8 @@
 #   note "title" cmd...            runs a command to show its output, never stops (to record a state).
 #   check "description" cmd...     runs a command quietly; stops if it fails. For what a command can decide.
 #   check_output "description" "expected" cmd...    the same, comparing what the command prints.
-#   validate "text"                asks Eric to look at something; skipped with --no-validate. "n" stops the script.
+#   validate "text"                asks Eric to look at something; skipped with --no-validate. "n" stops the script. On production it never
+#                                  asks (the script was rehearsed on staging): the text is shown and listed again at the end, to look at afterwards.
 #   manual "what to do" "what to check"    a gesture without a command: always asked (never skipped), stops without a terminal.
 #   wp ARGS...                     WP-CLI in the container of the site.
 #   rollout_versions               the versions of the repositories. Git is managed outside the scripts (the clones are put on the state to
@@ -38,7 +39,7 @@ PROD_CONTAINER=${PROD_CONTAINER:-docker-e-vli-st_wordpress_1}
 STAGING_CONTAINER=${STAGING_CONTAINER:-docker-sb-vli-st_wordpress-sb_1}
 STAGING_URL=${STAGING_URL:-https://sb.vli.st}
 
-SITE="" ROLLOUT_NUMBER="" VALIDATE=1 DRY_RUN=0 YES=0 FORCE=0 ROLLOUT_NAME="" CONTAINER="" CHANGED=0 VALIDATED=1
+SITE="" ROLLOUT_NUMBER="" VALIDATE=1 DRY_RUN=0 YES=0 FORCE=0 ROLLOUT_NAME="" CONTAINER="" CHANGED=0 VALIDATED=1 AFTERWARDS=()
 
 # Colours only on a terminal (decided before the output goes through tee into the log) and unless NO_COLOR is set.
 STEP_N=0
@@ -201,6 +202,12 @@ validate() {
   next_step
   if [ "$VALIDATE" -eq 0 ]; then echo "Validation skipped (--no-validate): $1"; return 0; fi
   if [ "$DRY_RUN" -eq 1 ]; then echo "Dry run, validation: $1"; return 0; fi
+  if [ "$SITE" = prod ]; then
+    banner "$B_LOOK" "$STEP_N" "LATER " "${1%%.*} (to look at afterwards; nothing is asked on production)"
+    printf '%s\n' "$1"
+    AFTERWARDS+=("STEP $STEP_N  $1")
+    return 0
+  fi
   banner "$B_LOOK" "$STEP_N" "LOOK  " "${1%%.*}"
   printf '%s\n' "$1"
   ask "${C_YEL}   Enter when it is right, n if it is not: ${C_RST}" answer
@@ -250,6 +257,10 @@ rollout_versions() {
 
 rollout_end() {
   banner "$B_DONE" "" "DONE" "$ROLLOUT_NAME on the $SITE site ($STEP_N steps)"
+  if [ "${#AFTERWARDS[@]}" -gt 0 ]; then
+    printf '\n%sTo look at now that it is done (nothing was asked on production):%s\n' "$C_YEL" "$C_RST"
+    printf ' - %s\n' "${AFTERWARDS[@]}"
+  fi
   [ "$DRY_RUN" -eq 0 ] || { echo "Dry run: nothing was recorded."; return 0; }
   if [ "$SITE" = staging ] && [ "$VALIDATED" -eq 1 ]; then
     mkdir -p "${ROLLOUT_STATE_DIR:-$STATE_DIR_DEFAULT}"
