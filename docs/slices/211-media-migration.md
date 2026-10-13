@@ -3,7 +3,7 @@
 
 # Slice 211 — Media: migration of the native attachments and of the `wpdfh.print` flag
 
-Status: **done** (Eric: "prépare la commande", after the proposal of the Media Helper session). Dependencies: slice 210. Design: [`../design/media-helper.md`](../design/media-helper.md) (point 6).
+Status: **done**; the criterion (the meta key and value, the restricted mode, the MIME family) became options in [slice 215](215-media-migrate-criterion.md), with the defaults described here (Eric: "prépare la commande", after the proposal of the Media Helper session). Dependencies: slice 210. Design: [`../design/media-helper.md`](../design/media-helper.md) (point 6).
 
 ## Goal
 

@@ -55,19 +55,37 @@ final class MigrateCommand {
 	/**
 	 * Creates a link `media/illustrated-by` for every attachment that has a parent and no link yet.
 	 *
-	 * Nothing is changed or deleted on the attachments (neither `post_parent` nor the flag `wpdfh.print`) and links that exist are left
-	 * alone, so the command can be run again. A flagged image is linked in every mode, an image that is not flagged in every mode but
-	 * the print mode, and any other file in every mode.
+	 * Nothing is changed or deleted on the attachments (neither `post_parent` nor the metas) and links that exist are left alone, so the
+	 * command can be run again. An image that satisfies the criterion on a meta (by default `wpdfh.print` is not empty) is linked in every
+	 * mode, an image that does not in every mode but the restricted mode (by default `print`), and any other file in every mode.
 	 *
 	 * ## OPTIONS
 	 *
 	 * [--dry-run]
 	 * : Write nothing, say what would be done.
 	 *
-	 * [--print-mode=<slug>]
-	 * : The mode to which the flag `wpdfh.print` applies.
+	 * [--restrict-mode=<slug>]
+	 * : The mode that only the attachments satisfying the criterion get (`--print-mode` is the old name).
 	 * ---
 	 * default: print
+	 * ---
+	 *
+	 * [--print-mode=<slug>]
+	 * : The same as `--restrict-mode`.
+	 *
+	 * [--meta-key=<key>]
+	 * : The meta of the attachment the criterion is about.
+	 * ---
+	 * default: wpdfh.print
+	 * ---
+	 *
+	 * [--meta-value=<value>]
+	 * : The value the meta must have (compared as text). Without this option the meta must simply not be empty.
+	 *
+	 * [--mime=<family>]
+	 * : The MIME family the criterion applies to; the other files are linked in every mode.
+	 * ---
+	 * default: image
 	 * ---
 	 *
 	 * [--batch-size=<n>]
@@ -97,18 +115,22 @@ final class MigrateCommand {
 		}
 
 		$dry_run = ! empty( $assoc_args['dry-run'] );
+		$mode    = $assoc_args['restrict-mode'] ?? $assoc_args['print-mode'] ?? 'print';
 		$report  = $migration->run(
 			array(
-				'dry_run'    => $dry_run,
-				'print_mode' => isset( $assoc_args['print-mode'] ) ? (string) $assoc_args['print-mode'] : 'print',
-				'batch_size' => isset( $assoc_args['batch-size'] ) ? (int) $assoc_args['batch-size'] : 100,
-				'limit'      => isset( $assoc_args['limit'] ) ? (int) $assoc_args['limit'] : 0,
+				'dry_run'       => $dry_run,
+				'restrict_mode' => (string) $mode,
+				'meta_key'      => isset( $assoc_args['meta-key'] ) ? (string) $assoc_args['meta-key'] : '',
+				'meta_value'    => isset( $assoc_args['meta-value'] ) ? (string) $assoc_args['meta-value'] : null,
+				'mime'          => isset( $assoc_args['mime'] ) ? (string) $assoc_args['mime'] : '',
+				'batch_size'    => isset( $assoc_args['batch-size'] ) ? (int) $assoc_args['batch-size'] : 100,
+				'limit'         => isset( $assoc_args['limit'] ) ? (int) $assoc_args['limit'] : 0,
 			),
 			! empty( $assoc_args['verbose'] ) ? array( $this, 'line' ) : null
 		);
 
-		if ( $report['print_mode_missing'] ) {
-			$this->line( 'Warning: the print mode is not registered, so every attachment gets every registered mode.' );
+		if ( $report['restrict_mode_missing'] ) {
+			$this->line( sprintf( 'Warning: the mode "%s" is not registered, so every attachment gets every registered mode.', (string) $mode ) );
 		}
 
 		foreach ( $report['by_modes'] as $modes => $count ) {

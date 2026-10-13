@@ -18,7 +18,9 @@ defined( 'ABSPATH' ) || exit;
  * For each attachment that has a parent and no link to it yet, creates the link and its modes. Nothing is changed or deleted on the
  * attachment itself, and a link that exists is left alone, so the migration can be run again.
  *
- * The modes reproduce the old behaviour: every image was shown on the web and only the flagged ones in print.
+ * The modes reproduce the old behaviour: every image was shown on the web and only the flagged ones in print. "Flagged" is a criterion on
+ * a meta of the attachment (by default `wpdfh.print` not empty); the mode that only the flagged ones get, and the MIME family the criterion
+ * applies to, are options.
  */
 final class NativeLinksMigration {
 	/**
@@ -58,43 +60,45 @@ final class NativeLinksMigration {
 	/**
 	 * Returns the modes an attachment gets.
 	 *
-	 * @param array{mime:string, flagged:bool} $row        Attachment.
-	 * @param string                           $print_mode Mode of the print flag.
+	 * @param array{mime:string, flagged:bool} $row    Attachment.
+	 * @param string                           $mode   Mode reserved to the attachments that satisfy the criterion.
+	 * @param string                           $family MIME family the criterion applies to (`image`).
 	 * @return string[]
 	 */
-	public function modes_for( array $row, $print_mode ) {
-		$image = 0 === strpos( $row['mime'], 'image/' );
-
-		if ( ! $image || $row['flagged'] ) {
+	public function modes_for( array $row, $mode, $family = 'image' ) {
+		if ( 0 !== strpos( $row['mime'], $family . '/' ) || $row['flagged'] ) {
 			return $this->modes;
 		}
 
-		return array_values( array_diff( $this->modes, array( $print_mode ) ) );
+		return array_values( array_diff( $this->modes, array( $mode ) ) );
 	}
 
 	/**
 	 * Runs the migration.
 	 *
-	 * @param array{dry_run?:bool, print_mode?:string, batch_size?:int, limit?:int} $options Options.
-	 * @param callable|null                                                         $each    Called with a line of text per attachment.
-	 * @return array{created:int, existing:int, skipped:array<int,string>, by_modes:array<string,int>, print_mode_missing:bool}
+	 * @param array{dry_run?:bool, restrict_mode?:string, print_mode?:string, meta_key?:string, meta_value?:string|null, mime?:string, batch_size?:int, limit?:int} $options Options (`print_mode` is the old name of `restrict_mode`).
+	 * @param callable|null                                                                                                                                         $each Called with a line of text per attachment.
+	 * @return array{created:int, existing:int, skipped:array<int,string>, by_modes:array<string,int>, restrict_mode_missing:bool}
 	 */
 	public function run( array $options = array(), $each = null ) {
 		$dry_run    = ! empty( $options['dry_run'] );
-		$print_mode = isset( $options['print_mode'] ) ? (string) $options['print_mode'] : 'print';
+		$mode       = (string) ( $options['restrict_mode'] ?? $options['print_mode'] ?? 'print' );
+		$meta_key   = isset( $options['meta_key'] ) && '' !== (string) $options['meta_key'] ? (string) $options['meta_key'] : AttachmentSource::FLAG;
+		$meta_value = isset( $options['meta_value'] ) ? (string) $options['meta_value'] : null;
+		$family     = isset( $options['mime'] ) && '' !== (string) $options['mime'] ? (string) $options['mime'] : 'image';
 		$size       = max( 1, (int) ( $options['batch_size'] ?? 100 ) );
 		$limit      = (int) ( $options['limit'] ?? 0 );
 		$report     = array(
-			'created'            => 0,
-			'existing'           => 0,
-			'skipped'            => array(),
-			'by_modes'           => array(),
-			'print_mode_missing' => ! in_array( $print_mode, $this->modes, true ),
+			'created'               => 0,
+			'existing'              => 0,
+			'skipped'               => array(),
+			'by_modes'              => array(),
+			'restrict_mode_missing' => ! in_array( $mode, $this->modes, true ),
 		);
 		$offset     = 0;
 
 		do {
-			$rows  = $this->source->batch( $offset, $size );
+			$rows  = $this->source->batch( $offset, $size, $meta_key, $meta_value );
 			$count = count( $rows );
 
 			foreach ( $rows as $row ) {
@@ -102,7 +106,7 @@ final class NativeLinksMigration {
 					return $report;
 				}
 
-				$this->migrate( $row, $print_mode, $dry_run, $report, $each );
+				$this->migrate( $row, $mode, $family, $dry_run, $report, $each );
 			}
 
 			$offset += $size;
@@ -115,13 +119,14 @@ final class NativeLinksMigration {
 	 * Migrates one attachment.
 	 *
 	 * @param array{id:int, parent:int, mime:string, flagged:bool} $row        Attachment.
-	 * @param string                                               $print_mode Mode of the print flag.
+	 * @param string                                               $mode       Mode reserved to the attachments that satisfy the criterion.
+	 * @param string                                               $family     MIME family the criterion applies to.
 	 * @param bool                                                 $dry_run    Whether to write nothing.
 	 * @param array                                                $report     Report, updated.
 	 * @param callable|null                                        $each       Called with a line of text.
 	 * @return void
 	 */
-	private function migrate( array $row, $print_mode, $dry_run, array &$report, $each ) {
+	private function migrate( array $row, $mode, $family, $dry_run, array &$report, $each ) {
 		$label = sprintf( 'attachment %d, post %d', $row['id'], $row['parent'] );
 
 		if ( null !== $this->links->find( $row['parent'], $row['id'] ) ) {
@@ -130,7 +135,7 @@ final class NativeLinksMigration {
 			return;
 		}
 
-		$modes = $this->modes_for( $row, $print_mode );
+		$modes = $this->modes_for( $row, $mode, $family );
 		$key   = implode( ',', $modes );
 
 		if ( $dry_run ) {

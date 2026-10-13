@@ -42,7 +42,7 @@ Order proposed, to be confirmed when it is written. **On production nothing is a
 
 ## What to watch
 
-- **Print galleries are empty until the migration has run.** Print shows only the links that carry the mode print; the web keeps showing the images attached the WordPress way (the filter of slice 214). The window is the time between the update of the theme and the end of the migration, which is the last step but one; the migration must not be skipped.
+- **Until the migration and the choice of the method, `?print` shows every attached image.** Media Helper does not read the print flag `wpdfh.print` of the native method (it was a hack), so with the method `native` the gallery block lists all the images attached to the post. The migration (step 5) and then the choice of the method `otherguise` (step 6) are what restrict print to the images that were flagged; only after them do the print galleries show the flagged images alone (and an image that is not linked to the mode print does not show). The web keeps showing every attached image the whole time (the filter of slice 214 for the default mode, once the method is `otherguise`). The migration command takes a criterion on any meta (`--meta-key`, `--meta-value`, `--restrict-mode`, `--mime`, slice 215); the defaults are the flag of wp-pdf-helper.
 
 - **The same photos in print.** The old gallery showed, with `?print`, the images whose `wpdfh.print` was not empty; the migration gives them every mode and gives the others every mode except print. Compare the lists on a sample of posts, flagged or not.
 - **The sizes of the maps in print** (200/150 or 600/300 by template), with no attachments and no download link.

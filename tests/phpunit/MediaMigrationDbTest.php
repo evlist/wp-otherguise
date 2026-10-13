@@ -223,9 +223,9 @@ class MediaMigrationDbTest extends Otherguise_Test_Database_Case {
 	public function test_without_the_print_mode_everything_gets_every_mode(): void {
 		$report = $this->migration->run( array( 'print_mode' => 'book' ) );
 
-		$this->assertTrue( $report['print_mode_missing'] );
+		$this->assertTrue( $report['restrict_mode_missing'] );
 		$this->assertSame( array( 'web', 'print' ), $this->links->modes_of( $this->links->find( 12, 81 ) ) );
-		$this->assertFalse( $this->migration->run( array( 'print_mode' => 'print' ) )['print_mode_missing'] );
+		$this->assertFalse( $this->migration->run( array( 'print_mode' => 'print' ) )['restrict_mode_missing'] );
 	}
 
 	/**
@@ -238,6 +238,72 @@ class MediaMigrationDbTest extends Otherguise_Test_Database_Case {
 
 		$this->assertSame( array( 'print' ), $this->links->modes_of( $this->links->find( 12, 81 ) ) );
 		$this->assertSame( array( 'web', 'print' ), $this->links->modes_of( $this->links->find( 12, 80 ) ) );
+	}
+
+	/**
+	 * The criterion is a meta key and, optionally, a value: they reach the source, with the old flag as the default.
+	 *
+	 * @return void
+	 */
+	public function test_the_criterion_reaches_the_source(): void {
+		$this->migration->run();
+		$this->assertSame( array( array( 'wpdfh.print', null ) ), array_unique( $this->source->criteria, SORT_REGULAR ) );
+
+		$this->source->criteria = array();
+		$this->migration->run(
+			array(
+				'meta_key' => 'book_ok',
+				'meta_value' => 'yes',
+			)
+		);
+		$this->assertSame( array( array( 'book_ok', 'yes' ) ), array_unique( $this->source->criteria, SORT_REGULAR ) );
+	}
+
+	/**
+	 * `restrict_mode` is the new name of `print_mode`, and wins over it.
+	 *
+	 * @return void
+	 */
+	public function test_restrict_mode_is_the_new_name_of_print_mode(): void {
+		$this->migration->run(
+			array(
+				'restrict_mode' => 'web',
+				'print_mode' => 'print',
+			)
+		);
+
+		$this->assertSame( array( 'print' ), $this->links->modes_of( $this->links->find( 12, 81 ) ) );
+	}
+
+	/**
+	 * The criterion applies to one MIME family; the other files get every mode.
+	 *
+	 * @return void
+	 */
+	public function test_the_criterion_applies_to_a_mime_family(): void {
+		$this->migration->run( array( 'mime' => 'application' ) );
+
+		$this->assertSame( array( 'web', 'print' ), $this->links->modes_of( $this->links->find( 12, 81 ) ), 'An image: every mode.' );
+		$this->assertSame( array( 'web', 'print' ), $this->links->modes_of( $this->links->find( 12, 80 ) ) );
+	}
+
+	/**
+	 * A value of a meta satisfies the criterion when it is not empty, or equal to the value asked.
+	 *
+	 * @return void
+	 */
+	public function test_a_meta_satisfies_the_criterion(): void {
+		$this->assertTrue( AttachmentSource::matches( 'always' ) );
+		$this->assertTrue( AttachmentSource::matches( '1' ) );
+		$this->assertFalse( AttachmentSource::matches( '' ) );
+		$this->assertTrue( AttachmentSource::matches( '0' ), 'Not empty as text: "0" counts, as it did.' );
+		$this->assertTrue( AttachmentSource::matches( array( 'a' ) ) );
+		$this->assertFalse( AttachmentSource::matches( array() ) );
+		$this->assertTrue( AttachmentSource::matches( 'yes', 'yes' ) );
+		$this->assertFalse( AttachmentSource::matches( 'no', 'yes' ) );
+		$this->assertFalse( AttachmentSource::matches( '', 'yes' ) );
+		$this->assertTrue( AttachmentSource::matches( 1, '1' ), 'Compared as text.' );
+		$this->assertFalse( AttachmentSource::matches( array( 'yes' ), 'yes' ) );
 	}
 
 	/**
@@ -277,6 +343,21 @@ class MediaMigrationDbTest extends Otherguise_Test_Database_Case {
 
 		$this->assertSame( 'attachment 80, post 12: linked in web,print', $lines[0] );
 		$this->assertContains( 'Done: 1 link(s) created, 0 already linked, 0 skipped.', $lines );
+
+		$lines = array();
+		$this->source->criteria = array();
+		$command(
+			array(),
+			array(
+				'dry-run' => true,
+				'meta-key' => 'book_ok',
+				'meta-value' => 'yes',
+				'restrict-mode' => 'book',
+				'mime' => 'image',
+			)
+		);
+		$this->assertSame( array( array( 'book_ok', 'yes' ) ), array_unique( $this->source->criteria, SORT_REGULAR ) );
+		$this->assertContains( 'Warning: the mode "book" is not registered, so every attachment gets every registered mode.', $lines );
 
 		$missing = new MigrateCommand(
 			fn() => null,
