@@ -53,7 +53,6 @@ case "$args" in
   "cli has-command"*) exit "${STUB_NO_RETHEME:-0}" ;;
   "plugin get wp-pdf-helper"*) echo "wp-pdf-helper active" ;;
   "eval "*"modes/print.css"*) echo "${STUB_PRINT_CSS_IN_THEME:-yes}" ;;
-  "eval "*"modes-theme-print"*) echo "${STUB_PRINT_MODE:-yes}" ;;
   "eval "*"dashicons"*) echo "${STUB_DASHICONS:-yes}" ;;
   "eval "*"fira-sans"*) echo "${STUB_FONTS_IN_THEME:-yes}" ;;
   "eval "*"lettrine"*) echo "${STUB_CSS_IN_THEME:-yes}" ;;
@@ -73,11 +72,21 @@ esac
 exit 0
 STUB
 chmod +x "$T/bin/docker"
+cat >"$T/bin/curl" <<'STUB'
+#!/usr/bin/env bash
+for a in "$@"; do url=$a; done
+echo "curl $url" >>"$LOG"
+case "$url" in
+  *"?mode=print") [ "${STUB_PRINT_MODE:-yes}" = yes ] && echo "<link id='modes-theme-print-css'>" || echo "<html>" ;;
+  *) [ "${STUB_PRINT_ON_WEB:-no}" = yes ] && echo "<link id='modes-theme-print-css'>" || echo "<html>" ;;
+esac
+STUB
+chmod +x "$T/bin/curl"
 export PATH="$T/bin:$PATH"
 
 run() { bash "$SCRIPT" "$@"; }
 answers() { printf '%s\n' "$@" >"$T/answers"; export ROLLOUT_TTY="$T/answers"; }
-reset() { : >"$LOG"; echo twentytwentyfive >"$T/active"; echo "template twentytwentyfive//a twentytwentyfive//b print" >"$T/variants"; unset STUB_BLOCK STUB_NOT_INSTALLED STUB_EXIT_ROLLOUT STUB_EXIT_TEMPLATES STUB_EXIT_VERIFY STUB_THEME_EVAL STUB_CSS_IN_THEME STUB_STYLE_ENQUEUED STUB_PLUGIN_INACTIVE STUB_SNIPPETS STUB_FONTS_IN_THEME STUB_NO_RETHEME STUB_PRINT_CSS_IN_THEME STUB_PRINT_MODE STUB_DASHICONS; printf 'wp-otherguise\taaa\nwp-theme\tbbb\n' >"$T/state_out"; }
+reset() { : >"$LOG"; echo twentytwentyfive >"$T/active"; echo "template twentytwentyfive//a twentytwentyfive//b print" >"$T/variants"; unset STUB_BLOCK STUB_NOT_INSTALLED STUB_EXIT_ROLLOUT STUB_EXIT_TEMPLATES STUB_EXIT_VERIFY STUB_THEME_EVAL STUB_CSS_IN_THEME STUB_STYLE_ENQUEUED STUB_PLUGIN_INACTIVE STUB_SNIPPETS STUB_FONTS_IN_THEME STUB_NO_RETHEME STUB_PRINT_CSS_IN_THEME STUB_PRINT_MODE STUB_PRINT_ON_WEB STUB_DASHICONS; printf 'wp-otherguise\taaa\nwp-theme\tbbb\n' >"$T/state_out"; }
 
 # Guards of the arguments.
 reset; run >/dev/null 2>&1; check "needs a site" $((! $?))
@@ -114,10 +123,10 @@ ls "$T/logs"/002-child-theme-staging-*.log >/dev/null 2>&1; check "a log is kept
 # A comparison with the other site after each change, so as to know which one made a difference.
 reset; answers "" "" "" "" "" "" ""; run --site=staging >"$T/out" 2>&1
 n() { grep -n "$1" "$T/out" | head -1 | cut -d: -f1; }
-[ "$(n 'BEFORE any change')" -lt "$(n '== Activate the theme')" ]; check "the sites are compared before any change" $?
-[ "$(n '== Activate the theme')" -lt "$(n 'AFTER THE THEME SWITCH')" ] && [ "$(n 'AFTER THE THEME SWITCH')" -lt "$(n '== Move the variants')" ]; check "they are compared right after the theme switch, before the variants move" $?
-[ "$(n '== Move the variants')" -lt "$(n 'AFTER THE VARIANTS MOVED')" ] && [ "$(n 'AFTER THE VARIANTS MOVED')" -lt "$(n '== Deactivate the plugin')" ]; check "...right after the variants moved" $?
-[ "$(n '== Deactivate the plugin')" -lt "$(n 'AFTER THE PLUGIN CUSTOM CSS')" ]; check "...right after the plugin is deactivated" $?
+[ "$(n 'BEFORE any change')" -lt "$(n 'CHANGE  Activate the theme')" ]; check "the sites are compared before any change" $?
+[ "$(n 'CHANGE  Activate the theme')" -lt "$(n 'AFTER THE THEME SWITCH')" ] && [ "$(n 'AFTER THE THEME SWITCH')" -lt "$(n 'CHANGE  Move the variants')" ]; check "they are compared right after the theme switch, before the variants move" $?
+[ "$(n 'CHANGE  Move the variants')" -lt "$(n 'AFTER THE VARIANTS MOVED')" ] && [ "$(n 'AFTER THE VARIANTS MOVED')" -lt "$(n 'CHANGE  Deactivate the plugin')" ]; check "...right after the variants moved" $?
+[ "$(n 'CHANGE  Deactivate the plugin')" -lt "$(n 'AFTER THE PLUGIN CUSTOM CSS')" ]; check "...right after the plugin is deactivated" $?
 grep -q "AT THE END" "$T/out"; check "...and at the end" $?
 grep -q "The fonts (Fira Sans, Literata)" "$T/out"; check "the comparison after the switch says that the fonts must be those of the other site" $?
 reset; unset ROLLOUT_TTY; run --site=staging --no-validate </dev/null >"$T/out" 2>&1
@@ -153,6 +162,8 @@ reset; answers "" "" "" "" "" "" ""; STUB_PRINT_CSS_IN_THEME=no run --site=stagi
 ! grep -q "theme activate" "$LOG"; check "...before the theme is activated" $?
 reset; answers "" "" "" "" "" "" ""; STUB_PRINT_MODE=no run --site=staging >"$T/out" 2>&1; check "the script stops when the mode print does not load modes/print.css" $((! $?))
 grep -q "handle modes-theme-print" "$T/out"; check "...with that reason" $?
+grep -q "^curl https://sb.test/?mode=print" "$LOG"; check "...asked at the public address of the site (STAGING_URL)" $?
+reset; answers "" "" "" "" "" "" ""; STUB_PRINT_ON_WEB=yes run --site=staging >/dev/null 2>&1; check "the script stops when the web mode loads modes/print.css too" $((! $?))
 reset; answers "" "" "" "" "" "" ""; STUB_DASHICONS=no run --site=staging >/dev/null 2>&1; check "the script stops when Dashicons is not loaded for visitors" $((! $?))
 reset; answers "" "" "" "" "" "" ""; run --site=staging >"$T/out" 2>&1; grep -q "^wp\[stg\] plugin get wp-pdf-helper" "$LOG"; check "the state of wp-pdf-helper is noted" $?
 ! grep -q "plugin deactivate wp-pdf-helper" "$LOG"; check "...and the plugin is not touched" $?

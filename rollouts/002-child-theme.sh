@@ -49,7 +49,8 @@ note "The templates of the database, before" templates_sh check --site="$SITE"
 note "The variants declared, before" wp otherguise modes variant list
 note "The global styles of the site editor, before (they are stored per theme)" wp post list --post_type=wp_global_styles --fields=ID,post_name,post_status
 HOME_URL=$(wp option get home 2>/dev/null || echo "(the address of the site)")
-if [ "$SITE" = prod ]; then OTHER_URL=${STAGING_URL}; OTHER=staging; else OTHER_URL=${PROD_URL:-https://e.vli.st}; OTHER=production; fi
+# The public addresses are in the environment (PROD_URL, STAGING_URL, which select_target sets from TESTING_URL for the testing site).
+if [ "$SITE" = prod ]; then SITE_URL=${PROD_URL:-https://e.vli.st}; OTHER_URL=${STAGING_URL}; OTHER=staging; else SITE_URL=${STAGING_URL}; OTHER_URL=${PROD_URL:-https://e.vli.st}; OTHER=production; fi
 PAGES="the home page; an archive (a category or a month); the search page (/?s=test); a post that uses publication-randonnee, one that uses journee, one that uses 'Résumé mensuel randonnée', and one with the default template; and each of the posts with ?print and with ?mode=print"
 PRINT_NOTE="wp-pdf-helper is active on both sites, so ?print must look the same on both. ?mode=print is different on purpose: the theme loads modes/print.css only there, so it differs from $OTHER's ?mode=print until $OTHER has this rollout."
 COMPARE="Compare $HOME_URL with $OTHER_URL ($OTHER), page by page: $PAGES. $PRINT_NOTE (tools/staging/compare-sites.sh --path=... [--print|--mode=print] lists what differs: stylesheets, inline styles, fonts, body classes.)"
@@ -73,8 +74,16 @@ validate "AFTER THE THEME SWITCH, before anything else. $COMPARE The fonts (Fira
 step "Move the variants of the modes from $PARENT to $THEME" wp otherguise modes variant retheme "$PARENT" "$THEME"
 validate "AFTER THE VARIANTS MOVED. Open ?mode=print (and ?print) on a post of each of the three kinds on $HOME_URL and on $OTHER_URL ($OTHER): the print version must be there, the same. Note what is different."
 
-# The stylesheet of the mode: modes/print.css is loaded when the mode print is active (and only then). Done in the process of WP-CLI, without HTTP.
-check_output "the mode print loads modes/print.css of the theme (handle modes-theme-print), the web mode does not" "yes" wp eval '$m = \Otherguise\Core\Modules::get( "modes" ); $on = static function ( $get ) use ( $m ) { wp_dequeue_style( "modes-theme-print" ); unset( $_GET["mode"] ); if ( $get ) { $_GET["mode"] = "print"; } $m->active()->reset(); do_action( "wp_enqueue_scripts" ); return wp_style_is( "modes-theme-print", "enqueued" ); }; echo $on( true ) && ! $on( false ) ? "yes" : "no";'
+# The stylesheet of the mode: modes/print.css is loaded when the mode print is active (and only then). The Modes module reads the real query
+# string, so it is asked over HTTP, as a visitor would.
+print_css_served() {
+  local on off
+  on=$(curl -fsSL -m 90 -A rollout-script "$SITE_URL/?mode=print") || return 1
+  off=$(curl -fsSL -m 90 -A rollout-script "$SITE_URL/") || return 1
+  case "$on" in *modes-theme-print-css*) ;; *) echo no; return 0 ;; esac
+  case "$off" in *modes-theme-print-css*) echo no ;; *) echo yes ;; esac
+}
+check_output "the mode print loads modes/print.css of the theme (handle modes-theme-print) at $SITE_URL/?mode=print, the web mode does not" "yes" print_css_served
 check_output "the font Dashicons is loaded for every visitor (the print link is a Dashicon)" "yes" wp eval 'wp_dequeue_style( "dashicons" ); do_action( "wp_enqueue_scripts" ); echo wp_style_is( "dashicons", "enqueued" ) ? "yes" : "no";'
 
 # 5. The CSS of the blog comes from the theme, no longer from the plugin Custom CSS & JS.

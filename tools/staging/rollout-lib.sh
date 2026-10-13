@@ -22,6 +22,9 @@
 #   rollout_end                    on staging, after a complete run with the validations, records that this script was rehearsed, with the
 #                                  state of the repositories.
 #
+# Each action is numbered and announced by a banner (colours when the output is a terminal and NO_COLOR is not set; the log has no colours):
+# CHANGE (step), STATE (note), LOOK (validate), MANUAL (manual); a check is one numbered line.
+#
 # Every step should be safe to run twice. There is no rollback to write: production is backed up and staging can be synchronised again.
 #
 # Environment: as in sync-site.sh and target.sh (PROD_CONTAINER, STAGING_CONTAINER, TESTING_CONTAINER, ...). ROLLOUT_LOG_DIR (default
@@ -37,8 +40,28 @@ STAGING_URL=${STAGING_URL:-https://sb.vli.st}
 
 SITE="" ROLLOUT_NUMBER="" VALIDATE=1 DRY_RUN=0 YES=0 FORCE=0 ROLLOUT_NAME="" CONTAINER="" CHANGED=0 VALIDATED=1
 
-die() { printf '\nERROR: %s\n' "$*" >&2; exit 1; }
-say() { printf '\n== %s\n' "$*"; }
+# Colours only on a terminal (decided before the output goes through tee into the log) and unless NO_COLOR is set.
+STEP_N=0
+WIDTH=${COLUMNS:-$(tput cols 2>/dev/null || echo 100)}
+if [ -t 1 ] && [ -z "${NO_COLOR:-}" ]; then
+  C_RST=$'\033[0m' C_BOLD=$'\033[1m' C_DIM=$'\033[2m' C_RED=$'\033[1;31m' C_GRN=$'\033[32m' C_YEL=$'\033[1;33m'
+  B_CHANGE=$'\033[1;97;44m' B_STATE=$'\033[1;30;46m' B_LOOK=$'\033[1;30;43m' B_MANUAL=$'\033[1;97;45m' B_DONE=$'\033[1;30;42m' B_HEAD=$'\033[1;97;100m'
+else
+  C_RST="" C_BOLD="" C_DIM="" C_RED="" C_GRN="" C_YEL="" B_CHANGE="" B_STATE="" B_LOOK="" B_MANUAL="" B_DONE="" B_HEAD=""
+fi
+
+# banner <colour> <number or ""> <kind> <title>: a full-width bar that is easy to find when the output scrolls by.
+banner() {
+  local colour=$1 number=$2 kind=$3 title=$4 text pad
+  text=" ${number:+STEP $number  }${kind}  ${title}"
+  pad=$((WIDTH - ${#text}))
+  [ "$pad" -gt 0 ] || pad=0
+  printf '\n%s%s%*s%s\n' "$colour" "$text" "$pad" "" "$C_RST"
+}
+next_step() { STEP_N=$((STEP_N + 1)); }
+
+die() { printf '\n%sERROR: %s%s\n' "$C_RED" "$*" "$C_RST" >&2; exit 1; }
+say() { banner "$B_HEAD" "" "" "$*"; }
 quiet_warnings() { grep -v -e 'Constant WP_DEBUG already defined' -e 'Function _load_textdomain_just_in_time was called' || true; }
 
 # WP-CLI in the container of the site, as the web server's user.
@@ -91,7 +114,7 @@ rollout_begin() {
   if [ "$DRY_RUN" -eq 0 ]; then
     mkdir -p "$log_dir"
     local log="$log_dir/$ROLLOUT_NAME-$SITE-$(date +%Y%m%d-%H%M%S).log"
-    exec > >(tee -a "$log") 2>&1
+    exec > >(tee >(sed -u 's/\x1b\[[0-9;]*m//g' >>"$log")) 2>&1
     echo "Log: $log"
   fi
   say "Rollout $ROLLOUT_NAME on the $SITE site ($CONTAINER)$([ "$DRY_RUN" -eq 0 ] || echo ', dry run')"
@@ -140,7 +163,8 @@ rollout_backup() {
 step() {
   local title=$1
   shift
-  say "$title"
+  next_step
+  banner "$B_CHANGE" "$STEP_N" "CHANGE" "$title"
   if [ "$DRY_RUN" -eq 1 ]; then echo "Dry run: $*"; return 0; fi
   CHANGED=1
   "$@" || die "Step failed: $title"
@@ -149,7 +173,8 @@ step() {
 note() {
   local title=$1
   shift
-  say "$title"
+  next_step
+  banner "$B_STATE" "$STEP_N" "STATE " "$title"
   if [ "$DRY_RUN" -eq 1 ]; then echo "Dry run: $*"; return 0; fi
   "$@" || true
 }
@@ -157,32 +182,38 @@ note() {
 check() {
   local description=$1
   shift
+  next_step
   if [ "$DRY_RUN" -eq 1 ]; then echo "Dry run, check: $description"; return 0; fi
-  if "$@" >/dev/null 2>&1; then echo "OK  $description"; else die "Check failed: $description"; fi
+  if "$@" >/dev/null 2>&1; then printf '%sSTEP %s  OK  %s%s\n' "$C_GRN" "$STEP_N" "$description" "$C_RST"; else die "Check failed: $description"; fi
 }
 
 check_output() {
   local description=$1 expected=$2 actual
   shift 2
+  next_step
   if [ "$DRY_RUN" -eq 1 ]; then echo "Dry run, check: $description"; return 0; fi
   actual=$("$@" 2>/dev/null) || actual="(the command failed)"
-  if [ "$actual" = "$expected" ]; then echo "OK  $description"; else die "Check failed: $description. Expected \"$expected\", got \"$actual\"."; fi
+  if [ "$actual" = "$expected" ]; then printf '%sSTEP %s  OK  %s%s\n' "$C_GRN" "$STEP_N" "$description" "$C_RST"; else die "Check failed: $description. Expected \"$expected\", got \"$actual\"."; fi
 }
 
 validate() {
   local answer
+  next_step
   if [ "$VALIDATE" -eq 0 ]; then echo "Validation skipped (--no-validate): $1"; return 0; fi
   if [ "$DRY_RUN" -eq 1 ]; then echo "Dry run, validation: $1"; return 0; fi
-  printf '\n-- VALIDATE: %s\n' "$1"
-  ask "   Enter when it is right, n if it is not: " answer
+  banner "$B_LOOK" "$STEP_N" "LOOK  " "${1%%.*}"
+  printf '%s\n' "$1"
+  ask "${C_YEL}   Enter when it is right, n if it is not: ${C_RST}" answer
   [ "$answer" != n ] || die "Validation refused: $1"
 }
 
 manual() {
   local answer
-  printf '\n-- MANUAL: %s\n   Then check: %s\n' "$1" "$2"
+  next_step
+  banner "$B_MANUAL" "$STEP_N" "MANUAL" "${1%%.*}"
+  printf '%s\n   Then check: %s\n' "$1" "$2"
   if [ "$DRY_RUN" -eq 1 ]; then echo "Dry run: asked here."; return 0; fi
-  ask "   Enter when it is done and checked, n if it is not: " answer
+  ask "${C_YEL}   Enter when it is done and checked, n if it is not: ${C_RST}" answer
   [ "$answer" != n ] || die "Manual step refused: $1"
 }
 
@@ -218,7 +249,7 @@ rollout_versions() {
 }
 
 rollout_end() {
-  say "Done: $ROLLOUT_NAME on the $SITE site"
+  banner "$B_DONE" "" "DONE" "$ROLLOUT_NAME on the $SITE site ($STEP_N steps)"
   [ "$DRY_RUN" -eq 0 ] || { echo "Dry run: nothing was recorded."; return 0; }
   if [ "$SITE" = staging ] && [ "$VALIDATED" -eq 1 ]; then
     mkdir -p "${ROLLOUT_STATE_DIR:-$STATE_DIR_DEFAULT}"
