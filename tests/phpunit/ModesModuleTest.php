@@ -107,6 +107,7 @@ class ModesModuleTest extends TestCase {
 					array( 'Otherguise\\Modes\\Integration\\TemplateIntegration', 'register_predicates', 10, 1 ),
 				),
 				'body_class'                    => array( array( Module::class, 'body_class', 10, 1 ) ),
+				'modes_active_mode'             => array( array( Module::class, 'filter_active_mode', 10, 1 ) ),
 				'init'                          => array(
 					array( Module::class, 'register_variant_filters', 20, 0 ),
 					array( Module::class, 'register_link_block', 10, 0 ),
@@ -164,6 +165,19 @@ class ModesModuleTest extends TestCase {
 		$module  = $this->module( array( 'mode' => 'cover' ), $hooks, $actions );
 
 		$this->assertSame( 'cover', $module->active()->mode()->slug() );
+	}
+
+	/**
+	 * The filter `modes_active_mode` answers with the slug of the mode of the request, whatever it is given.
+	 *
+	 * @return void
+	 */
+	public function test_the_filter_gives_the_slug_of_the_active_mode(): void {
+		$hooks   = array();
+		$actions = array();
+
+		$this->assertSame( 'web', $this->module()->filter_active_mode( 'x' ) );
+		$this->assertSame( 'print', $this->module( array(), $hooks, $actions, array( 'modes_default_mode' => 'print' ) )->filter_active_mode( 'web' ) );
 	}
 
 	/**

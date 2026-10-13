@@ -96,7 +96,30 @@ final class Module implements ModuleInterface {
 	public function boot() {
 		( $this->add_action )( 'triples_register_predicates', array( $this, 'register_predicate' ), 10, 1 );
 		( $this->add_action )( 'wp_media_helper_attachment_methods', array( $this, 'add_method' ), 10, 1 );
+		( $this->add_action )( 'wp_media_helper_native_links_in_context', array( $this, 'native_links_in_context' ), 10, 3 );
 		( $this->add_action )( 'cli_init', array( $this, 'register_command' ), 10, 0 );
+	}
+
+	/**
+	 * Tells Media Helper that, before the migration, the images attached the WordPress way (`post_parent`) are also those of the default mode,
+	 * so that the web keeps showing them; the other modes show only the links that carry their mode. Filter
+	 * `wp_media_helper_native_links_in_context`.
+	 *
+	 * @param mixed  $include Answer so far.
+	 * @param string $context Slug of the mode that is asked for.
+	 * @param int    $post_id Post.
+	 * @return bool
+	 */
+	public function native_links_in_context( $include, $context = '', $post_id = 0 ) {
+		unset( $post_id );
+
+		if ( true === $include || ! is_string( $context ) || '' === $context ) {
+			return true === $include;
+		}
+
+		$modes = Modules::get( 'modes' );
+
+		return $modes instanceof \Otherguise\Modes\Module && $modes->modes()->default_mode()->slug() === $context;
 	}
 
 	/**

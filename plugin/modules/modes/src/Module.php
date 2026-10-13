@@ -270,6 +270,7 @@ final class Module implements ModuleInterface {
 		( $this->add_action )( 'triples_register_entity_types', array( $templates, 'register_entity_types' ), 10, 1 );
 		( $this->add_action )( 'triples_register_predicates', array( $templates, 'register_predicates' ), 10, 1 );
 		( $this->add_action )( 'body_class', array( $this, 'body_class' ), 10, 1 );
+		( $this->add_action )( 'modes_active_mode', array( $this, 'filter_active_mode' ), 10, 1 );
 		( $this->add_action )( 'init', array( $this, 'register_variant_filters' ), 20, 0 );
 		( $this->add_action )( 'init', array( $this, 'register_link_block' ), 10, 0 );
 		( $this->add_action )( 'init', array( $this, 'register_stylesheet_loader' ), 20, 0 );
@@ -464,6 +465,19 @@ final class Module implements ModuleInterface {
 	 */
 	public function variants_of_the_request( $kind ) {
 		return null === ( $this->statements )() ? array() : $this->variants()->map( $this->active->mode(), $kind );
+	}
+
+	/**
+	 * Answers the filter `modes_active_mode` with the slug of the mode of the request, so that a plugin can ask without depending on Otherguise:
+	 * `apply_filters( 'modes_active_mode', 'web' )` (the argument is the answer when Otherguise is not there).
+	 *
+	 * @param mixed $slug The answer without Otherguise; ignored.
+	 * @return string
+	 */
+	public function filter_active_mode( $slug ) {
+		unset( $slug );
+
+		return $this->active->mode()->slug();
 	}
 
 	/**

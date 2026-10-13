@@ -3,7 +3,7 @@
 
 # Slice 208 — Modes: the contract for other plugins
 
-Status: **candidate, not needed for now** (see the note below). Not confirmed; no code. Dependencies: slices 200 (the active mode), 204 and 207 (the screen). Module: `Modes`.
+Status: **candidate, not needed for now** (see the note below). Not confirmed; no code, **except the filter `modes_active_mode`, done in [slice 214](214-modes-active-mode-filter.md)**. Dependencies: slices 200 (the active mode), 204 and 207 (the screen). Module: `Modes`.
 
 ## Reconsidered (2026-10-10)
 

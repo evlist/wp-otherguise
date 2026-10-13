@@ -423,12 +423,19 @@ class MediaMethodDbTest extends Otherguise_Test_Database_Case {
 			array(
 				'triples_register_predicates'       => array( array( 'register_predicate', 10, 1 ) ),
 				'wp_media_helper_attachment_methods' => array( array( 'add_method', 10, 1 ) ),
+				'wp_media_helper_native_links_in_context' => array( array( 'native_links_in_context', 10, 3 ) ),
 				'cli_init'                          => array( array( 'register_command', 10, 0 ) ),
 			),
 			$hooks
 		);
 
 		Modules::set( new ModuleLoader( array( $this->site->triples, $this->site->modes ), array( 'triples', 'modes' ) ) );
+
+		$this->assertTrue( $module->native_links_in_context( true, 'print', 5 ), 'An answer of true is kept.' );
+		$this->assertFalse( $module->native_links_in_context( false, 'print', 5 ), 'Another mode than the default one: no native link.' );
+		$this->assertTrue( $module->native_links_in_context( false, 'web', 5 ), 'The default mode: the native links too.' );
+		$this->assertFalse( $module->native_links_in_context( false, '', 5 ), 'No context: left to Media Helper.' );
+		$this->assertFalse( $module->native_links_in_context( false, array(), 5 ) );
 
 		$methods = $module->add_method( array( 'native' => 'the native one' ) );
 
