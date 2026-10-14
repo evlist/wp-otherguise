@@ -33,6 +33,7 @@ The plugin is a single plugin made of three modules with one-way dependencies, b
 * `tests/phpunit/`: PHPUnit tests, including the architecture tests that enforce the dependency rules.
 * `docs/IA.md`: architecture and current state, the handover note for contributors and AI assistants.
 * `docs/slices/`: one document per slice of work, with an index.
+* [`docs/wp-cli.md`](docs/wp-cli.md): the WP-CLI commands of the plugin (options, output, what each one never does).
 * `scripts/`: build and generation scripts (none yet).
 
 ### 📚 Where the thinking lives
