@@ -9,6 +9,8 @@ Status: **proposed, not written** (the prerequisites below do not exist yet; no 
 
 `?mode=print` gives the same page as `?print`, and the plugin `wp-pdf-helper` is switched off. What changes for the administrator: the "Print" column of the media library and the flag `wpdfh.print` are gone as an interface. What a visitor sees: the print icon of the web templates now leads to `?mode=print` (the links are blocks `modes/link`), and the QR code of the print templates, a link itself, leads back to the web version. The pages `?print` stop working (no link leads to them any more; the PDF are made by opening the page in the print mode in Samsung Internet).
 
+The rollout also **deactivates the plugins that are no longer needed** (eight in all, with `wp-pdf-helper`, `wp-printable-gallery` and `wp-printable-qrcode`; see [Plugins to deactivate](#plugins-to-deactivate)). Nothing is deleted.
+
 ## Prerequisites: what must exist before the rollout
 
 Decided by Eric (2026-10-13). Each line is to be implemented and tried on **testing** before staging. Nothing is ticked: none of it is known to be done.
@@ -95,6 +97,23 @@ The three custom templates each have a print variant. The same paths exist on te
 
 Each is opened as it is (web) and with `?mode=print`; on production the old print is `?print`. The template of each was checked on the served pages on 2026-10-14 (`post-template-journee`, `post-template-publication-randonnee`, `post-template-wp-custom-template-r-sum-mensuel-randonn-e`). The list of the pages that use a template: `wp post list --post_type=any --post_status=any --meta_key=_wp_page_template --meta_value=journee --fields=ID,post_title,post_status` (few pages use `journee`).
 
+### Plugins to deactivate
+
+Decided by Eric (2026-10-14) from the lists of production and of testing: **testing already runs without these eight plugins** (it is a copy of production on which Eric deactivated them), which is what was tried. They are deactivated, never deleted, and each one can be reactivated with `wp plugin activate <plugin>`.
+
+| Plugin | Why it is no longer needed | Effect of the deactivation | Check |
+|---|---|---|---|
+| `wp-printable-gallery` | replaced by the gallery block of Media Helper | the old block `wpprg/wp-printable-gallery` is gone: the templates call `wp-media-helper/gallery` | the six templates of the theme do not use it any more |
+| `wp-printable-qrcode` | replaced by Kaya QR Code Generator and `[modes_url]` | the old block `wppqr/wp-printable-qrcode` is gone | the three print templates use the shortcode |
+| `wp-pdf-helper` | `?print` is served by the mode `print`; its CSS, link, GPX sizes and gallery flag are replaced | `?print` still activates the mode print (alias) but the template swap, its CSS, the "Print" column of the media library and the flag `wpdfh.print` as an interface are gone | the comparison `?print` against `?mode=print` was made **before** (last step) |
+| `burst-statistics` | statistics of the visits are not wanted any more | the collection stops; the pages do not change | none |
+| `upgrade-for-unattach-re-attach-media-attachments` | the panel of Media Helper attaches and detaches | the tool disappears from the media library | none |
+| `upload-media-exif-date` | not needed for the existing posts | the date of an upload is no longer set from its EXIF data | Eric does not use it for the new posts |
+| `url-shortify` | the clicks on its short links are those of bots (Eric, 2026-10-14) | the short links already published stop answering | the clicks of the last 90 days are bots only |
+| `wp-extra-file-types` | **Media Helper declares the types `gpx` and `vtt`** | without Media Helper, `.gpx` and `.vtt` files could not be uploaded | the script checks that `get_allowed_mime_types()` has `gpx` and `vtt` (Media Helper active) before it deactivates the plugin |
+
+Plugins that were looked at and are **kept** for now: `nextgen-gallery`, `osm`, `simple-image-sizes`, `webspellchecker`, `consistency`, `advanced-post-excerpt`, `pexlechris-adminer` (candidates for a later cleanup, after a check of their use in the content); Kaya QR Code Generator is **1.6.0** on production and 1.7.0 on testing, which is enough (`[kaya_qrcode_dynamic]` is there since 1.3.0, `content_url` since 1.5.0, the border since 1.6.0).
+
 ## The script (to write once the prerequisites are met)
 
 Order proposed, to be confirmed when it is written. **On production nothing is asked** (the validations are listed at the end), so the checks are the safety net, and what must be true of the container and the plugins is checked **first**, before the backup is made:
@@ -106,7 +125,8 @@ Order proposed, to be confirmed when it is written. **On production nothing is a
 5. `wp otherguise media migrate --dry-run`, read the report, then run it; the migration comes last because Media Helper lets both methods coexist;
 6. choose the method `otherguise` in Media Helper (to be done in the script once the name of the option is checked);
 7. compare again, and the list of photos of a sample of posts before and after (the same list, in the same order);
-8. deactivate `wp-pdf-helper` (last), and compare the pages in the print mode one more time.
+8. check that Media Helper declares the types `gpx` and `vtt` (`get_allowed_mime_types()`), then deactivate the five plugins that are no longer needed (`burst-statistics`, `upgrade-for-unattach-re-attach-media-attachments`, `upload-media-exif-date`, `url-shortify`, `wp-extra-file-types`; a plugin that is not active is left alone, so the script can be run twice) and look at a page of each template;
+9. deactivate `wp-pdf-helper` (last), and compare the pages in the print mode one more time.
 
 ## What to watch
 
@@ -119,9 +139,13 @@ Order proposed, to be confirmed when it is written. **On production nothing is a
 - **The QR code** now comes from Kaya (`[kaya_qrcode_dynamic]`) around `[modes_url mode="web"]`: the address of the web version (the permalink), which must be the same as before; the code is made by JavaScript in the browser, as it was. Its link, on the screen, leads to the web version.
 - **The icon** of the print link is now an SVG of the block `modes/link`; the theme no longer loads the font Dashicons (wp-pdf-helper did, for every visitor).
 - **`?print` addresses** written by hand in posts or menus, if any, will no longer do anything.
-- **Going back:** reactivate `wp-pdf-helper` and `wp-printable-gallery`; the migration did not change `post_parent` or the flag.
+- **Uploading a GPX or a VTT file** after the rollout (the types are declared by Media Helper now that `wp-extra-file-types` is off): try one on production, once, when the rollout is done.
+- **The short links of `url-shortify`** stop answering; the visits they had were bots.
+- **Going back:** reactivate the plugins with `wp plugin activate <plugin>` (`wp-pdf-helper`, `wp-printable-gallery`, `wp-printable-qrcode` and the five others); the migration did not change `post_parent` or the flag.
 
 ## Not in this rollout
+
+The other plugins that may be obsolete (`nextgen-gallery`, `osm`, `simple-image-sizes`, `webspellchecker`, `consistency`): to look at in a later cleanup, with a check of their use in the content.
 
 The order of the photos by date taken (a visible change, made later in Media Helper); the classes `author-line` and `title-part` (Eric: not a concern); `noindex` and `canonical` of the print mode (later slices of the Modes module).
 
