@@ -36,6 +36,7 @@ The background tasks (the thumbnails of Media Helper, and later the long jobs of
 | [x] | `Dockerfile` and `wp-cron-entrypoint.sh` below | testing | yes, 2026-10-14 |
 | [ ] | the same two files | staging | no |
 | [ ] | the same two files | production | no |
+| [ ] | **WP-Cron triggered by the visits is disabled** (`DISABLE_WP_CRON` is true) on **production as in the other environments**, so that the real cron is the only trigger and the tasks do not run twice | production (staging and testing: set by `sync-site.sh`, not to be undone by `--keep-cron`) | no |
 
 `Dockerfile`:
 
@@ -67,6 +68,8 @@ What each line is for (each was a failure on testing before it was right):
 - `PATH=` at the top of the cron file: the cron of Debian uses `/usr/bin:/bin`, where there is neither `wp` nor `php` (they are in `/usr/local/bin`): the job failed with `wp: not found`, its output sent to `/dev/null`;
 - `wp cron event run --due-now` ignores `DISABLE_WP_CRON`, which stays true so that visits do not run the tasks a second time;
 - the file `/etc/cron.d/wp-cron` has no dot in its name (cron ignores such names) and is `0644`.
+
+**`DISABLE_WP_CRON` on production** (the copies get it from `sync-site.sh`): in the `docker-compose.yml` of the stack, `WORDPRESS_CONFIG_EXTRA: "define('DISABLE_WP_CRON', true);"` (then recreate the container), or once in the site: `docker exec -u www-data $PROD_CONTAINER wp config set DISABLE_WP_CRON true --raw`. To check it: `docker exec -u www-data $PROD_CONTAINER wp config get DISABLE_WP_CRON` prints `1`. Without it, a visit and the cron can run the same task together.
 
 To check on each site after the rebuild (the variables are those of the environment, `$STAGING_CONTAINER`, `$PROD_CONTAINER`, `$TESTING_CONTAINER`):
 
