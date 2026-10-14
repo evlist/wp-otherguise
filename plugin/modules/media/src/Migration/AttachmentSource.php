@@ -45,21 +45,22 @@ class AttachmentSource {
 	 * @param int         $limit      Size of the batch.
 	 * @param string      $meta_key   Meta of the criterion.
 	 * @param string|null $meta_value Value of the criterion, null for "not empty".
+	 * @param int[]       $post_ids   Only the attachments whose parent is one of these posts; every parent when empty.
 	 * @return array<int, array{id:int, parent:int, mime:string, flagged:bool}>
 	 */
-	public function batch( $offset, $limit, $meta_key = self::FLAG, $meta_value = null ) {
-		$ids = get_posts(
+	public function batch( $offset, $limit, $meta_key = self::FLAG, $meta_value = null, array $post_ids = array() ) {
+		$parents = array_values( array_filter( array_map( 'intval', $post_ids ) ) );
+		$ids     = get_posts(
 			array(
-				'post_type'           => 'attachment',
-				'post_status'         => 'any',
-				'post_parent__not_in' => array( 0 ),
-				'orderby'             => 'ID',
-				'order'               => 'ASC',
-				'offset'              => (int) $offset,
-				'posts_per_page'      => (int) $limit,
-				'fields'              => 'ids',
-				'no_found_rows'       => true,
-			)
+				'post_type'      => 'attachment',
+				'post_status'    => 'any',
+				'orderby'        => 'ID',
+				'order'          => 'ASC',
+				'offset'         => (int) $offset,
+				'posts_per_page' => (int) $limit,
+				'fields'         => 'ids',
+				'no_found_rows'  => true,
+			) + ( array() !== $parents ? array( 'post_parent__in' => $parents ) : array( 'post_parent__not_in' => array( 0 ) ) )
 		);
 		$rows = array();
 

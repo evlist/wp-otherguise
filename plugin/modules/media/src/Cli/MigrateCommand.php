@@ -82,11 +82,14 @@ final class MigrateCommand {
 	 * [--meta-value=<value>]
 	 * : The value the meta must have (compared as text). Without this option the meta must simply not be empty.
 	 *
-	 * [--mime=<family>]
-	 * : The MIME family the criterion applies to; the other files are linked in every mode.
+	 * [--mime=<families>]
+	 * : The MIME families the criterion applies to, separated by commas (`image`, `image,video`), or `all` for every type of media; the other files are linked in every mode.
 	 * ---
 	 * default: image
 	 * ---
+	 *
+	 * [--post-ids=<ids>]
+	 * : Only the attachments whose parent is one of these posts, a list of ids separated by commas (`12,40,41`). Every post by default.
 	 *
 	 * [--batch-size=<n>]
 	 * : Attachments read at a time.
@@ -114,6 +117,24 @@ final class MigrateCommand {
 			return;
 		}
 
+		$post_ids = array();
+
+		if ( isset( $assoc_args['post-ids'] ) ) {
+			foreach ( preg_split( '/[\s,]+/', trim( (string) $assoc_args['post-ids'] ), -1, PREG_SPLIT_NO_EMPTY ) as $id ) {
+				if ( ! ctype_digit( $id ) || (int) $id < 1 ) {
+					( $this->fail )( sprintf( '--post-ids: "%s" is not a post id (a list such as 12,40,41).', $id ) );
+					return;
+				}
+
+				$post_ids[] = (int) $id;
+			}
+
+			if ( array() === $post_ids ) {
+				( $this->fail )( '--post-ids: give at least one post id (12,40,41).' );
+				return;
+			}
+		}
+
 		$dry_run = ! empty( $assoc_args['dry-run'] );
 		$mode    = $assoc_args['restrict-mode'] ?? $assoc_args['print-mode'] ?? 'print';
 		$report  = $migration->run(
@@ -123,6 +144,7 @@ final class MigrateCommand {
 				'meta_key'      => isset( $assoc_args['meta-key'] ) ? (string) $assoc_args['meta-key'] : '',
 				'meta_value'    => isset( $assoc_args['meta-value'] ) ? (string) $assoc_args['meta-value'] : null,
 				'mime'          => isset( $assoc_args['mime'] ) ? (string) $assoc_args['mime'] : '',
+				'post_ids'      => $post_ids,
 				'batch_size'    => isset( $assoc_args['batch-size'] ) ? (int) $assoc_args['batch-size'] : 100,
 				'limit'         => isset( $assoc_args['limit'] ) ? (int) $assoc_args['limit'] : 0,
 			),

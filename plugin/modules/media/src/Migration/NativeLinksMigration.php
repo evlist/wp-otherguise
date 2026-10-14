@@ -58,15 +58,34 @@ final class NativeLinksMigration {
 	}
 
 	/**
+	 * Tells whether a MIME type belongs to one of the families (`image`, `video,audio`, or `all` / `*` for every type).
+	 *
+	 * @param string $mime     MIME type of the attachment.
+	 * @param string $families Families separated by commas.
+	 * @return bool
+	 */
+	public static function in_families( $mime, $families ) {
+		foreach ( explode( ',', $families ) as $family ) {
+			$family = strtolower( trim( $family ) );
+
+			if ( 'all' === $family || '*' === $family || ( '' !== $family && 0 === strpos( strtolower( $mime ), $family . '/' ) ) ) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	/**
 	 * Returns the modes an attachment gets.
 	 *
-	 * @param array{mime:string, flagged:bool} $row    Attachment.
-	 * @param string                           $mode   Mode reserved to the attachments that satisfy the criterion.
-	 * @param string                           $family MIME family the criterion applies to (`image`).
+	 * @param array{mime:string, flagged:bool} $row      Attachment.
+	 * @param string                           $mode     Mode reserved to the attachments that satisfy the criterion.
+	 * @param string                           $families MIME families the criterion applies to (`image`; `all` for every type).
 	 * @return string[]
 	 */
-	public function modes_for( array $row, $mode, $family = 'image' ) {
-		if ( 0 !== strpos( $row['mime'], $family . '/' ) || $row['flagged'] ) {
+	public function modes_for( array $row, $mode, $families = 'image' ) {
+		if ( ! self::in_families( $row['mime'], $families ) || $row['flagged'] ) {
 			return $this->modes;
 		}
 
@@ -76,8 +95,8 @@ final class NativeLinksMigration {
 	/**
 	 * Runs the migration.
 	 *
-	 * @param array{dry_run?:bool, restrict_mode?:string, print_mode?:string, meta_key?:string, meta_value?:string|null, mime?:string, batch_size?:int, limit?:int} $options Options (`print_mode` is the old name of `restrict_mode`).
-	 * @param callable|null                                                                                                                                         $each Called with a line of text per attachment.
+	 * @param array{dry_run?:bool, restrict_mode?:string, print_mode?:string, meta_key?:string, meta_value?:string|null, mime?:string, post_ids?:int[], batch_size?:int, limit?:int} $options Options (`print_mode` is the old name of `restrict_mode`).
+	 * @param callable|null                                                                                                                                                          $each Called with a line of text per attachment.
 	 * @return array{created:int, existing:int, skipped:array<int,string>, by_modes:array<string,int>, restrict_mode_missing:bool}
 	 */
 	public function run( array $options = array(), $each = null ) {
@@ -85,6 +104,7 @@ final class NativeLinksMigration {
 		$mode       = (string) ( $options['restrict_mode'] ?? $options['print_mode'] ?? 'print' );
 		$meta_key   = isset( $options['meta_key'] ) && '' !== (string) $options['meta_key'] ? (string) $options['meta_key'] : AttachmentSource::FLAG;
 		$meta_value = isset( $options['meta_value'] ) ? (string) $options['meta_value'] : null;
+		$post_ids   = isset( $options['post_ids'] ) && is_array( $options['post_ids'] ) ? array_values( array_filter( array_map( 'intval', $options['post_ids'] ) ) ) : array();
 		$family     = isset( $options['mime'] ) && '' !== (string) $options['mime'] ? (string) $options['mime'] : 'image';
 		$size       = max( 1, (int) ( $options['batch_size'] ?? 100 ) );
 		$limit      = (int) ( $options['limit'] ?? 0 );
@@ -98,7 +118,7 @@ final class NativeLinksMigration {
 		$offset     = 0;
 
 		do {
-			$rows  = $this->source->batch( $offset, $size, $meta_key, $meta_value );
+			$rows  = $this->source->batch( $offset, $size, $meta_key, $meta_value, $post_ids );
 			$count = count( $rows );
 
 			foreach ( $rows as $row ) {

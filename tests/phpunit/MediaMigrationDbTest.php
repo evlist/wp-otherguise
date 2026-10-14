@@ -288,6 +288,43 @@ class MediaMigrationDbTest extends Otherguise_Test_Database_Case {
 	}
 
 	/**
+	 * `--mime=all` applies the criterion to every type of media, and a list of families to those families.
+	 *
+	 * @return void
+	 */
+	public function test_the_criterion_applies_to_every_type_of_media(): void {
+		$this->migration->run( array( 'mime' => 'all' ) );
+
+		$this->assertSame( array( 'web' ), $this->links->modes_of( $this->links->find( 13, 82 ) ), 'The GPX file does not satisfy the criterion: no print.' );
+		$this->assertSame( array( 'web', 'print' ), $this->links->modes_of( $this->links->find( 12, 80 ) ), 'The flagged image keeps every mode.' );
+		$this->assertTrue( NativeLinksMigration::in_families( 'video/mp4', '*' ) );
+		$this->assertTrue( NativeLinksMigration::in_families( 'video/mp4', 'image, VIDEO' ) );
+		$this->assertTrue( NativeLinksMigration::in_families( 'application/gpx+xml', 'image,application' ) );
+		$this->assertFalse( NativeLinksMigration::in_families( 'application/pdf', 'image,video' ) );
+		$this->assertFalse( NativeLinksMigration::in_families( 'imagery/x', 'image' ), 'A family is a whole word before the slash.' );
+		$this->assertFalse( NativeLinksMigration::in_families( 'image/png', '' ) );
+	}
+
+	/**
+	 * A list of posts limits the attachments to those of these posts.
+	 *
+	 * @return void
+	 */
+	public function test_a_list_of_posts_limits_the_migration(): void {
+		$report = $this->migration->run( array( 'post_ids' => array( 12 ) ) );
+
+		$this->assertSame( 2, $report['created'] );
+		$this->assertNotNull( $this->links->find( 12, 80 ) );
+		$this->assertNotNull( $this->links->find( 12, 81 ) );
+		$this->assertNull( $this->links->find( 13, 82 ) );
+		$this->assertSame( array( array( 12 ) ), array_unique( $this->source->posts, SORT_REGULAR ) );
+
+		$this->source->posts = array();
+		$this->migration->run();
+		$this->assertSame( array( array() ), array_unique( $this->source->posts, SORT_REGULAR ), 'Every post when no list is given.' );
+	}
+
+	/**
 	 * A value of a meta satisfies the criterion when it is not empty, or equal to the value asked.
 	 *
 	 * @return void
@@ -359,6 +396,26 @@ class MediaMigrationDbTest extends Otherguise_Test_Database_Case {
 		$this->assertSame( array( array( 'book_ok', 'yes' ) ), array_unique( $this->source->criteria, SORT_REGULAR ) );
 		$this->assertContains( 'Warning: the mode "book" is not registered, so every attachment gets every registered mode.', $lines );
 
+		foreach ( array( '12,x', '0', ',' ) as $bad ) {
+			$errors = array();
+			$command( array(), array( 'post-ids' => $bad ) );
+			$this->assertCount( 1, $errors, 'A bad list of posts is refused: ' . $bad );
+		}
+
+		$lines                  = array();
+		$this->source->posts    = array();
+		$this->source->criteria = array();
+		$command(
+			array(),
+			array(
+				'dry-run' => true,
+				'post-ids' => '12, 13',
+				'mime' => 'all',
+			)
+		);
+		$this->assertSame( array( array( 12, 13 ) ), array_unique( $this->source->posts, SORT_REGULAR ) );
+		$this->assertContains( 'Dry run, nothing written: 2 link(s) to create, 1 already linked, 0 skipped.', $lines );
+
 		$missing = new MigrateCommand(
 			fn() => null,
 			null,
@@ -366,6 +423,7 @@ class MediaMigrationDbTest extends Otherguise_Test_Database_Case {
 				$errors[] = $message;
 			}
 		);
+		$errors = array();
 		$missing( array(), array() );
 
 		$this->assertSame( array( 'The modules Triples, Modes and Media must be active.' ), $errors );

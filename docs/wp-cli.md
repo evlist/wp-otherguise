@@ -11,7 +11,7 @@ Three commands exist. All are registered on `cli_init`, appear in `wp help other
 |---|---|---|---|
 | [`wp otherguise modes variant list`](#wp-otherguise-modes-variant-list) | lists the variants (the relations between templates) | [212](slices/212-variant-retheme.md) | rollout 002 (checks and notes) |
 | [`wp otherguise modes variant retheme`](#wp-otherguise-modes-variant-retheme) | moves the variants of a theme to another theme | [212](slices/212-variant-retheme.md) | rollout 002 |
-| [`wp otherguise media migrate`](#wp-otherguise-media-migrate) | turns the parents of the attachments and a meta into links | [211](slices/211-media-migration.md), [215](slices/215-media-migrate-criterion.md) | rollout 003 (planned) |
+| [`wp otherguise media migrate`](#wp-otherguise-media-migrate) | turns the parents of the attachments and a meta into links | [211](slices/211-media-migration.md), [215](slices/215-media-migrate-criterion.md), [217](slices/217-media-migrate-all-types-and-posts.md) | rollout 003 (planned) |
 
 ## wp otherguise modes variant list
 
@@ -59,7 +59,7 @@ wp otherguise modes variant list --theme=twentytwentyfive   # empty
 ## wp otherguise media migrate
 
 ```
-wp otherguise media migrate [--dry-run] [--restrict-mode=<slug>] [--meta-key=<key>] [--meta-value=<value>] [--mime=<family>] [--batch-size=<n>] [--limit=<n>] [--verbose]
+wp otherguise media migrate [--dry-run] [--restrict-mode=<slug>] [--meta-key=<key>] [--meta-value=<value>] [--mime=<families>] [--post-ids=<ids>] [--batch-size=<n>] [--limit=<n>] [--verbose]
 ```
 
 For each attachment that has a parent (`post_parent` not 0) and **no link to that post yet**, creates the link `media/illustrated-by` between the post and the attachment, with its modes. It is what the method `otherguise` of Media Helper reads, so that a site starts from its existing content.
@@ -68,9 +68,11 @@ For each attachment that has a parent (`post_parent` not 0) and **no link to tha
 
 | Attachment | Modes |
 |---|---|
-| an image of the MIME family `--mime` that **satisfies the criterion** | every registered mode |
-| an image of that family that does **not** | every registered mode **except** `--restrict-mode` |
-| any other file (GPX, PDF…) | every registered mode |
+| an attachment of the MIME families `--mime` that **satisfies the criterion** | every registered mode |
+| an attachment of those families that does **not** | every registered mode **except** `--restrict-mode` |
+| any other attachment (outside those families) | every registered mode |
+
+By default `--mime` is `image`: the other files (GPX, PDF…) get every mode. With `--mime=all` the criterion applies to every type of media (images, video, audio, GPX, PDF…).
 
 The criterion is on a meta of the attachment: by default `wpdfh.print` **not empty** (the flag of `wp-pdf-helper`); with `--meta-value` the meta must be equal to it (compared as text).
 
@@ -80,7 +82,8 @@ The criterion is on a meta of the attachment: by default `wpdfh.print` **not emp
 | `--restrict-mode=<slug>` | `print` | the mode that only the attachments that satisfy the criterion get (`--print-mode` is the old name; `--restrict-mode` wins) |
 | `--meta-key=<key>` | `wpdfh.print` | the meta the criterion is about |
 | `--meta-value=<value>` | none (not empty) | the value the meta must have |
-| `--mime=<family>` | `image` | the MIME family the criterion applies to |
+| `--mime=<families>` | `image` | the MIME families the criterion applies to, separated by commas (`image,video`), or `all` (or `*`) for every type of media; a family is the part of the MIME type before the slash |
+| `--post-ids=<ids>` | every post | only the attachments whose parent is one of these posts, ids separated by commas (`12,40,41`); a bad id stops the command before anything is read |
 | `--batch-size=<n>` | 100 | attachments read at a time |
 | `--limit=<n>` | none | stop after that many links created (or that would be) |
 | `--verbose` | | one line per attachment |
@@ -97,12 +100,14 @@ wp otherguise media migrate --dry-run                 # read the report first
 wp otherguise media migrate --dry-run --verbose | head
 wp otherguise media migrate
 wp otherguise media migrate --meta-key=book_ok --meta-value=yes --restrict-mode=book   # another criterion
+wp otherguise media migrate --mime=all --dry-run                  # the criterion on every type of media
+wp otherguise media migrate --post-ids=49133,49047 --dry-run      # only the attachments of these posts
 ```
 
 Only the links that already exist as `post_parent` are made: a photo cannot be linked to a second post by this command (see the case of the monthly summaries in [`design/media-helper.md`](design/media-helper.md)).
 
 ## What was tried
 
-- **Automated tests** (PHPUnit with a database, 413 tests in all): the three commands (output, options, refusals, the case where the modules are missing, the hook `cli_init`).
-- **Real WordPress 7.1.3 with the real WP-CLI:** `variant list` and `retheme` (10 checks), and `media migrate` before its criterion options (12 checks, slice 211). The options of slice 215 were **not** tried again on a real site.
+- **Automated tests** (PHPUnit with a database, 415 tests in all): the three commands (output, options, refusals, the case where the modules are missing, the hook `cli_init`).
+- **Real WordPress 7.1.3 with the real WP-CLI:** `variant list` and `retheme` (10 checks), and `media migrate` before its criterion options (12 checks, slice 211). The options of slices 215 and 217 (the criterion, `--mime`, `--post-ids`) were **not** tried again on a real site.
 - **On the blog:** `variant retheme` ran in rollout 002 on staging and on production. `media migrate` has **not** run on a copy of the blog; it is planned for the rehearsal of [rollout 003](rollouts/003-print-format.md).
