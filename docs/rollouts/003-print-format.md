@@ -27,6 +27,58 @@ Decided by Eric (2026-10-13). Each line is to be implemented and tried on **test
 
 **Plugins that are not git clones** (copied from Gitea into the containers, so not covered by the tag and put back to the state of production by every synchronisation): Attached GPX, the gallery plugin, and any other block plugin. They are updated by hand on staging, then on production, before the script. The script checks them by what they do, not by a version: the block `create-wp-attached-gpx/wp-attached-gpx` has the four attributes, and `WP_Block_Type_Registry::get_instance()->is_registered( 'wp-media-helper/gallery' )` is true. After a new synchronisation of staging they must be updated again.
 
+### The image of the containers: a real cron (to copy to staging and production by hand)
+
+The background tasks (the thumbnails of Media Helper, and later the long jobs of the plugins) need a WP-Cron that runs on its own: `DISABLE_WP_CRON` is on, so visits no longer trigger it. The two files below are **not in any git clone**: Eric copies them into the directory of the Docker stack of **staging and production** (they were made and tried on **testing** on 2026-10-14: `cron` runs, and `wp cron event run --due-now` executed 23 events, among them a test event), rebuilds the image and recreates the container (`up -d --build`, not a plain restart: the entrypoint writes its files at start).
+
+| Done | What | Where | Tried |
+|---|---|---|---|
+| [x] | `Dockerfile` and `wp-cron-entrypoint.sh` below | testing | yes, 2026-10-14 |
+| [ ] | the same two files | staging | no |
+| [ ] | the same two files | production | no |
+
+`Dockerfile`:
+
+```dockerfile
+FROM wordpress
+COPY custom.ini $PHP_INI_DIR/conf.d/
+COPY --from=wordpress:cli /usr/local/bin/wp /usr/local/bin/wp
+RUN apt-get update && apt-get install -y --no-install-recommends mariadb-client cron && rm -rf /var/lib/apt/lists/*
+COPY wp-cron-entrypoint.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/wp-cron-entrypoint.sh
+ENTRYPOINT ["wp-cron-entrypoint.sh"]
+CMD ["apache2-foreground"]
+```
+
+`wp-cron-entrypoint.sh`:
+
+```sh
+#!/bin/sh
+printenv | grep '^WORDPRESS_' | sed "s/'/'\\\\''/g; s/^\([^=]*\)=\(.*\)\$/export \1='\2'/" > /etc/wp-cron.env
+printf 'PATH=/usr/local/bin:/usr/bin:/bin\n* * * * * www-data . /etc/wp-cron.env; cd /var/www/html && wp cron event run --due-now >/dev/null 2>&1\n' > /etc/cron.d/wp-cron
+chmod 0644 /etc/cron.d/wp-cron
+cron
+exec docker-entrypoint.sh "$@"
+```
+
+What each line is for (each was a failure on testing before it was right):
+
+- the values of `/etc/wp-cron.env` are **quoted**: cron does not pass the environment of the container, so the `WORDPRESS_*` variables that `wp-config.php` reads are written to a file; unquoted, a value with a parenthesis (`WORDPRESS_CONFIG_EXTRA`, a password) is a syntax error and the job dies silently;
+- `PATH=` at the top of the cron file: the cron of Debian uses `/usr/bin:/bin`, where there is neither `wp` nor `php` (they are in `/usr/local/bin`): the job failed with `wp: not found`, its output sent to `/dev/null`;
+- `wp cron event run --due-now` ignores `DISABLE_WP_CRON`, which stays true so that visits do not run the tasks a second time;
+- the file `/etc/cron.d/wp-cron` has no dot in its name (cron ignores such names) and is `0644`.
+
+To check on each site after the rebuild (the variables are those of the environment, `$STAGING_CONTAINER`, `$PROD_CONTAINER`, `$TESTING_CONTAINER`):
+
+```sh
+docker exec -u www-data $TESTING_CONTAINER sh -c '. /etc/wp-cron.env && echo "env OK" && cd /var/www/html && wp db check'
+docker exec -u www-data $TESTING_CONTAINER wp cron event schedule otherguise_cron_check now 2>/dev/null
+sleep 70
+docker exec -u www-data $TESTING_CONTAINER wp cron event list --fields=hook 2>/dev/null | grep otherguise_cron_check || echo "executed"
+```
+
+To debug, replace `>/dev/null 2>&1` by `>/tmp/wp-cron.log 2>&1` in the entrypoint for a while. Two improvements not made in these files: `/etc/wp-cron.env` holds the database password and is readable by everyone in the container (`chown www-data:www-data` and `chmod 600` would fix that); and nothing logs the failures of the job. On staging and testing the copies run the scheduled tasks of production plugins; the must-use plugin `staging-safety.php` (written by `sync-site.sh`) sends no mail, but a task that calls an external service is not stopped.
+
 ## The script (to write once the prerequisites are met)
 
 Order proposed, to be confirmed when it is written. **On production nothing is asked** (the validations are listed at the end), so the checks are the safety net, and what must be true of the container and the plugins is checked **first**, before the backup is made:
