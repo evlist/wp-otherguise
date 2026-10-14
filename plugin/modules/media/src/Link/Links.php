@@ -42,14 +42,29 @@ final class Links {
 	private $mime_of;
 
 	/**
+	 * Loads the records of several attachments at once (`_prime_post_caches`), so that asking the MIME type of each one does not cost a query
+	 * each.
+	 *
+	 * @var callable
+	 */
+	private $prime;
+
+	/**
 	 * Builds the service.
 	 *
 	 * @param Statements    $statements Statements.
 	 * @param callable|null $mime_of    Receives an attachment id; defaults to WordPress `get_post_mime_type`.
+	 * @param callable|null $prime      Receives the ids of the attachments that are about to be read; defaults to WordPress
+	 *                                  `_prime_post_caches` (nothing when it is not there).
 	 */
-	public function __construct( Statements $statements, $mime_of = null ) {
+	public function __construct( Statements $statements, $mime_of = null, $prime = null ) {
 		$this->statements = $statements;
 		$this->mime_of    = $mime_of ?? 'get_post_mime_type';
+		$this->prime      = $prime ?? static function ( array $ids ) {
+			if ( function_exists( '_prime_post_caches' ) ) {
+				_prime_post_caches( $ids, false, false );
+			}
+		};
 	}
 
 	/**
@@ -194,11 +209,20 @@ final class Links {
 	 */
 	public function attached( $post_id, $mode, $mime ) {
 		$options = null === $mode ? array() : array( 'scope' => array( 'modes/mode', new EntityRef( 'mode', $mode ) ) );
-		$ids     = array();
+		$all     = array();
 
 		foreach ( $this->statements->listing( $this->post( $post_id ), self::PREDICATE, $options ) as $link ) {
-			$id = (int) $link->object()->id();
+			$all[] = (int) $link->object()->id();
+		}
 
+		if ( '' !== $mime && array() !== $all ) {
+			// One query for the records of all the attachments, instead of one per attachment when their MIME types are asked.
+			( $this->prime )( $all );
+		}
+
+		$ids = array();
+
+		foreach ( $all as $id ) {
 			if ( $this->matches( $id, $mime ) ) {
 				$ids[] = $id;
 			}

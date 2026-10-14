@@ -345,6 +345,45 @@ class MediaMethodDbTest extends Otherguise_Test_Database_Case {
 	}
 
 	/**
+	 * The records of the attachments are loaded at once before their MIME types are asked (one query, not one per attachment).
+	 *
+	 * @return void
+	 */
+	public function test_the_attachments_are_loaded_at_once_before_their_types_are_asked(): void {
+		$this->method->attach( 88, 12, array( 'modes' => array( 'web', 'print' ) ) );
+		$this->method->attach( 90, 12, array( 'modes' => array( 'web' ) ) );
+		$this->method->attach( 91, 12, array( 'modes' => array( 'print' ) ) );
+
+		$events = array();
+		$mimes  = array(
+			88 => 'image/jpeg',
+			90 => 'application/gpx+xml',
+			91 => 'image/png',
+		);
+		$links  = new Links(
+			$this->site->statements,
+			static function ( $id ) use ( &$events, $mimes ) {
+				$events[] = 'mime ' . $id;
+				return $mimes[ $id ] ?? '';
+			},
+			static function ( array $ids ) use ( &$events ) {
+				$events[] = 'prime ' . implode( ',', $ids );
+			}
+		);
+
+		$this->assertSame( array( 88, 91 ), $links->attached( 12, null, 'image' ) );
+		$this->assertSame( array( 'prime 88,90,91', 'mime 88', 'mime 90', 'mime 91' ), $events, 'One load of every attachment, then the types.' );
+
+		$events = array();
+		$links->attached( 12, null, '' );
+		$this->assertSame( array(), $events, 'No type asked: nothing to load, nothing to read.' );
+
+		$events = array();
+		$links->attached( 999, null, 'image' );
+		$this->assertSame( array(), $events, 'No link: nothing to load.' );
+	}
+
+	/**
 	 * The attachments of a post: by mode (the reading rule), pinned ranks first, with a MIME filter, unfiltered without a mode.
 	 *
 	 * @return void
