@@ -18,6 +18,7 @@ use Otherguise\Modes\Cli\VariantCommand;
 use Otherguise\Modes\Integration\TemplateIntegration;
 use Otherguise\Modes\Integration\TriplesIntegration;
 use Otherguise\Modes\Link\LinkBlock;
+use Otherguise\Modes\Link\UrlShortcode;
 use Otherguise\Modes\Mode\ActiveMode;
 use Otherguise\Modes\Mode\ModeDefinition;
 use Otherguise\Modes\Mode\ModeRegistry;
@@ -273,6 +274,7 @@ final class Module implements ModuleInterface {
 		( $this->add_action )( 'modes_active_mode', array( $this, 'filter_active_mode' ), 10, 1 );
 		( $this->add_action )( 'init', array( $this, 'register_variant_filters' ), 20, 0 );
 		( $this->add_action )( 'init', array( $this, 'register_link_block' ), 10, 0 );
+		( $this->add_action )( 'init', array( $this, 'register_url_shortcode' ), 10, 0 );
 		( $this->add_action )( 'init', array( $this, 'register_stylesheet_loader' ), 20, 0 );
 		( $this->add_action )( 'wp_insert_post', array( new NewPostTemplate( $this->default_templates ), 'apply' ), 10, 3 );
 		( $this->add_action )( 'cli_init', array( $this, 'register_commands' ), 10, 0 );
@@ -428,6 +430,15 @@ final class Module implements ModuleInterface {
 	 */
 	public function register_link_block() {
 		$this->link_block()->register( __DIR__ . '/../blocks/link' );
+	}
+
+	/**
+	 * Registers the shortcode `[modes_url mode="..."]`. Action `init`, priority 10.
+	 *
+	 * @return void
+	 */
+	public function register_url_shortcode() {
+		( new UrlShortcode( $this->modes, $this->settings, array( $this->link_block(), 'default_page_url' ) ) )->register();
 	}
 
 	/**

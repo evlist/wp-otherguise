@@ -19,7 +19,8 @@ Decided by Eric (2026-10-13). Each line is to be implemented and tried on **test
 | [x] | Media Helper lets the methods `native` and `otherguise` live together, so that the migration can run at the end of the rollout (and, with the setting on, returns the images attached the WordPress way when no context is asked, or when the filter `wp_media_helper_native_links_in_context` says so) | `evlist/wp-media-helper` (slice 042 step 7, tag `rollout-2` at `8ab96c5`, then `b497b67`) | [ ] |
 | [x] | Otherguise: the filter `modes_active_mode` (the slug of the active mode, which the gallery block of Media Helper uses as its context) and the answer to `wp_media_helper_native_links_in_context` (before the migration the native links count in the default mode, not in print) | `evlist/wp-otherguise`, slice 214 | PHPUnit only |
 | [ ] | Attached GPX: the attributes `mapHeight`, `graphHeight`, `showAttachments`, `showDownload` | `vdv/wp-attached-gpx`, commit `e6d0bbe` | [ ] |
-| [x] | Theme: in the three web templates (`journee`, `publication-randonnee`, résumé mensuel) the JavaScript link of the hack is replaced by a block `modes/link` to the print mode (icon print, accessible label "Print"); in the three print templates a block `modes/link` to the web mode (label "Web") next to the QR code | `evlist/wp-twenty-twenty-five-printable` | [ ] |
+| [x] | Theme: in the three web templates (`journee`, `publication-randonnee`, résumé mensuel) the JavaScript link of the hack is replaced by a block `modes/link` to the print mode (icon print, accessible label "Print"); in the three print templates the QR code is the shortcode `[kaya_qrcode_dynamic content_url="1" …][modes_url mode="web"][/kaya_qrcode_dynamic]` (Kaya QR Code Generator, active) in a block Shortcode: it encodes the address of the web version and is itself the link back, so `wp-printable-qrcode` is no longer used | `evlist/wp-twenty-twenty-five-printable` | [ ] |
+| [x] | Otherguise: the shortcode `[modes_url mode="web"]` (slice 216) | `evlist/wp-otherguise` | PHPUnit only |
 | [x] | Theme: the GPX block of the print templates carries the sizes that `wp-pdf-helper` imposed: `publication-randonnee-print` `mapHeight` 200px, `graphHeight` 150px; résumé mensuel print 600px and 300px; both `showAttachments` and `showDownload` false | theme | [ ] |
 | [x] | Theme: the six templates that use the gallery (`journee`, `publication-randonnee`, `wp-custom-template-r-sum-mensuel-randonn-e`, each with its `-print`) call `wp-media-helper/gallery` and the rule of `modes/print.css` follows its class (`wp-block-wp-media-helper-gallery`) | theme (`953d784`) | [ ] |
 | [x] | Theme: the rules `.print-link` and the font Dashicons (nothing uses them once the links are blocks), and the class wrongly put on the paragraph "Écrit par", are removed | theme (`1c0ce35`) | [ ] |
@@ -88,7 +89,7 @@ Order proposed, to be confirmed when it is written. **On production nothing is a
 
 1. the versions, and the state before (`wp plugin list` with versions, since the plugins copied from Gitea are not tagged);
 2. a manual step: update the plugins copied from Gitea; then the functional checks above (the script stops if they fail);
-3. deactivate `wp-printable-gallery` (Eric: at the start of the rollout; it stays installed);
+3. deactivate `wp-printable-gallery` and `wp-printable-qrcode` (Eric: at the start of the rollout; they stay installed; the QR code now comes from Kaya and the shortcode of slice 216);
 4. compare `?print` (production) with `?mode=print` (the site being rolled out), page by page, while `wp-pdf-helper` still works;
 5. `wp otherguise media migrate --dry-run`, read the report, then run it; the migration comes last because Media Helper lets both methods coexist;
 6. choose the method `otherguise` in Media Helper (to be done in the script once the name of the option is checked);
@@ -101,9 +102,8 @@ Order proposed, to be confirmed when it is written. **On production nothing is a
 
 - **The same photos in print.** The old gallery showed, with `?print`, the images whose `wpdfh.print` was not empty; the migration gives them every mode and gives the others every mode except print. Compare the lists on a sample of posts, flagged or not.
 - **The sizes of the maps in print** (200/150 or 600/300 by template), with no attachments and no download link.
-- **The QR code** is the permalink of the post (no query string): it leads to the web version from a printed page.
+- **The QR code** now comes from Kaya (`[kaya_qrcode_dynamic]`) around `[modes_url mode="web"]`: the address of the web version (the permalink), which must be the same as before; the code is made by JavaScript in the browser, as it was. Its link, on the screen, leads to the web version.
 - **The icon** of the print link is now an SVG of the block `modes/link`; the theme no longer loads the font Dashicons (wp-pdf-helper did, for every visitor).
-- **The link "Web"** next to the QR code of the print pages is for the screen: `@media print` hides it on paper (`.mode-link`, the one rule added to `modes/print.css`).
 - **`?print` addresses** written by hand in posts or menus, if any, will no longer do anything.
 - **Going back:** reactivate `wp-pdf-helper` and `wp-printable-gallery`; the migration did not change `post_parent` or the flag.
 

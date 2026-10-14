@@ -111,6 +111,7 @@ class ModesModuleTest extends TestCase {
 				'init'                          => array(
 					array( Module::class, 'register_variant_filters', 20, 0 ),
 					array( Module::class, 'register_link_block', 10, 0 ),
+					array( Module::class, 'register_url_shortcode', 10, 0 ),
 					array( Module::class, 'register_stylesheet_loader', 20, 0 ),
 				),
 				'wp_insert_post'                => array( array( \Otherguise\Modes\Template\NewPostTemplate::class, 'apply', 10, 3 ) ),

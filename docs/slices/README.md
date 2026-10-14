@@ -30,6 +30,7 @@ Numbering: `0xx` foundation, `1xx` Triples, `2xx` Modes, `3xx` Books.
 | [213](213-modes-theme-stylesheet.md) | Modes: the stylesheet `modes/<mode>.css` of the theme, loaded when the mode is active |
 | [214](214-modes-active-mode-filter.md) | Modes: the filter `modes_active_mode` (slug), and the native links of Media Helper before the migration |
 | [215](215-media-migrate-criterion.md) | Media: a generic criterion (meta key and value, restricted mode, MIME family) for `wp otherguise media migrate` |
+| [216](216-modes-url-shortcode.md) | Modes: the shortcode `[modes_url mode="…"]`, the address of a page in a mode, for the QR code of Kaya |
 | [211](211-media-migration.md) | Media: migration of the native attachments and of the `wpdfh.print` flag (WP-CLI) |
 | [209](209-modes-default-template.md) | Modes: the default template of new posts (WordPress has no such setting; independent of the modes) |
 | [204](204-modes-admin.md) | Modes: disabled by default (a change of slice 204: see its last note) |
