@@ -91,7 +91,7 @@ The three custom templates each have a print variant. The same paths exist on te
 |---|---|---|
 | `journee` | <https://testing.vli.st/2025/06/18/repos-a-santinalla-1-3/> | a gallery, no GPX track |
 | `publication-randonnee` | <https://testing.vli.st/2025/10/04/madrid-montpellier-en-train/> | a GPX track and a gallery (and `https://testing.vli.st/2025/10/03/repos-a-madrid/`, with 83 images, to compare the order of the photos) |
-| `wp-custom-template-r-sum-mensuel-randonn-e` (monthly summary) | <https://testing.vli.st/2025/10/04/sixieme-mois-sur-les-chemins-de-compostelle-et-dailleurs/> | several GPX tracks (8 maps), no gallery |
+| `wp-custom-template-r-sum-mensuel-randonn-e` (monthly summary) | <https://testing.vli.st/2025/10/04/sixieme-mois-sur-les-chemins-de-compostelle-et-dailleurs/> | several GPX tracks (8 maps); its gallery is **empty and stays empty**: the photos are attached to the daily posts, and a native attachment has a single parent, so it cannot also belong to the summary (the reason for the links of the module `media`, see [media-helper.md](../design/media-helper.md)) |
 
 Each is opened as it is (web) and with `?mode=print`; on production the old print is `?print`. The template of each was checked on the served pages on 2026-10-14 (`post-template-journee`, `post-template-publication-randonnee`, `post-template-wp-custom-template-r-sum-mensuel-randonn-e`). The list of the pages that use a template: `wp post list --post_type=any --post_status=any --meta_key=_wp_page_template --meta_value=journee --fields=ID,post_title,post_status` (few pages use `journee`).
 
@@ -109,6 +109,8 @@ Order proposed, to be confirmed when it is written. **On production nothing is a
 8. deactivate `wp-pdf-helper` (last), and compare the pages in the print mode one more time.
 
 ## What to watch
+
+- **The galleries of the monthly summaries stay empty.** The migration only turns the existing parent of an image (`post_parent`) into a link; the photos of a month belong to the daily posts, so the summary has none. This rollout neither fills nor breaks them (the block prints nothing when there is no image). Eric will use the links (one photo on several posts) for **new** posts, not for those already published.
 
 - **Until the migration and the choice of the method, `?print` shows every attached image.** Media Helper does not read the print flag `wpdfh.print` of the native method (it was a hack), so with the method `native` the gallery block lists all the images attached to the post. The migration (step 5) and then the choice of the method `otherguise` (step 6) are what restrict print to the images that were flagged; only after them do the print galleries show the flagged images alone (and an image that is not linked to the mode print does not show). The web keeps showing every attached image the whole time (the filter of slice 214 for the default mode, once the method is `otherguise`). The migration command takes a criterion on any meta (`--meta-key`, `--meta-value`, `--restrict-mode`, `--mime`, slice 215); the defaults are the flag of wp-pdf-helper.
 
