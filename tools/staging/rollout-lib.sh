@@ -7,7 +7,8 @@
 #
 #   rollout_init <name> "$@"       reads --site=<prod|staging|testing>, --rollout=<N> (production), --no-validate, --dry-run, --yes, --force.
 #   rollout_begin                  logs, asks for the confirmation on production, refuses production for a script that was not rehearsed
-#                                  on staging, backs the database up before the first change on production.
+#                                  on staging, runs `rollout_preflight` if the script defines it (checks only, before any change), backs
+#                                  the database up before the first change on production.
 #   step "title" cmd...            runs a command, stops if it fails.
 #   note "title" cmd...            runs a command to show its output, never stops (to record a state).
 #   check "description" cmd...     runs a command quietly; stops if it fails. For what a command can decide.
@@ -129,7 +130,13 @@ rollout_begin() {
       ask "This changes PRODUCTION ($CONTAINER). Type the name of the container to go on: " answer
       [ "$answer" = "$CONTAINER" ] || die "Not confirmed."
     fi
+    # What must be true of the container and of the plugins is checked before anything is changed, the backup included: a script that
+    # defines `rollout_preflight` (checks only, nothing that changes) has it run here.
+    if declare -F rollout_preflight >/dev/null; then say "Preflight: what must be true before the backup and the first change"; rollout_preflight; fi
     rollout_backup
+  elif declare -F rollout_preflight >/dev/null; then
+    say "Preflight: what must be true before the first change"
+    rollout_preflight
   fi
 }
 

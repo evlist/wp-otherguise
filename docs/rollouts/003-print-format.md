@@ -3,7 +3,7 @@
 
 # Rollout 003: the print format comes from the modes
 
-Status: **proposed, not written** (the prerequisites below do not exist yet; no script). Tag: `rollout-N` (filled in by `rollout.sh create`). Depends on [002](002-child-theme.md) being applied: the child theme is active and the variants are declared for it.
+Status: **script written** ([`rollouts/003-print-format.sh`](../../rollouts/003-print-format.sh), tried with stand-ins only: 76 tests), **to rehearse on staging**. Tag: `rollout-N` (filled in by `rollout.sh create`). Depends on [002](002-child-theme.md) being applied: the child theme is active and the variants are declared for it.
 
 ## Goal and visible effect
 
@@ -112,21 +112,36 @@ Decided by Eric (2026-10-14) from the lists of production and of testing: **test
 | `url-shortify` | the clicks on its short links are those of bots (Eric, 2026-10-14) | the short links already published stop answering | the clicks of the last 90 days are bots only |
 | `wp-extra-file-types` | **Media Helper declares the types `gpx` and `vtt`** | without Media Helper, `.gpx` and `.vtt` files could not be uploaded | the script checks that `get_allowed_mime_types()` has `gpx` and `vtt` (Media Helper active) before it deactivates the plugin |
 
-Plugins that were looked at and are **kept** for now: `nextgen-gallery`, `osm`, `simple-image-sizes`, `webspellchecker`, `consistency`, `advanced-post-excerpt`, `pexlechris-adminer` (candidates for a later cleanup, after a check of their use in the content); Kaya QR Code Generator is **1.6.0** on production and 1.7.0 on testing, which is enough (`[kaya_qrcode_dynamic]` is there since 1.3.0, `content_url` since 1.5.0, the border since 1.6.0).
+The other plugins of the site (`nextgen-gallery`, `osm`, `simple-image-sizes`, `webspellchecker`, `consistency`, `advanced-post-excerpt`, `pexlechris-adminer`, and the ones that were not looked at) are **necessary for now** (Eric, 2026-10-14) and are not touched. Kaya QR Code Generator is **1.6.0** on production and 1.7.0 on testing, which is enough (`[kaya_qrcode_dynamic]` is there since 1.3.0, `content_url` since 1.5.0, the border since 1.6.0).
 
-## The script (to write once the prerequisites are met)
+## The script
 
-Order proposed, to be confirmed when it is written. **On production nothing is asked** (the validations are listed at the end), so the checks are the safety net, and what must be true of the container and the plugins is checked **first**, before the backup is made:
+```sh
+# staging: the clones on the state to try (a tag, a branch, rollout.sh update), the plugins copied from Gitea updated by hand, then
+rollouts/003-print-format.sh --site=staging
+# when it is right, tag what was rehearsed
+tools/staging/rollout.sh create --site=staging
+# production: the clones on the tag, the plugins copied from Gitea updated by hand, then
+tools/staging/rollout.sh apply N --site=prod
+rollouts/003-print-format.sh --site=prod --rollout=N
+```
 
-1. the versions, and the state before (`wp plugin list` with versions, since the plugins copied from Gitea are not tagged);
-2. a manual step: update the plugins copied from Gitea; then the functional checks above (the script stops if they fail);
-3. deactivate `wp-printable-gallery` and `wp-printable-qrcode` (Eric: at the start of the rollout; they stay installed; the QR code now comes from Kaya and the shortcode of slice 216);
-4. compare `?print` (production) with `?mode=print` (the site being rolled out), page by page, while `wp-pdf-helper` still works;
-5. `wp otherguise media migrate --dry-run`, read the report, then run it; the migration comes last because Media Helper lets both methods coexist;
-6. choose the method `otherguise` in Media Helper (to be done in the script once the name of the option is checked);
-7. compare again, and the list of photos of a sample of posts before and after (the same list, in the same order);
-8. check that Media Helper declares the types `gpx` and `vtt` (`get_allowed_mime_types()`), then deactivate the five plugins that are no longer needed (`burst-statistics`, `upgrade-for-unattach-re-attach-media-attachments`, `upload-media-exif-date`, `url-shortify`, `wp-extra-file-types`; a plugin that is not active is left alone, so the script can be run twice) and look at a page of each template;
-9. deactivate `wp-pdf-helper` (last), and compare the pages in the print mode one more time.
+The script runs **no git** and does **not update the plugins copied from Gitea** (Attached GPX and the others: they are not in the tag): it **checks them by what they do** and stops, before anything is changed, if one is not up to date. **On production nothing is asked**: the validations are shown and listed again at the end, so the checks are the safety net. Each step can be run twice.
+
+**Before the backup, read only (the preflight).** WP-CLI runs; the container has a MySQL client; `cron` runs and `/etc/cron.d/wp-cron` exists; `DISABLE_WP_CRON` is true; the active theme is the child theme; `wp-otherguise`, `wp-media-helper`, `wp-attached-gpx` and `kaya-qr-code-generator` are active; the command `wp otherguise media migrate` exists; the block `wp-media-helper/gallery` is registered; the block of Attached GPX has its four attributes (commit `e6d0bbe` or later); the shortcodes `modes_url` and `kaya_qrcode_dynamic` exist; Media Helper declares the types `gpx` and `vtt`; the six templates of the theme use the new gallery block and none of the old blocks. The backup of production comes after, so a missing client or a plugin that is not up to date costs nothing.
+
+**The steps, in this order**
+1. The versions of the clones, the plugins and the method in use before (the plugins copied from Gitea are noted: the tag does not say their version); on staging, a comparison with production **before any change**, to know what is already different.
+2. Deactivate `wp-printable-gallery` and `wp-printable-qrcode` (they stay installed); check that the old gallery block is gone from the print page of Repos à Madrid; a comparison.
+3. `wp otherguise media migrate --dry-run` (the report), then `wp otherguise media migrate`; then `wp option update wp_media_helper_attachment_method otherguise`.
+4. A check **per example post**: the web gallery lists every image attached to the post, and the print gallery those that the flag `wpdfh.print` marked (the same photos as the old `?print`); then, over HTTP as a visitor: on Repos à Madrid in print the map is 200px high, the gallery is the block of Media Helper, the QR code is a link to the web version, the link to the print mode is there, and `?print` still gives the mode print and its stylesheet; a comparison with production, in the same order of the photos.
+5. Deactivate the five plugins that are no longer needed (`burst-statistics`, `upgrade-for-unattach-re-attach-media-attachments`, `upload-media-exif-date`, `url-shortify`, `wp-extra-file-types`), check again that Media Helper declares `gpx` and `vtt`, and look at a page of each template (and upload a `.gpx` and a `.vtt` file once, to be sure).
+6. A last comparison while `wp-pdf-helper` still works, then deactivate **`wp-pdf-helper` last**; check that `?print` still gives the mode print and that the stylesheet of wp-pdf-helper is gone.
+7. All the plugins deactivated are inactive; the templates of the database hide no file of the theme; the plugins after; a comparison at the end and the look at the PHP error log.
+
+**If it stops:** the message says which check failed and, for the plugins copied from Gitea, what to update. Nothing was changed when it stops in the preflight. Once a step has run, going back is `wp plugin activate <plugin>` for each plugin and `wp option update wp_media_helper_attachment_method native`; the migration changed neither `post_parent` nor the flag.
+
+What the script cannot say: **the sample** (four example pages, one per template and the post of 83 images) is in the script (`SAMPLES`); the comparisons with the other site are done by Eric; the upload of a GPX or a VTT file is the only gesture that is asked in words and not checked.
 
 ## What to watch
 
@@ -144,8 +159,6 @@ Order proposed, to be confirmed when it is written. **On production nothing is a
 - **Going back:** reactivate the plugins with `wp plugin activate <plugin>` (`wp-pdf-helper`, `wp-printable-gallery`, `wp-printable-qrcode` and the five others); the migration did not change `post_parent` or the flag.
 
 ## Not in this rollout
-
-The other plugins that may be obsolete (`nextgen-gallery`, `osm`, `simple-image-sizes`, `webspellchecker`, `consistency`): to look at in a later cleanup, with a check of their use in the content.
 
 The order of the photos by date taken (a visible change, made later in Media Helper); the classes `author-line` and `title-part` (Eric: not a concern); `noindex` and `canonical` of the print mode (later slices of the Modes module).
 
