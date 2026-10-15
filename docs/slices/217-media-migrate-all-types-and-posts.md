@@ -27,3 +27,5 @@ PHPUnit (415 tests in all): `--mime=all` (a GPX file that does not satisfy the c
 ## Not in this slice
 
 A list of attachments instead of posts; a selection on the post type or the date; several criteria.
+
+**Tried on a real site since:** `--post-ids` on testing (2026-10-14); `--mime=all` has never been tried on a real site.

@@ -21,3 +21,5 @@ PHPUnit (405 tests): the hook of the filter and its answer (default mode, a defa
 ## Not in this slice
 
 `modes_option`, the registration of options by other plugins, and the screen to set them (slice 208).
+
+**Tried on a real site since:** the gallery block of Media Helper (`wp-media-helper/gallery`) uses the filter `modes_active_mode` as its context, and the native-links filter before the migration, on testing (2026-10-14), staging and production (rollout 003, 2026-10-15).

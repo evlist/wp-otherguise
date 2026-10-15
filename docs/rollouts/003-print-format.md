@@ -3,7 +3,7 @@
 
 # Rollout 003: the print format comes from the modes
 
-Status: **script written** ([`rollouts/003-print-format.sh`](../../rollouts/003-print-format.sh), tried with stand-ins only: 76 tests), **to rehearse on staging**. Tag: `rollout-N` (filled in by `rollout.sh create`). Depends on [002](002-child-theme.md) being applied: the child theme is active and the variants are declared for it.
+Status: **applied on production on 2026-10-15**, after a rehearsal on staging the same day, to the end and with the validations. Tag `rollout-3`. The script is [`rollouts/003-print-format.sh`](../../rollouts/003-print-format.sh). Depends on [002](002-child-theme.md) (applied): the child theme is active and the variants are declared for it.
 
 ## Goal and visible effect
 
@@ -164,8 +164,91 @@ The order of the photos by date taken (a visible change, made later in Media Hel
 
 ## Versions
 
-(Pasted from `rollout.sh create --site=staging` when the rollout is created.)
+`rollout.sh create --site=staging` (2026-10-15), tag `rollout-3`; production was put on it with `rollout.sh apply 3 --site=prod`:
+
+| Repository | Commit |
+|---|---|
+| `wp-twenty-twenty-five-printable` | `11961cb` |
+| `wp-otherguise` | `702d852` |
+| `wp-media-helper` | `e06ac3d` |
+| `wp-scatter-elsewhere` | `60439b9` (already at the tag) |
+
+The script rehearsed is the one of `wp-otherguise` at that commit (the script and the library; a later change makes production refuse it). The plugins that are copies from Gitea are not in the tag; their versions on both sites are in the log (Attached GPX 0.1.0 with the four attributes, Kaya QR Code Generator 1.6.0, WP GPX Maps 1.7.10).
 
 ## Log
 
-(Date, site, who ran it, what differed from the text and the correction made to it.)
+- **2026-10-15, staging** (Eric). A first launch was interrupted (`^C`) at the first validation, before any change. The second ran to the end with the validations (59 steps): the preflight passed (16 checks), 8 plugins deactivated, the migration created 22 370 links (20 020 in `web`, 2 350 in `web,print`), the method became `otherguise`, the checks over HTTP passed. The script recorded the rehearsal.
+- **2026-10-15, production** (Eric), about 17:55: `rollout.sh apply 3 --site=prod`, then `rollouts/003-print-format.sh --rollout=3 --site=prod`; the preflight passed (16 checks), the database was backed up (242 069 690 bytes, `~/rollout-backups/before-003-print-format-20261015-175535.sql`), the clones were on `rollout-3` and the commits were those that were rehearsed. The migration created **22 370 links**, the same numbers as on staging. Its duration was **not measured**; Eric estimates less than five minutes, dry run included. 57 steps; nothing was asked (the validations are listed at the end). Eric: "c'est bon". What the list "to look at now" asks (the comparisons, the upload of a `.gpx` and a `.vtt` file, the error log) was not reported in detail.
+
+The log of the run on production (abridged: the texts of the comparisons, the same at each validation, and the lists of the plugins are cut; the whole file is `~/rollout-logs/003-print-format-prod-20261015-175517.log`):
+
+```
+Rollout 003-print-format on the prod site (docker-e-vli-st_wordpress_1)
+This changes PRODUCTION (docker-e-vli-st_wordpress_1). Type the name of the container to go on: docker-e-vli-st_wordpress_1
+
+Preflight: what must be true before the backup and the first change
+STEP 1  OK  WP-CLI runs in the container
+STEP 2  OK  the container has a MySQL client (the backup of production needs it)
+STEP 3  OK  cron runs in the container
+STEP 4  OK  the file of cron exists (/etc/cron.d/wp-cron)
+STEP 5  OK  WP-Cron triggered by the visits is disabled (DISABLE_WP_CRON is true)
+STEP 6  OK  the active theme is wp-twenty-twenty-five-printable (rollout 002)
+STEP 7  OK  the plugin wp-otherguise is active
+STEP 8  OK  the plugin wp-media-helper is active
+STEP 9  OK  the plugin wp-attached-gpx is active
+STEP 10  OK  the plugin kaya-qr-code-generator is active
+STEP 11  OK  the command wp otherguise media migrate exists (Otherguise is up to date)
+STEP 12  OK  the gallery block wp-media-helper/gallery is registered (update Media Helper)
+STEP 13  OK  the block of Attached GPX has its attributes mapHeight, graphHeight, showAttachments, showDownload (...)
+STEP 14  OK  the shortcodes modes_url (Otherguise) and kaya_qrcode_dynamic (Kaya) exist
+STEP 15  OK  Media Helper declares the types gpx and vtt (wp-extra-file-types is no longer needed)
+STEP 16  OK  the six templates of the theme use the block wp-media-helper/gallery and none of the old blocks
+
+Backup of the database of production: /home/vdv/rollout-backups/before-003-print-format-20261015-175535.sql
+Backed up: 242069690 bytes.
+The repositories of production must be on rollout-3
+Every repository of the prod site is on rollout-3.
+OK  the commits of rollout-3 are those that were rehearsed on staging
+
+STEP 17  STATE   The plugins, before (the ones copied from Gitea are not in the tag)       [list of the plugins]
+STEP 18  STATE   The method of attachment of Media Helper, before: native
+STEP 19  CHANGE  Deactivate the plugin wp-printable-gallery
+STEP 20  CHANGE  Deactivate the plugin wp-printable-qrcode
+STEP 21  OK  the old gallery block is gone from the print page of /2025/10/03/repos-a-madrid/
+STEP 22  LATER   AFTER wp-printable-gallery AND wp-printable-qrcode WERE DEACTIVATED      [comparison]
+STEP 23  STATE   The migration, read first (dry run)
+  20020 in web
+  2350 in web,print
+Dry run, nothing written: 22370 link(s) to create, 0 already linked, 0 skipped.
+STEP 24  CHANGE  Migrate the attachments into links (wp otherguise media migrate)
+  20020 in web
+  2350 in web,print
+Done: 22370 link(s) created, 0 already linked, 0 skipped.
+STEP 25  CHANGE  Choose the method otherguise in Media Helper
+STEP 26  OK  the method of Media Helper is otherguise
+STEP 27  OK  on the example pages the web gallery lists every attached image and the print gallery those that were flagged (wpdfh.print)
+STEP 28  LATER   AFTER THE MIGRATION AND THE CHOICE OF THE METHOD                          [comparison]
+STEP 29  OK  /2025/10/03/repos-a-madrid/ in print: the map is 200px high (attributes of the GPX block)
+STEP 30  OK  /2025/10/03/repos-a-madrid/ in print: the gallery is the block of Media Helper
+STEP 31  OK  /2025/10/03/repos-a-madrid/ in print: the QR code is a link to the web version
+STEP 32  OK  /2025/10/03/repos-a-madrid/ as it is: the link to the print mode is there
+STEP 33  OK  /2025/10/03/repos-a-madrid/ with ?print: the mode print and its stylesheet are there
+STEP 34 to 38  CHANGE  Deactivate burst-statistics, upgrade-for-unattach-re-attach-media-attachments, upload-media-exif-date, url-shortify, wp-extra-file-types
+STEP 39  OK  Media Helper still declares the types gpx and vtt
+STEP 40  LATER   AFTER THE FIVE PLUGINS THAT WERE NO LONGER NEEDED WERE DEACTIVATED
+STEP 41  LATER   BEFORE wp-pdf-helper IS DEACTIVATED (the last step)                       [comparison]
+STEP 42  CHANGE  Deactivate the plugin wp-pdf-helper
+STEP 43  OK  wp-pdf-helper is not active
+STEP 44  OK  /2025/10/03/repos-a-madrid/ with ?print: the mode print and its stylesheet are still there
+STEP 45  OK  /2025/10/03/repos-a-madrid/ with ?print: the stylesheet of wp-pdf-helper is gone
+STEP 46 to 53  OK  the eight plugins are not active
+STEP 54  OK  no database copy hides a file of the theme
+STEP 55  STATE   The plugins, after                                                         [list of the plugins]
+STEP 56  LATER   AT THE END                                                                  [comparison]
+STEP 57  LATER   The PHP error log has nothing new (wp-content/debug.log).
+
+DONE  003-print-format on the prod site (57 steps)
+```
+
+- **Not done in the script, to do by hand:** upload one `.gpx` and one `.vtt` file to be sure they are accepted, look at one page of each template as it is and in the print mode, and read the error log.
+- **Left for later:** the line `'orderby' => 'title'` of the copy of `wp-printable-gallery` installed on production is not in its repository on Gitea (to commit, to keep the trace of the behaviour of the old site); the order of the photos by date taken (`"orderby":"date"`).

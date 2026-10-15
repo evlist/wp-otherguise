@@ -29,3 +29,5 @@ Several criteria, operators other than "equal" and "not empty", regular expressi
 ## Verified
 
 PHPUnit with a database (`MediaMigrationDbTest`, 409 tests in all): the criterion reaches the source (default and given), `restrict_mode` and the old `print_mode`, the MIME family, `AttachmentSource::matches` (not empty, equal, non-scalar values, compared as text), the options of the command and the warning. **Not tried again with the real WP-CLI** on a scratch site (the check of slice 211 had 12 checks): the options are the only change, but `AttachmentSource::batch` reading an arbitrary meta key is only exercised by the stub in PHPUnit.
+
+**Tried on a real site since:** the command with its default criterion ran on testing, staging and production (22 130 and 22 370 links); `--meta-key`, `--meta-value`, `--restrict-mode` were never tried with other values.

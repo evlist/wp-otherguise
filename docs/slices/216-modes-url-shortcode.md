@@ -29,3 +29,5 @@ PHPUnit (413 tests): the address in the default mode and in another one, `post`,
 ## Not in this slice
 
 A block that would do the same (a block cannot feed another block); a context key for the blocks inside `modes/link` (a possible later slice, if a block must sit inside a link to a mode).
+
+**Tried on a real site since:** `[modes_url mode="web"]` inside `[kaya_qrcode_dynamic]` in the block Shortcode of the print templates, with Kaya 1.6.0 and 1.7.0: the QR code is a link to the permalink of the web version (testing 2026-10-14, then staging and production in rollout 003, 2026-10-15).

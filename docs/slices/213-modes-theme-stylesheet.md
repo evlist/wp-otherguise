@@ -24,3 +24,5 @@ On a real WordPress site: `find_theme_file` (the core functions `get_theme_file_
 ## Not in this slice
 
 Showing the theme file read-only in the Stylesheets screen.
+
+**Tried on a real site since:** the print stylesheet of the theme loads in the mode print (rollout 002 on staging and production, rollout 003).
