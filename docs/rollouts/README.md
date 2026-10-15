@@ -1,6 +1,8 @@
 <!-- SPDX-FileCopyrightText: 2026 Eric van der Vlist <vdv@dyomedea.com> -->
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 
+> **Moved.** The staging tools, the rollouts and their documents now live in the repository [`evlist/shared-room`](https://github.com/evlist/shared-room) (same paths). This copy is kept until the move is confirmed and will then be removed: edit the one in `shared-room`.
+
 # Rollouts
 
 One file per iteration of the move of Eric's blog towards the modes and the books: what is done, in which order, how to check it and how to go back. The method is in [`../design/rollout.md`](../design/rollout.md); the tools are in [`../../tools/staging/`](../../tools/staging/README.md). The procedure of an iteration is a **script** ([`../../rollouts/`](../../rollouts/), one per rollout, built on [`rollout-lib.sh`](../../tools/staging/rollout-lib.sh)) that runs the commands, checks and asks the validations and the manual gestures; this directory keeps the story of each one. The script is rehearsed on staging as often as needed and run on production when it is right; production refuses a script that was not rehearsed to the end on staging.

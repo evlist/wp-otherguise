@@ -1,6 +1,8 @@
 <!-- SPDX-FileCopyrightText: 2026 Eric van der Vlist <vdv@dyomedea.com> -->
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 
+> **Moved.** The staging tools, the rollouts and their documents now live in the repository [`evlist/shared-room`](https://github.com/evlist/shared-room) (same paths). This copy is kept until the move is confirmed and will then be removed: edit the one in `shared-room`.
+
 # Three sites: production, staging, testing
 
 **Decided** (Eric, 2026-10-12): there are three sites. **Production** (`e.vli.st`). **Staging** (today's `sb.vli.st`, renamed by its role): a fresh copy of production, pinned on a rollout, where a procedure is rehearsed. **Testing**: another copy, which follows the development branches and where anything goes, with the real articles and photos. The scripts of this directory work on the three: [`sync-site.sh`](sync-site.sh) copies production onto staging or testing (`--target=`), [`set-environment.sh`](set-environment.sh) declares what a site is, [`rollout.sh`](rollout.sh) puts the same versions of the plugins on staging and on production (see the end of this page).

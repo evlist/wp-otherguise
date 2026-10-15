@@ -1,6 +1,8 @@
 <!-- SPDX-FileCopyrightText: 2026 Eric van der Vlist <vdv@dyomedea.com> -->
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 
+> **Moved.** The staging tools, the rollouts and their documents now live in the repository [`evlist/shared-room`](https://github.com/evlist/shared-room) (same paths). This copy is kept until the move is confirmed and will then be removed: edit the one in `shared-room`.
+
 # Rolling out to the production blog
 
 How the work of this plugin reaches Eric's production blog: small steps, each one rehearsed on a staging site first. The goal behind it is to use the `Books` module to produce a first book; everything below is a means to move the blog towards it without breaking it. Points are marked **Decided** (Eric accepted it), **Proposed** (suggested by Claude, not confirmed) or **Open**.
