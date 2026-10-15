@@ -32,4 +32,4 @@ On the blog: the variants of the three pairs of templates; the cost of the comma
 
 ## Not in this slice
 
-Adding and removing a variant from the command line (`variant add`, `variant remove`): on the list of [`../design/rollout.md`](../design/rollout.md), written when a rollout needs them.
+Adding and removing a variant from the command line (`variant add`, `variant remove`): on the list of [`../design/rollout.md`](https://github.com/evlist/shared-room/blob/main/docs/design/rollout.md), written when a rollout needs them.
