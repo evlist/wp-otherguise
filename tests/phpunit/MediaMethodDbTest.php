@@ -13,6 +13,7 @@ use Otherguise\Core\Modules;
 use Otherguise\Media\Link\Links;
 use Otherguise\Media\Method\MediaHelperMethod;
 use Otherguise\Media\Module as MediaModule;
+use Otherguise\Triples\Entity\Ref;
 
 require_once __DIR__ . '/support/class-otherguise-test-database-case.php';
 require_once __DIR__ . '/support/class-otherguise-test-fixtures.php';
@@ -463,6 +464,7 @@ class MediaMethodDbTest extends Otherguise_Test_Database_Case {
 				'triples_register_predicates'       => array( array( 'register_predicate', 10, 1 ) ),
 				'wp_media_helper_attachment_methods' => array( array( 'add_method', 10, 1 ) ),
 				'wp_media_helper_native_links_in_context' => array( array( 'native_links_in_context', 10, 3 ) ),
+				'wp_media_helper_attachments_removed' => array( array( 'forget_removed', 10, 2 ) ),
 				'cli_init'                          => array( array( 'register_command', 10, 0 ) ),
 			),
 			$hooks
@@ -491,5 +493,43 @@ class MediaMethodDbTest extends Otherguise_Test_Database_Case {
 
 		Modules::set( null );
 		$this->assertSame( array( 'native' => 'x' ), $module->add_method( array( 'native' => 'x' ) ), 'Without the modules: nothing added.' );
+	}
+
+	/**
+	 * Slice 218: the links of the removed attachments go, with their modes and rank; the others stay.
+	 *
+	 * @return void
+	 */
+	public function test_forget_removed_attachments(): void {
+		$module = new MediaModule( static function () {}, static fn() => 1 );
+
+		$this->method->attach( 88, 12, array( 'position' => 2 ) );
+		$this->method->attach( 88, 13, array() );
+		$this->method->attach( 90, 12, array() );
+		$this->method->attach( 91, 14, array() );
+
+		$before = $this->total();
+
+		$module->forget_removed( array( 88 ), 'orphan' );
+		$this->assertSame( $before, $this->total(), 'Without the modules: nothing happens.' );
+
+		Modules::set( new ModuleLoader( array( $this->site->triples, $this->site->modes ), array( 'triples', 'modes' ) ) );
+
+		$module->forget_removed( 'not an array' );
+		$module->forget_removed( array( 0, 'x', -3 ) );
+		$this->assertSame( $before, $this->total(), 'Nothing that is an id: nothing happens.' );
+
+		$module->forget_removed( array( 88, '88', 0 ), 'duplicate' );
+
+		$this->assertSame( array(), $this->site->statements->match( null, null, Ref::attachment( 88 ) ), 'Links to 88 gone.' );
+		$this->assertCount( 1, $this->site->statements->match( null, null, Ref::attachment( 90 ) ) );
+		$this->assertCount( 1, $this->site->statements->match( null, null, Ref::attachment( 91 ) ) );
+		$this->assertLessThan( $before, $this->total(), 'The modes and the rank of the links to 88 went too.' );
+
+		$after = $this->total();
+		$module->forget_removed( array( 88 ) );
+		$this->assertSame( $after, $this->total(), 'Idempotent.' );
+
+		Modules::set( null );
 	}
 }

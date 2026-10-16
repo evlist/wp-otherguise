@@ -18,6 +18,7 @@ use Otherguise\Media\Method\MediaHelperMethod;
 use Otherguise\Media\Method\PostParents;
 use Otherguise\Media\Migration\AttachmentSource;
 use Otherguise\Media\Migration\NativeLinksMigration;
+use Otherguise\Triples\Entity\Ref;
 use Otherguise\Triples\Predicate\PredicateDefinition;
 
 defined( 'ABSPATH' ) || exit;
@@ -97,7 +98,32 @@ final class Module implements ModuleInterface {
 		( $this->add_action )( 'triples_register_predicates', array( $this, 'register_predicate' ), 10, 1 );
 		( $this->add_action )( 'wp_media_helper_attachment_methods', array( $this, 'add_method' ), 10, 1 );
 		( $this->add_action )( 'wp_media_helper_native_links_in_context', array( $this, 'native_links_in_context' ), 10, 3 );
+		( $this->add_action )( 'wp_media_helper_attachments_removed', array( $this, 'forget_removed' ), 10, 2 );
 		( $this->add_action )( 'cli_init', array( $this, 'register_command' ), 10, 0 );
+	}
+
+	/**
+	 * Forgets the links of the attachments that Media Helper has removed, in case the removal did not fire `deleted_post` (slice 218).
+	 * Action `wp_media_helper_attachments_removed`.
+	 *
+	 * @param mixed  $ids    Ids of the removed attachments.
+	 * @param string $reason Why they were removed; not used.
+	 * @return void
+	 */
+	public function forget_removed( $ids, $reason = '' ) {
+		unset( $reason );
+
+		$triples = Modules::get( 'triples' );
+
+		if ( ! is_array( $ids ) || ! $triples instanceof \Otherguise\Triples\Module ) {
+			return;
+		}
+
+		foreach ( array_unique( array_filter( array_map( 'intval', $ids ) ) ) as $id ) {
+			if ( $id > 0 ) {
+				$triples->statements()->forget( Ref::attachment( $id ) );
+			}
+		}
 	}
 
 	/**
