@@ -34,6 +34,9 @@ So the editor is not the place to compute the fit. The real rendering is.
 
 10. **Freshness is one question for the whole page, not only for Media Helper** (Eric, 2026-10-20): the rendering also changes with the title, the content, the excerpt and the featured image, which are WordPress core data. An automatic refresh that follows Media Helper only would be incomplete: if the panel refreshes itself, it must do it for the core changes as well.
 
+11. **A floating panel** (Eric, 2026-10-21, from a screenshot of the editor): Media Helper occupies the sidebar of the editor (a plugin sidebar), and the editor shows **one sidebar at a time**, so a second sidebar could not be open together with it. A floating panel lets Eric see the preview **while** choosing the photos with Media Helper. The side panel option is dropped for this version.
+12. **First version = steps 1 and 2 of "Keeping the preview up to date"**: the **Refresh** button with the "out of date" mark on a dirty post, and the refresh after each **Update**. The Media Helper hook, the live preview of unsaved changes and any refresh on every change are left for later.
+
 **Reservation (Eric):** the preview could be more useful than a print preview: to **preview a post being edited, whatever the mode**. If so, `Books` is too narrow a home. Consequence recorded here, **Proposed**: build the panel **independent of the print mode** from the start, a component that takes a mode as a parameter (a selector in the panel, `print` by default), whose **page frame** (size, margins, usable part, verdict) is an optional layer enabled when the mode has a page format. The component must not use the internal classes of `Books`, so that it can be moved later to `Modes`, to a module of its own (for example `Preview`, depending on `Modes`) or to a plugin, without a rewrite. Open: where it lives finally; decided when the second use (another mode, or drafts) is wanted.
 
 The child theme has its own repository, [`evlist/wp-twenty-twenty-five-printable`](https://github.com/evlist/wp-twenty-twenty-five-printable): `modes/print.css` and the templates are there; it defines no `@page` today.
@@ -65,7 +68,7 @@ First version: the **Refresh** button plus the "out of date" mark on a dirty pos
 
 1. Where in the settings the format and the margins are configured (global, decision 8), and whether a single configuration also writes the `@page` of the theme (above).
 2. Format of the page to start with (A5, A4, square), one page per post or several; is an overflow onto a second page an error or only a note?
-3. Side panel (narrow, small scale) or floating panel (movable, larger)? Both can show the same component.
+3. The floating panel (decision 11): how it is opened (a button of the toolbar of the editor, a shortcut), whether it can be moved and resized, and whether its position and size are remembered (in the browser of the user). Resized, the page keeps its proportion.
 4. `iframe` only, or an `iframe` plus a `canvas` for the frames and the verdict? The measure is an approximation: lazy-loaded images, `break-inside` and fixed boxes may change the height; the engine of the final PDFs is not chosen.
 5. The hook asked of Media Helper for later (decision 9): its name and arguments (an event after an attachment or a detachment, with the post and the attachment) are to be agreed with the Media Helper session; nothing is assumed about what exists today.
 6. Capability: the panel appears for those who can edit the post; no other privilege.
