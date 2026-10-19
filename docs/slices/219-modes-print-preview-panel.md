@@ -3,7 +3,7 @@
 
 # Slice 219 — Books: a print preview panel in the post editor
 
-Status: **draft, no code**. Eric's precisions of 2026-10-19 and 2026-10-20 are recorded as **Decided** below; everything else is **Proposed** or **Open** until Eric confirms. Dependencies: slices 200 (modes), 202 (variants) and 213 (stylesheet of a mode). Module: `Books` (see **Decided**, with a reservation of Eric).
+Status: **first version planned in detail (below), no code yet**; Eric's go is needed to start. Eric's precisions of 2026-10-19 and 2026-10-20 are recorded as **Decided** below; everything else is **Proposed** or **Open** until Eric confirms. Dependencies: slices 200 (modes), 202 (variants) and 213 (stylesheet of a mode). Module: `Books` (see **Decided**, with a reservation of Eric).
 
 ## Goal
 
@@ -77,6 +77,42 @@ First version: the **Refresh** button plus the "out of date" mark on a dirty pos
 7. The final home of the component after the reservation of decision 6 (kept in `Books`, or lifted out when the preview of another mode or of a draft is wanted).
 8. Which of the refresh steps above are wanted, and whether a live preview of unsaved changes is ever wanted.
 9. Drafts and unsaved changes stay out of the first version (decisions 1 and 12). The preview address honours the mode (decision 13); the open points are the autosave of a published post and the link given by the editor.
+
+## Detailed plan of the first version (Proposed, to confirm before any code)
+
+Scope = decisions 1, 2, 3, 4, 6–9, 11, 12 and 13 of **Decided**. Default format **A5, 148 × 210 mm, margins 10 mm** (Eric, 2026-10-21); an overflow is reported as "overflows by N mm", with no verdict of error.
+
+### Server side (module `Books`, namespace `Otherguise\Books\`)
+
+- **`Settings\PageFormat`**: reads and sanitises the option `books_page_format` (an array `width_mm`, `height_mm`, `margin_mm`). Defaults 148, 210, 10. Bounds: width and height between 50 and 1000 mm, margin from 0 up to less than half of the smaller side; a value out of bounds, or not a number, falls back to the default of that field. Pure PHP, no WordPress call but `get_option`/`apply_filters` passed in, so it is tested without WordPress.
+- **Settings screen** **Settings → Otherguise books** (Settings API, so the nonce is checked by WordPress): three number fields in millimetres. Capability `manage_options`, changed by the filter `books_admin_capability`. The label says that the numbers are used by the preview only, until the `@page` of the theme reads them (open question 1).
+- **`Module::boot()`** registers the screen and the editor script; **`Module::uninstall()`** deletes the option. Hooks are prefixed `books_`, the option too (module rules of `docs/IA.md`).
+- **Editor assets** on `enqueue_block_editor_assets`, only for a user who can edit the post being edited: the script `plugin/modules/books/editor/preview/preview.js` (+ `preview.asset.php`, `preview.css`), and an inline `window.booksPreview = { page: {...}, modes: [...], defaultMode: 'print', frameModes: ['print'] }` (the modes come from `Modes`, the frame is drawn for the modes of the filter `books_preview_frame_modes`, `print` by default).
+- **Admin bar in the iframe**: the iframe is loaded with the argument `books_preview=1`; on the front end the filter `show_admin_bar` answers false for it (cosmetic only, nothing is shown that a logged-in user would not see). Priority 10, documented as shared with other plugins.
+
+### Editor side (plain JavaScript, no build step, like `modes/link`)
+
+- **`geometry.js`** (pure functions, tested with jsdom/node): millimetres to CSS pixels (96 dpi), the frame of the page at a scale, the usable part, the overflow in mm from a measured height, the address of the iframe (permalink of the published post, preview link otherwise, plus `mode` and `books_preview`), and the "stale" rule.
+- **`preview.js`**: a plugin registered with `wp.plugins.registerPlugin`, a **menu item "Print preview"** in the options menu of the editor (`PluginMoreMenuItem`) that opens or closes a **floating panel** (a fixed-position box with a title bar to drag, a **Refresh** button, a mode selector, a close button, and a resize handle that keeps the proportion). It shows the page frame, the usable part inside it, the `iframe` (laid out at the usable width and clipped to the usable height, then scaled to the panel), and the line "fits" or "overflows by N mm" with the measured height. Position and size are kept in the browser (`localStorage` in a try/catch; the panel works without it).
+- **Measure**: after the iframe `load` event and once the images in it have loaded (their `load`/`error` events, with a time limit), the height of the document of the iframe (`documentElement.scrollHeight`) is read; same origin, so allowed.
+- **Stale and refresh**: a subscription to the `core/editor` store sets "out of date" when `isEditedPostDirty()`; the iframe is reloaded when a save ends without failing (`isSavingPost()` goes from true to false, `didPostSaveRequestSucceed()`), **not** on an autosave (`isAutosavingPost()`), and on the **Refresh** button.
+
+### Order of work (test first)
+
+1. `PageFormat` and its tests (defaults, bounds, fallbacks).
+2. Settings screen, option, `uninstall`, capability and nonce tests.
+3. `geometry.js` and its tests.
+4. The editor script with a fake `wp` (jsdom): opening, the frame, the verdict, stale, reload after save and not after an autosave.
+5. Server hooks (`enqueue`, `show_admin_bar`) and the architecture test (`Books` depends on `Triples` and `Modes`, nothing else).
+6. `docs/wp-cli.md` is not concerned; the slice index and `IA.md` current state are updated.
+
+### Entry points and checks (conventions of the project)
+
+An admin screen (capability and nonce), no REST route, no WP-CLI command. Strings are translatable (text domain `otherguise`); the SPDX header is on every file; `uninstall` is part of the slice.
+
+### Honest verification (to fill in when built)
+
+Under PHPUnit and jsdom only: the format, the settings, the geometry, the stale rule. **Never tried** until Eric tries it on testing: the menu item and the floating panel in the real editor, the measure on a real page (the print template has no page format, so the width of the layout may differ from the printed one), the admin bar filter, the images that load late, the behaviour with Media Helper open next to it.
 
 ## To verify when built
 
