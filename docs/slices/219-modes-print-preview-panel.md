@@ -3,7 +3,7 @@
 
 # Slice 219 — Modes: a print preview panel in the post editor
 
-Status: **draft, no code**. Eric's precisions of 2026-10-19 are recorded as **Decided** below; everything else is **Proposed** or **Open** until Eric confirms. Dependencies: slices 200 (modes), 202 (variants) and 213 (stylesheet of a mode). Module: `Modes`, unless a later book module is a better home (open).
+Status: **draft, no code**. Eric's precisions of 2026-10-19 and 2026-10-20 are recorded as **Decided** below; everything else is **Proposed** or **Open** until Eric confirms. Dependencies: slices 200 (modes), 202 (variants) and 213 (stylesheet of a mode). Module: `Books` (see **Decided**, with a reservation of Eric).
 
 ## Goal
 
@@ -26,6 +26,12 @@ So the editor is not the place to compute the fit. The real rendering is.
 4. **A window proportional to the page**, in an `iframe` (and/or a `canvas`), and possibly the **usable part** of the page (the page minus the margins) shown too.
 5. **A side panel or a floating one** (the choice stays open).
 
+6. **Home: the module `Books`** of Otherguise (depends on `Triples` and `Modes`), not `Modes` (which knows which version of a page, not the paper) and not a new plugin for now. `Books` holds the configuration of the page, its settings screen and the preview panel; the address of the page in a mode comes from `Modes` (`modes_url()`).
+7. **Every post can be part of a book**, so the panel is for every post, not only for some.
+8. **Global settings for now** (page size and margins). When the definition of the books progresses, they may **migrate** to the books themselves.
+
+**Reservation (Eric):** the preview could be more useful than a print preview: to **preview a post being edited, whatever the mode**. If so, `Books` is too narrow a home. Consequence recorded here, **Proposed**: build the panel **independent of the print mode** from the start, a component that takes a mode as a parameter (a selector in the panel, `print` by default), whose **page frame** (size, margins, usable part, verdict) is an optional layer enabled when the mode has a page format. The component must not use the internal classes of `Books`, so that it can be moved later to `Modes`, to a module of its own (for example `Preview`, depending on `Modes`) or to a plugin, without a rewrite. Open: where it lives finally; decided when the second use (another mode, or drafts) is wanted.
+
 The child theme has its own repository, [`evlist/wp-twenty-twenty-five-printable`](https://github.com/evlist/wp-twenty-twenty-five-printable): `modes/print.css` and the templates are there; it defines no `@page` today.
 
 ## Proposal
@@ -44,13 +50,14 @@ The child theme has its own repository, [`evlist/wp-twenty-twenty-five-printable
 
 ## Open questions (do not assume)
 
-1. Where the format and the margins are configured, and whether a single configuration also writes the `@page` of the theme (above).
+1. Where in the settings the format and the margins are configured (global, decision 8), and whether a single configuration also writes the `@page` of the theme (above).
 2. Format of the page to start with (A5, A4, square), one page per post or several; is an overflow onto a second page an error or only a note?
 3. Side panel (narrow, small scale) or floating panel (movable, larger)? Both can show the same component.
 4. `iframe` only, or an `iframe` plus a `canvas` for the frames and the verdict? The measure is an approximation: lazy-loaded images, `break-inside` and fixed boxes may change the height; the engine of the final PDFs is not chosen.
 5. Does Media Helper emit a JavaScript event after a change of attachments, to refresh the preview? (Its changes go through REST without saving the post, and the iframe shows the saved page.)
 6. Capability: the panel appears for those who can edit the post; no other privilege.
-7. Drafts and unsaved changes are out of scope for now (decision 1); later, the preview address of WordPress would be needed, and whether it honours `?mode=print` is untried.
+7. The final home of the component after the reservation of decision 6 (kept in `Books`, or lifted out when the preview of another mode or of a draft is wanted).
+8. Drafts and unsaved changes are out of scope for now (decision 1); later, the preview address of WordPress would be needed, and whether it honours `?mode=print` is untried.
 
 ## To verify when built
 
