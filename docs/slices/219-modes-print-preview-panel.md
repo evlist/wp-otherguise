@@ -32,6 +32,8 @@ So the editor is not the place to compute the fit. The real rendering is.
 
 9. **The preview is refreshed on demand** (a **Refresh** button), in a first version. The result changes at each attachment or detachment of a photo in print mode (through Media Helper, without saving the post), and also after an **Update** of the post. Later, Media Helper will be asked to add a hook (a JavaScript event after a change of attachments) so that the panel refreshes itself; that request is not made yet.
 
+10. **Freshness is one question for the whole page, not only for Media Helper** (Eric, 2026-10-20): the rendering also changes with the title, the content, the excerpt and the featured image, which are WordPress core data. An automatic refresh that follows Media Helper only would be incomplete: if the panel refreshes itself, it must do it for the core changes as well.
+
 **Reservation (Eric):** the preview could be more useful than a print preview: to **preview a post being edited, whatever the mode**. If so, `Books` is too narrow a home. Consequence recorded here, **Proposed**: build the panel **independent of the print mode** from the start, a component that takes a mode as a parameter (a selector in the panel, `print` by default), whose **page frame** (size, margins, usable part, verdict) is an optional layer enabled when the mode has a page format. The component must not use the internal classes of `Books`, so that it can be moved later to `Modes`, to a module of its own (for example `Preview`, depending on `Modes`) or to a plugin, without a rewrite. Open: where it lives finally; decided when the second use (another mode, or drafts) is wanted.
 
 The child theme has its own repository, [`evlist/wp-twenty-twenty-five-printable`](https://github.com/evlist/wp-twenty-twenty-five-printable): `modes/print.css` and the templates are there; it defines no `@page` today.
@@ -44,6 +46,15 @@ The child theme has its own repository, [`evlist/wp-twenty-twenty-five-printable
 2. **The size.** The iframe has the width and height of the page of the book (for example about 559 × 794 px for A5 at 96 dpi), reduced with `transform: scale()` to fit the panel.
 3. **The usable part and the verdict.** The page is drawn as a frame in proportion to the configured size, and the margins as an inner frame (the usable part). The The editor script is on the same origin, so it can read the height of the document of the iframe once it has loaded (images included) and compare it with the height of the usable part: a light "fits / overflows by N px" shown next to the preview. Only an indication (decision 2).
 4. **Fresh content.** The iframe shows what is saved (the permalink, decision 1), and it reloads on the **Refresh** button (decision 9) and after each **Update** of the post. Media Helper changes go through REST without saving the post, so until it offers a hook the user presses **Refresh**.
+
+### Keeping the preview up to date (Proposed)
+
+Two kinds of change, which do not behave the same way:
+
+- **Core fields of the post** (title, content, excerpt, featured image, template): they live in the data store of the editor (`core/editor`) and reach the database only on **Update** (or on the autosave, which for a published post is stored apart and not shown by the permalink). The iframe shows the saved page. So the panel can **detect** that the edited post differs from the saved one (the editor knows when the post is dirty) and show an **"out of date"** mark on the preview; the page itself is refreshed after the **Update**.
+- **Media Helper attachments**: written to the database at once by REST, without touching the post. Today nothing tells the panel; later the hook of decision 9.
+
+First version: the **Refresh** button plus the "out of date" mark on a dirty post (cheap, no change to the server). Then, in this order and each one optional: refresh by itself after an **Update**; a refresh on the Media Helper hook; a **live** preview of unsaved changes, which needs the preview address of WordPress (it renders the autosave of a published post) or a render of the edited content on the server, and which is the point left out by decision 1. Open whether an automatic refresh on every change is wanted at all (it costs a full render of the page each time; a short delay after the last change would be needed).
 
 ## Prerequisites
 
@@ -59,7 +70,8 @@ The child theme has its own repository, [`evlist/wp-twenty-twenty-five-printable
 5. The hook asked of Media Helper for later (decision 9): its name and arguments (an event after an attachment or a detachment, with the post and the attachment) are to be agreed with the Media Helper session; nothing is assumed about what exists today.
 6. Capability: the panel appears for those who can edit the post; no other privilege.
 7. The final home of the component after the reservation of decision 6 (kept in `Books`, or lifted out when the preview of another mode or of a draft is wanted).
-8. Drafts and unsaved changes are out of scope for now (decision 1); later, the preview address of WordPress would be needed, and whether it honours `?mode=print` is untried.
+8. Which of the refresh steps above are wanted, and whether a live preview of unsaved changes is ever wanted.
+9. Drafts and unsaved changes are out of scope for now (decision 1); later, the preview address of WordPress would be needed, and whether it honours `?mode=print` is untried.
 
 ## To verify when built
 
