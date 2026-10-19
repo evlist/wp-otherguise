@@ -30,6 +30,8 @@ So the editor is not the place to compute the fit. The real rendering is.
 7. **Every post can be part of a book**, so the panel is for every post, not only for some.
 8. **Global settings for now** (page size and margins). When the definition of the books progresses, they may **migrate** to the books themselves.
 
+9. **The preview is refreshed on demand** (a **Refresh** button), in a first version. The result changes at each attachment or detachment of a photo in print mode (through Media Helper, without saving the post), and also after an **Update** of the post. Later, Media Helper will be asked to add a hook (a JavaScript event after a change of attachments) so that the panel refreshes itself; that request is not made yet.
+
 **Reservation (Eric):** the preview could be more useful than a print preview: to **preview a post being edited, whatever the mode**. If so, `Books` is too narrow a home. Consequence recorded here, **Proposed**: build the panel **independent of the print mode** from the start, a component that takes a mode as a parameter (a selector in the panel, `print` by default), whose **page frame** (size, margins, usable part, verdict) is an optional layer enabled when the mode has a page format. The component must not use the internal classes of `Books`, so that it can be moved later to `Modes`, to a module of its own (for example `Preview`, depending on `Modes`) or to a plugin, without a rewrite. Open: where it lives finally; decided when the second use (another mode, or drafts) is wanted.
 
 The child theme has its own repository, [`evlist/wp-twenty-twenty-five-printable`](https://github.com/evlist/wp-twenty-twenty-five-printable): `modes/print.css` and the templates are there; it defines no `@page` today.
@@ -41,7 +43,7 @@ The child theme has its own repository, [`evlist/wp-twenty-twenty-five-printable
 1. **The iframe.** A sidebar panel (`PluginSidebar`, or a larger panel opened from a button) contains an `<iframe>` whose address is the post with the print mode (`?mode=print`, the `?print` alias being the same mode). Same site, so no framing problem. The rendering is the real one: print template, `modes/print.css`, `modes/link` blocks, QR code, Media Helper gallery.
 2. **The size.** The iframe has the width and height of the page of the book (for example about 559 × 794 px for A5 at 96 dpi), reduced with `transform: scale()` to fit the panel.
 3. **The usable part and the verdict.** The page is drawn as a frame in proportion to the configured size, and the margins as an inner frame (the usable part). The The editor script is on the same origin, so it can read the height of the document of the iframe once it has loaded (images included) and compare it with the height of the usable part: a light "fits / overflows by N px" shown next to the preview. Only an indication (decision 2).
-4. **Fresh content.** The iframe shows what is saved (the permalink, decision 1), and it reloads after each **Update**, and on a **Refresh** button (Media Helper changes go through REST without saving the post; whether Media Helper offers an event to hook on is open).
+4. **Fresh content.** The iframe shows what is saved (the permalink, decision 1), and it reloads on the **Refresh** button (decision 9) and after each **Update** of the post. Media Helper changes go through REST without saving the post, so until it offers a hook the user presses **Refresh**.
 
 ## Prerequisites
 
@@ -54,7 +56,7 @@ The child theme has its own repository, [`evlist/wp-twenty-twenty-five-printable
 2. Format of the page to start with (A5, A4, square), one page per post or several; is an overflow onto a second page an error or only a note?
 3. Side panel (narrow, small scale) or floating panel (movable, larger)? Both can show the same component.
 4. `iframe` only, or an `iframe` plus a `canvas` for the frames and the verdict? The measure is an approximation: lazy-loaded images, `break-inside` and fixed boxes may change the height; the engine of the final PDFs is not chosen.
-5. Does Media Helper emit a JavaScript event after a change of attachments, to refresh the preview? (Its changes go through REST without saving the post, and the iframe shows the saved page.)
+5. The hook asked of Media Helper for later (decision 9): its name and arguments (an event after an attachment or a detachment, with the post and the attachment) are to be agreed with the Media Helper session; nothing is assumed about what exists today.
 6. Capability: the panel appears for those who can edit the post; no other privilege.
 7. The final home of the component after the reservation of decision 6 (kept in `Books`, or lifted out when the preview of another mode or of a draft is wanted).
 8. Drafts and unsaved changes are out of scope for now (decision 1); later, the preview address of WordPress would be needed, and whether it honours `?mode=print` is untried.
