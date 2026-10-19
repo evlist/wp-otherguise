@@ -3,7 +3,7 @@
 
 # Slice 219 — Modes: a print preview panel in the post editor
 
-Status: **draft, nothing decided, no code** (Eric asked for the slice to be started, 2026-10-19). Everything below is **Proposed** or **Open** until Eric confirms. Dependencies: slices 200 (modes), 202 (variants) and 213 (stylesheet of a mode). Module: `Modes`, unless a later book module is a better home (open).
+Status: **draft, no code**. Eric's precisions of 2026-10-19 are recorded as **Decided** below; everything else is **Proposed** or **Open** until Eric confirms. Dependencies: slices 200 (modes), 202 (variants) and 213 (stylesheet of a mode). Module: `Modes`, unless a later book module is a better home (open).
 
 ## Goal
 
@@ -18,28 +18,39 @@ Eric starts a book generated from the blog. His first step is to choose the phot
 
 So the editor is not the place to compute the fit. The real rendering is.
 
+## Decided (Eric, 2026-10-19)
+
+1. **Published pages first**: for now the preview is of posts that are already published, so the address is the permalink with the print mode and the preview nonce of drafts is not needed.
+2. **An indication only**: the definitive answer can be given only when printing. The measure is a hint, not a guarantee.
+3. **The page size and the margins are a configuration** (not written in the CSS of the theme alone).
+4. **A window proportional to the page**, in an `iframe` (and/or a `canvas`), and possibly the **usable part** of the page (the page minus the margins) shown too.
+5. **A side panel or a floating one** (the choice stays open).
+
+The child theme has its own repository, [`evlist/wp-twenty-twenty-five-printable`](https://github.com/evlist/wp-twenty-twenty-five-printable): `modes/print.css` and the templates are there; it defines no `@page` today.
+
 ## Proposal
 
 **A panel of the post editor that shows the post in an `iframe`, in print mode, at the size of the page.**
 
 1. **The iframe.** A sidebar panel (`PluginSidebar`, or a larger panel opened from a button) contains an `<iframe>` whose address is the post with the print mode (`?mode=print`, the `?print` alias being the same mode). Same site, so no framing problem. The rendering is the real one: print template, `modes/print.css`, `modes/link` blocks, QR code, Media Helper gallery.
 2. **The size.** The iframe has the width and height of the page of the book (for example about 559 × 794 px for A5 at 96 dpi), reduced with `transform: scale()` to fit the panel.
-3. **The verdict.** The editor script is on the same origin, so it can read the height of the document of the iframe once it has loaded (images included) and compare it with the height of the page, minus the margins: a light "fits / overflows by N px" shown next to the preview.
-4. **Fresh content.** The iframe shows what is saved. For a draft it uses the preview address of WordPress (`preview=true`), and it reloads after each save or autosave, and on a **Refresh** button (Media Helper changes go through REST without saving the post; whether Media Helper offers an event to hook on is open).
+3. **The usable part and the verdict.** The page is drawn as a frame in proportion to the configured size, and the margins as an inner frame (the usable part). The The editor script is on the same origin, so it can read the height of the document of the iframe once it has loaded (images included) and compare it with the height of the usable part: a light "fits / overflows by N px" shown next to the preview. Only an indication (decision 2).
+4. **Fresh content.** The iframe shows what is saved (the permalink, decision 1), and it reloads after each **Update**, and on a **Refresh** button (Media Helper changes go through REST without saving the post; whether Media Helper offers an event to hook on is open).
 
 ## Prerequisites
 
-- **The format of the page** is fixed in `modes/print.css` of the theme (`@page` size and margins). Open: A5, A4, square? One page per post, or several pages allowed?
-- The mode must be taken into account on the preview address (see the first open question).
+- **The format of the page** (width, height, margins) is a configuration of the plugin (decision 3). Open: where (a section of **Settings → Otherguise modes**, a filter, or `theme.json`), the unit (millimetres), and whether the same values should feed the `@page` of the theme so that the preview and the printing agree.
+- `?mode=print` on the permalink is the mode that the plugin already serves; nothing to add.
 
 ## Open questions (do not assume)
 
-1. **Does `?mode=print` apply on the preview address of a draft** (`?p=…&preview=true&preview_nonce=…&mode=print`)? To try first, by hand, on testing: open the preview of a post from the editor and add `&mode=print`.
-2. Format of the page, one page or several (above). Is overflowing onto a second page acceptable, or an error?
-3. Where does the panel live: the sidebar (narrow, so the page is shown at a small scale) or a button that opens a wide panel or a new tab?
-4. How is the height of the page compared when the print CSS uses `break-inside` or fixed boxes? The measure is an **approximation**: it is not the pagination of a print engine, and the engine that will produce the PDFs of the book is not chosen.
-5. Does Media Helper emit a JavaScript event after a change of attachments, to refresh the preview?
-6. The panel needs a capability (editing the post) and, for the preview address, the nonce that WordPress gives; no other privilege should be added.
+1. Where the format and the margins are configured, and whether a single configuration also writes the `@page` of the theme (above).
+2. Format of the page to start with (A5, A4, square), one page per post or several; is an overflow onto a second page an error or only a note?
+3. Side panel (narrow, small scale) or floating panel (movable, larger)? Both can show the same component.
+4. `iframe` only, or an `iframe` plus a `canvas` for the frames and the verdict? The measure is an approximation: lazy-loaded images, `break-inside` and fixed boxes may change the height; the engine of the final PDFs is not chosen.
+5. Does Media Helper emit a JavaScript event after a change of attachments, to refresh the preview? (Its changes go through REST without saving the post, and the iframe shows the saved page.)
+6. Capability: the panel appears for those who can edit the post; no other privilege.
+7. Drafts and unsaved changes are out of scope for now (decision 1); later, the preview address of WordPress would be needed, and whether it honours `?mode=print` is untried.
 
 ## To verify when built
 
