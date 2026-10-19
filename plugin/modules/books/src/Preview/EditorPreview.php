@@ -124,7 +124,7 @@ final class EditorPreview {
 		wp_enqueue_script(
 			self::SCRIPT,
 			( $this->url )( 'preview.js' ),
-			array( self::GEOMETRY, self::PANEL, 'wp-plugins', 'wp-edit-post', 'wp-element', 'wp-data', 'wp-editor', 'wp-i18n' ),
+			array( self::GEOMETRY, self::PANEL, 'wp-plugins', 'wp-edit-post', 'wp-interface', 'wp-components', 'wp-element', 'wp-data', 'wp-editor', 'wp-i18n' ),
 			'219.1',
 			true
 		);

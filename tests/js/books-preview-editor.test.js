@@ -25,6 +25,7 @@ function load( options ) {
 	const editorState = { dirty: false, saving: false, autosaving: false, succeeded: false, status: 'publish' };
 	const subscribers = [];
 	const registered = {};
+	const Fragment = 'Fragment';
 	const h = ( type, props, ...children ) => ( { type, props, children } );
 	const store = {
 		getCurrentPostAttribute: () => editorState.status,
@@ -36,13 +37,28 @@ function load( options ) {
 		didPostSaveRequestSucceed: () => editorState.succeeded,
 	};
 	const menu = 'PluginMoreMenuItem';
+	// A minimal stand-in for the hooks: the state and the effects of the button live in `hooks`, per render.
+	const hooks = { states: [], index: 0, effects: [], cleanups: [] };
+	const useState = ( initial ) => {
+		const i = hooks.index++;
+		if ( ! ( i in hooks.states ) ) hooks.states[ i ] = initial;
+		return [ hooks.states[ i ], ( value ) => ( hooks.states[ i ] = value ) ];
+	};
+	const useEffect = ( effect ) => {
+		if ( hooks.effects.length === 0 ) hooks.cleanups.push( effect() );
+		hooks.effects.push( effect );
+	};
 
 	dom.window.wp = {
-		element: { createElement: h },
+		element: { createElement: h, Fragment, useState, useEffect },
 		i18n: { __: ( value ) => value },
 		data: { select: () => store, subscribe: ( fn ) => subscribers.push( fn ) },
 		plugins: { registerPlugin: ( name, def ) => ( registered.name = name, registered.def = def ) },
 	};
+	if ( ! options.noToolbar ) {
+		dom.window.wp.interface = { PinnedItems: 'PinnedItems' };
+		dom.window.wp.components = { Button: 'Button' };
+	}
 	if ( options.legacyMenu ) {
 		dom.window.wp.editPost = { PluginMoreMenuItem: menu };
 	} else if ( ! options.noMenu ) {
@@ -67,19 +83,36 @@ function load( options ) {
 		subscribers.forEach( ( fn ) => fn() );
 	};
 
-	return { dom, registered, change, subscribers, q: ( selector ) => dom.window.document.querySelector( selector ) };
+	return { dom, registered, change, subscribers, hooks, q: ( selector ) => dom.window.document.querySelector( selector ) };
 }
 
-/** Renders the plugin and clicks its menu item. */
+/** Renders the plugin (hooks start again at each render): { button, item } where button is the Button of the toolbar. */
+function render( site ) {
+	site.hooks.index = 0;
+	const tree = site.registered.def.render();
+	const find = ( node, type ) => {
+		if ( ! node || typeof node !== 'object' ) return null;
+		if ( node.type === type ) return node;
+		for ( const child of node.children || [] ) {
+			const found = find( child, type );
+			if ( found ) return found;
+		}
+		return null;
+	};
+	const toolbar = tree.children.find( ( child ) => child && typeof child.type === 'function' );
+	const pinned = toolbar ? toolbar.type() : null;
+
+	return { tree, pinned, button: find( pinned, 'Button' ), item: find( tree, 'PluginMoreMenuItem' ) };
+}
+
+/** Clicks the menu item. */
 function click( site ) {
-	const item = site.registered.def.render();
-	item.props.onClick();
-	return item;
+	render( site ).item.props.onClick();
 }
 
 test( 'the plugin adds a menu item to the options menu of the editor', () => {
 	const site = load();
-	const item = site.registered.def.render();
+	const { item } = render( site );
 
 	assert.strictEqual( site.registered.name, 'books-preview' );
 	assert.strictEqual( item.type, 'PluginMoreMenuItem' );
@@ -88,13 +121,67 @@ test( 'the plugin adds a menu item to the options menu of the editor', () => {
 	assert.strictEqual( site.q( '.books-preview' ), null, 'no panel until the item is used' );
 } );
 
-test( 'the older place of the menu item is used when the editor package has none', () => {
-	assert.strictEqual( load( { legacyMenu: true } ).registered.def.render().type, 'PluginMoreMenuItem' );
+test( 'the plugin adds a button to the toolbar, in the area of the pinned items', () => {
+	const site = load();
+	const { pinned, button } = render( site );
+
+	assert.strictEqual( pinned.type, 'PinnedItems' );
+	assert.strictEqual( pinned.props.scope, 'core' );
+	assert.strictEqual( button.props.icon, 'media-document' );
+	assert.strictEqual( button.props.label, 'Print preview' );
+	assert.strictEqual( button.props.isPressed, false );
+	assert.strictEqual( site.q( '.books-preview' ), null, 'no panel until the button is used' );
 } );
 
-test( 'nothing is registered without the settings, or without a menu to put the item in', () => {
+test( 'the button opens and closes the panel and shows whether it is open', () => {
+	const site = load();
+
+	render( site ).button.props.onClick();
+	assert.strictEqual( site.q( '.books-preview' ).hidden, false );
+	assert.strictEqual( render( site ).button.props.isPressed, true, 'pressed while the panel is open' );
+
+	render( site ).button.props.onClick();
+	assert.strictEqual( site.q( '.books-preview' ).hidden, true );
+	assert.strictEqual( render( site ).button.props.isPressed, false );
+} );
+
+test( 'closing the panel with its own button releases the toolbar button', () => {
+	const site = load();
+
+	render( site ).button.props.onClick();
+	assert.strictEqual( render( site ).button.props.isPressed, true );
+
+	site.q( '.books-preview__close' ).dispatchEvent( new site.dom.window.Event( 'click' ) );
+	assert.strictEqual( render( site ).button.props.isPressed, false );
+} );
+
+test( 'the menu item and the button drive the same panel', () => {
+	const site = load();
+
+	render( site ).button.props.onClick();
+	render( site ).item.props.onClick();
+
+	assert.strictEqual( site.q( '.books-preview' ).hidden, true );
+	assert.strictEqual( site.dom.window.document.querySelectorAll( '.books-preview' ).length, 1 );
+} );
+
+test( 'without the toolbar area the menu item alone is offered; without the menu the button alone', () => {
+	const menuOnly = render( load( { noToolbar: true } ) );
+	assert.strictEqual( menuOnly.pinned, null );
+	assert.strictEqual( menuOnly.item.type, 'PluginMoreMenuItem' );
+
+	const buttonOnly = render( load( { noMenu: true } ) );
+	assert.strictEqual( buttonOnly.item, null );
+	assert.strictEqual( buttonOnly.button.type, 'Button' );
+} );
+
+test( 'the older place of the menu item is used when the editor package has none', () => {
+	assert.strictEqual( render( load( { legacyMenu: true } ) ).item.type, 'PluginMoreMenuItem' );
+} );
+
+test( 'nothing is registered without the settings, or without a menu and a toolbar to put the control in', () => {
 	assert.strictEqual( load( { noSettings: true } ).registered.def, undefined );
-	assert.strictEqual( load( { noMenu: true } ).registered.def, undefined );
+	assert.strictEqual( load( { noMenu: true, noToolbar: true } ).registered.def, undefined );
 } );
 
 test( 'the menu item opens the panel on the saved post, in print mode; used again, it closes it', () => {

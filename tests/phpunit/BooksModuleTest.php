@@ -212,6 +212,8 @@ class BooksModuleTest extends TestCase {
 		$this->assertContains( 'books-preview-geometry', $scripts[2][3] );
 		$this->assertContains( 'books-preview-panel', $scripts[2][3] );
 		$this->assertContains( 'wp-plugins', $scripts[2][3] );
+		$this->assertContains( 'wp-interface', $scripts[2][3], 'For the button of the toolbar.' );
+		$this->assertContains( 'wp-components', $scripts[2][3] );
 		$this->assertCount( 1, $this->calls( 'wp_enqueue_style' ) );
 
 		$inline = $this->calls( 'wp_add_inline_script' );

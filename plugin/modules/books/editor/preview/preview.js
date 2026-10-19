@@ -2,7 +2,8 @@
  * SPDX-FileCopyrightText: 2026 Eric van der Vlist <vdv@dyomedea.com>
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * Slice 219: connects the floating print preview panel (panel.js) to the post editor: a menu item opens it, and the state of the post
+ * Slice 219: connects the floating print preview panel (panel.js) to the post editor: a button of the toolbar of the editor (next to the
+ * pinned plugin sidebars such as Media Helper's) and a menu item open it, and the state of the post
  * (dirty, saved) tells it when it is out of date and when to load the page again. Plain JavaScript, no build step: the dependencies are
  * declared in EditorPreview.php. The format of the page and the modes come from window.booksPreview, set by an inline script.
  */
@@ -16,6 +17,19 @@
 	var geometry = win.booksPreviewGeometry;
 	var panel = null;
 	var previous = { saving: false, autosaving: false };
+	var watchers = [];
+
+	// The button shows whether the panel is open: it is told when the panel opens or closes, from the button, the menu or the panel.
+	function changed() {
+		watchers.slice().forEach( function ( watcher ) {
+			watcher();
+		} );
+	}
+
+	function toggle() {
+		ensurePanel().toggle();
+		changed();
+	}
 
 	function editor() {
 		return wp.data.select( 'core/editor' );
@@ -48,6 +62,7 @@
 				getPost: getPost,
 				__: __,
 				storage: storage(),
+				onClose: changed,
 			} );
 			panel.setStale( !! editor().isEditedPostDirty() );
 		}
@@ -77,22 +92,49 @@
 	} );
 
 	var MenuItem = ( wp.editor && wp.editor.PluginMoreMenuItem ) || ( wp.editPost && wp.editPost.PluginMoreMenuItem );
+	var PinnedItems = wp.interface && wp.interface.PinnedItems;
+	var Button = wp.components && wp.components.Button;
 
-	if ( ! MenuItem ) {
+	if ( ! MenuItem && ! ( PinnedItems && Button ) ) {
 		return;
+	}
+
+	// The button of the toolbar (the area of the pinned items, where the plugin sidebars put their icon), when the editor offers it.
+	function ToolbarButton() {
+		var state = wp.element.useState( !! ( panel && panel.isOpen() ) );
+
+		wp.element.useEffect( function () {
+			var watcher = function () {
+				state[ 1 ]( !! ( panel && panel.isOpen() ) );
+			};
+			watchers.push( watcher );
+
+			return function () {
+				watchers = watchers.filter( function ( other ) {
+					return other !== watcher;
+				} );
+			};
+		}, [] );
+
+		return el(
+			PinnedItems,
+			{ scope: 'core' },
+			el( Button, {
+				icon: 'media-document',
+				label: __( 'Print preview', 'otherguise' ),
+				isPressed: state[ 0 ],
+				onClick: toggle,
+			} )
+		);
 	}
 
 	wp.plugins.registerPlugin( 'books-preview', {
 		render: function () {
 			return el(
-				MenuItem,
-				{
-					icon: 'media-document',
-					onClick: function () {
-						ensurePanel().toggle();
-					},
-				},
-				__( 'Print preview', 'otherguise' )
+				wp.element.Fragment,
+				null,
+				PinnedItems && Button ? el( ToolbarButton ) : null,
+				MenuItem ? el( MenuItem, { icon: 'media-document', onClick: toggle }, __( 'Print preview', 'otherguise' ) ) : null
 			);
 		},
 	} );
