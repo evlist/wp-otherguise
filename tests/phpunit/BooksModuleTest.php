@@ -212,8 +212,8 @@ class BooksModuleTest extends TestCase {
 		$this->assertContains( 'books-preview-geometry', $scripts[2][3] );
 		$this->assertContains( 'books-preview-panel', $scripts[2][3] );
 		$this->assertContains( 'wp-plugins', $scripts[2][3] );
-		$this->assertContains( 'wp-interface', $scripts[2][3], 'For the button of the toolbar.' );
-		$this->assertContains( 'wp-components', $scripts[2][3] );
+		$this->assertContains( 'wp-components', $scripts[2][3], 'For the button of the toolbar.' );
+		$this->assertNotContains( 'wp-interface', $scripts[2][3], 'Not a script handle of WordPress: a missing dependency drops the script.' );
 		$this->assertCount( 1, $this->calls( 'wp_enqueue_style' ) );
 
 		$inline = $this->calls( 'wp_add_inline_script' );

@@ -56,8 +56,7 @@ function load( options ) {
 		plugins: { registerPlugin: ( name, def ) => ( registered.name = name, registered.def = def ) },
 	};
 	if ( ! options.noToolbar ) {
-		dom.window.wp.interface = { PinnedItems: 'PinnedItems' };
-		dom.window.wp.components = { Button: 'Button' };
+		dom.window.wp.components = { Fill: 'Fill', Button: 'Button' };
 	}
 	if ( options.legacyMenu ) {
 		dom.window.wp.editPost = { PluginMoreMenuItem: menu };
@@ -125,8 +124,8 @@ test( 'the plugin adds a button to the toolbar, in the area of the pinned items'
 	const site = load();
 	const { pinned, button } = render( site );
 
-	assert.strictEqual( pinned.type, 'PinnedItems' );
-	assert.strictEqual( pinned.props.scope, 'core' );
+	assert.strictEqual( pinned.type, 'Fill' );
+	assert.strictEqual( pinned.props.name, 'PinnedItems/core' );
 	assert.strictEqual( button.props.icon, 'media-document' );
 	assert.strictEqual( button.props.label, 'Print preview' );
 	assert.strictEqual( button.props.isPressed, false );

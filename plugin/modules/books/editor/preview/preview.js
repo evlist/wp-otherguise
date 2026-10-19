@@ -92,14 +92,16 @@
 	} );
 
 	var MenuItem = ( wp.editor && wp.editor.PluginMoreMenuItem ) || ( wp.editPost && wp.editPost.PluginMoreMenuItem );
-	var PinnedItems = wp.interface && wp.interface.PinnedItems;
+	// The area of the pinned items of the toolbar, where the plugin sidebars (Media Helper's) put their icon, is the slot
+	// `PinnedItems/core`: what `PinnedItems` of `@wordpress/interface` fills, a package that has no global of its own.
+	var Fill = wp.components && wp.components.Fill;
 	var Button = wp.components && wp.components.Button;
 
-	if ( ! MenuItem && ! ( PinnedItems && Button ) ) {
+	if ( ! MenuItem && ! ( Fill && Button ) ) {
 		return;
 	}
 
-	// The button of the toolbar (the area of the pinned items, where the plugin sidebars put their icon), when the editor offers it.
+	// The button of the toolbar, when the editor offers the slot.
 	function ToolbarButton() {
 		var state = wp.element.useState( !! ( panel && panel.isOpen() ) );
 
@@ -117,8 +119,8 @@
 		}, [] );
 
 		return el(
-			PinnedItems,
-			{ scope: 'core' },
+			Fill,
+			{ name: 'PinnedItems/core' },
 			el( Button, {
 				icon: 'media-document',
 				label: __( 'Print preview', 'otherguise' ),
@@ -133,7 +135,7 @@
 			return el(
 				wp.element.Fragment,
 				null,
-				PinnedItems && Button ? el( ToolbarButton ) : null,
+				Fill && Button ? el( ToolbarButton ) : null,
 				MenuItem ? el( MenuItem, { icon: 'media-document', onClick: toggle }, __( 'Print preview', 'otherguise' ) ) : null
 			);
 		},
