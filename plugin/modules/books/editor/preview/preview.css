@@ -1,0 +1,100 @@
+/*
+ * SPDX-FileCopyrightText: 2026 Eric van der Vlist <vdv@dyomedea.com>
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ *
+ * Slice 219: the floating print preview panel of the post editor.
+ */
+.books-preview {
+	position: fixed;
+	z-index: 100000;
+	box-sizing: border-box;
+	padding: 8px;
+	background: #fff;
+	border: 1px solid #949494;
+	border-radius: 2px;
+	box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+	font-size: 12px;
+}
+
+.books-preview[hidden] {
+	display: none;
+}
+
+.books-preview__bar {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	margin-bottom: 6px;
+	cursor: move;
+	user-select: none;
+}
+
+.books-preview__title {
+	flex: 1;
+}
+
+.books-preview__mode {
+	max-width: 7em;
+}
+
+.books-preview__close {
+	border: 0;
+	background: transparent;
+	font-size: 18px;
+	line-height: 1;
+	cursor: pointer;
+}
+
+.books-preview__status {
+	min-height: 2.6em;
+	margin-bottom: 4px;
+	color: #1e1e1e;
+}
+
+.books-preview__status--over {
+	color: #b32d2e;
+	font-weight: 600;
+}
+
+.books-preview__status--stale {
+	font-style: italic;
+}
+
+.books-preview__stage {
+	overflow: auto;
+	background: #ddd;
+	padding: 4px;
+}
+
+.books-preview__page {
+	position: relative;
+	margin: 0 auto;
+	background: #fff;
+	box-shadow: 0 0 0 1px #949494;
+}
+
+.books-preview__page--framed .books-preview__usable {
+	outline: 1px dashed #2271b1;
+}
+
+.books-preview__usable {
+	position: absolute;
+	overflow: hidden;
+}
+
+.books-preview__frame {
+	display: block;
+	border: 0;
+	background: #fff;
+	transform-origin: 0 0;
+}
+
+.books-preview__resize {
+	position: absolute;
+	right: 0;
+	bottom: 0;
+	width: 14px;
+	height: 14px;
+	cursor: nwse-resize;
+	background: linear-gradient(135deg, transparent 50%, #949494 50%);
+}

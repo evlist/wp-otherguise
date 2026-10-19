@@ -3,7 +3,7 @@
 
 # Slice 219 — Books: a print preview panel in the post editor
 
-Status: **first version planned in detail (below), no code yet**; Eric's go is needed to start. Eric's precisions of 2026-10-19 and 2026-10-20 are recorded as **Decided** below; everything else is **Proposed** or **Open** until Eric confirms. Dependencies: slices 200 (modes), 202 (variants) and 213 (stylesheet of a mode). Module: `Books` (see **Decided**, with a reservation of Eric).
+Status: **first version coded (2026-10-21), tried only under automated tests**; not yet tried in a real editor. Eric's precisions of 2026-10-19 and 2026-10-20 are recorded as **Decided** below; everything else is **Proposed** or **Open** until Eric confirms. Dependencies: slices 200 (modes), 202 (variants) and 213 (stylesheet of a mode). Module: `Books` (see **Decided**, with a reservation of Eric).
 
 ## Goal
 
@@ -87,13 +87,14 @@ Scope = decisions 1, 2, 3, 4, 6–9, 11, 12 and 13 of **Decided**. Default forma
 - **`Settings\PageFormat`**: reads and sanitises the option `books_page_format` (an array `width_mm`, `height_mm`, `margin_mm`). Defaults 148, 210, 10. Bounds: width and height between 50 and 1000 mm, margin from 0 up to less than half of the smaller side; a value out of bounds, or not a number, falls back to the default of that field. Pure PHP, no WordPress call but `get_option`/`apply_filters` passed in, so it is tested without WordPress.
 - **Settings screen** **Settings → Otherguise books** (Settings API, so the nonce is checked by WordPress): three number fields in millimetres. Capability `manage_options`, changed by the filter `books_admin_capability`. The label says that the numbers are used by the preview only, until the `@page` of the theme reads them (open question 1).
 - **`Module::boot()`** registers the screen and the editor script; **`Module::uninstall()`** deletes the option. Hooks are prefixed `books_`, the option too (module rules of `docs/IA.md`).
-- **Editor assets** on `enqueue_block_editor_assets`, only for a user who can edit the post being edited: the script `plugin/modules/books/editor/preview/preview.js` (+ `preview.asset.php`, `preview.css`), and an inline `window.booksPreview = { page: {...}, modes: [...], defaultMode: 'print', frameModes: ['print'] }` (the modes come from `Modes`, the frame is drawn for the modes of the filter `books_preview_frame_modes`, `print` by default).
+- **Editor assets** on `enqueue_block_editor_assets`, only for a user who can edit the post being edited: the script `plugin/modules/books/editor/preview/preview.js` (+ `panel.js`, `geometry.js`, `preview.css`; the dependencies are declared in `EditorPreview`, so there is no `preview.asset.php`), and an inline `window.booksPreview = { page: {...}, modes: [...], defaultMode: 'print', frameModes: ['print'] }` (the modes come from `Modes`, the frame is drawn for the modes of the filter `books_preview_frame_modes`, `print` by default).
 - **Admin bar in the iframe**: the iframe is loaded with the argument `books_preview=1`; on the front end the filter `show_admin_bar` answers false for it (cosmetic only, nothing is shown that a logged-in user would not see). Priority 10, documented as shared with other plugins.
 
 ### Editor side (plain JavaScript, no build step, like `modes/link`)
 
 - **`geometry.js`** (pure functions, tested with jsdom/node): millimetres to CSS pixels (96 dpi), the frame of the page at a scale, the usable part, the overflow in mm from a measured height, the address of the iframe (permalink of the published post, preview link otherwise, plus `mode` and `books_preview`), and the "stale" rule.
-- **`preview.js`**: a plugin registered with `wp.plugins.registerPlugin`, a **menu item "Print preview"** in the options menu of the editor (`PluginMoreMenuItem`) that opens or closes a **floating panel** (a fixed-position box with a title bar to drag, a **Refresh** button, a mode selector, a close button, and a resize handle that keeps the proportion). It shows the page frame, the usable part inside it, the `iframe` (laid out at the usable width and clipped to the usable height, then scaled to the panel), and the line "fits" or "overflows by N mm" with the measured height. Position and size are kept in the browser (`localStorage` in a try/catch; the panel works without it).
+- **`panel.js`**: the floating panel in plain DOM (no React), so that jsdom tests it for real; it has the frame, the verdict, the mode selector, the Refresh button, the drag and the resize.
+- **`preview.js`**: connects the panel to the editor: a plugin registered with `wp.plugins.registerPlugin`, a **menu item "Print preview"** in the options menu of the editor (`PluginMoreMenuItem`) that opens or closes a **floating panel** (a fixed-position box with a title bar to drag, a **Refresh** button, a mode selector, a close button, and a resize handle that keeps the proportion). It shows the page frame, the usable part inside it, the `iframe` (laid out at the usable width and clipped to the usable height, then scaled to the panel), and the line "fits" or "overflows by N mm" with the measured height. Position and size are kept in the browser (`localStorage` in a try/catch; the panel works without it).
 - **Measure**: after the iframe `load` event and once the images in it have loaded (their `load`/`error` events, with a time limit), the height of the document of the iframe (`documentElement.scrollHeight`) is read; same origin, so allowed.
 - **Stale and refresh**: a subscription to the `core/editor` store sets "out of date" when `isEditedPostDirty()`; the iframe is reloaded when a save ends without failing (`isSavingPost()` goes from true to false, `didPostSaveRequestSucceed()`), **not** on an autosave (`isAutosavingPost()`), and on the **Refresh** button.
 
@@ -110,9 +111,13 @@ Scope = decisions 1, 2, 3, 4, 6–9, 11, 12 and 13 of **Decided**. Default forma
 
 An admin screen (capability and nonce), no REST route, no WP-CLI command. Strings are translatable (text domain `otherguise`); the SPDX header is on every file; `uninstall` is part of the slice.
 
-### Honest verification (to fill in when built)
+### Built (what exists)
 
-Under PHPUnit and jsdom only: the format, the settings, the geometry, the stale rule. **Never tried** until Eric tries it on testing: the menu item and the floating panel in the real editor, the measure on a real page (the print template has no page format, so the width of the layout may differ from the printed one), the admin bar filter, the images that load late, the behaviour with Media Helper open next to it.
+`Books\Settings\PageFormat`, `Books\Admin\SettingsScreen` (**Settings → Otherguise books**), `Books\Preview\EditorPreview`, `Books\Module` (hooks: `admin_init`, `admin_menu`, `option_page_capability_books_settings_group`, `enqueue_block_editor_assets`, `show_admin_bar`; `uninstall` removes `books_page_format`), and `plugin/modules/books/editor/preview/` (`geometry.js`, `panel.js`, `preview.js`, `preview.css`). Tests: `BooksPageFormatTest`, `BooksModuleTest` (PHPUnit), `books-preview-geometry`, `books-preview-panel`, `books-preview-editor` (jsdom). The height is read from `documentElement.getBoundingClientRect()` of the page in the iframe (rounded up to a pixel).
+
+### Honest verification
+
+Run under PHPUnit and jsdom only (all pass): the format, the settings screen (registration, capability, form), the loader of the assets, the filter of the admin bar, the geometry, the panel (open, load, verdict, images, refresh, close, move, resize, storage), and the connection to the editor (stand-in `wp`). **Never tried** until Eric tries it on testing: the menu item and the floating panel in the real editor, the measure on a real page (the print template has no page format, so the width of the layout may differ from the printed one), the admin bar filter, the images that load late, the behaviour with Media Helper open next to it.
 
 ## To verify when built
 

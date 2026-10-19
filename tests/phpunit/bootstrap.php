@@ -573,6 +573,54 @@ function add_submenu_page() {
 }
 
 /**
+ * Stub of add_options_page(): records the call and returns a hook suffix.
+ *
+ * @return string
+ */
+function add_options_page() {
+    otherguise_test_record( 'add_options_page', func_get_args() );
+
+    return 'settings_page_books';
+}
+
+/**
+ * Stub of wp_json_encode().
+ *
+ * @param mixed $value Value.
+ * @return string|false
+ */
+function wp_json_encode( $value ) {
+    return json_encode( $value );
+}
+
+/**
+ * Stub of wp_enqueue_script(): records the call.
+ *
+ * @return void
+ */
+function wp_enqueue_script() {
+    otherguise_test_record( 'wp_enqueue_script', func_get_args() );
+}
+
+/**
+ * Stub of wp_enqueue_style(): records the call.
+ *
+ * @return void
+ */
+function wp_enqueue_style() {
+    otherguise_test_record( 'wp_enqueue_style', func_get_args() );
+}
+
+/**
+ * Stub of wp_add_inline_script(): records the call.
+ *
+ * @return void
+ */
+function wp_add_inline_script() {
+    otherguise_test_record( 'wp_add_inline_script', func_get_args() );
+}
+
+/**
  * Stub of add_screen_option().
  *
  * @return void
