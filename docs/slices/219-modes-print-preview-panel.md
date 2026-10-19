@@ -1,7 +1,7 @@
 <!-- SPDX-FileCopyrightText: 2026 Eric van der Vlist <vdv@dyomedea.com> -->
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 
-# Slice 219 — Modes: a print preview panel in the post editor
+# Slice 219 — Books: a print preview panel in the post editor
 
 Status: **draft, no code**. Eric's precisions of 2026-10-19 and 2026-10-20 are recorded as **Decided** below; everything else is **Proposed** or **Open** until Eric confirms. Dependencies: slices 200 (modes), 202 (variants) and 213 (stylesheet of a mode). Module: `Books` (see **Decided**, with a reservation of Eric).
 
