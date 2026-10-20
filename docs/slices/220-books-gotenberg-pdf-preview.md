@@ -141,6 +141,18 @@ wp otherguise books renderer check
 
 **For the synchronisation scripts** (the repository `shared-room`, `tools/staging/`; the session that takes care of it decides): after the copy of the database, `wp otherguise books renderer set --address="$GOTENBERG_URL"` with a variable per site declared with the others by `set-environment.sh` (for example `STAGING_GOTENBERG_URL`, `TESTING_GOTENBERG_URL`), then `renderer check`. The files `uploads/books-pdf/` copied from production are harmless (names made of a hash, removed after 7 days) and could be excluded from the copy; the states in the transients of the copied database refer to keys that the new site will recompute.
 
+## The wait for the QR code and the map tiles (Eric, production, 2026-10-21)
+
+On production the PDF was made before the QR code and the tiles of the map had loaded when the images came too fast. Facts read in the HTML of a print page: the QR code of Kaya is `<img class="wpkqcg_qrcode" src="">` whose `src` is **empty** until its JavaScript fills it; the map of WP GPX Maps is a `div.wpgpxmaps` with a Leaflet map whose tiles are `img.leaflet-tile`, added after the map is created; the altitude profile is a `canvas.plot` (Chart.js animates it for about a second by default). **The condition that Eric uses, in the field "Wait until (JavaScript)" of the settings, and which works for him:**
+
+```js
+(() => { const m = [...document.querySelectorAll('.wpgpxmaps')], t = [...document.querySelectorAll('.leaflet-tile')], q = [...document.querySelectorAll('img.wpkqcg_qrcode')]; return m.every(x => x.querySelector('.leaflet-tile')) && t.every(x => x.complete) && q.every(x => x.getAttribute('src') && x.complete && x.naturalWidth > 0); })()
+```
+
+It is true at once on a page with no map or QR code, counts a tile in error as finished (`complete` is true for a broken image) and does not wait for tiles that a late zoom of Leaflet would add (a `waitDelay` of about a second covers that).
+
+**Decided by Eric: nothing is coded for it for now.** It is tied to the plugins of this blog (Kaya, WP GPX Maps), so it stays a value typed in the setting, not a built-in option of Books. Considered and **not built**: a built-in option "wait for the QR code and the map tiles", and restricting the free JavaScript field to the users who have `unfiltered_html` (the code runs in the Chromium of Gotenberg, on the pages of the site, without cookies, but from the network position of Gotenberg, which on a multisite could be reached by a site administrator who has no `unfiltered_html`). The field is saved by users with `manage_options`; `waitForSelector` (a CSS selector, no code) stays free.
+
 ## Not in this slice
 
 The merge of several posts, the numbering, the table of contents, the book manifest, another rendering engine, the preview of drafts, and any change to the rollout scripts.
