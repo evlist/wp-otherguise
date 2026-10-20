@@ -99,13 +99,33 @@ An admin screen section (capability, nonce, Settings API), three REST routes (ca
 ## Open questions (do not assume)
 
 1. **Is the background job what Eric wants for one post?** The alternative, simpler, is a synchronous REST call that waits for the 21 s, with a spinner: less code, but it breaks the project rule for long work and risks the time limits of the proxy and PHP. Proposed: the job.
-2. The **address of the server for staging and production**: a setting per site (as proposed), set by hand; nothing in the rollout scripts yet.
+2. ~~The address of the server for staging and production.~~ **Decided** (Eric, 2026-10-20): **one server per site**, and a **WP-CLI command** to set it, to make the synchronisation scripts easy (see "The WP-CLI command" below). Nothing in the scripts of `shared-room` yet.
 3. **The check of the server**: the route `/health` of Gotenberg is remembered, not verified; the check may use another route.
 4. **The page count of the PDF**: how to get it. Counting the page objects of the file in PHP is fragile; a PDF-engine route of Gotenberg may give it (to examine with the "PDF engines" of `books.md`); or `pdf.js` reading it in the browser. Until known, the panel shows the count only when it is obtained.
-5. **Print or screen media** for the conversion: `print` is Gotenberg's default, `screen` is what the panel measures. To decide by trial, comparing with the PDF of last year (the print CSS of the theme is not under `@media print`).
+5. ~~Print or screen media.~~ **Decided** (Eric, 2026-10-20): the conversion uses the **`print` media** (the default of the setting and of Gotenberg), because `@media print` rules allow, when needed, to refine the printing by removing or changing elements that were left on purpose for the HTML preview. Consequence: **the HTML view of the panel (screen media) shows what `@media print` hides or changes in the PDF, so its "fits / overflows" can differ from the PDF**; the number of pages of the PDF view is the one to believe, and the HTML view is the quick approximation. The setting `screen` stays available for comparisons.
 6. **Footers and page numbers** are not in this slice (see `books.md`: the numbers of a single conversion restart at 1 for each post).
 7. **Lifetime of the files** and who may read them: proposed above (hash names, served through REST, removed after 7 days).
 8. **Gotenberg's version** and its options (`waitDelay` versus a wait on an expression) are those of the trial; to re-read in its documentation before coding.
+
+## The WP-CLI command (Proposed design, to confirm; not coded)
+
+Eric's decision 2: **one server per site**, so a copy of production made for staging or testing (`sync-site.sh` of `shared-room`) carries the address of the **production** server in its database and must be pointed at its own. A command that can be run twice (the rule of the project for a step of a migration), with a report and a way to check:
+
+```
+wp otherguise books renderer get   [--format=<table|json>]
+wp otherguise books renderer set   [--url=<address>] [--wait-delay=<seconds>] [--wait-expression=<js>]
+                                   [--wait-selector=<css>] [--media=<print|screen>] [--keep-days=<n>] [--dry-run]
+wp otherguise books renderer unset [--dry-run]
+wp otherguise books renderer check
+```
+
+- **`get`** prints the settings (the same validated values as the screen).
+- **`set`** changes **only the options given**, with the same validation as the screen (an invalid address, a delay out of bounds: an error message, exit status 1, nothing changed); it reports what changed ("address: A -> B" or "nothing to change"), so a second run changes nothing; `--dry-run` reports without writing.
+- **`unset`** turns the PDF mode off (empty address), keeping the other settings.
+- **`check`** asks the server (`GET /health`) and exits with 0 when it is up, 1 with the message otherwise: usable in a rollout script to verify the step.
+- Registered on `cli_init` by the module `Books`, with a test per sub-command (as the project requires for every entry point). The address is taken from the command line: **no secret** is involved (an address on the Docker network).
+
+**For the synchronisation scripts** (the repository `shared-room`, `tools/staging/`; the session that takes care of it decides): after the copy of the database, `wp otherguise books renderer set --url="$GOTENBERG_URL"` with a variable per site declared with the others by `set-environment.sh` (for example `STAGING_GOTENBERG_URL`, `TESTING_GOTENBERG_URL`), then `renderer check`. The files `uploads/books-pdf/` copied from production are harmless (names made of a hash, removed after 7 days) and could be excluded from the copy; the states in the transients of the copied database refer to keys that the new site will recompute.
 
 ## Not in this slice
 
