@@ -981,3 +981,28 @@ function wp_schedule_single_event() {
 function spawn_cron() {
     otherguise_test_record( 'spawn_cron', func_get_args() );
 }
+
+if ( ! class_exists( 'WP_CLI' ) ) {
+	/**
+	 * Stand-in for WP_CLI: records the commands that are added.
+	 */
+	class WP_CLI {
+		/**
+		 * Commands added: name and object.
+		 *
+		 * @var array
+		 */
+		public static $commands = array();
+
+		/**
+		 * Records a command.
+		 *
+		 * @param string $name    Name.
+		 * @param object $command Command.
+		 * @return void
+		 */
+		public static function add_command( $name, $command ) {
+			self::$commands[ $name ] = $command;
+		}
+	}
+}

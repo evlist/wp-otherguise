@@ -12,6 +12,7 @@ namespace Otherguise\Books;
 
 use Otherguise\Books\Admin\SettingsScreen;
 use Otherguise\Books\Preview\EditorPreview;
+use Otherguise\Books\Cli\RendererCommand;
 use Otherguise\Books\Pdf\JobState;
 use Otherguise\Books\Pdf\PdfJobs;
 use Otherguise\Books\Pdf\PdfStore;
@@ -110,6 +111,24 @@ final class Module implements ModuleInterface {
 		( $this->add_action )( PdfJobs::EVENT, array( $jobs, 'run' ), 10, 3 );
 		( $this->add_action )( self::CLEANUP_EVENT, array( $jobs, 'cleanup' ), 10, 0 );
 		( $this->add_action )( 'admin_init', array( $this, 'schedule_cleanup' ), 10, 0 );
+		( $this->add_action )( 'cli_init', array( $this, 'register_command' ), 10, 0 );
+	}
+
+	/**
+	 * Registers the WP-CLI commands `wp otherguise books renderer`. Action `cli_init`.
+	 *
+	 * @return void
+	 */
+	public function register_command() {
+		\WP_CLI::add_command(
+			'otherguise books renderer',
+			new RendererCommand(
+				new RendererSettings(),
+				static function ( $address ) {
+					return ( new GotenbergClient( $address ) )->health();
+				}
+			)
+		);
 	}
 
 	/**

@@ -5,13 +5,14 @@
 
 The commands that the plugin offers today, written from the code (`Cli\VariantCommand`, `Cli\MigrateCommand`) and their tests. They are the tools of the migrations of the blog ([`design/rollout.md`](https://github.com/evlist/shared-room/blob/main/docs/design/rollout.md), [`rollouts/` of shared-room](https://github.com/evlist/shared-room/blob/main/docs/rollouts/README.md)), and follow the rule of the repository: a step of a migration that touches what the plugin is responsible for is a command that **can be run twice**, with `--dry-run`, a report, and a way to check the result.
 
-Three commands exist. All are registered on `cli_init`, appear in `wp help otherguise`, and need the modules they name to be active (otherwise they stop with a message). To know whether a site has one: `wp cli has-command "otherguise media migrate"` (exit code 0 or 1). The commands that are still **missing** (`variant add|remove`, `modes enable`, `media list`, `status`…) are listed in [`design/rollout.md`](https://github.com/evlist/shared-room/blob/main/docs/design/rollout.md), each written only when an iteration needs it.
+Three commands exist (and the four sub-commands of the PDF server, below). All are registered on `cli_init`, appear in `wp help otherguise`, and need the modules they name to be active (otherwise they stop with a message). To know whether a site has one: `wp cli has-command "otherguise media migrate"` (exit code 0 or 1). The commands that are still **missing** (`variant add|remove`, `modes enable`, `media list`, `status`…) are listed in [`design/rollout.md`](https://github.com/evlist/shared-room/blob/main/docs/design/rollout.md), each written only when an iteration needs it.
 
 | Command | Does | Slice | Used by |
 |---|---|---|---|
 | [`wp otherguise modes variant list`](#wp-otherguise-modes-variant-list) | lists the variants (the relations between templates) | [212](slices/212-variant-retheme.md) | rollout 002 (checks and notes) |
 | [`wp otherguise modes variant retheme`](#wp-otherguise-modes-variant-retheme) | moves the variants of a theme to another theme | [212](slices/212-variant-retheme.md) | rollout 002 |
 | [`wp otherguise media migrate`](#wp-otherguise-media-migrate) | turns the parents of the attachments and a meta into links | [211](slices/211-media-migration.md), [215](slices/215-media-migrate-criterion.md), [217](slices/217-media-migrate-all-types-and-posts.md) | rollout 003 (planned) |
+| [`wp otherguise books renderer get\|set\|unset\|check`](#wp-otherguise-books-renderer) | reads, sets, turns off and checks the PDF server of the site | [220](slices/220-books-gotenberg-pdf-preview.md) | the synchronisation scripts of the sites (to be added in `shared-room`) |
 
 ## wp otherguise modes variant list
 
@@ -106,8 +107,30 @@ wp otherguise media migrate --post-ids=49133,49047 --dry-run      # only the att
 
 Only the links that already exist as `post_parent` are made: a photo cannot be linked to a second post by this command (see the case of the monthly summaries in [`design/media-helper.md`](design/media-helper.md)).
 
+## wp otherguise books renderer
+
+```
+wp otherguise books renderer get   [--format=<text|json>]
+wp otherguise books renderer set   [--address=<address>] [--wait-delay=<seconds>] [--wait-expression=<js>]
+                                   [--wait-selector=<css>] [--media=<print|screen>] [--keep-days=<n>] [--dry-run]
+wp otherguise books renderer unset [--dry-run]
+wp otherguise books renderer check
+```
+
+The PDF server (a Gotenberg container) of **one site**. A copy of production made for staging or testing carries the address of the production server in its database: these commands point the copy at its own, and check it (the decision of Eric, 2026-10-20: one server per site).
+
+- **`get`** prints the settings, one `key: value` line each, or JSON.
+- **`set`** changes **only the options given**, checked as on the settings screen except that a wrong value is an **error** (exit status 1, nothing written) and not replaced by a default. It says what it changes (`Changed gotenberg_url: A -> B`, an empty value is shown as `(empty)`), and `Nothing to change.` when the values are already those, so it can be run again. `--dry-run` says `Would change …` and writes nothing. **The option of the address is `--address`, not `--url`**: WP-CLI keeps `--url` for the address of the site and does not give it to the command (found in the first real run).
+- **`unset`** empties the address (the PDF mode of the panel disappears) and keeps the other settings.
+- **`check`** calls `GET /health` of the server: exit status 0 and `The server <address> answers.`, or 1 and the reason (`cURL error 7…`, the status of the answer). With no address it is an error.
+
+```sh
+wp otherguise books renderer set --address=http://gotenberg-testing:3000 && wp otherguise books renderer check
+```
+
 ## What was tried
 
 - **Automated tests** (PHPUnit with a database, 415 tests in all): the three commands (output, options, refusals, the case where the modules are missing, the hook `cli_init`).
+- **Real WordPress 7.1.3 with the real WP-CLI, `books renderer`** (2026-10-20, against a stand-in of Gotenberg): `get`, `get --format=json`, `set` (with `--dry-run`, run twice, a wrong media, an invalid address, no option), `unset`, `check` up and down with the exit status. Not against a real Gotenberg.
 - **Real WordPress 7.1.3 with the real WP-CLI:** `variant list` and `retheme` (10 checks), and `media migrate` before its criterion options (12 checks, slice 211). `--post-ids` was tried on testing (2026-10-14); the options `--mime`, `--meta-key`, `--meta-value` and `--restrict-mode` were not tried with other values than their defaults.
 - **On the blog:** `variant retheme` ran in rollout 002 on staging and on production. `media migrate` (default criterion, then `--post-ids` on testing, then without option) ran on **testing** on 2026-10-14 (22 130 links), and in [rollout 003](https://github.com/evlist/shared-room/blob/main/docs/rollouts/003-print-format.md) on **staging** and on **production** on 2026-10-15 (22 370 links each: 20 020 in `web`, 2 350 in `web,print`; the duration was not measured, less than five minutes by Eric's estimate, dry run included). The options `--mime`, `--meta-key`, `--meta-value` and `--restrict-mode` were tried only with their default values; `--mime=all` was never tried on a real site.

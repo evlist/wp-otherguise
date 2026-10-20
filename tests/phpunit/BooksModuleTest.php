@@ -87,6 +87,7 @@ class BooksModuleTest extends TestCase {
 				'rest_api_init'                      => array( array( 'register', 10, 0 ) ),
 				'books_render_pdf'                   => array( array( 'run', 10, 3 ) ),
 				'books_pdf_cleanup'                  => array( array( 'cleanup', 10, 0 ) ),
+				'cli_init'                           => array( array( 'register_command', 10, 0 ) ),
 			),
 			$hooks
 		);

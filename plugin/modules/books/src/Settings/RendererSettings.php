@@ -144,6 +144,89 @@ final class RendererSettings {
 	}
 
 	/**
+	 * Checks changes asked for one by one (the WP-CLI command), without replacing a wrong value by a default: the first wrong value is
+	 * reported. Only the keys given are checked and returned.
+	 *
+	 * @param array<string, mixed> $changes Changes by key.
+	 * @return array{values:array<string, mixed>, error:string} The values, or the message about the first wrong one.
+	 */
+	public function validate( array $changes ) {
+		$values = array();
+
+		foreach ( $changes as $key => $value ) {
+			switch ( $key ) {
+				case self::URL:
+					$address = ServerAddress::normalize( $value );
+
+					if ( null === $address ) {
+						return $this->refused( __( 'The address is not valid: it must be an http or https address, without user, password, query or fragment.', 'otherguise' ) );
+					}
+
+					$values[ $key ] = $address;
+					break;
+
+				case self::WAIT_DELAY:
+					$number = is_string( $value ) ? str_replace( ',', '.', trim( $value ) ) : $value;
+
+					if ( ! ( is_int( $number ) || is_float( $number ) || ( is_string( $number ) && is_numeric( $number ) ) ) || (float) $number < 0 || (float) $number > self::MAX_DELAY ) {
+						return $this->refused( sprintf( /* translators: %s: the longest delay. */ __( 'The wait must be a number of seconds between 0 and %s.', 'otherguise' ), (string) self::MAX_DELAY ) );
+					}
+
+					$values[ $key ] = round( (float) $number, 1 );
+					break;
+
+				case self::WAIT_EXPRESSION:
+				case self::WAIT_SELECTOR:
+					$longest = self::WAIT_EXPRESSION === $key ? self::MAX_EXPRESSION : self::MAX_SELECTOR;
+
+					if ( ! is_string( $value ) || strlen( $value ) > $longest || 1 === preg_match( '/[\x00-\x1F\x7F]/', $value ) ) {
+						return $this->refused( sprintf( /* translators: %d: the longest length. */ __( 'The text must be on one line, at most %d characters long.', 'otherguise' ), $longest ) );
+					}
+
+					$values[ $key ] = trim( $value );
+					break;
+
+				case self::MEDIA:
+					if ( ! in_array( $value, array( 'print', 'screen' ), true ) ) {
+						return $this->refused( __( 'The media must be print or screen.', 'otherguise' ) );
+					}
+
+					$values[ $key ] = $value;
+					break;
+
+				case self::KEEP_DAYS:
+					if ( ! ( is_int( $value ) || ( is_string( $value ) && 1 === preg_match( '/^[0-9]{1,3}$/', $value ) ) ) || (int) $value < 1 || (int) $value > 90 ) {
+						return $this->refused( __( 'The number of days must be a whole number between 1 and 90.', 'otherguise' ) );
+					}
+
+					$values[ $key ] = (int) $value;
+					break;
+
+				default:
+					return $this->refused( 'Unknown setting.' );
+			}
+		}
+
+		return array(
+			'values' => $values,
+			'error'  => '',
+		);
+	}
+
+	/**
+	 * Builds the answer of `validate()` for a refusal.
+	 *
+	 * @param string $message Message.
+	 * @return array{values:array<string, mixed>, error:string}
+	 */
+	private function refused( $message ) {
+		return array(
+			'values' => array(),
+			'error'  => $message,
+		);
+	}
+
+	/**
 	 * Keeps the valid values and replaces the others by the defaults.
 	 *
 	 * @param array<string, mixed> $values  Values.

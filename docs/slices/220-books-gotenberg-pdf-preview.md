@@ -107,25 +107,25 @@ An admin screen section (capability, nonce, Settings API), three REST routes (ca
 7. **Lifetime of the files** and who may read them: proposed above (hash names, served through REST, removed after 7 days).
 8. **Gotenberg's version** and its options (`waitDelay` versus a wait on an expression) are those of the trial; to re-read in its documentation before coding.
 
-## The WP-CLI command (Proposed design, to confirm; not coded)
+## The WP-CLI command (coded, 2026-10-20; documented in [`../wp-cli.md`](../wp-cli.md))
 
 Eric's decision 2: **one server per site**, so a copy of production made for staging or testing (`sync-site.sh` of `shared-room`) carries the address of the **production** server in its database and must be pointed at its own. A command that can be run twice (the rule of the project for a step of a migration), with a report and a way to check:
 
 ```
 wp otherguise books renderer get   [--format=<table|json>]
-wp otherguise books renderer set   [--url=<address>] [--wait-delay=<seconds>] [--wait-expression=<js>]
+wp otherguise books renderer set   [--address=<address>] [--wait-delay=<seconds>] [--wait-expression=<js>]
                                    [--wait-selector=<css>] [--media=<print|screen>] [--keep-days=<n>] [--dry-run]
 wp otherguise books renderer unset [--dry-run]
 wp otherguise books renderer check
 ```
 
 - **`get`** prints the settings (the same validated values as the screen).
-- **`set`** changes **only the options given**, with the same validation as the screen (an invalid address, a delay out of bounds: an error message, exit status 1, nothing changed); it reports what changed ("address: A -> B" or "nothing to change"), so a second run changes nothing; `--dry-run` reports without writing.
+- **`set`** changes **only the options given** (the option of the address is **`--address`**: WP-CLI keeps `--url` for the site and does not pass it to the command, found in the first real run), with the same validation as the screen (an invalid address, a delay out of bounds: an error message, exit status 1, nothing changed); it reports what changed ("address: A -> B" or "nothing to change"), so a second run changes nothing; `--dry-run` reports without writing.
 - **`unset`** turns the PDF mode off (empty address), keeping the other settings.
 - **`check`** asks the server (`GET /health`) and exits with 0 when it is up, 1 with the message otherwise: usable in a rollout script to verify the step.
-- Registered on `cli_init` by the module `Books`, with a test per sub-command (as the project requires for every entry point). The address is taken from the command line: **no secret** is involved (an address on the Docker network).
+- Registered on `cli_init` by the module `Books`, with a test per sub-command (as the project requires for every entry point). Tried with the real WP-CLI on the scratch site against the stand-in of Gotenberg; never against a real one. The address is taken from the command line: **no secret** is involved (an address on the Docker network).
 
-**For the synchronisation scripts** (the repository `shared-room`, `tools/staging/`; the session that takes care of it decides): after the copy of the database, `wp otherguise books renderer set --url="$GOTENBERG_URL"` with a variable per site declared with the others by `set-environment.sh` (for example `STAGING_GOTENBERG_URL`, `TESTING_GOTENBERG_URL`), then `renderer check`. The files `uploads/books-pdf/` copied from production are harmless (names made of a hash, removed after 7 days) and could be excluded from the copy; the states in the transients of the copied database refer to keys that the new site will recompute.
+**For the synchronisation scripts** (the repository `shared-room`, `tools/staging/`; the session that takes care of it decides): after the copy of the database, `wp otherguise books renderer set --address="$GOTENBERG_URL"` with a variable per site declared with the others by `set-environment.sh` (for example `STAGING_GOTENBERG_URL`, `TESTING_GOTENBERG_URL`), then `renderer check`. The files `uploads/books-pdf/` copied from production are harmless (names made of a hash, removed after 7 days) and could be excluded from the copy; the states in the transients of the copied database refer to keys that the new site will recompute.
 
 ## Not in this slice
 
