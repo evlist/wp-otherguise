@@ -14,6 +14,7 @@ use Otherguise\Books\Admin\SettingsScreen;
 use Otherguise\Books\Preview\EditorPreview;
 use Otherguise\Books\Cli\RendererCommand;
 use Otherguise\Books\Cli\SizesCommand;
+use Otherguise\Books\Images\PrintFallback;
 use Otherguise\Books\Images\PrintSizes;
 use Otherguise\Books\Images\PrintSrcset;
 use Otherguise\Books\Pdf\JobState;
@@ -105,6 +106,7 @@ final class Module implements ModuleInterface {
 		$jobs     = $this->jobs( $format, $renderer );
 		$sizes    = new PrintSizes( $format );
 		$srcset   = new PrintSrcset();
+		$fallback = new PrintFallback( $sizes );
 		$routes   = new PdfRoutes( $jobs );
 
 		( $this->add_action )( 'admin_init', array( $settings, 'register' ), 10, 0 );
@@ -119,6 +121,7 @@ final class Module implements ModuleInterface {
 		( $this->add_action )( 'cli_init', array( $this, 'register_command' ), 10, 0 );
 		( $this->add_action )( 'init', array( $sizes, 'register' ), 20, 0 );
 		( $this->add_action )( 'wp_calculate_image_srcset', array( $srcset, 'filter' ), 20, 1 );
+		( $this->add_action )( 'image_downsize', array( $fallback, 'filter' ), 100, 3 );
 	}
 
 	/**

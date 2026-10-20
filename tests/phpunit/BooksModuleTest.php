@@ -90,6 +90,7 @@ class BooksModuleTest extends TestCase {
 				'cli_init'                           => array( array( 'register_command', 10, 0 ) ),
 				'init'                               => array( array( 'register', 20, 0 ) ),
 				'wp_calculate_image_srcset'          => array( array( 'filter', 20, 1 ) ),
+				'image_downsize'                     => array( array( 'filter', 100, 3 ) ),
 			),
 			$hooks
 		);
