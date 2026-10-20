@@ -47,18 +47,27 @@ final class PdfStore {
 	private $mkdir;
 
 	/**
+	 * Removes an empty directory.
+	 *
+	 * @var callable
+	 */
+	private $rmdir;
+
+	/**
 	 * Builds the store.
 	 *
 	 * @param string        $directory Directory, without a trailing slash.
 	 * @param callable|null $now       Defaults to `time`.
 	 * @param callable|null $delete    Defaults to `wp_delete_file`.
 	 * @param callable|null $mkdir     Defaults to `wp_mkdir_p`.
+	 * @param callable|null $rmdir     Defaults to `remove_directory()`, which uses the WordPress file system API.
 	 */
-	public function __construct( $directory, $now = null, $delete = null, $mkdir = null ) {
+	public function __construct( $directory, $now = null, $delete = null, $mkdir = null, $rmdir = null ) {
 		$this->directory = rtrim( (string) $directory, '/\\' );
 		$this->now       = $now ?? 'time';
 		$this->delete    = $delete ?? 'wp_delete_file';
 		$this->mkdir     = $mkdir ?? 'wp_mkdir_p';
+		$this->rmdir     = $rmdir ?? array( self::class, 'remove_directory' );
 	}
 
 	/**
@@ -164,8 +173,28 @@ final class PdfStore {
 		}
 
 		if ( is_dir( $this->directory ) && array() === array_diff( (array) scandir( $this->directory ), array( '.', '..' ) ) ) {
-			rmdir( $this->directory );
+			( $this->rmdir )( $this->directory );
 		}
+	}
+
+	/**
+	 * Removes an empty directory with the WordPress file system API (Plugin Check refuses a direct `rmdir()`).
+	 *
+	 * @param string $directory Directory.
+	 * @return bool
+	 */
+	public static function remove_directory( $directory ) {
+		global $wp_filesystem;
+
+		if ( ! function_exists( 'WP_Filesystem' ) ) {
+			require_once ABSPATH . 'wp-admin/includes/file.php';
+		}
+
+		if ( ! WP_Filesystem() || ! is_object( $wp_filesystem ) ) {
+			return false;
+		}
+
+		return (bool) $wp_filesystem->rmdir( $directory );
 	}
 
 	/**

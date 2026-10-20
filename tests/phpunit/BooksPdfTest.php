@@ -146,6 +146,22 @@ class BooksPdfTest extends TestCase {
 	}
 
 	/**
+	 * The directory is removed with the WordPress file system API; when that API is not usable, the directory stays.
+	 *
+	 * @return void
+	 */
+	public function test_the_directory_is_removed_through_the_file_system_api(): void {
+		mkdir( $this->directory );
+		$this->assertTrue( PdfStore::remove_directory( $this->directory ) );
+		$this->assertDirectoryDoesNotExist( $this->directory );
+
+		$store = new PdfStore( $this->directory, fn() => $this->time );
+		$store->write( $this->key(), '%PDF-1.7' );
+		$store->remove_all();
+		$this->assertDirectoryDoesNotExist( $this->directory, 'The default removal goes through the API.' );
+	}
+
+	/**
 	 * A directory that cannot be created, and a store that keeps what is foreign in the directory.
 	 *
 	 * @return void

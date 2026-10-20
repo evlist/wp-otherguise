@@ -1006,3 +1006,24 @@ if ( ! class_exists( 'WP_CLI' ) ) {
 		}
 	}
 }
+
+/**
+ * Stub of WP_Filesystem(): offers a file system object that removes a directory.
+ *
+ * @return bool
+ */
+function WP_Filesystem() {
+    $GLOBALS['wp_filesystem'] = new class() {
+        /**
+         * Removes a directory.
+         *
+         * @param string $directory Directory.
+         * @return bool
+         */
+        public function rmdir( $directory ) {
+            return rmdir( $directory );
+        }
+    };
+
+    return true;
+}
