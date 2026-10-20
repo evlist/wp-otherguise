@@ -347,6 +347,8 @@ class BooksCliTest extends TestCase {
 		$module->register_command();
 
 		$this->assertArrayHasKey( 'otherguise books renderer', WP_CLI::$commands );
+		$this->assertArrayHasKey( 'otherguise books sizes', WP_CLI::$commands );
+		$this->assertInstanceOf( \Otherguise\Books\Cli\SizesCommand::class, WP_CLI::$commands['otherguise books sizes'] );
 		$this->assertInstanceOf( RendererCommand::class, WP_CLI::$commands['otherguise books renderer'] );
 	}
 

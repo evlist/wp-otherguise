@@ -13,6 +13,9 @@ namespace Otherguise\Books;
 use Otherguise\Books\Admin\SettingsScreen;
 use Otherguise\Books\Preview\EditorPreview;
 use Otherguise\Books\Cli\RendererCommand;
+use Otherguise\Books\Cli\SizesCommand;
+use Otherguise\Books\Images\PrintSizes;
+use Otherguise\Books\Images\PrintSrcset;
 use Otherguise\Books\Pdf\JobState;
 use Otherguise\Books\Pdf\PdfJobs;
 use Otherguise\Books\Pdf\PdfStore;
@@ -100,6 +103,8 @@ final class Module implements ModuleInterface {
 		$settings = new SettingsScreen( $format, $renderer );
 		$preview  = new EditorPreview( $format, array( $this, 'preview_modes' ), $this->editor_url, null, null, null, array( $renderer, 'is_configured' ) );
 		$jobs     = $this->jobs( $format, $renderer );
+		$sizes    = new PrintSizes( $format );
+		$srcset   = new PrintSrcset();
 		$routes   = new PdfRoutes( $jobs );
 
 		( $this->add_action )( 'admin_init', array( $settings, 'register' ), 10, 0 );
@@ -112,6 +117,8 @@ final class Module implements ModuleInterface {
 		( $this->add_action )( self::CLEANUP_EVENT, array( $jobs, 'cleanup' ), 10, 0 );
 		( $this->add_action )( 'admin_init', array( $this, 'schedule_cleanup' ), 10, 0 );
 		( $this->add_action )( 'cli_init', array( $this, 'register_command' ), 10, 0 );
+		( $this->add_action )( 'init', array( $sizes, 'register' ), 20, 0 );
+		( $this->add_action )( 'wp_calculate_image_srcset', array( $srcset, 'filter' ), 20, 1 );
 	}
 
 	/**
@@ -120,6 +127,7 @@ final class Module implements ModuleInterface {
 	 * @return void
 	 */
 	public function register_command() {
+		\WP_CLI::add_command( 'otherguise books sizes', new SizesCommand( new PrintSizes( new PageFormat() ) ) );
 		\WP_CLI::add_command(
 			'otherguise books renderer',
 			new RendererCommand(
