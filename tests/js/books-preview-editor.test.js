@@ -29,6 +29,7 @@ function load( options ) {
 	const h = ( type, props, ...children ) => ( { type, props, children } );
 	const store = {
 		getCurrentPostAttribute: () => editorState.status,
+		getCurrentPostId: () => 58325,
 		getPermalink: () => 'https://testing.vli.st/post/',
 		getEditedPostPreviewLink: () => 'https://testing.vli.st/?p=1&preview=true',
 		isEditedPostDirty: () => editorState.dirty,
@@ -63,8 +64,12 @@ function load( options ) {
 	} else if ( ! options.noMenu ) {
 		dom.window.wp.editor = { PluginMoreMenuItem: menu };
 	}
+	const fetched = [];
+	if ( options.pdf ) {
+		dom.window.wp.apiFetch = ( request ) => ( fetched.push( request ), Promise.resolve( { status: 'failed', message: 'stop' } ) );
+	}
 	if ( ! options.noSettings ) {
-		dom.window.booksPreview = SETTINGS;
+		dom.window.booksPreview = options.pdf ? Object.assign( {}, SETTINGS, { pdf: { enabled: true, path: '/books/v1/pdf' } } ) : SETTINGS;
 	}
 	if ( options.blockedStorage ) {
 		Object.defineProperty( dom.window, 'localStorage', {
@@ -82,7 +87,7 @@ function load( options ) {
 		subscribers.forEach( ( fn ) => fn() );
 	};
 
-	return { dom, registered, change, subscribers, hooks, q: ( selector ) => dom.window.document.querySelector( selector ) };
+	return { dom, registered, change, subscribers, hooks, fetched, q: ( selector ) => dom.window.document.querySelector( selector ) };
 }
 
 /** Renders the plugin (hooks start again at each render): { button, item } where button is the Button of the toolbar. */
@@ -249,4 +254,54 @@ test( 'a draft shows its preview link; a blocked local storage does not stop the
 	click( site );
 
 	assert.strictEqual( site.q( '.books-preview__frame' ).src, 'https://testing.vli.st/?p=1&preview=true&mode=print&books_preview=1' );
+} );
+
+test( 'without a PDF server the panel has no PDF view', () => {
+	const site = load();
+
+	click( site );
+
+	assert.strictEqual( site.q( '.books-preview__views' ), null );
+} );
+
+test( 'with a PDF server the panel has the views, and the PDF view calls the routes with the id of the post', async () => {
+	const site = load( { pdf: true } );
+
+	click( site );
+	assert.ok( site.q( '.books-preview__views' ) );
+
+	site.q( '.books-preview__view--pdf' ).dispatchEvent( new site.dom.window.Event( 'click' ) );
+	await new Promise( ( resolve ) => setImmediate( resolve ) );
+
+	assert.deepStrictEqual( JSON.parse( JSON.stringify( site.fetched ) ), [ { path: '/books/v1/pdf/58325', method: 'POST', data: { mode: 'print', refresh: false } } ] );
+} );
+
+test( 'the PDF routes for the state and the file carry the mode in the query', async () => {
+	const site = load( { pdf: true } );
+
+	click( site );
+	site.dom.window.eval( 'window.__api = null' );
+	// The panel polls the state and asks for the file through the same function: here the routes are read from what it calls.
+	site.q( '.books-preview__view--pdf' ).dispatchEvent( new site.dom.window.Event( 'click' ) );
+	await new Promise( ( resolve ) => setImmediate( resolve ) );
+	site.q( '.books-preview__refresh' ).dispatchEvent( new site.dom.window.Event( 'click' ) );
+	await new Promise( ( resolve ) => setImmediate( resolve ) );
+
+	assert.strictEqual( site.fetched[ 1 ].data.refresh, true, 'the Refresh button forces a new conversion' );
+} );
+
+test( 'a save that succeeds loads the PDF again without forcing it', async () => {
+	const site = load( { pdf: true } );
+
+	click( site );
+	site.q( '.books-preview__view--pdf' ).dispatchEvent( new site.dom.window.Event( 'click' ) );
+	await new Promise( ( resolve ) => setImmediate( resolve ) );
+	const before = site.fetched.length;
+
+	site.change( { saving: true, autosaving: false } );
+	site.change( { saving: false, succeeded: true } );
+	await new Promise( ( resolve ) => setImmediate( resolve ) );
+
+	assert.strictEqual( site.fetched.length, before + 1 );
+	assert.strictEqual( site.fetched[ before ].data.refresh, false );
 } );

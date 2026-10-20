@@ -98,3 +98,31 @@
 	cursor: nwse-resize;
 	background: linear-gradient(135deg, transparent 50%, #949494 50%);
 }
+
+.books-preview__views {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 4px;
+	margin-bottom: 6px;
+}
+
+.books-preview__view[aria-pressed="true"] {
+	background: #2271b1;
+	color: #fff;
+}
+
+.books-preview__download[hidden],
+.books-preview__open[hidden],
+.books-preview__usable[hidden] {
+	display: none;
+}
+
+.books-preview__pdf {
+	position: absolute;
+	top: 0;
+	left: 0;
+	display: block;
+	border: 0;
+	background: #fff;
+}

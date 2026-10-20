@@ -82,6 +82,13 @@ final class EditorPreview {
 	private $in_preview;
 
 	/**
+	 * Tells whether the PDF preview is available (a rendering server is configured).
+	 *
+	 * @var callable
+	 */
+	private $pdf_enabled;
+
+	/**
 	 * Builds the loader.
 	 *
 	 * @param PageFormat    $format     Format of the page.
@@ -90,14 +97,16 @@ final class EditorPreview {
 	 * @param callable|null $post_id    Defaults to the id of the global `$post`.
 	 * @param callable|null $can        Defaults to `current_user_can`.
 	 * @param callable|null $in_preview Defaults to a read of the query string with `filter_input()`.
+	 * @param callable|null $pdf_enabled Tells whether a rendering server is configured; defaults to false.
 	 */
-	public function __construct( PageFormat $format, $modes, $url, $post_id = null, $can = null, $in_preview = null ) {
+	public function __construct( PageFormat $format, $modes, $url, $post_id = null, $can = null, $in_preview = null, $pdf_enabled = null ) {
 		$this->format     = $format;
 		$this->modes      = $modes;
 		$this->url        = $url;
 		$this->post_id    = $post_id ?? array( $this, 'global_post_id' );
 		$this->can        = $can ?? 'current_user_can';
 		$this->in_preview = $in_preview ?? array( $this, 'query_has_argument' );
+		$this->pdf_enabled = $pdf_enabled ?? static fn() => false;
 	}
 
 	/**
@@ -124,7 +133,7 @@ final class EditorPreview {
 		wp_enqueue_script(
 			self::SCRIPT,
 			( $this->url )( 'preview.js' ),
-			array( self::GEOMETRY, self::PANEL, 'wp-plugins', 'wp-edit-post', 'wp-components', 'wp-element', 'wp-data', 'wp-editor', 'wp-i18n' ),
+			array( self::GEOMETRY, self::PANEL, 'wp-plugins', 'wp-edit-post', 'wp-components', 'wp-element', 'wp-data', 'wp-editor', 'wp-i18n', 'wp-api-fetch' ),
 			'219.1',
 			true
 		);
@@ -139,6 +148,10 @@ final class EditorPreview {
 					'defaultMode' => $default,
 					'frameModes'  => is_array( $frames ) ? array_values( array_filter( $frames, 'is_string' ) ) : array( 'print' ),
 					'argument'    => self::ARGUMENT,
+					'pdf'         => array(
+						'enabled' => (bool) ( $this->pdf_enabled )(),
+						'path'    => '/' . \Otherguise\Books\Rest\PdfRoutes::REST_NAMESPACE . '/pdf',
+					),
 				)
 			) . ';',
 			'before'

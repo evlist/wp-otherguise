@@ -6,7 +6,8 @@
  * preview.js connects it to the editor. Exposed as window.booksPreviewPanel.createPanel, and as a CommonJS module for the tests.
  *
  * The panel shows the page in an iframe, at the size of the usable part of the page (the page minus the margins), scaled to fit.
- * What it measures is an indication, not the pagination of a print engine.
+ * What it measures is an indication, not the pagination of a print engine. When a PDF server is configured (slice 220), a "PDF" view
+ * shows the PDF that the server made instead of the HTML page, with a download and an "open in a new tab" button.
  */
 ( function ( root, factory ) {
 	var api = factory();
@@ -24,6 +25,9 @@
 	var UNFRAMED = { width: 1024, height: 768 };
 	var IMAGES_TIMEOUT = 3000;
 	var STORAGE_KEY = 'books_preview_panel';
+	// Time between two questions about the state of the PDF, and time after which the panel gives up, in milliseconds.
+	var POLL_MS = 2000;
+	var GIVE_UP_MS = 600000;
 
 	function clamp( value, min, max ) {
 		return Math.min( Math.max( value, min ), max );
@@ -50,7 +54,24 @@
 			clearTimeout( id );
 		};
 
-		var state = { open: false, mode: settings.defaultMode, stale: false, measured: undefined, measuring: false, width: DEFAULT_WIDTH, x: null, y: null };
+		var pdfOptions = options.pdf && options.pdf.enabled && options.pdf.api ? options.pdf : null;
+		var win = doc.defaultView;
+		var state = {
+			open: false,
+			mode: settings.defaultMode,
+			stale: false,
+			measured: undefined,
+			measuring: false,
+			width: DEFAULT_WIDTH,
+			x: null,
+			y: null,
+			view: 'web',
+			pdfText: '',
+			pdfUrl: '',
+			pdfName: '',
+			pdfPages: null,
+		};
+		var pdfFrame = null;
 		var generation = 0;
 		var timer = null;
 		var iframe = null;
@@ -91,6 +112,28 @@
 		bar.appendChild( refreshButton );
 		bar.appendChild( closeButton );
 
+		// The views: the HTML page or, when a PDF server is configured, the PDF (slice 220).
+		var views = null;
+		var webButton = null;
+		var pdfButton = null;
+		var downloadButton = null;
+		var openButton = null;
+		if ( pdfOptions ) {
+			views = el( 'div', 'books-preview__views' );
+			webButton = el( 'button', 'books-preview__view books-preview__view--web button button-small', __( 'Web', 'otherguise' ) );
+			pdfButton = el( 'button', 'books-preview__view books-preview__view--pdf button button-small', __( 'PDF', 'otherguise' ) );
+			downloadButton = el( 'button', 'books-preview__download button button-small', __( 'Download', 'otherguise' ) );
+			openButton = el( 'button', 'books-preview__open button button-small', __( 'Open in a new tab', 'otherguise' ) );
+			[ webButton, pdfButton, downloadButton, openButton ].forEach( function ( button ) {
+				button.type = 'button';
+				views.appendChild( button );
+			} );
+			webButton.setAttribute( 'aria-pressed', 'true' );
+			pdfButton.setAttribute( 'aria-pressed', 'false' );
+			downloadButton.hidden = true;
+			openButton.hidden = true;
+		}
+
 		var status = el( 'div', 'books-preview__status' );
 		status.setAttribute( 'aria-live', 'polite' );
 		var stage = el( 'div', 'books-preview__stage' );
@@ -102,6 +145,9 @@
 		handle.setAttribute( 'aria-hidden', 'true' );
 
 		root.appendChild( bar );
+		if ( views ) {
+			root.appendChild( views );
+		}
 		root.appendChild( status );
 		root.appendChild( stage );
 		root.appendChild( handle );
@@ -182,14 +228,27 @@
 			usable.style.width = shape.usable.width + 'px';
 			usable.style.height = shape.usable.height + 'px';
 
+			usable.hidden = 'pdf' === state.view;
+
 			if ( iframe ) {
 				iframe.style.width = shape.iframe.width + 'px';
 				iframe.style.height = shape.iframe.height + 'px';
 				iframe.style.transform = 'scale(' + shape.scale + ')';
 			}
+
+			// The PDF viewer of the browser fills the whole page frame: the PDF has its own margins.
+			if ( pdfFrame ) {
+				pdfFrame.style.width = shape.frame.width + 'px';
+				pdfFrame.style.height = shape.frame.height + 'px';
+			}
 		}
 
 		function say() {
+			if ( 'pdf' === state.view ) {
+				sayPdf();
+				return;
+			}
+
 			var text;
 			var post = options.getPost();
 			var url = geo.previewUrl( post, state.mode, settings.argument );
@@ -279,7 +338,15 @@
 		}
 
 		// Loads the page again in a new iframe, so that the browser really fetches it.
-		function load() {
+		function load( force ) {
+			if ( 'pdf' === state.view ) {
+				loadPdf( force );
+				return;
+			}
+			if ( pdfOptions ) {
+				releasePdf();
+			}
+
 			generation++;
 			var id = generation;
 			var url = geo.previewUrl( options.getPost(), state.mode, settings.argument );
@@ -318,6 +385,150 @@
 			say();
 		}
 
+		function sayPdf() {
+			var parts = [];
+			if ( '' !== state.pdfText ) {
+				parts.push( state.pdfText );
+			}
+			if ( state.stale && '' !== state.pdfUrl ) {
+				parts.push( __( 'Out of date: update the post, then refresh.', 'otherguise' ) );
+			}
+			status.textContent = parts.join( ' ' );
+			status.className = 'books-preview__status books-preview__status--pdf' + ( state.pdfFailed ? ' books-preview__status--over' : '' ) + ( state.stale ? ' books-preview__status--stale' : '' );
+		}
+
+		function releasePdf() {
+			if ( '' !== state.pdfUrl ) {
+				( pdfOptions.revokeObjectURL || function ( url ) {
+					win.URL.revokeObjectURL( url );
+				} )( state.pdfUrl );
+			}
+			state.pdfUrl = '';
+			state.pdfName = '';
+			state.pdfPages = null;
+			state.pdfFailed = false;
+			if ( pdfFrame && pdfFrame.parentNode ) {
+				pdfFrame.parentNode.removeChild( pdfFrame );
+			}
+			pdfFrame = null;
+			downloadButton.hidden = true;
+			openButton.hidden = true;
+		}
+
+		function pdfFailed( id, message ) {
+			if ( id !== generation ) {
+				return;
+			}
+			state.pdfFailed = true;
+			state.pdfText = __( 'The PDF could not be made:', 'otherguise' ) + ' ' + message;
+			say();
+		}
+
+		// Turns the answer of the file route (the PDF in base64) into an address that the iframe and the buttons can use.
+		function showPdf( id, file ) {
+			if ( id !== generation ) {
+				return;
+			}
+			var decode = pdfOptions.atob || function ( text ) {
+				return win.atob( text );
+			};
+			var BlobClass = pdfOptions.Blob || win.Blob;
+			var make = pdfOptions.createObjectURL || function ( blob ) {
+				return win.URL.createObjectURL( blob );
+			};
+			var url = '';
+			try {
+				var binary = decode( file.base64 );
+				var bytes = new Uint8Array( binary.length );
+				for ( var i = 0; i < binary.length; i++ ) {
+					bytes[ i ] = binary.charCodeAt( i );
+				}
+				url = make( new BlobClass( [ bytes ], { type: 'application/pdf' } ) );
+			} catch ( e ) {
+				pdfFailed( id, __( 'the file could not be read.', 'otherguise' ) );
+				return;
+			}
+
+			state.pdfUrl = url;
+			state.pdfName = file.filename || 'page.pdf';
+			state.pdfPages = file.pages || null;
+			state.pdfFailed = false;
+			state.pdfText = state.pdfPages ? 'PDF: ' + state.pdfPages + ' ' + ( 1 === state.pdfPages ? __( 'page', 'otherguise' ) : __( 'pages', 'otherguise' ) ) + '.' : __( 'PDF ready.', 'otherguise' );
+
+			pdfFrame = el( 'iframe', 'books-preview__pdf' );
+			pdfFrame.setAttribute( 'title', __( 'PDF of the page', 'otherguise' ) );
+			pdfFrame.src = url + '#zoom=page-fit&pagemode=none';
+			page.appendChild( pdfFrame );
+			downloadButton.hidden = false;
+			openButton.hidden = false;
+			draw();
+			say();
+		}
+
+		// Asks for the PDF, then asks for its state until it is ready, has failed, or the time is up.
+		function loadPdf( force ) {
+			generation++;
+			var id = generation;
+			var started = Date.now();
+
+			if ( null !== timer ) {
+				cancel( timer );
+				timer = null;
+			}
+			if ( iframe && iframe.parentNode ) {
+				iframe.parentNode.removeChild( iframe );
+			}
+			iframe = null;
+			releasePdf();
+			state.measuring = false;
+			state.pdfText = __( 'Generating the PDF…', 'otherguise' );
+			draw();
+			say();
+
+			var handle = function ( answer ) {
+				if ( id !== generation ) {
+					return;
+				}
+				if ( 'done' === answer.status ) {
+					pdfOptions.api.file( state.mode ).then( function ( file ) {
+						showPdf( id, file );
+					}, function ( error ) {
+						pdfFailed( id, error && error.message ? error.message : '' );
+					} );
+				} else if ( 'failed' === answer.status ) {
+					pdfFailed( id, answer.message || '' );
+				} else if ( Date.now() - started > ( pdfOptions.giveUpMs || GIVE_UP_MS ) ) {
+					pdfFailed( id, __( 'it takes too long: is WP-Cron running?', 'otherguise' ) );
+				} else {
+					state.pdfText = __( 'Generating the PDF…', 'otherguise' ) + ( answer.elapsed ? ' ' + answer.elapsed + ' s' : '' );
+					say();
+					timer = later( function () {
+						timer = null;
+						if ( id === generation ) {
+							pdfOptions.api.status( state.mode ).then( handle, fail );
+						}
+					}, pdfOptions.pollMs || POLL_MS );
+				}
+			};
+			var fail = function ( error ) {
+				pdfFailed( id, error && error.message ? error.message : '' );
+			};
+
+			pdfOptions.api.start( state.mode, !! force ).then( handle, fail );
+		}
+
+		function setView( view ) {
+			if ( ! pdfOptions || view === state.view ) {
+				return;
+			}
+			state.view = view;
+			webButton.setAttribute( 'aria-pressed', 'web' === view ? 'true' : 'false' );
+			pdfButton.setAttribute( 'aria-pressed', 'pdf' === view ? 'true' : 'false' );
+			if ( state.open ) {
+				load();
+			}
+		}
+
 		function show() {
 			state.open = true;
 			root.hidden = false;
@@ -337,6 +548,9 @@
 				iframe.parentNode.removeChild( iframe );
 			}
 			iframe = null;
+			if ( pdfOptions ) {
+				releasePdf();
+			}
 		}
 
 		select.addEventListener( 'change', function () {
@@ -347,9 +561,35 @@
 		} );
 		refreshButton.addEventListener( 'click', function () {
 			if ( state.open ) {
-				load();
+				load( true );
 			}
 		} );
+		if ( pdfOptions ) {
+			webButton.addEventListener( 'click', function () {
+				setView( 'web' );
+			} );
+			pdfButton.addEventListener( 'click', function () {
+				setView( 'pdf' );
+			} );
+			downloadButton.addEventListener( 'click', function () {
+				if ( '' === state.pdfUrl ) {
+					return;
+				}
+				var link = doc.createElement( 'a' );
+				link.href = state.pdfUrl;
+				link.download = state.pdfName;
+				doc.body.appendChild( link );
+				link.click();
+				doc.body.removeChild( link );
+			} );
+			openButton.addEventListener( 'click', function () {
+				if ( '' !== state.pdfUrl ) {
+					( pdfOptions.openWindow || function ( url ) {
+						win.open( url, '_blank' );
+					} )( state.pdfUrl );
+				}
+			} );
+		}
 		closeButton.addEventListener( 'click', function () {
 			hide();
 			if ( options.onClose ) {
@@ -431,10 +671,17 @@
 			isOpen: function () {
 				return state.open;
 			},
-			refresh: function () {
+			refresh: function ( force ) {
 				if ( state.open ) {
-					load();
+					load( !! force );
 				}
+			},
+			view: function () {
+				return state.view;
+			},
+			setView: setView,
+			pdfAvailable: function () {
+				return !! pdfOptions;
 			},
 			setStale: function ( stale ) {
 				state.stale = !! stale;

@@ -1,0 +1,422 @@
+<?php
+/**
+ * SPDX-FileCopyrightText: 2026 Eric van der Vlist <vdv@dyomedea.com>
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ *
+ * The background conversion of a post to PDF.
+ *
+ * @package Otherguise
+ */
+
+namespace Otherguise\Books\Pdf;
+
+use Otherguise\Books\Render\Renderer;
+use Otherguise\Books\Settings\PageFormat;
+use Otherguise\Books\Settings\RendererSettings;
+
+defined( 'ABSPATH' ) || exit;
+
+/**
+ * Starts, runs and reads the conversion of a published post to PDF by the rendering server (slice 220). A conversion takes tens of
+ * seconds, so it runs as a WP-Cron event (`books_render_pdf`) and the editor asks for its state. The PDF is kept under a key made from
+ * what it depends on (the post and its last change, the mode, the page format, the settings of the conversion): the same key is served
+ * from the files without a new conversion. Nothing here calls WordPress: the post, the addresses, the scheduling and the renderer are
+ * given as functions.
+ */
+final class PdfJobs {
+	/**
+	 * Name of the cron event.
+	 */
+	public const EVENT = 'books_render_pdf';
+
+	/**
+	 * Seconds after which a conversion that says it is queued or running is taken for lost, and may be started again.
+	 */
+	public const STALE = 900;
+
+	/**
+	 * Settings of the server.
+	 *
+	 * @var RendererSettings
+	 */
+	private $settings;
+
+	/**
+	 * Format of the page.
+	 *
+	 * @var PageFormat
+	 */
+	private $format;
+
+	/**
+	 * Files.
+	 *
+	 * @var PdfStore
+	 */
+	private $store;
+
+	/**
+	 * States.
+	 *
+	 * @var JobState
+	 */
+	private $state;
+
+	/**
+	 * Returns what is known of a post: `status`, `modified`, `slug`, `url` (its permalink); null when it does not exist.
+	 *
+	 * @var callable
+	 */
+	private $post_info;
+
+	/**
+	 * Tells whether a mode exists: receives its slug.
+	 *
+	 * @var callable
+	 */
+	private $mode_exists;
+
+	/**
+	 * Builds the address to convert: receives the permalink and the slug of the mode.
+	 *
+	 * @var callable
+	 */
+	private $url_for;
+
+	/**
+	 * Builds the renderer: receives the address of the server.
+	 *
+	 * @var callable
+	 */
+	private $make_renderer;
+
+	/**
+	 * Schedules the cron event: receives the post id, the mode and the key.
+	 *
+	 * @var callable
+	 */
+	private $schedule;
+
+	/**
+	 * Gives the time.
+	 *
+	 * @var callable
+	 */
+	private $now;
+
+	/**
+	 * Builds the jobs.
+	 *
+	 * @param RendererSettings $settings      Settings of the server.
+	 * @param PageFormat       $format        Format of the page.
+	 * @param PdfStore         $store         Files.
+	 * @param JobState         $state         States.
+	 * @param callable         $post_info     Receives a post id; returns `status`, `modified`, `slug`, `url`, or null.
+	 * @param callable         $mode_exists   Receives a slug; tells whether the mode exists.
+	 * @param callable         $url_for       Receives the permalink and the mode; returns the address to convert.
+	 * @param callable         $make_renderer Receives the address of the server; returns a `Renderer`.
+	 * @param callable         $schedule      Receives the post id, the mode and the key; schedules the event.
+	 * @param callable|null    $now           Defaults to `time`.
+	 */
+	public function __construct( RendererSettings $settings, PageFormat $format, PdfStore $store, JobState $state, $post_info, $mode_exists, $url_for, $make_renderer, $schedule, $now = null ) {
+		$this->settings      = $settings;
+		$this->format        = $format;
+		$this->store         = $store;
+		$this->state         = $state;
+		$this->post_info     = $post_info;
+		$this->mode_exists   = $mode_exists;
+		$this->url_for       = $url_for;
+		$this->make_renderer = $make_renderer;
+		$this->schedule      = $schedule;
+		$this->now           = $now ?? 'time';
+	}
+
+	/**
+	 * Asks for the PDF of a post: serves the files when the same conversion was made, else queues it.
+	 *
+	 * @param int    $post_id Post.
+	 * @param string $mode    Slug of the mode.
+	 * @param bool   $force   Make a new conversion even when the files hold one.
+	 * @return array<string, mixed>|\WP_Error The state.
+	 */
+	public function request( $post_id, $mode, $force = false ) {
+		$check = $this->check( $post_id, $mode );
+
+		if ( $check instanceof \WP_Error ) {
+			return $check;
+		}
+
+		$key   = $this->key( $post_id, $mode, $check );
+		$state = $this->state->get( $post_id, $mode );
+
+		if ( ! $force && $this->store->has( $key ) ) {
+			if ( ( $state['key'] ?? '' ) !== $key || 'done' !== ( $state['status'] ?? '' ) ) {
+				$state = $this->fresh( $key, 'done' );
+				$this->state->set( $post_id, $mode, $state );
+			}
+
+			return $this->present( $state );
+		}
+
+		if ( ! $force && ( $state['key'] ?? '' ) === $key && in_array( $state['status'] ?? '', array( 'queued', 'running' ), true ) && ! $this->is_stale( $state ) ) {
+			return $this->present( $state );
+		}
+
+		$state = $this->fresh( $key, 'queued' );
+		$this->state->set( $post_id, $mode, $state );
+		( $this->schedule )( $post_id, $mode, $key );
+
+		return $this->present( $state );
+	}
+
+	/**
+	 * Gives the state of the conversion of a post for what it is now.
+	 *
+	 * @param int    $post_id Post.
+	 * @param string $mode    Slug of the mode.
+	 * @return array<string, mixed>|\WP_Error
+	 */
+	public function status( $post_id, $mode ) {
+		$check = $this->check( $post_id, $mode );
+
+		if ( $check instanceof \WP_Error ) {
+			return $check;
+		}
+
+		$key   = $this->key( $post_id, $mode, $check );
+		$state = $this->state->get( $post_id, $mode );
+
+		if ( ( $state['key'] ?? '' ) !== $key || ( 'done' === ( $state['status'] ?? '' ) && ! $this->store->has( $key ) ) ) {
+			return $this->present( $this->store->has( $key ) ? $this->fresh( $key, 'done' ) : $this->fresh( $key, 'none' ) );
+		}
+
+		if ( in_array( $state['status'] ?? '', array( 'queued', 'running' ), true ) && $this->is_stale( $state ) ) {
+			$state['status']  = 'failed';
+			$state['message'] = __( 'The conversion did not finish: is WP-Cron running?', 'otherguise' );
+		}
+
+		return $this->present( $state );
+	}
+
+	/**
+	 * Runs the conversion. Action `books_render_pdf` of WP-Cron.
+	 *
+	 * @param int    $post_id Post.
+	 * @param string $mode    Slug of the mode.
+	 * @param string $key     Key of the conversion that was queued.
+	 * @return void
+	 */
+	public function run( $post_id, $mode, $key ) {
+		$state = $this->state->get( $post_id, $mode );
+
+		if ( ( $state['key'] ?? '' ) !== $key || 'queued' !== ( $state['status'] ?? '' ) ) {
+			return;
+		}
+
+		$state['status']     = 'running';
+		$state['started_at'] = ( $this->now )();
+		$this->state->set( $post_id, $mode, $state );
+
+		$info = ( $this->post_info )( $post_id );
+
+		if ( ! is_array( $info ) || 'publish' !== ( $info['status'] ?? '' ) ) {
+			$this->fail( $post_id, $mode, $state, __( 'The post is not published.', 'otherguise' ) );
+			return;
+		}
+
+		$settings = $this->settings->get();
+		$renderer = ( $this->make_renderer )( $settings[ RendererSettings::URL ] );
+
+		if ( '' === $settings[ RendererSettings::URL ] || ! $renderer instanceof Renderer ) {
+			$this->fail( $post_id, $mode, $state, __( 'No rendering server is configured.', 'otherguise' ) );
+			return;
+		}
+
+		$pdf = $renderer->convert_url(
+			( $this->url_for )( $info['url'], $mode ),
+			$this->format->get(),
+			array(
+				'media'           => $settings[ RendererSettings::MEDIA ],
+				'wait_delay'      => $settings[ RendererSettings::WAIT_DELAY ],
+				'wait_expression' => $settings[ RendererSettings::WAIT_EXPRESSION ],
+				'wait_selector'   => $settings[ RendererSettings::WAIT_SELECTOR ],
+				'timeout'         => 300,
+			)
+		);
+
+		if ( $pdf instanceof \WP_Error ) {
+			$this->fail( $post_id, $mode, $state, $pdf->get_error_message() );
+			return;
+		}
+
+		if ( ! $this->store->write( $key, $pdf ) ) {
+			$this->fail( $post_id, $mode, $state, __( 'The PDF could not be written in the uploads directory.', 'otherguise' ) );
+			return;
+		}
+
+		$state['status']      = 'done';
+		$state['message']     = '';
+		$state['pages']       = $renderer->page_count( $pdf );
+		$state['finished_at'] = ( $this->now )();
+		$this->state->set( $post_id, $mode, $state );
+	}
+
+	/**
+	 * Gives the PDF of a post, ready: its bytes in base64 and the name of the file.
+	 *
+	 * @param int    $post_id Post.
+	 * @param string $mode    Slug of the mode.
+	 * @return array{filename:string, base64:string, pages:int|null}|\WP_Error
+	 */
+	public function file( $post_id, $mode ) {
+		$check = $this->check( $post_id, $mode );
+
+		if ( $check instanceof \WP_Error ) {
+			return $check;
+		}
+
+		$key   = $this->key( $post_id, $mode, $check );
+		$bytes = $this->store->read( $key );
+
+		if ( null === $bytes ) {
+			return new \WP_Error( 'books_pdf_not_ready', __( 'The PDF is not ready.', 'otherguise' ), array( 'status' => 409 ) );
+		}
+
+		$state = $this->state->get( $post_id, $mode );
+		$name  = trim( (string) preg_replace( '/[^a-z0-9_-]+/', '-', strtolower( (string) $check['slug'] ) ), '-' );
+
+		return array(
+			'filename' => ( '' !== $name ? $name : 'post-' . (int) $post_id ) . '.pdf',
+			'base64'   => base64_encode( $bytes ),
+			'pages'    => ( $state['key'] ?? '' ) === $key && isset( $state['pages'] ) ? $state['pages'] : null,
+		);
+	}
+
+	/**
+	 * Deletes the files that are older than the number of days of the settings. Daily cron event.
+	 *
+	 * @return int Number of files deleted.
+	 */
+	public function cleanup() {
+		return $this->store->cleanup( (int) $this->settings->get()[ RendererSettings::KEEP_DAYS ] );
+	}
+
+	/**
+	 * Checks that a conversion can be asked for: a server, an existing mode, a published post. Returns what is known of the post.
+	 *
+	 * @param int    $post_id Post.
+	 * @param string $mode    Slug of the mode.
+	 * @return array<string, mixed>|\WP_Error
+	 */
+	private function check( $post_id, $mode ) {
+		if ( ! $this->settings->is_configured() ) {
+			return new \WP_Error( 'books_pdf_disabled', __( 'No rendering server is configured.', 'otherguise' ), array( 'status' => 501 ) );
+		}
+
+		if ( ! is_string( $mode ) || ! ( $this->mode_exists )( $mode ) ) {
+			return new \WP_Error( 'books_pdf_unknown_mode', __( 'This mode does not exist.', 'otherguise' ), array( 'status' => 400 ) );
+		}
+
+		$info = ( $this->post_info )( $post_id );
+
+		if ( ! is_array( $info ) ) {
+			return new \WP_Error( 'books_pdf_not_found', __( 'This post does not exist.', 'otherguise' ), array( 'status' => 404 ) );
+		}
+
+		if ( 'publish' !== ( $info['status'] ?? '' ) ) {
+			return new \WP_Error( 'books_pdf_not_published', __( 'Only a published post can be converted to PDF.', 'otherguise' ), array( 'status' => 400 ) );
+		}
+
+		return $info;
+	}
+
+	/**
+	 * The key of the cache: what the PDF depends on.
+	 *
+	 * @param int                  $post_id Post.
+	 * @param string               $mode    Slug of the mode.
+	 * @param array<string, mixed> $info    What is known of the post.
+	 * @return string
+	 */
+	private function key( $post_id, $mode, array $info ) {
+		$settings = $this->settings->get();
+
+		unset( $settings[ RendererSettings::URL ], $settings[ RendererSettings::KEEP_DAYS ] );
+
+		return md5(
+			(string) wp_json_encode(
+				array(
+					'version'  => 1,
+					'post'     => (int) $post_id,
+					'modified' => (string) ( $info['modified'] ?? '' ),
+					'mode'     => $mode,
+					'format'   => $this->format->get(),
+					'settings' => $settings,
+				)
+			)
+		);
+	}
+
+	/**
+	 * Builds a state.
+	 *
+	 * @param string $key    Key.
+	 * @param string $status Status.
+	 * @return array<string, mixed>
+	 */
+	private function fresh( $key, $status ) {
+		return array(
+			'status'    => $status,
+			'key'       => $key,
+			'message'   => '',
+			'pages'     => null,
+			'queued_at' => ( $this->now )(),
+		);
+	}
+
+	/**
+	 * Marks a conversion as failed.
+	 *
+	 * @param int                  $post_id Post.
+	 * @param string               $mode    Slug of the mode.
+	 * @param array<string, mixed> $state   State.
+	 * @param string               $message Message.
+	 * @return void
+	 */
+	private function fail( $post_id, $mode, array $state, $message ) {
+		$state['status']      = 'failed';
+		$state['message']     = (string) $message;
+		$state['finished_at'] = ( $this->now )();
+		$this->state->set( $post_id, $mode, $state );
+	}
+
+	/**
+	 * Tells whether a queued or running conversion is taken for lost.
+	 *
+	 * @param array<string, mixed> $state State.
+	 * @return bool
+	 */
+	private function is_stale( array $state ) {
+		$since = (int) ( $state['started_at'] ?? $state['queued_at'] ?? 0 );
+
+		return ( $this->now )() - $since > self::STALE;
+	}
+
+	/**
+	 * What is sent to the editor: the state without the key, with the seconds elapsed.
+	 *
+	 * @param array<string, mixed> $state State.
+	 * @return array<string, mixed>
+	 */
+	private function present( array $state ) {
+		$from = (int) ( $state['started_at'] ?? $state['queued_at'] ?? ( $this->now )() );
+		$to   = (int) ( $state['finished_at'] ?? ( $this->now )() );
+
+		return array(
+			'status'  => (string) ( $state['status'] ?? 'none' ),
+			'message' => (string) ( $state['message'] ?? '' ),
+			'pages'   => isset( $state['pages'] ) ? (int) $state['pages'] : null,
+			'elapsed' => max( 0, $to - $from ),
+		);
+	}
+}

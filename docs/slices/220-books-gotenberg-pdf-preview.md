@@ -3,7 +3,7 @@
 
 # Slice 220 — Books: a PDF preview through a Gotenberg server
 
-Status: **planned in detail, no code yet** (Eric asked for it on 2026-10-20, after a first trial of Gotenberg that worked: see [`../design/books.md`](../design/books.md), "First trial"). Points marked **Decided** come from Eric; the rest is **Proposed** or **Open** until he confirms. Dependencies: slice 219 (the preview panel, its page format and its `books_preview` data). Module: `Books`.
+Status: **coded (2026-10-20), tried against a stand-in of Gotenberg, never against the real server**; Eric's go for the background job was given on 2026-10-20 (asked on 2026-10-20, after a first trial of Gotenberg that worked: see [`../design/books.md`](../design/books.md), "First trial"). Points marked **Decided** come from Eric; the rest is **Proposed** or **Open** until he confirms. Dependencies: slice 219 (the preview panel, its page format and its `books_preview` data). Module: `Books`.
 
 ## Goal
 
@@ -63,6 +63,19 @@ The browser of the editor cannot call Gotenberg directly: in Eric's setup it sit
 - The verdict line of the web mode is replaced, in PDF mode, by "PDF: N pages" when the page count is known (open question 4), next to "HTML: fits / overflows by N mm", so that the two measures can be compared.
 - The blob address is revoked when the panel is closed, on a new conversion and on a change of mode.
 
+## Built, and what differs from the plan
+
+What exists: `Render\ServerAddress`, `Render\Multipart`, `Render\Renderer` and `Render\GotenbergClient`; `Settings\RendererSettings` (option `books_renderer`); `Pdf\PdfStore`, `Pdf\JobState`, `Pdf\PdfJobs`, `Pdf\WordPressPosts`; `Rest\PdfRoutes` (`books/v1`); the section **PDF server** of **Settings → Otherguise books**; the "Web / PDF" views, download and open buttons in `panel.js`; the cron events `books_render_pdf` and the daily `books_pdf_cleanup`. Differences from the proposal above:
+
+- **The file route answers JSON, not `application/pdf`**: `{ filename, base64, pages }`. The editor decodes it into a `Blob`. Simpler than streaming through the REST server, and fine for a PDF of a post (a few MB); to revisit for large books.
+- **The waits are settings, with no wait by default.** Gotenberg's documentation (read on 2026-10-20) says it waits for nothing by default: `waitDelay` (a duration), `waitForExpression` (a JavaScript expression, awaited), `waitForSelector` (an element that appears), and `skipNetworkIdleEvent` which is **already `true` by default** (so the advice given in the chat to set it was a no-op). The screen has "Wait (seconds)" (default 0), "Wait until (JavaScript)" and "Wait for (CSS selector)", all optional; Eric thought the fixed delay might be superfluous in the 21 s of the trial.
+- **`/health` is verified in the documentation**: `GET /health` answers 200 and `{"status":"up","details":{…}}`, or 503 when it is down. The screen shows "The server answers" or the error.
+- **The page count** comes from `POST /forms/pdfengines/metadata/read` (a file `files`; the JSON is keyed by file name and each value has ExifTool tags, among them `PageCount`: documented). Counting page objects in PHP is not reliable: a PDF made by Firefox (cairo) has its objects in compressed streams. The count is shown when the server gives it.
+- **Sizes in inches** (the documentation says units `in`, `pt` or `cm`; no unit means inches): the millimetres of the page format are converted with four decimals.
+- **Gotenberg's error body is plain text** (400, 409, 503) and is shown, cut at 300 characters.
+- **No per-request timeout exists in Gotenberg** (the documentation names none): the limit is the server's own `--api-timeout` (30 s by default; Eric's conversion took about 21 s). A longer conversion needs `--api-timeout` raised on the server.
+- **Latency of the job**: the event is scheduled at once and `spawn_cron()` is called, but with `DISABLE_WP_CRON` set (as on Eric's sites) the event waits for the real cron: up to the interval of the system cron (a minute?) before the conversion starts. The panel shows the elapsed time and gives up after 10 minutes with "is WP-Cron running?".
+
 ## Order of work (test first)
 
 1. `ServerAddress` and its tests; the option `books_renderer`, the settings fields (nonce and capability as in slice 219), `uninstall`.
@@ -71,6 +84,13 @@ The browser of the editor cannot call Gotenberg directly: in Eric's setup it sit
 4. The REST routes: capability, post status, no server, states, the PDF response.
 5. The panel: the buttons, the polling, the blob address, the download and open buttons, the messages (jsdom, with a fake `wp.apiFetch` and a fake `URL.createObjectURL`).
 6. A trial on the **real** Gotenberg, with Eric's container; then the notes of the results in this slice and in `books.md`.
+
+## Verification
+
+- **PHPUnit** (456 tests, all pass): the address (valid and refused), the settings (defaults, bounds, a refused address keeps the old one, an empty one turns the server off), the multipart body, the client (fields, inches, waits, media, errors, page count, health) against a double of the HTTP function, the store (keys, protection files, cleanup, removal), the state, the jobs (queue once, run, cache key, force, failures, lost jobs, files without state), the routes (registration, capability, answers), the screen, the editor data, the wiring of the module.
+- **jsdom** (69 tests, all pass): the PDF view (buttons, polling, blob address, download, open, failures, give up, refresh forced or not, mode change, close, stale mark) and its connection to the editor with a fake `wp.apiFetch`.
+- **Real WordPress 7.1.3 + real editor in Chromium (Playwright), with a stand-in of Gotenberg** (a small Node server that answers the three routes of its documentation and prints the page with a real Chromium): the screen shows "The server answers"; a bad address is refused with a notice and the old one is kept; an empty address turns the server off; the PDF view of a published post starts the conversion, the cron event (run by WP-CLI with `DISABLE_WP_CRON`) converts it, the panel shows "PDF: 3 pages." (a post of the default theme: the count is meaningless) and the PDF in the viewer of the browser; **Download** gives `hello-print.pdf` (149 KB); **Open in a new tab** opens the blob address; **Web** brings the HTML page back.
+- **Never tried**: the real Gotenberg (its answers are those of the documentation, not observed), a conversion of a real post of the blog, the cron interval of Eric's sites, the metadata route on a real PDF, a phone.
 
 ## Entry points and checks (conventions of the project)
 

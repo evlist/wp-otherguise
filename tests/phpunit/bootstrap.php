@@ -49,6 +49,7 @@ function otherguise_test_reset() {
     $GLOBALS['otherguise_test_cache']        = array();
     $GLOBALS['otherguise_test_actions']      = array();
     $GLOBALS['otherguise_test_calls']        = array();
+    $GLOBALS['otherguise_test_transients']   = array();
     unset( $GLOBALS['wpdb'] );
 }
 
@@ -767,13 +768,30 @@ if ( ! class_exists( 'WP_Error' ) ) {
         private $code;
 
         /**
+         * Message.
+         *
+         * @var string
+         */
+        private $message;
+
+        /**
+         * Data.
+         *
+         * @var mixed
+         */
+        private $data;
+
+        /**
          * Builds the error.
          *
          * @param string $code    Code.
          * @param string $message Message.
+         * @param mixed  $data    Data.
          */
-        public function __construct( $code = '', $message = '' ) {
-            $this->code = $code;
+        public function __construct( $code = '', $message = '', $data = '' ) {
+            $this->code    = $code;
+            $this->message = $message;
+            $this->data    = $data;
         }
 
         /**
@@ -784,5 +802,182 @@ if ( ! class_exists( 'WP_Error' ) ) {
         public function get_error_code() {
             return $this->code;
         }
+
+        /**
+         * Returns the message.
+         *
+         * @return string
+         */
+        public function get_error_message() {
+            return $this->message;
+        }
+
+        /**
+         * Returns the data.
+         *
+         * @return mixed
+         */
+        public function get_error_data() {
+            return $this->data;
+        }
     }
+}
+
+/**
+ * Stub of wp_parse_url().
+ *
+ * @param string $url URL.
+ * @return array|false
+ */
+function wp_parse_url( $url ) {
+    return parse_url( $url );
+}
+
+$GLOBALS['otherguise_test_transients'] = array();
+
+/**
+ * Stub of get_transient().
+ *
+ * @param string $name Name.
+ * @return mixed
+ */
+function get_transient( $name ) {
+    return $GLOBALS['otherguise_test_transients'][ $name ] ?? false;
+}
+
+/**
+ * Stub of set_transient().
+ *
+ * @param string $name  Name.
+ * @param mixed  $value Value.
+ * @return bool
+ */
+function set_transient( $name, $value ) {
+    $GLOBALS['otherguise_test_transients'][ $name ] = $value;
+
+    return true;
+}
+
+/**
+ * Stub of delete_transient().
+ *
+ * @param string $name Name.
+ * @return bool
+ */
+function delete_transient( $name ) {
+    unset( $GLOBALS['otherguise_test_transients'][ $name ] );
+
+    return true;
+}
+
+/**
+ * Stub of register_rest_route(): records the call.
+ *
+ * @return bool
+ */
+function register_rest_route() {
+    otherguise_test_record( 'register_rest_route', func_get_args() );
+
+    return true;
+}
+
+/**
+ * Stub of add_settings_error(): records the call.
+ *
+ * @return void
+ */
+function add_settings_error() {
+    otherguise_test_record( 'add_settings_error', func_get_args() );
+}
+
+/**
+ * Stub of wp_next_scheduled(): nothing is scheduled.
+ *
+ * @return bool
+ */
+function wp_next_scheduled() {
+    return false;
+}
+
+/**
+ * Stub of wp_schedule_event(): records the call.
+ *
+ * @return bool
+ */
+function wp_schedule_event() {
+    otherguise_test_record( 'wp_schedule_event', func_get_args() );
+
+    return true;
+}
+
+/**
+ * Stub of wp_clear_scheduled_hook(): records the call.
+ *
+ * @return int
+ */
+function wp_clear_scheduled_hook() {
+    otherguise_test_record( 'wp_clear_scheduled_hook', func_get_args() );
+
+    return 0;
+}
+
+/**
+ * Stub of esc_html__ already exists; sanitize_text_field() keeps the text as it is, trimmed.
+ *
+ * @param string $text Text.
+ * @return string
+ */
+function sanitize_text_field( $text ) {
+    return trim( (string) $text );
+}
+
+/**
+ * Stub of wp_upload_dir(): a directory of the tests.
+ *
+ * @return array
+ */
+function wp_upload_dir() {
+    return array( 'basedir' => $GLOBALS['otherguise_test_uploads'] ?? sys_get_temp_dir() . '/otherguise-uploads-test' );
+}
+
+/**
+ * Stub of wp_delete_file().
+ *
+ * @param string $file File.
+ * @return void
+ */
+function wp_delete_file( $file ) {
+    if ( is_file( $file ) ) {
+        unlink( $file );
+    }
+}
+
+/**
+ * Stub of wp_mkdir_p().
+ *
+ * @param string $directory Directory.
+ * @return bool
+ */
+function wp_mkdir_p( $directory ) {
+    return is_dir( $directory ) || mkdir( $directory, 0777, true );
+}
+
+/**
+ * Stub of wp_schedule_single_event(): records the call.
+ *
+ * @return bool
+ */
+function wp_schedule_single_event() {
+    otherguise_test_record( 'wp_schedule_single_event', func_get_args() );
+
+    return true;
+}
+
+/**
+ * Stub of spawn_cron(): records the call.
+ *
+ * @return void
+ */
+function spawn_cron() {
+    otherguise_test_record( 'spawn_cron', func_get_args() );
 }

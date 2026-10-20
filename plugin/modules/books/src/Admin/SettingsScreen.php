@@ -10,7 +10,9 @@
 
 namespace Otherguise\Books\Admin;
 
+use Otherguise\Books\Render\GotenbergClient;
 use Otherguise\Books\Settings\PageFormat;
+use Otherguise\Books\Settings\RendererSettings;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -37,6 +39,13 @@ final class SettingsScreen {
 	private $format;
 
 	/**
+	 * Settings of the rendering server.
+	 *
+	 * @var RendererSettings
+	 */
+	private $renderer;
+
+	/**
 	 * Tells whether the current user may use the screen: receives the capability.
 	 *
 	 * @var callable
@@ -44,14 +53,27 @@ final class SettingsScreen {
 	private $can;
 
 	/**
+	 * Checks the rendering server: receives its address, returns `up` and `message`.
+	 *
+	 * @var callable
+	 */
+	private $health;
+
+	/**
 	 * Builds the screen.
 	 *
-	 * @param PageFormat    $format Format of the page.
-	 * @param callable|null $can    Receives a capability and tells whether the current user has it; defaults to `current_user_can`.
+	 * @param PageFormat       $format   Format of the page.
+	 * @param RendererSettings $renderer Settings of the rendering server.
+	 * @param callable|null    $can      Receives a capability and tells whether the current user has it; defaults to `current_user_can`.
+	 * @param callable|null    $health   Receives the address of the server and returns `up` and `message`; defaults to a check of Gotenberg.
 	 */
-	public function __construct( PageFormat $format, $can = null ) {
-		$this->format = $format;
-		$this->can    = $can ?? 'current_user_can';
+	public function __construct( PageFormat $format, RendererSettings $renderer, $can = null, $health = null ) {
+		$this->format   = $format;
+		$this->renderer = $renderer;
+		$this->can      = $can ?? 'current_user_can';
+		$this->health   = $health ?? static function ( $address ) {
+			return ( new GotenbergClient( $address ) )->health();
+		};
 	}
 
 	/**
@@ -78,6 +100,16 @@ final class SettingsScreen {
 				'type'              => 'array',
 				'sanitize_callback' => array( $this->format, 'sanitize' ),
 				'default'           => PageFormat::defaults(),
+			)
+		);
+
+		register_setting(
+			self::GROUP,
+			RendererSettings::OPTION,
+			array(
+				'type'              => 'array',
+				'sanitize_callback' => array( $this->renderer, 'sanitize' ),
+				'default'           => RendererSettings::defaults(),
 			)
 		);
 	}
@@ -139,6 +171,67 @@ final class SettingsScreen {
 		}
 
 		echo '</tbody></table>';
+		$this->render_renderer_section();
 		echo '<input type="submit" class="button button-primary" value="' . esc_attr__( 'Save', 'otherguise' ) . '" /></form></div>';
+	}
+
+	/**
+	 * Prints the section of the rendering server: the address, how the conversion waits, the media, how long the files are kept, and, when
+	 * a server is set, whether it answers.
+	 *
+	 * @return void
+	 */
+	private function render_renderer_section() {
+		$values = $this->renderer->get();
+		$name   = static function ( $key ) {
+			return RendererSettings::OPTION . '[' . $key . ']';
+		};
+
+		echo '<h2>' . esc_html__( 'PDF server', 'otherguise' ) . '</h2>';
+		echo '<p>' . esc_html__( 'The address of a Gotenberg server (version 8), for example http://gotenberg:3000 on the Docker network of the site. Without an address there is no PDF preview. WordPress calls the server, not the browser; the server must be able to reach the pages of this site.', 'otherguise' ) . '</p>';
+
+		if ( '' !== $values[ RendererSettings::URL ] ) {
+			$health = ( $this->health )( $values[ RendererSettings::URL ] );
+
+			if ( ! empty( $health['up'] ) ) {
+				echo '<div class="notice notice-success inline"><p>' . esc_html__( 'The server answers.', 'otherguise' ) . '</p></div>';
+			} else {
+				echo '<div class="notice notice-error inline"><p>' . esc_html__( 'The server does not answer: ', 'otherguise' ) . esc_html( (string) ( $health['message'] ?? '' ) ) . '</p></div>';
+			}
+		}
+
+		echo '<table class="form-table" role="presentation"><tbody>';
+
+		$rows = array(
+			RendererSettings::URL             => array( __( 'Address of the server', 'otherguise' ), 'url', 'regular-text', '' ),
+			RendererSettings::WAIT_DELAY      => array( __( 'Wait (seconds)', 'otherguise' ), 'number', 'small-text', __( 'A fixed wait before the page is converted. Gotenberg waits for nothing by default: 0 is allowed.', 'otherguise' ) ),
+			RendererSettings::WAIT_EXPRESSION => array( __( 'Wait until (JavaScript)', 'otherguise' ), 'text', 'large-text', __( 'Optional: a JavaScript expression that the page makes true when it is ready, for example window.status === "ready".', 'otherguise' ) ),
+			RendererSettings::WAIT_SELECTOR   => array( __( 'Wait for (CSS selector)', 'otherguise' ), 'text', 'regular-text', __( 'Optional: a CSS selector of an element that appears when the page is ready.', 'otherguise' ) ),
+			RendererSettings::KEEP_DAYS       => array( __( 'Keep the PDF files (days)', 'otherguise' ), 'number', 'small-text', __( 'The files are deleted after this number of days, between 1 and 90.', 'otherguise' ) ),
+		);
+
+		foreach ( $rows as $key => $row ) {
+			$id = 'books-' . $key;
+
+			echo '<tr><th scope="row"><label for="' . esc_attr( $id ) . '">' . esc_html( $row[0] ) . '</label></th><td>';
+			echo '<input type="' . esc_attr( $row[1] ) . '"' . ( 'number' === $row[1] ? ' step="' . ( RendererSettings::WAIT_DELAY === $key ? '0.1' : '1' ) . '" min="0"' : '' ) . ' id="' . esc_attr( $id ) . '" name="' . esc_attr( $name( $key ) ) . '" value="' . esc_attr( (string) $values[ $key ] ) . '" class="' . esc_attr( $row[2] ) . '" />';
+
+			if ( '' !== $row[3] ) {
+				echo '<p class="description">' . esc_html( $row[3] ) . '</p>';
+			}
+
+			echo '</td></tr>';
+		}
+
+		echo '<tr><th scope="row"><label for="books-media">' . esc_html__( 'Media', 'otherguise' ) . '</label></th><td><select id="books-media" name="' . esc_attr( $name( RendererSettings::MEDIA ) ) . '">';
+
+		foreach ( array(
+			'print'  => __( 'print (the default of Gotenberg)', 'otherguise' ),
+			'screen' => __( 'screen (what the preview panel measures)', 'otherguise' ),
+		) as $value => $label ) {
+			echo '<option value="' . esc_attr( $value ) . '"' . ( $value === $values[ RendererSettings::MEDIA ] ? ' selected="selected"' : '' ) . '>' . esc_html( $label ) . '</option>';
+		}
+
+		echo '</select></td></tr></tbody></table>';
 	}
 }

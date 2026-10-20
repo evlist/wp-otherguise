@@ -12,6 +12,7 @@ use Otherguise\Books\Admin\SettingsScreen;
 use Otherguise\Books\Module;
 use Otherguise\Books\Preview\EditorPreview;
 use Otherguise\Books\Settings\PageFormat;
+use Otherguise\Books\Settings\RendererSettings;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -78,11 +79,14 @@ class BooksModuleTest extends TestCase {
 
 		$this->assertSame(
 			array(
-				'admin_init'                         => array( array( 'register', 10, 0 ) ),
+				'admin_init'                         => array( array( 'register', 10, 0 ), array( 'schedule_cleanup', 10, 0 ) ),
 				'admin_menu'                         => array( array( 'add_menu', 10, 0 ) ),
 				'option_page_capability_books_settings_group' => array( array( 'save_capability', 10, 0 ) ),
 				'enqueue_block_editor_assets'        => array( array( 'enqueue', 10, 0 ) ),
 				'show_admin_bar'                     => array( array( 'admin_bar', 10, 1 ) ),
+				'rest_api_init'                      => array( array( 'register', 10, 0 ) ),
+				'books_render_pdf'                   => array( array( 'run', 10, 3 ) ),
+				'books_pdf_cleanup'                  => array( array( 'cleanup', 10, 0 ) ),
 			),
 			$hooks
 		);
@@ -90,8 +94,11 @@ class BooksModuleTest extends TestCase {
 		$this->assertSame( array(), $module->preview_modes(), 'Without the Modes module: no mode.' );
 
 		update_option( PageFormat::OPTION, array( 'width_mm' => 100 ) );
+		update_option( RendererSettings::OPTION, array( 'gotenberg_url' => 'http://x' ) );
 		$module->uninstall();
 		$this->assertFalse( get_option( PageFormat::OPTION ), 'The option is removed.' );
+		$this->assertFalse( get_option( RendererSettings::OPTION ), 'The settings of the server too.' );
+		$this->assertCount( 2, $this->calls( 'wp_clear_scheduled_hook' ), 'The cron events are cleared.' );
 	}
 
 	/**
@@ -105,11 +112,16 @@ class BooksModuleTest extends TestCase {
 		$asked   = array();
 		$screen  = new SettingsScreen(
 			new PageFormat(),
+			new RendererSettings(),
 			static function ( $capability ) use ( &$allowed, &$asked ) {
 				$asked[] = $capability;
 
 				return $allowed;
-			}
+			},
+			static fn( $address ) => array(
+				'up'      => 'http://up:3000' === $address,
+				'message' => 'no answer',
+			)
 		);
 
 		$this->assertSame( 'manage_options', $screen->capability() );
@@ -118,7 +130,8 @@ class BooksModuleTest extends TestCase {
 		$screen->register();
 		$register = $this->calls( 'register_setting' );
 
-		$this->assertCount( 1, $register );
+		$this->assertCount( 2, $register, 'The page format and the rendering server.' );
+		$this->assertSame( 'books_renderer', $register[1][2] );
 		$this->assertSame( 'books_settings_group', $register[0][1] );
 		$this->assertSame( 'books_page_format', $register[0][2] );
 		$this->assertSame( 'array', $register[0][3]['type'] );
@@ -146,6 +159,13 @@ class BooksModuleTest extends TestCase {
 		$html = (string) ob_get_clean();
 
 		$this->assertSame( array( 'manage_options' ), $asked );
+		$this->assertStringContainsString( 'PDF server', $html );
+		$this->assertStringContainsString( 'name="books_renderer[gotenberg_url]" value=""', $html );
+		$this->assertStringContainsString( 'name="books_renderer[wait_delay]" value="0"', $html );
+		$this->assertStringContainsString( 'name="books_renderer[media]"', $html );
+		$this->assertStringContainsString( '<option value="print" selected="selected">', $html );
+		$this->assertStringContainsString( 'name="books_renderer[keep_days]" value="7"', $html );
+		$this->assertStringNotContainsString( 'The server answers', $html, 'No server, no check.' );
 		$this->assertStringContainsString( 'action="options.php"', $html );
 		$this->assertStringContainsString( 'name="option_page" value="books_settings_group"', $html );
 		$this->assertStringContainsString( 'name="books_page_format[width_mm]" value="120.5"', $html );
@@ -213,6 +233,7 @@ class BooksModuleTest extends TestCase {
 		$this->assertContains( 'books-preview-panel', $scripts[2][3] );
 		$this->assertContains( 'wp-plugins', $scripts[2][3] );
 		$this->assertContains( 'wp-components', $scripts[2][3], 'For the button of the toolbar.' );
+		$this->assertContains( 'wp-api-fetch', $scripts[2][3], 'For the routes of the PDF preview.' );
 		$this->assertNotContains( 'wp-interface', $scripts[2][3], 'Not a script handle of WordPress: a missing dependency drops the script.' );
 		$this->assertCount( 1, $this->calls( 'wp_enqueue_style' ) );
 

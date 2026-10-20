@@ -53,9 +53,36 @@
 		}
 	}
 
+	// The routes of the PDF preview (slice 220), called with the REST cookie authentication of the editor.
+	function pdfOptions() {
+		if ( ! settings.pdf || ! settings.pdf.enabled || ! wp.apiFetch ) {
+			return null;
+		}
+
+		var route = function ( suffix, mode ) {
+			return settings.pdf.path + '/' + editor().getCurrentPostId() + suffix + ( mode ? '?mode=' + encodeURIComponent( mode ) : '' );
+		};
+
+		return {
+			enabled: true,
+			api: {
+				start: function ( mode, refresh ) {
+					return wp.apiFetch( { path: route( '' ), method: 'POST', data: { mode: mode, refresh: !! refresh } } );
+				},
+				status: function ( mode ) {
+					return wp.apiFetch( { path: route( '', mode ) } );
+				},
+				file: function ( mode ) {
+					return wp.apiFetch( { path: route( '/file', mode ) } );
+				},
+			},
+		};
+	}
+
 	function ensurePanel() {
 		if ( ! panel ) {
 			panel = win.booksPreviewPanel.createPanel( {
+				pdf: pdfOptions(),
 				document: win.document,
 				geometry: geometry,
 				settings: settings,
