@@ -1,0 +1,4 @@
+All rights reserved.
+
+These files are kept in this repository only as samples, for the analysis of the production of the PDF files of a book (resolution, weight,
+geometry). Their content (text and photographs of the blog of Eric van der Vlist) is not licensed for any other use or redistribution.
