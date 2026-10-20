@@ -103,6 +103,40 @@ Eric builds both by hand today and finds them useful features; the index "needs 
 
 **To examine: the "PDF engines" of Gotenberg.** Besides the Chromium conversion, Gotenberg has a family of PDF operations (merge, split, flatten, convert to PDF/A and PDF/UA, read and write metadata, embed files, and possibly watermark or stamp, encrypt…). Which of these exist in the current version, with which parameters, and whether any of them numbers the pages, is to be read in its documentation and tried: it decides how much of the finishing pipeline Gotenberg covers and what must be added.
 
+### Resolution and weight of the images in the PDF (analysis of 2026-10-20; Proposed, nothing built)
+
+**Why it matters.** The printer asks for **300 ppi at least**. Last year Eric had to reduce the PDF files because the photos were far above that. Four PDF files were analysed with `pdfimages -list` (poppler); the ppi of an image is its pixels divided by the size at which **this PDF** places it, so the figures below are **for the page format and the layout of each file (A4 with margins of 10 mm)**, not a property of the photo.
+
+| PDF | Producer | Weight | Main photo | The 8 photos of the gallery | Other |
+|---|---|---|---|---|---|
+| Rabbi, printed by Firefox | cairo (Firefox) | 4.25 MB | 1026 x 581, 152 ppi, **lossless** (Flate), 1.5 MB | two at 455 ppi, 1.07 and 1.47 MB, lossless | map tiles 96 ppi |
+| Flysch, Gotenberg, 2026-10-20 | Skia (Chromium 155) | 1.0 MB | 1024 x 577 **JPEG**, 152 ppi, 230 KB | 300 x 169 JPEG, **133 ppi**, 35 to 69 KB each | map tiles 96 ppi |
+| Cap de Peñas, Gotenberg, 2026-10-20 | Skia (Chromium 155) | 0.79 MB | 1024 x 577 JPEG, 152 ppi, 173 KB | 300 x 169 JPEG, 133 ppi | map tiles 96 ppi |
+| Cap de Peñas, printed on a phone, July 2025 (the one that printed well) | Skia (Chromium 130) | 3.88 MB | the same, 152 ppi | 1024 x 573 or 577, **455 ppi**: six JPEG (132 to 192 KB) and **two lossless images of 1.36 and 1.17 MB** | altitude profile 679 x 525 at 336 ppi, map tiles 96 ppi |
+
+What it shows:
+
+- **Chromium (so Gotenberg) copies a JPEG into the PDF as it is** (checked with a test: a JPEG of 842 KB gave a PDF of 845 KB, `enc: jpeg`); it neither re-encodes nor reduces the resolution. Firefox (cairo) decodes and stores **without loss**, which is why its file is four times heavier for the same pixels. The weight of a PDF of Gotenberg is the sum of the JPEG files that the browser chose.
+- **The resolution is decided by the variant of the image that the browser picks in the `srcset`**, at one device pixel per CSS pixel, so about the width of the slot on the screen (96 to 150 ppi), not by the original photo. Today the gallery uses the size **300 x 169** (133 ppi) and the main photo the size **1024** (152 ppi): **both under 300 ppi**. Last year's good print used the 1024 px variant for the gallery (455 ppi).
+- **The weight of last year's file came mostly from two images**, not from the resolution: without the two lossless images of 1.36 and 1.17 MB it would weigh about 1.3 MB. Why Chromium could not copy those two as JPEG is **not known**: they are 1024 x **573** while the others are 1024 x **577** (another ratio, so another route of making the variant), and the pixels cannot tell more. Eric's remark: the phone that took these photos made **"motion" photos**, which weigh much more with no gain of resolution; the variants made by the WordPress image editor are re-encoded, which drops what is added to the file, but the originals keep it.
+- **The estimate of a first message was too pessimistic**: scaling the weight by the number of pixels gave about 3.5 MB for the flysch page at 300 ppi. The thumbnails of 300 px are very lightly compressed (about 10 bits per pixel) while the variants of 1024 px weigh 130 to 190 KB, so eight photos of about 700 px should weigh of the order of 1 MB. To be measured.
+- **The needed pixels depend on the printed size**, so on the page format and the layout: on A4 the main photo is placed at about 6.7 in and a thumbnail at 2.3 in (hence about 2020 px and 680 px for 300 ppi); on A5 the same layout is narrower (usable width 128 mm against 190 mm) and the same files would print at about 1.5 times the ppi. Compute for the format of the book, not once for all.
+- **The map tiles are 96 ppi** (raster tiles of the screen): soft on paper whatever is done to the photos. The altitude profile was at 336 ppi last year and is at 96 ppi in today's file (to look into).
+
+**What Media Helper does for the sizes** (code of `wp-media-helper` read on 2026-10-20: `Thumbnails/Thumbnails.php`, `Blocks/GalleryBlock.php`):
+
+- The sizes are the **named image sizes registered in WordPress** (`wp_get_registered_image_subsizes()`: thumbnail, medium, large…, and any size added with `add_image_size`). The size `300 x 169` seen in the PDF is the **named size `gallery`**, which is the **default of the attribute `size` of the block `wp-media-helper/gallery`** (a cropped 16:9 size).
+- For an attachment registered by Media Helper, a **named size that does not exist is created when it is asked for** (in the filter `image_downsize`), written in a cache directory of its own, and the `srcset` points to that cache. The registered sizes are also made **in the background after the registration** by a cron event, **except when `DISABLE_WP_CRON` is set** (as on Eric's sites): then they are made at the first request that asks for them, which in a PDF conversion slows the first page.
+- The resize is made with the **WordPress image editor** (GD or Imagick), with the orientation of the photo applied to the copy only, never to the original; a size is never larger than the original (WordPress falls back to the full image); a limit of pixels and of memory protects the page view.
+- The block takes the **`size` as an attribute**, so a print template can ask for another named size without any code in a plugin.
+
+**Orientation (Proposed).**
+
+1. **First, no code in the plugins**: register **named sizes for the print** in the child theme (for example a cropped 16:9 size of about 680 x 383 for the gallery and one of about 2020 px for the main photo, computed for the format of the book) and use them in the print templates: `size` in the block `wp-media-helper/gallery`, `sizeSlug` in the image blocks. Media Helper then creates them when the print page asks. Risks to check: the extra sizes are also made in the background for **every** new attachment (disk space) unless they are registered only in the print mode; a print size must follow the format of the book; the first conversion is slower while the sizes are made.
+2. **Measure in the HTML view of the panel**: the ppi of each image (pixels of the variant loaded divided by the width at which it is laid out), flagged under 300 or above a threshold such as 450, to tune the sizes without parsing a PDF. An approximation (the browser of the editor may choose another variant than Chromium of Gotenberg).
+3. **A safety net, later**: reducing the images to 300 ppi in the finished PDF needs another tool (Ghostscript or ImageMagick); `optimizeImages` of Gotenberg only re-encodes as JPEG (quality 80) and does not change the resolution.
+4. **To look into**: the two lossless images of 2025 (find them by their dimensions 1024 x 573); the altitude profile at 96 ppi; whether the printer wants RGB or CMYK and a PDF/X (the photos carry an ICC profile, RGB).
+
 **To verify by trying** (Eric's trial, then Claude's notes here): access of the container to the site and to the media on Nextcloud; the maps finished before the capture (a fixed `waitDelay` is crude; a wait on an expression is finer); the fonts (Ultra for the drop cap) and the Dashicons; the media emulated for printing (the print CSS of the theme is **not** under `@media print`); the footer with the page number and the margin it needs; a merge of two posts; the page count against last year's PDF.
 
 **First trial (Eric, 2026-10-20, testing site, Gotenberg 8, nothing of it in this repository).**
