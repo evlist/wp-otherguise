@@ -325,3 +325,50 @@ test( 'setMode and setView are safe in the web view and with the same view', () 
 	assert.strictEqual( site.panel.view(), 'web' );
 	assert.strictEqual( site.log.start.length, 0 );
 } );
+
+test( 'a Refresh of the Web view makes the PDF out of date: the next PDF view makes it again', async () => {
+	const site = make( { start: [ { status: 'done' } ] } );
+
+	site.panel.open();
+	site.click( '.books-preview__view--pdf' );
+	await flush();
+	await flush();
+	site.click( '.books-preview__view--web' );
+	assert.deepStrictEqual( site.log.start, [ [ 'print', false ] ], 'going back to Web does not touch the PDF' );
+
+	site.click( '.books-preview__refresh' );
+	site.click( '.books-preview__view--pdf' );
+	await flush();
+
+	assert.deepStrictEqual( site.log.start, [ [ 'print', false ], [ 'print', true ] ], 'the PDF is asked again, forced' );
+
+	site.click( '.books-preview__view--web' );
+	site.click( '.books-preview__view--pdf' );
+	await flush();
+	assert.deepStrictEqual( site.log.start[ 2 ], [ 'print', false ], 'asked only once: the next switch uses the cache' );
+} );
+
+test( 'a refresh that is not forced (after a save) does not make the PDF out of date; a forced one by the program does', async () => {
+	const site = make( { start: [ { status: 'done' } ] } );
+
+	site.panel.open();
+	site.panel.refresh();
+	site.click( '.books-preview__view--pdf' );
+	await flush();
+	assert.deepStrictEqual( site.log.start, [ [ 'print', false ] ] );
+
+	site.click( '.books-preview__view--web' );
+	site.panel.refresh( true );
+	site.click( '.books-preview__view--pdf' );
+	await flush();
+	assert.deepStrictEqual( site.log.start[ 1 ], [ 'print', true ] );
+} );
+
+test( 'without a PDF server a Refresh of the Web view has nothing to remember', () => {
+	const site = make( { noPdf: true } );
+
+	site.panel.open();
+	site.click( '.books-preview__refresh' );
+	assert.strictEqual( site.panel.view(), 'web' );
+	assert.strictEqual( site.log.start.length, 0 );
+} );

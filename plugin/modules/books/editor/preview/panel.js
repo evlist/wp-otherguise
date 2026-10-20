@@ -70,6 +70,9 @@
 			pdfUrl: '',
 			pdfName: '',
 			pdfPages: null,
+			// A forced refresh of the HTML view means that what the page shows has changed (a photo, a change that the key of the cache cannot
+			// see): the PDF that was made is then out of date, and the next time it is asked for it is made again.
+			pdfForce: false,
 		};
 		var pdfFrame = null;
 		var generation = 0;
@@ -345,6 +348,9 @@
 			}
 			if ( pdfOptions ) {
 				releasePdf();
+				if ( force ) {
+					state.pdfForce = true;
+				}
 			}
 
 			generation++;
@@ -467,6 +473,8 @@
 
 		// Asks for the PDF, then asks for its state until it is ready, has failed, or the time is up.
 		function loadPdf( force ) {
+			force = !! force || state.pdfForce;
+			state.pdfForce = false;
 			generation++;
 			var id = generation;
 			var started = Date.now();

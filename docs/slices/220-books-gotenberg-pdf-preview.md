@@ -63,6 +63,14 @@ The browser of the editor cannot call Gotenberg directly: in Eric's setup it sit
 - The verdict line of the web mode is replaced, in PDF mode, by "PDF: N pages" when the page count is known (open question 4), next to "HTML: fits / overflows by N mm", so that the two measures can be compared.
 - The blob address is revoked when the panel is closed, on a new conversion and on a change of mode.
 
+## When the PDF kept is out of date (Eric, 2026-10-20)
+
+The key of the cache (post, its last change, mode, format, settings) **does not see everything that changes the page**: the photos attached or detached with Media Helper (they change the links, not the post), the featured image, a change of template or of the theme, a stylesheet, a plugin. A PDF kept for the same key is then shown although the page changed. Eric first took the PDF view for stale because he had gone back to the **Web** view, pressed **Refresh**, and found the PDF unchanged (the **Refresh** of the PDF view itself makes a new conversion).
+
+- **Done:** a **Refresh of the Web view marks the PDF as out of date**: the next time the PDF view is opened it asks for a **new conversion** (forced), once; the following switches use the cache again. A refresh made by the program after a save is not forced (the key changes with the post) and does not do that. This is in the panel only (no server change); another browser keeps seeing the file until it is regenerated or removed after the days of the settings.
+- **Open, not done:** the PDF view shows no age. Showing "made N minutes ago" next to "PDF: N pages" would help to judge it.
+- **Open, not done, a mechanism that sees more:** (a) a counter per post, raised when something that changes its page is written (the statements of Media Helper links, the metas such as the featured image, the attachments) and a counter for the whole site raised by a change of theme, template, plugin or setting, both part of the key; it catches what is known and nothing else; (b) a **fingerprint of the page**: hash of the HTML as rendered **and** of what it refers to (the stylesheets, the images, the GPX files by their dates or sizes), because the HTML alone does not change when a file is replaced under the same name; it needs the plugin to fetch its own page (which may fail from a container, see `books.md`) and is heavy. For now the button is the answer.
+
 ## Built, and what differs from the plan
 
 What exists: `Render\ServerAddress`, `Render\Multipart`, `Render\Renderer` and `Render\GotenbergClient`; `Settings\RendererSettings` (option `books_renderer`); `Pdf\PdfStore`, `Pdf\JobState`, `Pdf\PdfJobs`, `Pdf\WordPressPosts`; `Rest\PdfRoutes` (`books/v1`); the section **PDF server** of **Settings → Otherguise books**; the "Web / PDF" views, download and open buttons in `panel.js`; the cron events `books_render_pdf` and the daily `books_pdf_cleanup`. Differences from the proposal above:
