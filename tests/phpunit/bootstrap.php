@@ -622,6 +622,16 @@ function wp_add_inline_script() {
 }
 
 /**
+ * Stub of wp_print_inline_script_tag(): prints the tag like WordPress does.
+ *
+ * @param string $javascript Text of the script.
+ * @return void
+ */
+function wp_print_inline_script_tag( $javascript ) {
+    echo '<script>' . $javascript . "</script>\n"; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- test double.
+}
+
+/**
  * Stub of add_screen_option().
  *
  * @return void

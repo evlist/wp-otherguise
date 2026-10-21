@@ -3,7 +3,7 @@
 
 # Slice 222 — Books: the resolution of the altitude profile in the print mode
 
-Status: **planned (2026-10-21), not coded.** Dependencies: slices 220 (the PDF), 221 (how the print modes are recognised: `PrintSrcset`). Module: `Books`. Analysis and trial: [`../design/books.md`](../design/books.md) ("Resolution of the map and of the profile").
+Status: **coded (2026-10-21), not yet tried on a real site**; see "Verified". Dependencies: slices 220 (the PDF), 221 (how the print modes are recognised: `PrintSrcset`). Module: `Books`. Analysis and trial: [`../design/books.md`](../design/books.md) ("Resolution of the map and of the profile").
 
 ## Goal
 
@@ -39,8 +39,10 @@ Chart.js reads this value when it builds the chart and sizes the canvas: 194 x 1
 ## Tests
 
 - PHPUnit: the script is printed in a print mode with the default ratio, with the ratio of the filter, not printed outside a print mode, not printed for a ratio of 1 or an invalid value (text, 0, 5, negative), the number is the only variable part of the text; an entry for the hook (priority) in `BooksModuleTest`.
-- No jsdom test for the script itself (a one-line property definition), but one that evaluates the printed text in a fresh window and reads `devicePixelRatio`.
+- No jsdom test for the script itself (a one-line property definition): the printed text was evaluated once in Node on a bare `window` and `devicePixelRatio` answered 3.
 
-## Verified (to do when coded)
+## Verified
 
-State separately what ran only under automated tests and what was tried: on the testing site with a real Gotenberg, `pdfimages -list` of the PDF of `/2026/05/16/sant-llorenc-de-morunys/` must show the profile at about 290 ppi (A4) instead of 96, and the page must still fit on one page.
+- **Automated (PHPUnit, 480 tests)**: `Images\PrintPixelRatio` (`script()`, `print_script()`), the cases above, the hook `wp_head` priority 0 in `BooksModuleTest`. `phpcs` (WordPress): no error on the new class and on the module.
+- **By hand**: the text of the script evaluated in Node on a bare `window` gives a ratio of 3; the same override added before the page scripts in the Chromium of the sandbox on the public page gave the canvas 582 x 450 (before this slice existed, 2026-10-21).
+- **Never tried**: the plugin on a real WordPress site, a real Gotenberg. To do on testing after deployment: `pdfimages -list` of the PDF of `/2026/05/16/sant-llorenc-de-morunys/` must show the profile at about 290 ppi (A4) instead of 96, and the page must still fit on one page; and check that `wp_head` prints the script before the scripts of `wp-gpx-maps` (view source).

@@ -10,6 +10,7 @@
 
 use Otherguise\Books\Cli\SizesCommand;
 use Otherguise\Books\Images\PrintFallback;
+use Otherguise\Books\Images\PrintPixelRatio;
 use Otherguise\Books\Images\PrintSizes;
 use Otherguise\Books\Images\PrintSrcset;
 use Otherguise\Books\Settings\PageFormat;
@@ -20,6 +21,7 @@ use PHPUnit\Framework\TestCase;
  *
  * @covers \Otherguise\Books\Images\PrintSizes
  * @covers \Otherguise\Books\Images\PrintSrcset
+ * @covers \Otherguise\Books\Images\PrintPixelRatio
  * @covers \Otherguise\Books\Cli\SizesCommand
  */
 class BooksImagesTest extends TestCase {
@@ -238,6 +240,67 @@ class BooksImagesTest extends TestCase {
 
 		$default = new PrintSrcset();
 		$this->assertSame( $sources, $default->filter( $sources ), 'By default (the stubs of the tests answer web): kept.' );
+	}
+
+	/**
+	 * Builds the pixel ratio script with doubles.
+	 *
+	 * @param string $mode  Active mode.
+	 * @param mixed  $ratio Value of the filter.
+	 * @param mixed  $modes Print modes.
+	 * @return PrintPixelRatio
+	 */
+	private function pixel_ratio( $mode, $ratio, $modes = array( 'print' ) ): PrintPixelRatio {
+		return new PrintPixelRatio( static fn() => $mode, static fn() => $modes, static fn() => $ratio );
+	}
+
+	/**
+	 * In a print mode the script gives the ratio, 3 by default, as a number only.
+	 *
+	 * @return void
+	 */
+	public function test_the_pixel_ratio_script(): void {
+		$this->assertSame(
+			"Object.defineProperty(window,'devicePixelRatio',{configurable:true,get:function(){return 3;}});",
+			$this->pixel_ratio( 'print', 3 )->script()
+		);
+		$this->assertStringContainsString( 'return 2.5;', $this->pixel_ratio( 'print', 2.5 )->script() );
+		$this->assertStringContainsString( 'return 4;', $this->pixel_ratio( 'print', 4 )->script() );
+		$this->assertStringContainsString( 'return 1.25;', $this->pixel_ratio( 'book', 1.25, array( 'print', 'book' ) )->script(), 'Any mode of the list.' );
+
+		$default = new PrintPixelRatio();
+		$this->assertSame( '', $default->script(), 'By default (the stubs of the tests answer web): nothing.' );
+	}
+
+	/**
+	 * Nothing outside a print mode, and nothing for a ratio of 1 or one that is not a number from 1 to 4.
+	 *
+	 * @return void
+	 */
+	public function test_the_pixel_ratio_is_checked(): void {
+		$this->assertSame( '', $this->pixel_ratio( 'web', 3 )->script(), 'Web mode.' );
+		$this->assertSame( '', $this->pixel_ratio( 'print', 1 )->script(), 'A ratio of 1 turns it off.' );
+		foreach ( array( 0, -2, 4.5, 5, '3', "3;alert('x')", 'abc', null, true, array( 3 ), NAN, INF ) as $bad ) {
+			$this->assertSame( '', $this->pixel_ratio( 'print', $bad )->script(), 'Invalid: ' . var_export( $bad, true ) );
+		}
+		$this->assertSame( '', $this->pixel_ratio( array( 'print' ), 3 )->script(), 'A mode that is not a slug.' );
+		$this->assertSame( '', $this->pixel_ratio( 'print', 3, 'print' )->script(), 'A list that is not a list.' );
+	}
+
+	/**
+	 * The printed tag is the script, and nothing is printed when there is none; the script really sets the ratio.
+	 *
+	 * @return void
+	 */
+	public function test_the_pixel_ratio_is_printed(): void {
+		ob_start();
+		$this->pixel_ratio( 'print', 3 )->print_script();
+		$out = ob_get_clean();
+		$this->assertStringStartsWith( '<script>Object.defineProperty(window,', $out );
+
+		ob_start();
+		$this->pixel_ratio( 'web', 3 )->print_script();
+		$this->assertSame( '', ob_get_clean() );
 	}
 
 	/**
