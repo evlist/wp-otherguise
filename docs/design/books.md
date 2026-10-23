@@ -189,14 +189,14 @@ Decided by Eric: **the book can be generated directly in A5** (no scaling of an 
 - **Tiles (Leaflet, OpenStreetMap standard):** the ratio alone changes nothing (zoom 12 tiles, 256 px at 96 ppi; `L.Browser.retina` is true but the layers do not use it). With `L.TileLayer.prototype.options.detectRetina = true` (set when `window.L` is assigned) Leaflet asks for the **zoom 13** tiles and shows them at 128 px: twice the pixels, **but the texts of the tiles are drawn for 256 px tiles and shrink to half size** (a place name at about 3 pt after the reduction to A5), and many small details appear (peak names with altitude, road numbers, trees, contour lines). Compared side by side: the map is more charged and less readable. **Rejected** with the standard tiles; only true @2x tiles (same text size, twice the pixels, another provider with a key and terms of use, not checked) would give a sharper map. The track and the marker are vectors and stay sharp whatever the tiles. **Decision (Eric, 2026-10-21): keep the tiles as they are until the printed result has been judged.**
 - **Open:** whether the tiles at 96 ppi are acceptable on paper; the QR code (`img.wpkqcg_qrcode`) at 96 ppi; the load on `tile.openstreetmap.org` of a whole book (not measured).
 
-## The definition of a book: parts, units and kinds (brainstorming, Eric and Claude, 2026-10-23)
+## The definition of a book: sections, units and kinds (brainstorming, Eric and Claude, 2026-10-23)
 
 Everything in this section is **Proposed**; nothing is decided or coded. It builds on the sections above (the first book's chain, the table of contents and the index, the declared and measured page strategies) and on the example "Assemble a book" of [`usage-examples.md`](usage-examples.md) (`books/contains`, ordered, qualified by `books/pages`).
 
 ### Three notions
 
-1. **The part (the structure).** One recursive entity: a book, a volume, a chapter or a month are the same thing at different depths. It holds an **ordered list of units**. A part can be in several books (`subjects_of( $part, 'books/contains' )`).
-2. **The unit (the role in the book).** A post or page, or another part, with a **kind**: cover, endpaper, title page, chapter opener, summary, day, appendix, map, table of contents, index… The kind is a **role in this book, not a property of the content**: Eric's monthly article is an ordinary article on the web and a chapter opener in the book, so the kind cannot be deduced from the post type. It is carried by the `contains` statement, like `books/pages` already is.
+1. **The section (the structure).** One recursive entity: a book, a volume, a chapter or a month are the same thing at different depths. It holds an **ordered list of units**. A section can be in several books (`subjects_of( $section, 'books/contains' )`).
+2. **The unit (the role in the book).** A post or page, or another section, with a **kind**: cover, endpaper, title page, chapter opener, summary, day, appendix, map, table of contents, index… The kind is a **role in this book, not a property of the content**: Eric's monthly article is an ordinary article on the web and a chapter opener in the book, so the kind cannot be deduced from the post type. It is carried by the `contains` statement, like `books/pages` already is.
 3. **The template (the form).** What the Modes module already does: the print variant of a template of the theme.
 
 ### A kind references a template and carries constraints
@@ -216,7 +216,7 @@ The kinds of the first book already give a list: cover, endpaper, table of conte
 
 ### The whole chain
 
-1. **Resolve** the part into a flat ordered list of units (the generated kinds have no post).
+1. **Resolve** the section into a flat ordered list of units (the generated kinds have no post).
 2. **Render** one PDF per unit (slice 220), with the cache.
 3. **Measure** the real page count of each PDF (Gotenberg's metadata, already used by the panel).
 4. **Check** it against the rule of the kind and report the differences (the case of 2026-10-21: an empty paragraph gave 2 pages instead of 1; report by how much the content exceeds the page, not only "2 pages").
@@ -233,7 +233,7 @@ The kinds of the first book already give a list: cover, endpaper, table of conte
 ### Possible order of construction, smallest first
 
 1. **The kinds and their page rule**, with the report of overflows in the preview panel (the PDF already gives its page count): useful before any book exists.
-2. **The part**: its ordered list of units and the merge into one PDF.
+2. **The section**: its ordered list of units and the merge into one PDF.
 3. **Numbering and the table of contents.**
 4. **The generated kinds** (index, map), then the cover.
 
@@ -241,3 +241,8 @@ The kinds of the first book already give a list: cover, endpaper, table of conte
 
 - **Where the kind of a unit lives**: on the `contains` statement (per book, more flexible) or as a default of the post, overridden per book (simpler). Claude leans to the second.
 - **Who declares the kinds**: the theme through a filter (as for the image sizes), or a settings screen. Claude leans to the theme: a site rarely changes its kinds, and the theme is where the templates already change.
+
+### The name (Eric and Claude, 2026-10-23; Proposed)
+
+The generic entity is called a **section** (French: *section*), not "part": "part" is already taken (`template_part`, `modes/has-part-variant`, "part variant"), and in the first book "parts" were the six months. "Section" was first set aside because Eric's vocabulary already used it for a month or a stage; that is in fact the same thing (a month is a section of the book, a chapter a section that holds sections), so the word fits as a generic, recursive term. "Division" (TEI) was considered and is less natural in French and in English outside TEI. The identifier would be `book_section` if it ever becomes a post type (12 characters, under the limit of 20), and the code should prefix its names (`Books\…`) to avoid confusion with the settings sections of WordPress (`add_settings_section`, already used by the settings screen of Books). A book, a volume, a chapter and a month are **kinds of sections**; a section that no other section contains is, in fact, a book. Not checked: whether the site editor of WordPress uses "section" in another sense.
+
