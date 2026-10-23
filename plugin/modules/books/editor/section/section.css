@@ -1,0 +1,17 @@
+/* SPDX-FileCopyrightText: 2026 Eric van der Vlist <vdv@dyomedea.com> */
+/* SPDX-License-Identifier: GPL-3.0-or-later */
+/* Slice 223: the Section panel of the post editor. */
+.books-section h3 { font-size: 12px; text-transform: uppercase; margin: 12px 0 4px; }
+.books-section ul, .books-section ol { margin: 0; padding: 0; list-style: none; }
+.books-section__error { background: #fcf0f1; border-left: 4px solid #d63638; padding: 6px 8px; margin-bottom: 8px; }
+.books-section__containing-item, .books-section__item { display: flex; flex-wrap: wrap; gap: 4px; align-items: baseline; padding: 2px 0; }
+.books-section__meta { color: #757575; font-size: 11px; flex-basis: 100%; }
+.books-section__find { width: 100%; margin-top: 6px; }
+.books-section__found-item .books-section__choose { width: 100%; text-align: left; }
+.books-section button { cursor: pointer; }
+.books-section__dialog { position: fixed; inset: 0; z-index: 1000000; background: rgba(0, 0, 0, 0.5); display: flex; align-items: center; justify-content: center; }
+.books-section__dialog[hidden] { display: none; }
+.books-section__box { background: #fff; padding: 16px; width: min(720px, 94vw); max-height: 88vh; overflow: auto; border-radius: 4px; }
+.books-section__filters { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 8px; }
+.books-section__d-results { max-height: 40vh; overflow: auto; border: 1px solid #ddd; margin: 8px 0; padding: 4px; }
+.books-section__d-actions { display: flex; gap: 8px; margin-top: 8px; }

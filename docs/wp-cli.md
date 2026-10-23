@@ -5,7 +5,7 @@
 
 The commands that the plugin offers today, written from the code (`Cli\VariantCommand`, `Cli\MigrateCommand`) and their tests. They are the tools of the migrations of the blog ([`design/rollout.md`](https://github.com/evlist/shared-room/blob/main/docs/design/rollout.md), [`rollouts/` of shared-room](https://github.com/evlist/shared-room/blob/main/docs/rollouts/README.md)), and follow the rule of the repository: a step of a migration that touches what the plugin is responsible for is a command that **can be run twice**, with `--dry-run`, a report, and a way to check the result.
 
-Three commands exist (and the four sub-commands of the PDF server, below). All are registered on `cli_init`, appear in `wp help otherguise`, and need the modules they name to be active (otherwise they stop with a message). To know whether a site has one: `wp cli has-command "otherguise media migrate"` (exit code 0 or 1). The commands that are still **missing** (`variant add|remove`, `modes enable`, `media list`, `status`…) are listed in [`design/rollout.md`](https://github.com/evlist/shared-room/blob/main/docs/design/rollout.md), each written only when an iteration needs it.
+Three commands exist (and the four sub-commands of the PDF server, and the four of the sections, below). All are registered on `cli_init`, appear in `wp help otherguise`, and need the modules they name to be active (otherwise they stop with a message). To know whether a site has one: `wp cli has-command "otherguise media migrate"` (exit code 0 or 1). The commands that are still **missing** (`variant add|remove`, `modes enable`, `media list`, `status`…) are listed in [`design/rollout.md`](https://github.com/evlist/shared-room/blob/main/docs/design/rollout.md), each written only when an iteration needs it.
 
 | Command | Does | Slice | Used by |
 |---|---|---|---|
@@ -13,6 +13,7 @@ Three commands exist (and the four sub-commands of the PDF server, below). All a
 | [`wp otherguise modes variant retheme`](#wp-otherguise-modes-variant-retheme) | moves the variants of a theme to another theme | [212](slices/212-variant-retheme.md) | rollout 002 |
 | [`wp otherguise media migrate`](#wp-otherguise-media-migrate) | turns the parents of the attachments and a meta into links | [211](slices/211-media-migration.md), [215](slices/215-media-migrate-criterion.md), [217](slices/217-media-migrate-all-types-and-posts.md) | rollout 003 (planned) |
 | [`wp otherguise books renderer get\|set\|unset\|check`](#wp-otherguise-books-renderer) | reads, sets, turns off and checks the PDF server of the site | [220](slices/220-books-gotenberg-pdf-preview.md) | the synchronisation scripts of the sites (to be added in `shared-room`) |
+| [`wp otherguise books section list\|show\|add\|remove`](#wp-otherguise-books-section) | lists the sections, shows what one contains, adds posts to it (by id or by search and dates) or takes them out | [223](slices/223-books-section-container.md) | preparing a book |
 
 ## wp otherguise modes variant list
 
@@ -128,8 +129,30 @@ The PDF server (a Gotenberg container) of **one site**. A copy of production mad
 wp otherguise books renderer set --address=http://gotenberg-testing:3000 && wp otherguise books renderer check
 ```
 
+## wp otherguise books section
+
+```
+wp otherguise books section list   [--search=<text>] [--format=<table|json>]
+wp otherguise books section show   <section> [--format=<table|json>]
+wp otherguise books section add    <section> [<ids>...] [--search=<text>] [--from=<Y-m-d>] [--to=<Y-m-d>]
+                                   [--status=<statuses>] [--dry-run]
+wp otherguise books section remove <section> <ids>... [--dry-run]
+```
+
+A section is a post or page that holds other posts (slice 223). A command line has no logged-in user, so the capabilities are not asked; the other rules are those of the editor (no cycle, no post twice, at most 200 per request: the command cuts a longer list into requests).
+
+- **`list`** prints `id`, title, status and the number of posts of each section (the sections are found through the statements, not by scanning the posts).
+- **`show`** prints the contents in order: rank, id, date, status, `pinned` when the post was moved, title.
+- **`add`** adds posts given by id (separated by spaces or commas) and/or **selected** by `--search`, `--from`, `--to` and `--status` (default `publish`; at most 1000 selected). It prints the posts it skipped with the reason (`missing`, `type`, `forbidden`, `cycle`) and `n added, m already there, k skipped`; run twice it adds nothing.
+- **`remove`** takes posts out (the ones that are not in the section are counted, not an error).
+
+```sh
+wp otherguise books section add 311 --from=2026-05-16 --to=2026-05-30
+```
+
 ## What was tried
 
+- **`books section`** (2026-10-23, real WordPress 7.1.3 with the real WP-CLI): `add` by selection (and run twice), `show`, `list`, `list --format=json`, `remove`. Not on the sites of the blog.
 - **Automated tests** (PHPUnit with a database, 415 tests in all): the three commands (output, options, refusals, the case where the modules are missing, the hook `cli_init`).
 - **Real WordPress 7.1.3 with the real WP-CLI, `books renderer`** (2026-10-20, against a stand-in of Gotenberg): `get`, `get --format=json`, `set` (with `--dry-run`, run twice, a wrong media, an invalid address, no option), `unset`, `check` up and down with the exit status. Not against a real Gotenberg.
 - **Real WordPress 7.1.3 with the real WP-CLI:** `variant list` and `retheme` (10 checks), and `media migrate` before its criterion options (12 checks, slice 211). `--post-ids` was tried on testing (2026-10-14); the options `--mime`, `--meta-key`, `--meta-value` and `--restrict-mode` were not tried with other values than their defaults.
