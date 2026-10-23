@@ -41,6 +41,16 @@ Eric's judgement of the risk: the pages concerned are **of little sensitivity** 
 - The check is done **only** on the main request of a front page of the post (not in the admin, not in REST, not in `admin-ajax`); the WordPress core's own `preview_nonce` and the capability checks are **not weakened** (the token is a second way in, narrower).
 - A token lookup by `meta_value` is a plain query; the 128 bits make a search by guessing hopeless, and `hash_equals` is used on the value found.
 
+## A simplification (Eric, 2026-10-23; Proposed, not applied to the text above)
+
+**One token per unit, created by the PDF job when the post has none**, instead of a token of a section that covers its units. It would be transparent for the user and removes pieces of this slice:
+
+- **point 4 (the filter `shares_covered_posts`) and the second argument `shared_post`** go away: Shares stays a module that knows nothing of sections, one post and one token;
+- the assembly of a section has nothing special to do: for each unit it asks `shares_url()`, which creates the link when needed;
+- proofreading a section before its publication is then the assembled PDF (even with a coverage, someone who followed a link from the page of a section to a day would not carry the token along).
+
+The cost: **links are created without a request of the user** (a permanent link exists for every draft converted to PDF; nobody but the server knows it, but it exists). So the editor panel must always show that a link exists, and `wp otherguise shares list` must list them all. Possible additions, if wanted: a mass revocation (`revoke --all`), or a revocation when the post is published. To apply to the text above when the slice is taken up again.
+
 ## To verify first (an experiment, no product code, as slice 201 did)
 
 How to make the **main query** of a front request show the post that the token designates, whatever its status (**draft, pending, private, future**) and type, to an anonymous request on WordPress 7.1, without opening anything else. The candidates: setting the query (`p`, `post_type`, `post_status`) on `parse_request` or `pre_get_posts` for the argument `shared`, `posts_results` or `the_posts`, with the checks the core makes afterwards (`get_post_status`, the 404, `redirect_canonical`, the private posts needing a capability, the template chosen for the type and for the mode). The answer is recorded here before the module is written.
