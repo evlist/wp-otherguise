@@ -254,7 +254,7 @@ The generic entity is called a **section** (French: *section*), not "part": "par
 - **Two renderings to tell apart.** (1) The **own content** of the section, in web or print mode, like a page: this is what the modes already do. (2) The **assembly** of the book: the opener followed by the units in order, merged into one PDF: the work of Books, later.
 - **The cover** could be the same post rendered in a **mode `cover`** with its own template (featured image, title). **To check with the Modes module**, not looked at.
 - **Consequences.** There is no menu for "all my sections": they are the posts that have at least one `books/contains` statement (a query on the relations; a filter on the list of pages could be added). Any post is a section as soon as it contains something; whether it is public is the ordinary status of the post (draft or private while preparing).
-- **A first usable tool (proposed, not planned).** A panel in the editor, next to the print preview: in a day, "In the section: [choose]" with add and remove; in a section, the ordered list of its contents with reordering and removal; the default kind of a unit is "day". Eric could attach the days as he prepares them, before any assembly exists.
+- **A first usable tool (proposed, not planned).** A panel in the editor, next to the print preview: in a day, "In the section: [choose]" with add and remove; in a section, the ordered list of its contents with reordering and removal; the default kind of a unit is "day". Eric could attach the days as he prepares them, before any assembly exists. Planned in detail: [slice 223](../slices/223-books-section-container.md).
 
 ### Previewing and converting unpublished posts (Eric and Claude, 2026-10-23; Proposed, revised the same day)
 
