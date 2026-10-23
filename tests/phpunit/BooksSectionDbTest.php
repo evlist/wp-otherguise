@@ -682,7 +682,7 @@ class BooksSectionDbTest extends Otherguise_Test_Database_Case {
 				$out[] = 'Success: ' . $line;
 			},
 			static function ( $line ) {
-				throw new RuntimeException( $line );
+				throw new RuntimeException( esc_html( $line ) );
 			}
 		);
 
