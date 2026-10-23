@@ -3,7 +3,7 @@
 
 # Slice 222 — Books: the resolution of the altitude profile in the print mode
 
-Status: **coded (2026-10-21), not yet tried on a real site**; see "Verified". Dependencies: slices 220 (the PDF), 221 (how the print modes are recognised: `PrintSrcset`). Module: `Books`. Analysis and trial: [`../design/books.md`](../design/books.md) ("Resolution of the map and of the profile").
+Status: **coded and tried on the testing site (2026-10-23)**; see "Verified". Dependencies: slices 220 (the PDF), 221 (how the print modes are recognised: `PrintSrcset`). Module: `Books`. Analysis and trial: [`../design/books.md`](../design/books.md) ("Resolution of the map and of the profile").
 
 ## Goal
 
@@ -45,4 +45,10 @@ Chart.js reads this value when it builds the chart and sizes the canvas: 194 x 1
 
 - **Automated (PHPUnit, 480 tests)**: `Images\PrintPixelRatio` (`script()`, `print_script()`), the cases above, the hook `wp_head` priority 0 in `BooksModuleTest`. `phpcs` (WordPress): no error on the new class and on the module.
 - **By hand**: the text of the script evaluated in Node on a bare `window` gives a ratio of 3; the same override added before the page scripts in the Chromium of the sandbox on the public page gave the canvas 582 x 450 (before this slice existed, 2026-10-21).
-- **Never tried**: the plugin on a real WordPress site, a real Gotenberg. To do on testing after deployment: `pdfimages -list` of the PDF of `/2026/05/16/sant-llorenc-de-morunys/` must show the profile at about 290 ppi (A4) instead of 96, and the page must still fit on one page; and check that `wp_head` prints the script before the scripts of `wp-gpx-maps` (view source).
+- **Tried on the testing site with a real Gotenberg (Eric, 2026-10-23)**, page `/2026/10/02/beaufort-⇾-grenoble/?mode=print&books_preview=1`, A4 with margins of 10 mm. The served HTML has the script in the `<head>` before `leaflet-js`; in the Chromium of the sandbox the canvas is 582 x 450 for 194 x 150 CSS px. `pdfimages -list` of the PDF **after regenerating it**: the profile is **582 x 450 px at 288 ppi** (18.4 KB and 13.1 KB of mask; it was 194 x 150 at 96 ppi), the main photo 301 ppi. The first PDF analysed had the old profile because it was **a PDF of the cache made before the deployment** (the cache is keyed on the page format, not on the version of the code): the Refresh of the web view of the panel makes it again. Unchanged, as decided: the eight tiles of the map (256 x 256 at 96 ppi) and the QR code (70 x 70 at 96 ppi).
+- **Never tried**: the production site (the plugin was not deployed there when this was checked, 2026-10-23: the file of the class gave a 404), and the printed result.
+
+## To look at later (Eric, 2026-10-23, not decided)
+
+- **The QR code** (`img.wpkqcg_qrcode`, 70 x 70 px at 96 ppi, about 136 ppi at A5): see whether it is sharp enough on paper or at a zoom of 400 %; if not, a separate slice on the side of `wpkqcg`.
+- **The overlap of the labels of the horizontal axis** of the profile (for example `10km` and `12km`, or `50km` and `100km`, on top of each other at the right end): it comes from `wp-gpx-maps` (seen with and without this slice), not from the pixel ratio; to look into an option of Chart.js (maximum number of labels) or a rule of the print CSS.
