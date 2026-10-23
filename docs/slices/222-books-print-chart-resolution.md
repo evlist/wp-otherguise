@@ -27,28 +27,5 @@ Chart.js reads this value when it builds the chart and sizes the canvas: 194 x 1
 ## What it does not do
 
 - **The tiles of the map.** `L.TileLayer` `detectRetina` was tried and **rejected** (books.md): with the standard tiles of OpenStreetMap the zoom+1 tiles show the texts at half size and add small details (peak names, road numbers, trees, contour lines), unreadable after the reduction. The tiles stay at 96 ppi; the track and the marker are vectors and stay sharp. True @2x tiles from another provider would be a setting of `wp-gpx-maps`, not of this slice.
-- **The QR code** (`img.wpkqcg_qrcode`, filled by JavaScript): separate, if needed.
-- The photos (slice 221).
-
-## Side effects to check
-
-- `window.devicePixelRatio` is global: every script that reads it in the print mode sees 3. Checked on 2026-10-21 on the public page (Chromium of the sandbox, not Gotenberg): the canvas became 582 x 450, the tiles stayed at zoom 12 (Leaflet's `L.Browser.retina` becomes true, but the layers do not use it without `detectRetina`), nothing else visible changed. To check again after each update of `wp-gpx-maps` or of another plugin that draws a canvas.
-- The photos are not affected: the print mode has no `srcset` (slice 221), so the browser has no candidate to choose by the ratio.
-- A canvas of 582 x 450 is a lossless PNG-like image in the PDF: a few tens of KB, to measure.
-
-## Tests
-
-- PHPUnit: the script is printed in a print mode with the default ratio, with the ratio of the filter, not printed outside a print mode, not printed for a ratio of 1 or an invalid value (text, 0, 5, negative), the number is the only variable part of the text; an entry for the hook (priority) in `BooksModuleTest`.
-- No jsdom test for the script itself (a one-line property definition): the printed text was evaluated once in Node on a bare `window` and `devicePixelRatio` answered 3.
-
-## Verified
-
-- **Automated (PHPUnit, 480 tests)**: `Images\PrintPixelRatio` (`script()`, `print_script()`), the cases above, the hook `wp_head` priority 0 in `BooksModuleTest`. `phpcs` (WordPress): no error on the new class and on the module.
-- **By hand**: the text of the script evaluated in Node on a bare `window` gives a ratio of 3; the same override added before the page scripts in the Chromium of the sandbox on the public page gave the canvas 582 x 450 (before this slice existed, 2026-10-21).
-- **Tried on the testing site with a real Gotenberg (Eric, 2026-10-23)**, page `/2026/10/02/beaufort-⇾-grenoble/?mode=print&books_preview=1`, A4 with margins of 10 mm. The served HTML has the script in the `<head>` before `leaflet-js`; in the Chromium of the sandbox the canvas is 582 x 450 for 194 x 150 CSS px. `pdfimages -list` of the PDF **after regenerating it**: the profile is **582 x 450 px at 288 ppi** (18.4 KB and 13.1 KB of mask; it was 194 x 150 at 96 ppi), the main photo 301 ppi. The first PDF analysed had the old profile because it was **a PDF of the cache made before the deployment** (the cache is keyed on the page format, not on the version of the code): the Refresh of the web view of the panel makes it again. Unchanged, as decided: the eight tiles of the map (256 x 256 at 96 ppi) and the QR code (70 x 70 at 96 ppi).
-- **Never tried**: the production site (the plugin was not deployed there when this was checked, 2026-10-23: the file of the class gave a 404), and the printed result.
-
-## To look at later (Eric, 2026-10-23, not decided)
-
-- **The QR code** (`img.wpkqcg_qrcode`, 70 x 70 px at 96 ppi, about 136 ppi at A5): see whether it is sharp enough on paper or at a zoom of 400 %; if not, a separate slice on the side of `wpkqcg`.
+- **The QR code** (`img.wpkqcg_qrcode`, 70 x 70 px at 96 ppi, about 136 ppi at A5). **Asked of the theme (Eric, 2026-10-23), not done yet.** The plugin (Kaya QR Code Generator) cannot change the resolution but takes an image size, which its JavaScript reads from the hidden input `…_size` and `data-size` (100 today). Measured in Chromium on the testing page, `?mode=print`, by rewriting that value: size 100 gives an image of 70 x 70 px, 200 gives 175, 300 gives 245, 400 gives 350, 600 gives 525 (the code has 35 modules, so the size is a whole number of pixels per module: 2, 5, 7, 10, 15). The image is shown at its natural size, limited by the inline style `width: auto; height: auto; max-width: 100%` (no `!important`). So **two changes that must go together**, both in the theme (message sent to the session `wp-twenty-twenty-five-printable`): ask for size **300** in the block or shortcode of the print template (245 px: about 336 ppi at the A4 layout, over 300 ppi after the reduction to A5; 200 is the minimum), and show it at today's size by a rule of the print stylesheet, `.wpkqcg_qrcode { width: 70px !important; height: auto !important; max-width: none !important; }`, otherwise the page grows and can overflow (and if the template is shared with the web mode, the rule must apply there too). Eric's wait expression for Gotenberg is not affected (`naturalWidth > 0`, a non-empty `src`). **To check once done**: `pdfimages -list` of a regenerated PDF must show the QR code at 245 x 245 px instead of 70 x 70, and the page must still fit. Not tried in Gotenberg; how the printed code scans was not tried either.
 - **The overlap of the labels of the horizontal axis** of the profile (for example `10km` and `12km`, or `50km` and `100km`, on top of each other at the right end): it comes from `wp-gpx-maps` (seen with and without this slice), not from the pixel ratio; to look into an option of Chart.js (maximum number of labels) or a rule of the print CSS.
