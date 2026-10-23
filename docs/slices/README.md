@@ -5,7 +5,7 @@
 
 One document per slice of work, named `NNN-name.md`. A slice is documented before it is coded, lists its dependencies, and is marked done when its tests pass.
 
-Numbering: `0xx` foundation, `1xx` Triples, `2xx` Modes, `3xx` Books.
+Numbering: `0xx` foundation, `1xx` Triples, `2xx` Modes (and the first slices of Books, 218 to 222), `3xx` Books, `4xx` Shares.
 
 ## Done
 
@@ -55,4 +55,5 @@ Titles only. Each one is to be planned with Eric, from the decisions recorded in
 - `220` Books, a PDF preview through a Gotenberg server ([coded, tried against a stand-in of Gotenberg](220-books-gotenberg-pdf-preview.md)): the address of the server in the settings, a PDF mode in the panel with download and open in a new tab.
 - `221` Books, the sizes of the images for the print ([coded](221-books-print-image-sizes.md)): names declared by the theme as fractions of the usable width, dimensions computed by Books from the page format for 300 ppi, no `srcset` in the print mode, `wp otherguise books sizes`.
 - `222` Books, the resolution of the altitude profile in the print mode ([coded and tried on testing](222-books-print-chart-resolution.md)): a pixel ratio of 3 for the chart in the print modes; the tiles of the map are left alone (zoom+1 rejected).
+- `400` Shares, a private link with a secret token ([planned in detail](400-shares-private-link.md), not coded): one token per post, permanent until revoked, to see a private or unpublished post (and, through Books, a section and its units) without logging in; the use by the PDF job of Books comes in a later slice.
 - Integration with Media Helper (attachments qualified by mode, one image attached to several posts).
