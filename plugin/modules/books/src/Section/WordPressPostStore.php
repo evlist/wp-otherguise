@@ -49,10 +49,11 @@ final class WordPressPostStore implements PostStore {
 	/**
 	 * Describes a post.
 	 *
-	 * @param int $id Id of the post.
-	 * @return array{id:int,title:string,status:string,type:string,date:string,edit:string}|null
+	 * @param int  $id       Id of the post.
+	 * @param bool $detailed Whether to add `thumb` and `view`.
+	 * @return array{id:int,title:string,status:string,type:string,date:string,edit:string,thumb?:string,view?:string}|null
 	 */
-	public function info( $id ) {
+	public function info( $id, $detailed = false ) {
 		$post = get_post( (int) $id );
 
 		if ( ! is_object( $post ) || ! isset( $post->ID ) ) {
@@ -62,7 +63,7 @@ final class WordPressPostStore implements PostStore {
 		$title = trim( wp_strip_all_tags( (string) $post->post_title ) );
 		$edit  = get_edit_post_link( (int) $post->ID, 'raw' );
 
-		return array(
+		$info = array(
 			'id'     => (int) $post->ID,
 			'title'  => '' === $title ? __( '(no title)', 'otherguise' ) : $title,
 			'status' => (string) $post->post_status,
@@ -70,6 +71,17 @@ final class WordPressPostStore implements PostStore {
 			'date'   => (string) $post->post_date,
 			'edit'   => is_string( $edit ) ? $edit : '',
 		);
+
+		if ( $detailed ) {
+			$thumb_id = (int) get_post_thumbnail_id( $post );
+			$thumb    = $thumb_id > 0 ? wp_get_attachment_image_url( $thumb_id, 'medium' ) : false;
+			$view     = 'publish' === $post->post_status ? get_permalink( $post ) : get_preview_post_link( $post );
+
+			$info['thumb'] = is_string( $thumb ) ? $thumb : '';
+			$info['view']  = is_string( $view ) ? $view : '';
+		}
+
+		return $info;
 	}
 
 	/**
@@ -95,12 +107,34 @@ final class WordPressPostStore implements PostStore {
 	/**
 	 * Loads several posts in one query.
 	 *
-	 * @param int[] $ids Ids.
+	 * @param int[] $ids        Ids.
+	 * @param bool  $thumbnails Whether the featured images are loaded too.
 	 * @return void
 	 */
-	public function prime( array $ids ) {
-		if ( array() !== $ids && function_exists( '_prime_post_caches' ) ) {
-			_prime_post_caches( $ids, false, false );
+	public function prime( array $ids, $thumbnails = false ) {
+		if ( array() === $ids || ! function_exists( '_prime_post_caches' ) ) {
+			return;
+		}
+
+		// With the metas (where the id of the featured image is), then the attachments with theirs (the sizes): two queries, not one per post.
+		_prime_post_caches( $ids, false, (bool) $thumbnails );
+
+		if ( ! $thumbnails ) {
+			return;
+		}
+
+		$attachments = array();
+
+		foreach ( $ids as $id ) {
+			$thumb_id = (int) get_post_thumbnail_id( (int) $id );
+
+			if ( $thumb_id > 0 ) {
+				$attachments[ $thumb_id ] = $thumb_id;
+			}
+		}
+
+		if ( array() !== $attachments ) {
+			_prime_post_caches( array_values( $attachments ), false, true );
 		}
 	}
 

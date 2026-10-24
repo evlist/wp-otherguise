@@ -23,6 +23,7 @@ final class SectionException extends \RuntimeException {
 	public const TOO_MANY  = 'books_section_too_many';
 	public const NOT_IN    = 'books_section_not_in';
 	public const BAD_MOVE  = 'books_section_bad_move';
+	public const BAD_PLACE = 'books_section_bad_place';
 
 	/**
 	 * Code of the refusal.
@@ -85,6 +86,7 @@ final class SectionException extends \RuntimeException {
 			self::TOO_MANY  => array( __( 'Too many posts at once.', 'otherguise' ), 400 ),
 			self::NOT_IN    => array( __( 'This post is not in this section.', 'otherguise' ), 404 ),
 			self::BAD_MOVE  => array( __( 'This move is not possible.', 'otherguise' ), 400 ),
+			self::BAD_PLACE => array( __( 'Give one place only: before or after a post of the section.', 'otherguise' ), 400 ),
 		);
 
 		$exception = new self( $error_code, esc_html( $messages[ $error_code ][0] ), (int) $messages[ $error_code ][1] );

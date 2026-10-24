@@ -15,9 +15,12 @@ use Otherguise\Books\Rest\SectionRoutes;
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Enqueues the scripts of the Section panel for the post types that can hold sections (slice 223), when the user may edit the post.
+ * Enqueues the scripts of the Book section panel for the post types that can hold sections (slice 223), when the user may edit the post.
  */
 final class SectionEditor {
+	public const MODEL  = 'books-section-model';
+	public const DIALOG = 'books-section-dialog';
+	public const WINDOW = 'books-section-window';
 	public const UI     = 'books-section-ui';
 	public const SCRIPT = 'books-section';
 
@@ -86,15 +89,18 @@ final class SectionEditor {
 			return;
 		}
 
-		wp_enqueue_script( self::UI, ( $this->url )( 'section-ui.js' ), array(), '223.1', true );
+		wp_enqueue_script( self::MODEL, ( $this->url )( 'section-model.js' ), array(), '224.1', true );
+		wp_enqueue_script( self::DIALOG, ( $this->url )( 'section-dialog.js' ), array(), '224.1', true );
+		wp_enqueue_script( self::WINDOW, ( $this->url )( 'section-window.js' ), array(), '224.1', true );
+		wp_enqueue_script( self::UI, ( $this->url )( 'section-ui.js' ), array(), '224.1', true );
 		wp_enqueue_script(
 			self::SCRIPT,
 			( $this->url )( 'section.js' ),
-			array( self::UI, 'wp-plugins', 'wp-edit-post', 'wp-editor', 'wp-element', 'wp-data', 'wp-i18n', 'wp-api-fetch' ),
-			'223.1',
+			array( self::MODEL, self::DIALOG, self::WINDOW, self::UI, 'wp-plugins', 'wp-edit-post', 'wp-editor', 'wp-element', 'wp-data', 'wp-i18n', 'wp-api-fetch' ),
+			'224.1',
 			true
 		);
-		wp_enqueue_style( self::SCRIPT, ( $this->url )( 'section.css' ), array(), '223.1' );
+		wp_enqueue_style( self::SCRIPT, ( $this->url )( 'section.css' ), array( 'dashicons' ), '224.1' );
 
 		wp_add_inline_script(
 			self::SCRIPT,

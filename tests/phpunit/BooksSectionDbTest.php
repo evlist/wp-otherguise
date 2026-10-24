@@ -384,6 +384,136 @@ class BooksSectionDbTest extends Otherguise_Test_Database_Case {
 	}
 
 	/**
+	 * Posts added before or after a post go there whatever their date; the posts after them are moved down, with or without positions that
+	 * exist already; a post that is in the section already stays where it is.
+	 *
+	 * @return void
+	 */
+	public function test_adding_before_and_after(): void {
+		$this->posts->add( 6, 'Day 6', '2026-05-21 10:00:00' );
+		$this->posts->add( 7, 'An old one', '2026-04-01 10:00:00' );
+		$this->posts->add( 8, 'Day 8', '2026-05-22 10:00:00' );
+		$this->posts->add( 9, 'Day 9', '2026-05-23 10:00:00' );
+		$this->sections->add( 100, array( 1, 2, 3, 5 ) );
+
+		$this->assertSame( array( 6 ), $this->sections->add( 100, array( 6 ), array( 'before' => 2 ) )['added'] );
+		$this->assertSame( array( 1, 6, 2, 3, 5 ), $this->sections->order( 100 ), 'Before the second, whatever the date.' );
+
+		$this->assertSame( array( 7 ), $this->sections->add( 100, array( 7 ), array( 'after' => 5 ) )['added'] );
+		$this->assertSame( array( 1, 6, 2, 3, 5, 7 ), $this->sections->order( 100 ), 'After the last: an old post at the end.' );
+
+		$report = $this->sections->add( 100, array( 8, 9, 3 ), array( 'before' => 1 ) );
+
+		$this->assertSame( array( 8, 9 ), $report['added'] );
+		$this->assertSame( array( 3 ), $report['already'] );
+		$this->assertSame( array( 8, 9, 1, 6, 2, 3, 5, 7 ), $this->sections->order( 100 ), 'Before the first, in the order given; the post already there is not moved.' );
+	}
+
+	/**
+	 * A place gives the right order when positions exist already, and a post that is added later at its date goes where the free ranks are.
+	 *
+	 * @return void
+	 */
+	public function test_a_place_with_existing_positions(): void {
+		$this->posts->add( 6, 'Day 6', '2026-05-21 10:00:00' );
+		$this->posts->add( 7, 'Day 7', '2026-05-22 10:00:00' );
+		$this->sections->add( 100, array( 1, 2, 3, 5 ) );
+		$this->sections->move( 100, 5, 1 );
+
+		$this->assertSame( array( 5, 1, 2, 3 ), $this->sections->order( 100 ) );
+
+		$this->sections->add( 100, array( 6 ), array( 'after' => 1 ) );
+
+		$this->assertSame( array( 5, 1, 6, 2, 3 ), $this->sections->order( 100 ) );
+
+		$this->sections->add( 100, array( 7 ), array( 'before' => 5 ) );
+
+		$this->assertSame( array( 7, 5, 1, 6, 2, 3 ), $this->sections->order( 100 ) );
+
+		$this->sections->move( 100, 3, 'up' );
+
+		$this->assertSame( array( 7, 5, 1, 6, 3, 2 ), $this->sections->order( 100 ) );
+	}
+
+	/**
+	 * The places that are refused.
+	 *
+	 * @return void
+	 */
+	public function test_bad_places(): void {
+		$this->sections->add( 100, array( 1, 2 ) );
+
+		$this->assertSame(
+			SectionException::BAD_PLACE,
+			$this->refusal(
+				fn() => $this->sections->add(
+					100,
+					array( 3 ),
+					array(
+						'before' => 1,
+						'after' => 2,
+					)
+				)
+			)
+		);
+		$this->assertSame( SectionException::NOT_IN, $this->refusal( fn() => $this->sections->add( 100, array( 3 ), array( 'before' => 5 ) ) ) );
+		$this->assertSame( SectionException::NOT_IN, $this->refusal( fn() => $this->sections->add( 100, array( 3 ), array( 'after' => 999 ) ) ) );
+		$this->assertSame( array( 1, 2 ), $this->sections->order( 100 ), 'Nothing was added.' );
+		$this->assertSame(
+			array( 3 ),
+			$this->sections->add(
+				100,
+				array( 3 ),
+				array(
+					'before' => 0,
+					'after' => 0,
+				)
+			)['added'],
+			'No place: at the date.'
+		);
+	}
+
+	/**
+	 * The state gives what the window shows: the image, the link to view, the dates; the featured images are loaded together.
+	 *
+	 * @return void
+	 */
+	public function test_the_state_for_the_window(): void {
+		$this->posts->thumbs[1] = 'https://example.test/uploads/one-300x200.jpg';
+		$this->sections->mark( 101 );
+
+		$empty = $this->sections->state( 101 );
+
+		$this->assertSame(
+			array(
+				'from' => '',
+				'to' => '',
+			),
+			$empty['range']
+		);
+		$this->assertSame( array(), $empty['contents'] );
+
+		$this->sections->add( 100, array( 5, 1, 4 ) );
+
+		$state = $this->sections->state( 100 );
+
+		$this->assertSame( array( 1, 4, 5 ), array_column( $state['contents'], 'id' ) );
+		$this->assertSame( 'https://example.test/uploads/one-300x200.jpg', $state['contents'][0]['thumb'] );
+		$this->assertSame( '', $state['contents'][1]['thumb'], 'No featured image.' );
+		$this->assertSame( 'https://example.test/?p=1', $state['contents'][0]['view'] );
+		$this->assertSame( 'https://example.test/?p=4&preview=true', $state['contents'][1]['view'], 'A draft: its preview.' );
+		$this->assertSame(
+			array(
+				'from' => '2026-05-16 10:00:00',
+				'to' => '2026-05-20 10:00:00',
+			),
+			$state['range']
+		);
+		$this->assertContains( array( 'thumbnails' => array( 1, 4, 5 ) ), $this->posts->primed, 'One load for the posts and their images.' );
+		$this->assertArrayNotHasKey( 'thumb', $state['containing'][0] ?? array(), 'The sections that contain a post are described without an image.' );
+	}
+
+	/**
 	 * The search among the sections finds only marked posts the user may edit.
 	 *
 	 * @return void

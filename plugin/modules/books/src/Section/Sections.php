@@ -170,17 +170,50 @@ final class Sections {
 	}
 
 	/**
-	 * Adds posts at the end of a section (they appear at their date unless moved). Marks the section when it is not.
+	 * Adds posts to a section. Marks the section when it is not.
+	 *
+	 * Without a place the posts appear at their date among those that were not moved. With a place (`before` or `after`: the id of a post
+	 * of the section) they are put just before or just after that post whatever their date: they take the ranks of the place and every post
+	 * from there to the end gets a position, so that the order is exact whatever the positions that exist already. A post that is in the
+	 * section already is not moved.
 	 *
 	 * @param int   $section Id of the section.
 	 * @param array $ids     Ids of the posts, at most `MAX_BATCH`.
+	 * @param array $place   Empty, or `array( 'before' => id )` or `array( 'after' => id )`.
 	 * @return array{added:int[],already:int[],skipped:array<int,string>} The skipped ones with the reason: `missing`, `type`,
 	 *               `forbidden` or `cycle`.
-	 * @throws SectionException When the section is refused or the batch is too large.
+	 * @throws SectionException When the section is refused, the batch is too large or the place is not valid.
 	 */
-	public function add( $section, array $ids ) {
+	public function add( $section, array $ids, array $place = array() ) {
 		$section = (int) $section;
 		$this->editable( $section );
+
+		$before = isset( $place['before'] ) ? (int) $place['before'] : 0;
+		$after  = isset( $place['after'] ) ? (int) $place['after'] : 0;
+
+		if ( $before > 0 && $after > 0 ) {
+			SectionException::refuse( SectionException::BAD_PLACE );
+		}
+
+		$existing = array();
+		$target   = $before > 0 ? $before : $after;
+
+		if ( $target > 0 ) {
+			$existing = $this->entries( $section );
+			$index    = null;
+
+			foreach ( $existing as $position => $entry ) {
+				if ( $entry['id'] === $target ) {
+					$index = $position;
+				}
+			}
+
+			if ( null === $index ) {
+				SectionException::refuse( SectionException::NOT_IN );
+			}
+
+			$insert_at = $before > 0 ? $index : $index + 1;
+		}
 
 		$wanted = array();
 
@@ -214,7 +247,9 @@ final class Sections {
 		$subject    = Ref::post( $section );
 
 		$statements->transaction(
-			function () use ( $wanted, $section, $statements, $types, $subject, &$report ) {
+			function () use ( $wanted, $section, $statements, $types, $subject, $existing, $target, &$report, &$insert_at ) {
+				$created = array();
+
 				foreach ( $wanted as $id ) {
 					$info = $this->posts->info( $id );
 
@@ -229,9 +264,13 @@ final class Sections {
 					} elseif ( null !== $statements->find_by_triple( $subject, self::PREDICATE, Ref::post( $id ) ) ) {
 						$report['already'][] = $id;
 					} else {
-						$statements->triple( $subject, self::PREDICATE, Ref::post( $id ) );
+						$created[ $id ]    = $statements->triple( $subject, self::PREDICATE, Ref::post( $id ) );
 						$report['added'][] = $id;
 					}
+				}
+
+				if ( $target > 0 && array() !== $created ) {
+					$this->place( $existing, array_values( $created ), $insert_at );
 				}
 			}
 		);
@@ -241,6 +280,29 @@ final class Sections {
 		}
 
 		return $report;
+	}
+
+	/**
+	 * Gives a position to the new posts and to every post after them, so that the new posts sit at the place.
+	 *
+	 * @param array       $existing  The entries of the section before the addition, in order.
+	 * @param Statement[] $created   The statements of the new posts, in the order they must have.
+	 * @param int         $insert_at Index where they go in the list of the existing entries.
+	 * @return void
+	 */
+	private function place( array $existing, array $created, $insert_at ) {
+		$statements = $this->statements();
+		$order      = array_merge(
+			array_map( static fn( array $entry ) => $entry['statement'], array_slice( $existing, 0, $insert_at ) ),
+			$created,
+			array_map( static fn( array $entry ) => $entry['statement'], array_slice( $existing, $insert_at ) )
+		);
+
+		$total = count( $order );
+
+		for ( $position = $insert_at; $position < $total; $position++ ) {
+			$statements->replace( $order[ $position ], self::POSITION, $position + 1 );
+		}
 	}
 
 	/**
@@ -467,13 +529,18 @@ final class Sections {
 	 */
 	public function state( $id ) {
 		$id       = (int) $id;
+		$entries  = $this->entries( $id );
 		$contents = array();
+		$dates    = array();
 
-		foreach ( $this->entries( $id ) as $entry ) {
-			$info = $this->posts->info( $entry['id'] );
+		$this->posts->prime( array_column( $entries, 'id' ), true );
+
+		foreach ( $entries as $entry ) {
+			$info = $this->posts->info( $entry['id'], true );
 
 			if ( null !== $info ) {
 				$contents[] = $info + array( 'pinned' => $entry['pinned'] );
+				$dates[]    = $info['date'];
 			}
 		}
 
@@ -487,9 +554,16 @@ final class Sections {
 			}
 		}
 
+		$self = $this->posts->info( $id );
+
 		return array(
 			'id'         => $id,
+			'title'      => null === $self ? '' : $self['title'],
 			'section'    => $this->is_section( $id ) || array() !== $contents,
+			'range'      => array(
+				'from' => array() === $dates ? '' : min( $dates ),
+				'to'   => array() === $dates ? '' : max( $dates ),
+			),
 			'contents'   => $contents,
 			'containing' => $containing,
 		);

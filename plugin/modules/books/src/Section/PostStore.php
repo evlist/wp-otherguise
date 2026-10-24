@@ -24,12 +24,14 @@ interface PostStore {
 	public function types();
 
 	/**
-	 * Describes a post, or returns null when it does not exist.
+	 * Describes a post, or returns null when it does not exist. With `$detailed` the description also has `thumb` (the address of the
+	 * featured image, or an empty string) and `view` (the permalink, or the preview link of a post that is not published).
 	 *
-	 * @param int $id Id of the post.
-	 * @return array{id:int,title:string,status:string,type:string,date:string,edit:string}|null
+	 * @param int  $id       Id of the post.
+	 * @param bool $detailed Whether to add `thumb` and `view`.
+	 * @return array{id:int,title:string,status:string,type:string,date:string,edit:string,thumb?:string,view?:string}|null
 	 */
-	public function info( $id );
+	public function info( $id, $detailed = false );
 
 	/**
 	 * Tells whether the user may edit a post.
@@ -48,12 +50,14 @@ interface PostStore {
 	public function can_read( $id );
 
 	/**
-	 * Loads several posts at once, before `info()` is asked for each of them.
+	 * Loads several posts at once, before `info()` is asked for each of them; with `$thumbnails` also their featured images, so that a
+	 * detailed `info()` makes no query.
 	 *
-	 * @param int[] $ids Ids.
+	 * @param int[] $ids        Ids.
+	 * @param bool  $thumbnails Whether the featured images are wanted too.
 	 * @return void
 	 */
-	public function prime( array $ids );
+	public function prime( array $ids, $thumbnails = false );
 
 	/**
 	 * Searches among given posts (the sections), the most recently modified first.

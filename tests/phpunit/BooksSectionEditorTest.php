@@ -77,14 +77,24 @@ class BooksSectionEditorTest extends TestCase {
 
 		$scripts = $this->calls( 'wp_enqueue_script' );
 
-		$this->assertCount( 2, $scripts );
-		$this->assertSame( 'books-section-ui', $scripts[0][1] );
-		$this->assertSame( 'https://example.test/section/section-ui.js', $scripts[0][2] );
-		$this->assertSame( 'books-section', $scripts[1][1] );
-		$this->assertContains( 'books-section-ui', $scripts[1][3] );
-		$this->assertContains( 'wp-api-fetch', $scripts[1][3] );
-		$this->assertContains( 'wp-editor', $scripts[1][3] );
-		$this->assertCount( 1, $this->calls( 'wp_enqueue_style' ) );
+		$this->assertSame(
+			array( 'books-section-model', 'books-section-dialog', 'books-section-window', 'books-section-ui', 'books-section' ),
+			array_column( $scripts, 1 )
+		);
+		$this->assertSame( 'https://example.test/section/section-model.js', $scripts[0][2] );
+		$this->assertSame( 'https://example.test/section/section.js', $scripts[4][2] );
+
+		$last = $scripts[4][3];
+
+		foreach ( array( 'books-section-model', 'books-section-dialog', 'books-section-window', 'books-section-ui', 'wp-plugins', 'wp-editor', 'wp-element', 'wp-data', 'wp-i18n', 'wp-api-fetch' ) as $dependency ) {
+			$this->assertContains( $dependency, $last );
+		}
+
+		$this->assertSame( array(), $scripts[0][3], 'The pieces depend on nothing.' );
+		$styles = $this->calls( 'wp_enqueue_style' );
+
+		$this->assertCount( 1, $styles );
+		$this->assertContains( 'dashicons', $styles[0][3], 'The icons of the window.' );
 
 		$inline = $this->calls( 'wp_add_inline_script' );
 

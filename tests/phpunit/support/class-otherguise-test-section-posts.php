@@ -37,6 +37,13 @@ final class Otherguise_Test_Section_Posts implements PostStore {
 	public $hidden = array();
 
 	/**
+	 * Featured image addresses by post id.
+	 *
+	 * @var array<int, string>
+	 */
+	public $thumbs = array();
+
+	/**
 	 * Calls of `prime()`.
 	 *
 	 * @var array
@@ -81,11 +88,19 @@ final class Otherguise_Test_Section_Posts implements PostStore {
 	/**
 	 * Describes a post.
 	 *
-	 * @param int $id Id.
+	 * @param int  $id       Id.
+	 * @param bool $detailed Whether to add the image and the link to view.
 	 * @return array|null
 	 */
-	public function info( $id ) {
-		return $this->posts[ $id ] ?? null;
+	public function info( $id, $detailed = false ) {
+		$info = $this->posts[ $id ] ?? null;
+
+		if ( null !== $info && $detailed ) {
+			$info['thumb'] = $this->thumbs[ $id ] ?? '';
+			$info['view']  = 'https://example.test/?p=' . $id . ( 'publish' === $info['status'] ? '' : '&preview=true' );
+		}
+
+		return $info;
 	}
 
 	/**
@@ -111,11 +126,12 @@ final class Otherguise_Test_Section_Posts implements PostStore {
 	/**
 	 * Records the call.
 	 *
-	 * @param int[] $ids Ids.
+	 * @param int[] $ids        Ids.
+	 * @param bool  $thumbnails Whether the featured images are loaded too.
 	 * @return void
 	 */
-	public function prime( array $ids ) {
-		$this->primed[] = $ids;
+	public function prime( array $ids, $thumbnails = false ) {
+		$this->primed[] = $thumbnails ? array( 'thumbnails' => $ids ) : $ids;
 	}
 
 	/**

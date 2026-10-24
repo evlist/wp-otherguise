@@ -3,7 +3,7 @@
 
 # Slice 224 — Books: the section panel in a floating window
 
-Status: **planned (2026-10-24), not coded.** Dependencies: slice 223 (the sections, their routes and the panel), slice 219 (the floating panel of the preview, whose drag, resize and memory of the place are taken again). Module: `Books`. Model for the ergonomics: the Media Helper panel (`editor-media-panel.js` of `evlist/wp-media-helper`: the link "Open in a floating window" at the top of the panel, the window moved by its title bar and resized by its corner, the same panel in the sidebar and in the window, a menu item of the editor).
+Status: **coded (2026-10-24)**, see "Verified" for what ran and what did not. Dependencies: slice 223 (the sections, their routes and the panel), slice 219 (the floating panel of the preview, whose drag, resize and memory of the place are taken again). Module: `Books`. Model for the ergonomics: the Media Helper panel (`editor-media-panel.js` of `evlist/wp-media-helper`: the link "Open in a floating window" at the top of the panel, the window moved by its title bar and resized by its corner, the same panel in the sidebar and in the window, a menu item of the editor).
 
 ## Goal
 
@@ -43,21 +43,19 @@ The panel of slice 223 works but is heavy when the post being edited is a **sect
 - The window is for sections: a plain post has nothing to detach.
 - The preview panel of slice 219 is not changed; its code for the window (move, resize, memory) is copied, not shared. A common frame could be extracted later.
 
-## Code (planned)
+## Code
 
-`section-model.js` (the state, the calls of the API and the listeners, shared by the two views), `section-ui.js` (the sidebar view, reduced), `section-window.js` (the window and its lines), `section.js` (the connection to the editor: the panel, the menu item `PluginMoreMenuItem`, the title), `section.css`; on the PHP side `Section\Sections` (`add` with a place, `state` with `thumb`, `view` and `range`), `PostStore` (`info` gets `thumb` and `view`; `prime` also loads the featured images), `Rest\SectionRoutes` (`before`, `after`).
+On the PHP side: `Section\Sections` (`add( $section, $ids, $place )` with `before` or `after`, `place()` that gives a position to the new posts and to every post after them, `state()` with `title`, `range`, and `thumb` and `view` for each post, loaded together), `Section\PostStore` (`info( $id, $detailed )`, `prime( $ids, $thumbnails )`) with `WordPressPostStore` (the featured image at the size `medium`, the permalink or the preview link, the posts then their attachments loaded in two queries), `SectionException::BAD_PLACE` (`books_section_bad_place`, 400: both `before` and `after`), `Rest\SectionRoutes` (`before` and `after` on `POST sections/<id>/contents`), `Section\SectionEditor` (five scripts, the style depends on `dashicons`).
 
-## Tests (planned)
+On the editor side (`editor/section/`, plain JavaScript, no build step): `section-model.js` (the state, the calls of the API, the error and the listeners, shared by the two views), `section-dialog.js` (the dialog that adds posts, moved out of the sidebar view), `section-window.js` (the window and its lines), `section-ui.js` (the sidebar view, reduced to the sections of the post, the switch and the summary), `section.js` (the connection to the editor: the panel titled "Book section", the item of the "⋮" menu, the routes), `section.css`.
 
-- PHPUnit with a database: adding before and after (first, middle, last line; several posts; a post already there; a place that is not in the section; both `before` and `after`; the order that results with positions that already exist; the cycles and the limits as before), the state (`thumb`, `view`, `range`; empty section), the route (the arguments, the refusals).
-- jsdom: the model shared by the two views; the sidebar of a plain post (unchanged) and of a section (summary, no list, the link); the menu item; the window (open, close, Escape, ✕, remembered place and size, kept in view, narrow screen); the lines (image lazy, no image, the arrows and the ends, remove with confirmation and cancel, view and edit links, add before and after with the dialog); a failing request.
-- With a real WordPress and its editor (Playwright), as for slice 223.
+## Tests
 
-## Open
-
-- **First display with many photos**: Media Helper makes the thumbnail sizes on demand, so the first opening of a section of a hundred posts could be slow; `loading="lazy"` is the answer for now, to measure on testing before deciding more.
-- Whether the window should also be offered from a **toolbar button** (as the preview does); not planned.
+- PHPUnit with a database (`BooksSectionDbTest`, 22 tests in all): adding before and after (first, middle, last; several posts; a post already there is not moved), a place with positions that exist already, the places that are refused, the state for the window (`thumb`, `view`, `range`, the images loaded together), the route with `before` and `after`. `BooksSectionEditorTest` (the five scripts and their dependencies, the style and the icons).
+- jsdom (121 tests in all for the JavaScript of the project): `books-section-model.test.js` (8), `books-section-ui.test.js` (9: the sidebar of a plain post and of a section, the link, the summary), `books-section-dialog.test.js` (6), `books-section-window.test.js` (21: opening, the lines, the images, the arrows and the ends, add before and after, view and edit, remove with the question and Escape, reset, the error, the place and size remembered and kept in view, the move by the title bar, the storage that refuses, the size seen by the observer, a narrow screen) and `books-section-editor.test.js` (the connection, the menu item, the routes). A fake API is shared by the tests (`tests/js/section-helpers.js`).
 
 ## Verified
 
-Nothing yet.
+- **Automated**: 506 PHPUnit tests (with MariaDB 10.11.14) and 121 jsdom tests pass; `phpcs --standard=.vscode/phpcs.xml .` (the command of the CI) reports nothing. Two defects were found by the tests while writing them: the explanation of a refused section was cleared by the reading of the state that follows (the model), and the loading of an image through `picture.loading = …` is not reflected by jsdom (the attribute is now set with `setAttribute`, which works everywhere).
+- **Real WordPress 7.1.3 (scratch site, 2026-10-24), the editor in Chromium (Playwright), logged in**: the sidebar of a section shows "Book section", the summary (`Contains (5) · 2026-05-16 → 2026-05-20`), the link at the top and no list; the window opens from the link and from the item of the "⋮" menu (and closes from the ✕, the link, the menu and Escape); one line per post with the featured image behind the text of the two posts that have one (both `loading="lazy"`); Down, Up and Reset; **add before** (the dialog says "before “Journée 2026-05-19”", a post found by its title is put before it whatever its date); remove with the question (No keeps it, Yes removes it); the links to view and edit; the window moved by its title bar, its place stored (`localStorage`) and found again after the page is loaded again; a plain day shows no link and no menu item; at 420 px the window covers the screen (420 x 800). The only error of the console is the 404 of `favicon.ico`.
+- **Never tried**: **Firefox** (Eric's browser; the tests ran in Chromium and jsdom), the sites of the blog (testing, production), a phone for real, a section of a hundred posts (the images are loaded by the browser as the lines are scrolled; Media Helper makes the `medium` size on demand, so the first opening could be slow: to measure on testing), a user with limited capabilities in the editor, the keyboard use of the icons beyond the tests of the focus order (not tested), the look of the lightened background on a very dark or very busy photo (the contrast was judged on two photos of a scratch image only).

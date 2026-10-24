@@ -126,10 +126,20 @@ final class SectionRoutes {
 				'permission_callback' => array( $this, 'can' ),
 				'args'                => array(
 					'id'  => $id,
-					'ids' => array(
+					'ids'    => array(
 						'type'     => 'array',
 						'required' => true,
 						'items'    => array( 'type' => 'integer' ),
+					),
+					'before' => array(
+						'type'              => 'integer',
+						'default'           => 0,
+						'sanitize_callback' => 'absint',
+					),
+					'after'  => array(
+						'type'              => 'integer',
+						'default'           => 0,
+						'sanitize_callback' => 'absint',
 					),
 				),
 			)
@@ -289,7 +299,7 @@ final class SectionRoutes {
 	}
 
 	/**
-	 * Adds posts to a section.
+	 * Adds posts to a section, at their date or, with `before` or `after`, at a place.
 	 *
 	 * @param object $request Request.
 	 * @return array|\WP_Error
@@ -298,7 +308,11 @@ final class SectionRoutes {
 		return $this->run(
 			function () use ( $request ) {
 				$id     = (int) $request->get_param( 'id' );
-				$report = $this->sections->add( $id, (array) $request->get_param( 'ids' ) );
+				$place  = array(
+					'before' => (int) $request->get_param( 'before' ),
+					'after'  => (int) $request->get_param( 'after' ),
+				);
+				$report = $this->sections->add( $id, (array) $request->get_param( 'ids' ), $place );
 
 				return array( 'report' => $report ) + $this->sections->state( $id );
 			}
