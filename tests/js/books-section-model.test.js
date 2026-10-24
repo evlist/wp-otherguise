@@ -159,3 +159,51 @@ test( 'the candidates are asked for this post; a failure answers null', async ()
 	assert.strictEqual( model.getError(), 'Refused: candidates' );
 	assert.deepStrictEqual( names( calls ), [ 'candidates', 'candidates' ] );
 } );
+
+test( 'the images are asked a few at a time, once each, and the listeners are told that an image arrived', async () => {
+	const { api, calls, context } = makeApi( {} );
+	const model = createModel( { postId: 100, api } );
+	const heard = [];
+	const ids = Array.from( { length: 23 }, ( x, index ) => index + 1 );
+
+	context.images = { 3: 'https://example.test/three.jpg' };
+	model.subscribe( ( what ) => heard.push( what ) );
+
+	assert.strictEqual( model.getThumb( 3 ), undefined, 'Not known yet.' );
+
+	await model.wantThumbs( ids );
+
+	assert.deepStrictEqual( calls.map( ( call ) => call[ 2 ].length ), [ 10, 10, 3 ] );
+	assert.deepStrictEqual( heard, [ 'thumbs', 'thumbs', 'thumbs' ] );
+	assert.strictEqual( model.getThumb( 3 ), 'https://example.test/three.jpg' );
+	assert.strictEqual( model.getThumb( 4 ), '', 'A post without image: an empty address, known.' );
+
+	await model.wantThumbs( [ 1, 2, 3, 24 ] );
+
+	assert.deepStrictEqual( calls.slice( 3 ).map( ( call ) => call[ 2 ] ), [ [ 24 ] ], 'Only what was not asked yet.' );
+} );
+
+test( 'a failing request for images is silent and is not repeated; an odd answer is an empty address', async () => {
+	const { api, calls, context } = makeApi( {} );
+	const model = createModel( { postId: 100, api } );
+
+	context.fail = 'thumbs';
+	await model.wantThumbs( [ 1, 2 ] );
+
+	assert.strictEqual( model.getError(), '' );
+	assert.strictEqual( model.getThumb( 1 ), '' );
+
+	await model.wantThumbs( [ 1, 2 ] );
+	assert.strictEqual( calls.length, 1, 'Not repeated.' );
+
+	context.fail = null;
+	api.thumbs = () => Promise.resolve( { thumbs: { 5: 12 } } );
+	await model.wantThumbs( [ 5, 6 ] );
+
+	assert.strictEqual( model.getThumb( 5 ), '' );
+	assert.strictEqual( model.getThumb( 6 ), '' );
+
+	api.thumbs = () => Promise.resolve( null );
+	await model.wantThumbs( [ 7 ] );
+	assert.strictEqual( model.getThumb( 7 ), '' );
+} );

@@ -180,7 +180,11 @@
 			} );
 		} );
 
-		var unsubscribe = model.subscribe( render );
+		var unsubscribe = model.subscribe( function ( what ) {
+			if ( 'thumbs' !== what ) {
+				render();
+			}
+		} );
 		var unwatch = control.subscribe ? control.subscribe( render ) : null;
 
 		render();

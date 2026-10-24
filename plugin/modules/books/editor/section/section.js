@@ -68,6 +68,9 @@
 		reset: function ( id ) {
 			return wp.apiFetch( { path: route( '/' + id + '/order' ), method: 'DELETE' } );
 		},
+		thumbs: function ( id, ids ) {
+			return wp.apiFetch( { path: route( '/' + id + '/thumbs', { ids: ids } ) } );
+		},
 		candidates: function ( id, query ) {
 			return wp.apiFetch( { path: route( '/' + id + '/candidates', query ) } );
 		},

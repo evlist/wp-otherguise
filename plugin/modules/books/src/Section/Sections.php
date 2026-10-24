@@ -29,6 +29,7 @@ final class Sections {
 	public const POSITION   = 'triples/position';
 	public const MAX_SEARCH = 1000;
 	public const MAX_BATCH  = 200;
+	public const MAX_THUMBS = SectionQueries::MAX_THUMBS;
 
 	/**
 	 * Gives the service of the statements.
@@ -45,6 +46,13 @@ final class Sections {
 	private $posts;
 
 	/**
+	 * What the panel and the commands read: the state, the search, the candidates and the images.
+	 *
+	 * @var SectionQueries
+	 */
+	private $queries;
+
+	/**
 	 * Builds the service.
 	 *
 	 * @param callable  $statements Gives the `Statements` service (it is looked for when it is needed).
@@ -53,6 +61,7 @@ final class Sections {
 	public function __construct( $statements, PostStore $posts ) {
 		$this->statements = $statements;
 		$this->posts      = $posts;
+		$this->queries    = new SectionQueries( $this, $posts );
 	}
 
 	/**
@@ -528,45 +537,19 @@ final class Sections {
 	 * @return array
 	 */
 	public function state( $id ) {
-		$id       = (int) $id;
-		$entries  = $this->entries( $id );
-		$contents = array();
-		$dates    = array();
+		return $this->queries->state( (int) $id );
+	}
 
-		$this->posts->prime( array_column( $entries, 'id' ), true );
-
-		foreach ( $entries as $entry ) {
-			$info = $this->posts->info( $entry['id'], true );
-
-			if ( null !== $info ) {
-				$contents[] = $info + array( 'pinned' => $entry['pinned'] );
-				$dates[]    = $info['date'];
-			}
-		}
-
-		$containing = array();
-
-		foreach ( $this->containing( $id ) as $section ) {
-			$info = $this->posts->info( $section );
-
-			if ( null !== $info && $this->posts->can_read( $section ) ) {
-				$containing[] = $info + array( 'can_edit' => $this->posts->can_edit( $section ) );
-			}
-		}
-
-		$self = $this->posts->info( $id );
-
-		return array(
-			'id'         => $id,
-			'title'      => null === $self ? '' : $self['title'],
-			'section'    => $this->is_section( $id ) || array() !== $contents,
-			'range'      => array(
-				'from' => array() === $dates ? '' : min( $dates ),
-				'to'   => array() === $dates ? '' : max( $dates ),
-			),
-			'contents'   => $contents,
-			'containing' => $containing,
-		);
+	/**
+	 * The addresses of the featured images of posts of a section (at most `MAX_THUMBS` at a time), by post id.
+	 *
+	 * @param int   $section Id of the section.
+	 * @param array $ids     Ids of the posts.
+	 * @return array<int,string>
+	 * @throws SectionException When the user may not edit the section or too many posts are asked for.
+	 */
+	public function thumbs( $section, array $ids ) {
+		return $this->queries->thumbs( (int) $section, $ids );
 	}
 
 	/**
@@ -578,27 +561,7 @@ final class Sections {
 	 * @return array{items:array,total:int}
 	 */
 	public function search( $text, $page = 1, $per_page = 20 ) {
-		$ids = array();
-
-		foreach ( $this->statements()->subjects_of( $this->mark_value(), self::MARK ) as $statement ) {
-			$ids[] = (int) $statement->subject()->id();
-		}
-
-		$found = $this->posts->search_among( array_slice( $ids, 0, self::MAX_SEARCH ), (string) $text, max( 1, (int) $page ), min( 50, max( 1, (int) $per_page ) ) );
-		$items = array();
-
-		foreach ( $found['ids'] as $id ) {
-			$info = $this->posts->info( $id );
-
-			if ( null !== $info && $this->posts->can_edit( $id ) ) {
-				$items[] = $info;
-			}
-		}
-
-		return array(
-			'items' => $items,
-			'total' => $found['total'],
-		);
+		return $this->queries->search( (string) $text, (int) $page, (int) $per_page );
 	}
 
 	/**
@@ -610,32 +573,22 @@ final class Sections {
 	 * @throws SectionException When the user may not edit the section.
 	 */
 	public function candidates( $section, array $arguments ) {
-		$section = (int) $section;
+		return $this->queries->candidates( (int) $section, $arguments );
+	}
 
-		$this->editable( $section );
+	/**
+	 * The ids of the posts that are marked as sections (at most `MAX_SEARCH`, an indexed lookup of the statements).
+	 *
+	 * @return int[]
+	 */
+	public function marked() {
+		$ids = array();
 
-		$found = $this->posts->candidates( $arguments );
-		$in    = array();
-
-		foreach ( $this->statements()->objects_of( Ref::post( $section ), self::PREDICATE ) as $statement ) {
-			$in[ (int) $statement->object()->id() ] = true;
+		foreach ( $this->statements()->subjects_of( $this->mark_value(), self::MARK ) as $statement ) {
+			$ids[] = (int) $statement->subject()->id();
 		}
 
-		$this->posts->prime( $found['ids'] );
-		$items = array();
-
-		foreach ( $found['ids'] as $id ) {
-			$info = $this->posts->info( $id );
-
-			if ( null !== $info && $id !== $section && $this->posts->can_read( $id ) ) {
-				$items[] = $info + array( 'in_section' => isset( $in[ $id ] ) );
-			}
-		}
-
-		return array(
-			'items' => $items,
-			'total' => $found['total'],
-		);
+		return array_slice( $ids, 0, self::MAX_SEARCH );
 	}
 
 	/**
@@ -645,7 +598,7 @@ final class Sections {
 	 * @return void
 	 * @throws SectionException When it cannot.
 	 */
-	private function editable( $id ) {
+	public function editable( $id ) {
 		$info = $id > 0 ? $this->posts->info( $id ) : null;
 
 		if ( null === $info ) {

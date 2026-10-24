@@ -11,7 +11,7 @@ const SECTION = {
 	section: true,
 	title: 'Pyrenees van trip',
 	range: { from: '2026-05-11 10:00:00', to: '2026-05-13 10:00:00' },
-	contents: [ day( 1, { thumb: 'https://example.test/one.jpg' } ), day( 2, { pinned: 2 } ), day( 3, { status: 'draft', view: 'https://example.test/?p=3&preview=true' } ) ],
+	contents: [ day( 1 ), day( 2, { pinned: 2 } ), day( 3, { status: 'draft', view: 'https://example.test/?p=3&preview=true' } ) ],
 };
 
 /** Builds the window over a fake dialog that records how it was opened. */
@@ -105,16 +105,81 @@ test( 'one line per post, in order, with the title, the date, the status and a m
 
 test( 'the featured image is the background of the line: lazy, without a text alternative, absent when the post has none', async () => {
 	const site = make( SECTION );
+
+	site.context.images = { 1: 'https://example.test/one.jpg', 3: 'https://example.test/three.jpg' };
 	await open( site );
+	await flush();
 
 	const pictures = site.all( '.books-section-row__bg' );
 
-	assert.strictEqual( pictures.length, 1 );
+	assert.strictEqual( pictures.length, 2 );
 	assert.strictEqual( pictures[ 0 ].src, 'https://example.test/one.jpg' );
 	assert.strictEqual( pictures[ 0 ].getAttribute( 'loading' ), 'lazy' );
 	assert.strictEqual( pictures[ 0 ].getAttribute( 'decoding' ), 'async' );
 	assert.strictEqual( pictures[ 0 ].getAttribute( 'alt' ), '' );
-	assert.strictEqual( pictures[ 0 ].closest( '.books-section-row' ).dataset.id, '1' );
+	assert.deepStrictEqual( pictures.map( ( picture ) => picture.closest( '.books-section-row' ).dataset.id ), [ '1', '3' ] );
+	assert.strictEqual( pictures[ 0 ].parentNode.firstChild, pictures[ 0 ], 'Behind the rest of the line.' );
+	assert.strictEqual( site.all( '.books-section-row' )[ 1 ].querySelector( '.books-section-row__bg' ), null, 'A post without image has none.' );
+} );
+
+test( 'the list is usable before the images arrive, and an image does not draw the list again', async () => {
+	const site = make( SECTION );
+	let release = null;
+
+	site.api.thumbs = ( id, ids ) => {
+		site.calls.push( [ 'thumbs', id, ids ] );
+		return new Promise( ( resolve ) => {
+			release = () => resolve( { thumbs: { 1: 'https://example.test/one.jpg' } } );
+		} );
+	};
+	await open( site );
+
+	assert.strictEqual( site.all( '.books-section-row' ).length, 3, 'The lines are there.' );
+	assert.strictEqual( site.all( '.books-section-row__bg' ).length, 0, 'Without an image yet.' );
+
+	click( site.all( '.books-section-row__down' )[ 0 ] );
+	await flush();
+	assert.deepStrictEqual( site.calls.filter( ( call ) => 'move' === call[ 0 ] ), [ [ 'move', 100, 1, 'down' ] ], 'The buttons work while the images are awaited.' );
+
+	const row = site.all( '.books-section-row' )[ 0 ];
+
+	release();
+	await flush();
+
+	assert.strictEqual( site.all( '.books-section-row__bg' ).length, 1 );
+	assert.strictEqual( site.all( '.books-section-row' )[ 0 ], row, 'The line is the same node: the list was not drawn again.' );
+	assert.strictEqual( row.querySelector( '.books-section-row__bg' ).src, 'https://example.test/one.jpg' );
+} );
+
+test( 'the images are asked ten at a time, once, and a failure is not an error of the window', async () => {
+	const many = Array.from( { length: 25 }, ( x, index ) => day( index + 1 ) );
+	const site = make( { section: true, contents: many } );
+
+	site.context.images = { 25: 'https://example.test/last.jpg' };
+	await open( site );
+	await flush();
+	await flush();
+	await flush();
+
+	const asked = site.calls.filter( ( call ) => 'thumbs' === call[ 0 ] );
+
+	assert.deepStrictEqual( asked.map( ( call ) => call[ 2 ].length ), [ 10, 10, 5 ] );
+	assert.strictEqual( site.all( '.books-section-row__bg' ).length, 1 );
+
+	await site.model.load();
+	await flush();
+
+	assert.strictEqual( site.calls.filter( ( call ) => 'thumbs' === call[ 0 ] ).length, 3, 'Not asked again after a new state.' );
+
+	const failing = make( SECTION );
+
+	failing.context.fail = 'thumbs';
+	await open( failing );
+	await flush();
+
+	assert.strictEqual( failing.model.getError(), '', 'No error banner for an image.' );
+	assert.strictEqual( failing.all( '.books-section-row' ).length, 3 );
+	assert.strictEqual( failing.all( '.books-section-row__bg' ).length, 0 );
 } );
 
 test( 'the arrows move a post and are disabled at the ends', async () => {
@@ -129,7 +194,7 @@ test( 'the arrows move a post and are disabled at the ends', async () => {
 	click( site.all( '.books-section-row__up' )[ 2 ] );
 	await flush();
 
-	assert.deepStrictEqual( site.calls.slice( 1 ), [ [ 'move', 100, 1, 'down' ], [ 'move', 100, 3, 'up' ] ] );
+	assert.deepStrictEqual( site.calls.filter( ( call ) => 'move' === call[ 0 ] ), [ [ 'move', 100, 1, 'down' ], [ 'move', 100, 3, 'up' ] ] );
 	assert.strictEqual( site.all( '.books-section-row__up' )[ 0 ].getAttribute( 'aria-label' ), 'Move up' );
 	assert.strictEqual( site.all( '.books-section-row__down' )[ 0 ].title, 'Move down' );
 } );

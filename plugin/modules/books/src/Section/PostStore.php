@@ -24,12 +24,12 @@ interface PostStore {
 	public function types();
 
 	/**
-	 * Describes a post, or returns null when it does not exist. With `$detailed` the description also has `thumb` (the address of the
-	 * featured image, or an empty string) and `view` (the permalink, or the preview link of a post that is not published).
+	 * Describes a post, or returns null when it does not exist. With `$detailed` the description also has `view` (the permalink, or the
+	 * preview link of a post that is not published).
 	 *
 	 * @param int  $id       Id of the post.
-	 * @param bool $detailed Whether to add `thumb` and `view`.
-	 * @return array{id:int,title:string,status:string,type:string,date:string,edit:string,thumb?:string,view?:string}|null
+	 * @param bool $detailed Whether to add `view`.
+	 * @return array{id:int,title:string,status:string,type:string,date:string,edit:string,view?:string}|null
 	 */
 	public function info( $id, $detailed = false );
 
@@ -50,14 +50,21 @@ interface PostStore {
 	public function can_read( $id );
 
 	/**
-	 * Loads several posts at once, before `info()` is asked for each of them; with `$thumbnails` also their featured images, so that a
-	 * detailed `info()` makes no query.
+	 * Loads several posts at once, before `info()` is asked for each of them.
 	 *
-	 * @param int[] $ids        Ids.
-	 * @param bool  $thumbnails Whether the featured images are wanted too.
+	 * @param int[] $ids Ids.
 	 * @return void
 	 */
-	public function prime( array $ids, $thumbnails = false );
+	public function prime( array $ids );
+
+	/**
+	 * The addresses of the featured images of posts (the size `medium`), by post id; an empty string for a post that has none. Asking a
+	 * size that does not exist yet can make it, which is why this is not part of `info()`: the list of a section must not wait for it.
+	 *
+	 * @param int[] $ids Ids of the posts.
+	 * @return array<int,string>
+	 */
+	public function thumbs( array $ids );
 
 	/**
 	 * Searches among given posts (the sections), the most recently modified first.

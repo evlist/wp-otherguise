@@ -238,18 +238,33 @@
 			return post.date.slice( 0, 10 );
 		}
 
+		// The featured image behind the text of a line, when it is known and the line has none yet.
+		function background( item, url ) {
+			if ( ! url || item.querySelector( '.books-section-row__bg' ) ) {
+				return;
+			}
+
+			var picture = make( 'img', 'books-section-row__bg' );
+
+			picture.src = url;
+			picture.alt = '';
+			picture.setAttribute( 'loading', 'lazy' );
+			picture.setAttribute( 'decoding', 'async' );
+			item.insertBefore( picture, item.firstChild );
+		}
+
+		// An image arrived: it is put in its line without drawing the list again (the scroll stays where it is).
+		function paint() {
+			Array.prototype.forEach.call( list.children, function ( item ) {
+				background( item, model.getThumb( Number( item.getAttribute( 'data-id' ) ) ) );
+			} );
+		}
+
 		function line( post, index, count ) {
 			var item = make( 'li', 'books-section-row' );
 			item.setAttribute( 'data-id', String( post.id ) );
 
-			if ( post.thumb ) {
-				var picture = make( 'img', 'books-section-row__bg' );
-				picture.src = post.thumb;
-				picture.alt = '';
-				picture.setAttribute( 'loading', 'lazy' );
-				picture.setAttribute( 'decoding', 'async' );
-				item.appendChild( picture );
-			}
+			background( item, model.getThumb( post.id ) );
 
 			var top = make( 'div', 'books-section-row__edge books-section-row__top' );
 			var up = icon( 'arrow-up-alt2', __( 'Move up' ), 'books-section-row__up', function () {
@@ -336,13 +351,21 @@
 			} );
 
 			empty.hidden = state.contents.length > 0;
+			model.wantThumbs( state.contents.map( function ( post ) {
+				return post.id;
+			} ) );
 			reset.disabled = ! state.contents.some( function ( post ) {
 				return post.pinned;
 			} );
 		}
 
-		var unsubscribe = model.subscribe( function () {
-			if ( isOpen ) {
+		var unsubscribe = model.subscribe( function ( what ) {
+			if ( ! isOpen ) {
+				return;
+			}
+			if ( 'thumbs' === what ) {
+				paint();
+			} else {
 				render();
 			}
 		} );

@@ -41,7 +41,14 @@ final class Otherguise_Test_Section_Posts implements PostStore {
 	 *
 	 * @var array<int, string>
 	 */
-	public $thumbs = array();
+	public $images = array();
+
+	/**
+	 * Calls of `thumbs()`.
+	 *
+	 * @var array
+	 */
+	public $asked = array();
 
 	/**
 	 * Calls of `prime()`.
@@ -89,15 +96,14 @@ final class Otherguise_Test_Section_Posts implements PostStore {
 	 * Describes a post.
 	 *
 	 * @param int  $id       Id.
-	 * @param bool $detailed Whether to add the image and the link to view.
+	 * @param bool $detailed Whether to add the link to view.
 	 * @return array|null
 	 */
 	public function info( $id, $detailed = false ) {
 		$info = $this->posts[ $id ] ?? null;
 
 		if ( null !== $info && $detailed ) {
-			$info['thumb'] = $this->thumbs[ $id ] ?? '';
-			$info['view']  = 'https://example.test/?p=' . $id . ( 'publish' === $info['status'] ? '' : '&preview=true' );
+			$info['view'] = 'https://example.test/?p=' . $id . ( 'publish' === $info['status'] ? '' : '&preview=true' );
 		}
 
 		return $info;
@@ -126,12 +132,29 @@ final class Otherguise_Test_Section_Posts implements PostStore {
 	/**
 	 * Records the call.
 	 *
-	 * @param int[] $ids        Ids.
-	 * @param bool  $thumbnails Whether the featured images are loaded too.
+	 * @param int[] $ids Ids.
 	 * @return void
 	 */
-	public function prime( array $ids, $thumbnails = false ) {
-		$this->primed[] = $thumbnails ? array( 'thumbnails' => $ids ) : $ids;
+	public function prime( array $ids ) {
+		$this->primed[] = $ids;
+	}
+
+	/**
+	 * The featured images asked for, recorded.
+	 *
+	 * @param int[] $ids Ids.
+	 * @return array<int,string>
+	 */
+	public function thumbs( array $ids ) {
+		$this->asked[] = $ids;
+
+		$urls = array();
+
+		foreach ( $ids as $id ) {
+			$urls[ $id ] = $this->images[ $id ] ?? '';
+		}
+
+		return $urls;
 	}
 
 	/**

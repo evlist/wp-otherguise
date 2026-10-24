@@ -474,12 +474,13 @@ class BooksSectionDbTest extends Otherguise_Test_Database_Case {
 	}
 
 	/**
-	 * The state gives what the window shows: the image, the link to view, the dates; the featured images are loaded together.
+	 * The state gives what the window shows at once: the link to view and the dates, and no image (asking for one can make it, so the
+	 * list must not wait for it).
 	 *
 	 * @return void
 	 */
 	public function test_the_state_for_the_window(): void {
-		$this->posts->thumbs[1] = 'https://example.test/uploads/one-300x200.jpg';
+		$this->posts->images[1] = 'https://example.test/uploads/one-300x200.jpg';
 		$this->sections->mark( 101 );
 
 		$empty = $this->sections->state( 101 );
@@ -492,14 +493,14 @@ class BooksSectionDbTest extends Otherguise_Test_Database_Case {
 			$empty['range']
 		);
 		$this->assertSame( array(), $empty['contents'] );
+		$this->assertSame( 'Alps', $empty['title'] );
 
 		$this->sections->add( 100, array( 5, 1, 4 ) );
 
 		$state = $this->sections->state( 100 );
 
+		$this->assertSame( 'Pyrenees', $state['title'] );
 		$this->assertSame( array( 1, 4, 5 ), array_column( $state['contents'], 'id' ) );
-		$this->assertSame( 'https://example.test/uploads/one-300x200.jpg', $state['contents'][0]['thumb'] );
-		$this->assertSame( '', $state['contents'][1]['thumb'], 'No featured image.' );
 		$this->assertSame( 'https://example.test/?p=1', $state['contents'][0]['view'] );
 		$this->assertSame( 'https://example.test/?p=4&preview=true', $state['contents'][1]['view'], 'A draft: its preview.' );
 		$this->assertSame(
@@ -509,8 +510,44 @@ class BooksSectionDbTest extends Otherguise_Test_Database_Case {
 			),
 			$state['range']
 		);
-		$this->assertContains( array( 'thumbnails' => array( 1, 4, 5 ) ), $this->posts->primed, 'One load for the posts and their images.' );
-		$this->assertArrayNotHasKey( 'thumb', $state['containing'][0] ?? array(), 'The sections that contain a post are described without an image.' );
+		$this->assertArrayNotHasKey( 'thumb', $state['contents'][0], 'No image in the list.' );
+		$this->assertSame( array(), $this->posts->asked, 'And none was asked for.' );
+		$this->assertArrayNotHasKey( 'view', $this->sections->state( 1 )['containing'][0], 'The sections that contain a post are described without a link.' );
+	}
+
+	/**
+	 * The images are asked a few at a time, for the posts of the section only.
+	 *
+	 * @return void
+	 */
+	public function test_the_images_of_some_posts(): void {
+		$this->posts->images[1] = 'https://example.test/uploads/one.jpg';
+		$this->posts->images[5] = 'https://example.test/uploads/five.jpg';
+		$this->sections->add( 100, array( 1, 2, 5 ) );
+
+		$this->assertSame(
+			array(
+				1 => 'https://example.test/uploads/one.jpg',
+				2 => '',
+				5 => 'https://example.test/uploads/five.jpg',
+			),
+			$this->sections->thumbs( 100, array( 1, '2', 5, 5 ) ),
+			'An empty address for a post without image, a post once.'
+		);
+		$this->assertSame( array( array( 1, 2, 5 ) ), $this->posts->asked );
+
+		$this->assertSame( array( 1 => 'https://example.test/uploads/one.jpg' ), $this->sections->thumbs( 100, array( 1, 3, 999, 0, 'x', -2 ) ), 'Only the posts of the section; nothing else is asked.' );
+		$this->assertSame( array( 1 ), $this->posts->asked[1] );
+		$this->assertSame( array(), $this->sections->thumbs( 100, array() ) );
+
+		$too_many = range( 1, Sections::MAX_THUMBS + 1 );
+
+		$this->assertSame( SectionException::TOO_MANY, $this->refusal( fn() => $this->sections->thumbs( 100, $too_many ) ) );
+		$this->assertSame( SectionException::NOT_FOUND, $this->refusal( fn() => $this->sections->thumbs( 999, array( 1 ) ) ) );
+
+		$this->posts->editable = array( 101 );
+
+		$this->assertSame( SectionException::FORBIDDEN, $this->refusal( fn() => $this->sections->thumbs( 100, array( 1 ) ) ) );
 	}
 
 	/**
@@ -655,6 +692,7 @@ class BooksSectionDbTest extends Otherguise_Test_Database_Case {
 				'/sections/(?P<id>[0-9]+)/contents/(?P<post>[0-9]+)',
 				'/sections/(?P<id>[0-9]+)/contents/(?P<post>[0-9]+)/move',
 				'/sections/(?P<id>[0-9]+)/order',
+				'/sections/(?P<id>[0-9]+)/thumbs',
 				'/sections/(?P<id>[0-9]+)/candidates',
 			),
 			$paths
@@ -773,6 +811,31 @@ class BooksSectionDbTest extends Otherguise_Test_Database_Case {
 				)['items'],
 				'id'
 			)
+		);
+
+		$this->posts->images[2] = 'https://example.test/uploads/two.jpg';
+
+		$images = $routes->thumbs(
+			$this->request(
+				array(
+					'id' => 100,
+					'ids' => array( 2, 99 ),
+				)
+			)
+		);
+
+		$this->assertSame( array( 'thumbs' => array( 2 => 'https://example.test/uploads/two.jpg' ) ), $images );
+		$this->assertTrue( $registered[6][3]['args']['ids']['required'] );
+		$this->assertSame(
+			'books_section_too_many',
+			$routes->thumbs(
+				$this->request(
+					array(
+						'id' => 100,
+						'ids' => range( 1, 21 ),
+					)
+				)
+			)->get_error_code()
 		);
 
 		$candidates = $routes->candidates(

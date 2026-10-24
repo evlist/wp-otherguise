@@ -190,6 +190,24 @@ final class SectionRoutes {
 
 		register_rest_route(
 			self::REST_NAMESPACE,
+			'/sections/(?P<id>[0-9]+)/thumbs',
+			array(
+				'methods'             => 'GET',
+				'callback'            => array( $this, 'thumbs' ),
+				'permission_callback' => array( $this, 'can' ),
+				'args'                => array(
+					'id'  => $id,
+					'ids' => array(
+						'type'     => 'array',
+						'required' => true,
+						'items'    => array( 'type' => 'integer' ),
+					),
+				),
+			)
+		);
+
+		register_rest_route(
+			self::REST_NAMESPACE,
 			'/sections/(?P<id>[0-9]+)/candidates',
 			array(
 				'methods'             => 'GET',
@@ -369,6 +387,20 @@ final class SectionRoutes {
 				$this->sections->reset_order( $id );
 
 				return $this->sections->state( $id );
+			}
+		);
+	}
+
+	/**
+	 * The addresses of the featured images of some posts of the section: asked a few at a time, after the list is shown.
+	 *
+	 * @param object $request Request.
+	 * @return array|\WP_Error
+	 */
+	public function thumbs( $request ) {
+		return $this->run(
+			function () use ( $request ) {
+				return array( 'thumbs' => $this->sections->thumbs( (int) $request->get_param( 'id' ), (array) $request->get_param( 'ids' ) ) );
 			}
 		);
 	}

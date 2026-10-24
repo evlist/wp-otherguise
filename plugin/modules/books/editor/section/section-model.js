@@ -14,10 +14,13 @@
 		root.booksSectionModel = api;
 	}
 }( typeof window !== 'undefined' ? window : null, function () {
+	var THUMB_BATCH = 10;
+
 	/**
 	 * Builds the model of the post being edited.
 	 *
-	 * options: postId, api ({ state, mark, search, add( id, ids, place ), remove, move, reset, candidates }, each returning a promise),
+	 * options: postId, api ({ state, mark, search, add( id, ids, place ), remove, move, reset, candidates, thumbs( id, ids ) }, each returning a
+	 * promise),
 	 * __ (translation).
 	 */
 	function createModel( options ) {
@@ -29,10 +32,17 @@
 		var state = { id: postId, title: '', section: false, range: { from: '', to: '' }, contents: [], containing: [] };
 		var error = '';
 		var listeners = [];
+		// The addresses of the featured images, by post id ('' for a post without image). They are not part of the state of the section: asking
+		// for one can make the file (Media Helper makes the sizes when they are missing), so they are asked a few at a time after the list is
+		// shown, and a failure is not an error of the panel (the line just has no image).
+		var thumbs = {};
+		var asked = {};
+		var queue = Promise.resolve();
 
-		function notify() {
+		// Tells the listeners what changed: nothing (the state or the error) or 'thumbs' (an image arrived).
+		function notify( what ) {
 			listeners.slice().forEach( function ( listener ) {
-				listener();
+				listener( what );
 			} );
 		}
 
@@ -62,6 +72,23 @@
 			return promise.then( apply, fail );
 		}
 
+		function batch( chunk ) {
+			return function () {
+				return api.thumbs( postId, chunk ).then( function ( answer ) {
+					var found = answer && answer.thumbs ? answer.thumbs : {};
+
+					chunk.forEach( function ( id ) {
+						thumbs[ id ] = typeof found[ id ] === 'string' ? found[ id ] : '';
+					} );
+					notify( 'thumbs' );
+				}, function () {
+					chunk.forEach( function ( id ) {
+						thumbs[ id ] = '';
+					} );
+				} );
+			};
+		}
+
 		function skipMessage( why ) {
 			var messages = {
 				cycle: __( 'A section cannot contain itself or a section that contains it.' ),
@@ -79,6 +106,25 @@
 			},
 			getError: function () {
 				return error;
+			},
+			getThumb: function ( id ) {
+				return thumbs[ id ];
+			},
+			// Asks for the images of the posts that were not asked for yet, ten at a time, one request after the other.
+			wantThumbs: function ( ids ) {
+				var wanted = ids.filter( function ( id ) {
+					return ! asked[ id ];
+				} );
+
+				wanted.forEach( function ( id ) {
+					asked[ id ] = true;
+				} );
+
+				for ( var from = 0; from < wanted.length; from += THUMB_BATCH ) {
+					queue = queue.then( batch( wanted.slice( from, from + THUMB_BATCH ) ) );
+				}
+
+				return queue;
 			},
 			clearError: function () {
 				error = '';

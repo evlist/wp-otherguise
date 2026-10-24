@@ -50,8 +50,8 @@ final class WordPressPostStore implements PostStore {
 	 * Describes a post.
 	 *
 	 * @param int  $id       Id of the post.
-	 * @param bool $detailed Whether to add `thumb` and `view`.
-	 * @return array{id:int,title:string,status:string,type:string,date:string,edit:string,thumb?:string,view?:string}|null
+	 * @param bool $detailed Whether to add `view`.
+	 * @return array{id:int,title:string,status:string,type:string,date:string,edit:string,view?:string}|null
 	 */
 	public function info( $id, $detailed = false ) {
 		$post = get_post( (int) $id );
@@ -73,12 +73,9 @@ final class WordPressPostStore implements PostStore {
 		);
 
 		if ( $detailed ) {
-			$thumb_id = (int) get_post_thumbnail_id( $post );
-			$thumb    = $thumb_id > 0 ? wp_get_attachment_image_url( $thumb_id, 'medium' ) : false;
-			$view     = 'publish' === $post->post_status ? get_permalink( $post ) : get_preview_post_link( $post );
+			$view = 'publish' === $post->post_status ? get_permalink( $post ) : get_preview_post_link( $post );
 
-			$info['thumb'] = is_string( $thumb ) ? $thumb : '';
-			$info['view']  = is_string( $view ) ? $view : '';
+			$info['view'] = is_string( $view ) ? $view : '';
 		}
 
 		return $info;
@@ -107,35 +104,59 @@ final class WordPressPostStore implements PostStore {
 	/**
 	 * Loads several posts in one query.
 	 *
-	 * @param int[] $ids        Ids.
-	 * @param bool  $thumbnails Whether the featured images are loaded too.
+	 * @param int[] $ids Ids.
 	 * @return void
 	 */
-	public function prime( array $ids, $thumbnails = false ) {
-		if ( array() === $ids || ! function_exists( '_prime_post_caches' ) ) {
-			return;
+	public function prime( array $ids ) {
+		if ( array() !== $ids && function_exists( '_prime_post_caches' ) ) {
+			_prime_post_caches( $ids, false, false );
+		}
+	}
+
+	/**
+	 * The addresses of the featured images. Another plugin that makes the sizes on demand (Media Helper does) makes the size `medium` of
+	 * a photo here when it does not exist yet, so this is asked a few posts at a time and never in the request that lists the section.
+	 *
+	 * @param int[] $ids Ids of the posts.
+	 * @return array<int,string>
+	 */
+	public function thumbs( array $ids ) {
+		$ids = array_values( array_unique( array_map( 'intval', $ids ) ) );
+
+		if ( array() === $ids ) {
+			return array();
 		}
 
-		// With the metas (where the id of the featured image is), then the attachments with theirs (the sizes): two queries, not one per post.
-		_prime_post_caches( $ids, false, (bool) $thumbnails );
-
-		if ( ! $thumbnails ) {
-			return;
+		// The metas of the posts (the id of the featured image), then the attachments with theirs (the sizes): two queries, not one per post.
+		if ( function_exists( '_prime_post_caches' ) ) {
+			_prime_post_caches( $ids, false, true );
 		}
 
+		$by_post     = array();
 		$attachments = array();
 
 		foreach ( $ids as $id ) {
-			$thumb_id = (int) get_post_thumbnail_id( (int) $id );
+			$thumb_id = (int) get_post_thumbnail_id( $id );
+
+			$by_post[ $id ] = $thumb_id;
 
 			if ( $thumb_id > 0 ) {
 				$attachments[ $thumb_id ] = $thumb_id;
 			}
 		}
 
-		if ( array() !== $attachments ) {
+		if ( array() !== $attachments && function_exists( '_prime_post_caches' ) ) {
 			_prime_post_caches( array_values( $attachments ), false, true );
 		}
+
+		$urls = array();
+
+		foreach ( $by_post as $id => $thumb_id ) {
+			$url        = $thumb_id > 0 ? wp_get_attachment_image_url( $thumb_id, 'medium' ) : false;
+			$urls[ $id ] = is_string( $url ) ? $url : '';
+		}
+
+		return $urls;
 	}
 
 	/**

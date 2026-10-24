@@ -13,7 +13,6 @@ const day = ( id, extra ) => Object.assign( {
 	date: '2026-05-' + String( 10 + id ) + ' 10:00:00',
 	edit: 'https://example.test/edit/' + id,
 	view: 'https://example.test/?p=' + id,
-	thumb: '',
 	pinned: null,
 }, extra );
 
@@ -30,6 +29,7 @@ function makeApi( initial ) {
 		candidates: { items: [], total: 0 },
 		fail: null,
 		report: null,
+		images: {},
 	};
 	const answer = ( name, extra ) => ( ...args ) => {
 		calls.push( [ name ].concat( args ) );
@@ -47,6 +47,7 @@ function makeApi( initial ) {
 		move: answer( 'move' ),
 		reset: answer( 'reset' ),
 		candidates: answer( 'candidates', () => context.candidates ),
+		thumbs: answer( 'thumbs', ( id, ids ) => ( { thumbs: Object.fromEntries( ids.map( ( one ) => [ one, context.images[ one ] || '' ] ) ) } ) ),
 	};
 	return { api, calls, context };
 }
