@@ -55,13 +55,15 @@ final class Sections {
 	/**
 	 * Builds the service.
 	 *
-	 * @param callable  $statements Gives the `Statements` service (it is looked for when it is needed).
-	 * @param PostStore $posts      The posts.
+	 * @param callable      $statements    Gives the `Statements` service (it is looked for when it is needed).
+	 * @param PostStore     $posts         The posts.
+	 * @param callable|null $print_address Gives the address of the print version from the address of a post (an empty string when there is
+	 *                                     none); without it the state has no print address.
 	 */
-	public function __construct( $statements, PostStore $posts ) {
+	public function __construct( $statements, PostStore $posts, $print_address = null ) {
 		$this->statements = $statements;
 		$this->posts      = $posts;
-		$this->queries    = new SectionQueries( $this, $posts );
+		$this->queries    = new SectionQueries( $this, $posts, $print_address );
 	}
 
 	/**

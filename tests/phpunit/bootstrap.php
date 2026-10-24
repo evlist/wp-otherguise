@@ -40,6 +40,7 @@ $GLOBALS['otherguise_test_site_options'] = array();
  * @return void
  */
 function otherguise_test_reset() {
+    unset( $GLOBALS['otherguise_test_filters'] );
     $GLOBALS['otherguise_test_options']      = array();
     $GLOBALS['otherguise_test_dbdelta']      = array();
     $GLOBALS['otherguise_test_site']         = 1;
@@ -435,14 +436,14 @@ function otherguise_test_record( $name, array $arguments ) {
 }
 
 /**
- * Stub of apply_filters(): returns the value unchanged.
+ * Stub of apply_filters(): returns the value unchanged, unless a test set one in `$GLOBALS['otherguise_test_filters']`.
  *
  * @param string $hook  Hook.
  * @param mixed  $value Value.
  * @return mixed
  */
 function apply_filters( $hook, $value ) {
-    return $value;
+    return $GLOBALS['otherguise_test_filters'][ $hook ] ?? $value;
 }
 
 /**

@@ -516,6 +516,36 @@ class BooksSectionDbTest extends Otherguise_Test_Database_Case {
 	}
 
 	/**
+	 * The state gives the address of the print version of each post, from its link to view (the preview of a draft too); nothing when
+	 * there is none to give.
+	 *
+	 * @return void
+	 */
+	public function test_the_print_version_of_each_post(): void {
+		$statements = $this->statements;
+		$lookup     = static function () use ( $statements ) {
+			return $statements;
+		};
+		$with       = new Sections( $lookup, $this->posts, static fn( $address ) => $address . ( false === strpos( $address, '?' ) ? '?' : '&' ) . 'mode=print' );
+
+		$with->add( 100, array( 1, 4 ) );
+
+		$state = $with->state( 100 );
+
+		$this->assertSame( 'https://example.test/?p=1&mode=print', $state['contents'][0]['print'] );
+		$this->assertSame( 'https://example.test/?p=4&preview=true&mode=print', $state['contents'][1]['print'], 'A draft: its preview.' );
+
+		$none = new Sections( $lookup, $this->posts, static fn() => '' );
+
+		$this->assertSame( '', $none->state( 100 )['contents'][0]['print'], 'No print version to give.' );
+
+		$odd = new Sections( $lookup, $this->posts, static fn() => null );
+
+		$this->assertSame( '', $odd->state( 100 )['contents'][0]['print'], 'Not an address.' );
+		$this->assertSame( '', $this->sections->state( 100 )['contents'][0]['print'], 'Nobody to ask.' );
+	}
+
+	/**
 	 * The images are asked a few at a time, for the posts of the section only.
 	 *
 	 * @return void

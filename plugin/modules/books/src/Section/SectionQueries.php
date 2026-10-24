@@ -34,14 +34,39 @@ final class SectionQueries {
 	private $posts;
 
 	/**
+	 * Gives the address of the print version of a post from its address, or an empty string.
+	 *
+	 * @var callable|null
+	 */
+	private $print_address;
+
+	/**
 	 * Builds the reads.
 	 *
-	 * @param Sections  $sections The sections.
-	 * @param PostStore $posts    The posts.
+	 * @param Sections      $sections      The sections.
+	 * @param PostStore     $posts         The posts.
+	 * @param callable|null $print_address Gives the address of the print version from the address of a post, or an empty string.
 	 */
-	public function __construct( Sections $sections, PostStore $posts ) {
-		$this->sections = $sections;
-		$this->posts    = $posts;
+	public function __construct( Sections $sections, PostStore $posts, $print_address = null ) {
+		$this->sections      = $sections;
+		$this->posts         = $posts;
+		$this->print_address = $print_address;
+	}
+
+	/**
+	 * The address of the print version of a post, from its address (the permalink, or the preview link of a post that is not published).
+	 *
+	 * @param string $address Address of the post.
+	 * @return string An empty string when there is none.
+	 */
+	private function print_of( $address ) {
+		if ( null === $this->print_address || '' === $address ) {
+			return '';
+		}
+
+		$print = ( $this->print_address )( $address );
+
+		return is_string( $print ) ? $print : '';
 	}
 
 	/**
@@ -60,8 +85,9 @@ final class SectionQueries {
 			$info = $this->posts->info( $entry['id'], true );
 
 			if ( null !== $info ) {
-				$contents[] = $info + array( 'pinned' => $entry['pinned'] );
-				$dates[]    = $info['date'];
+				$info['print'] = $this->print_of( $info['view'] ?? '' );
+				$contents[]    = $info + array( 'pinned' => $entry['pinned'] );
+				$dates[]       = $info['date'];
 			}
 		}
 

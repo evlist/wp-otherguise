@@ -11,7 +11,11 @@ const SECTION = {
 	section: true,
 	title: 'Pyrenees van trip',
 	range: { from: '2026-05-11 10:00:00', to: '2026-05-13 10:00:00' },
-	contents: [ day( 1 ), day( 2, { pinned: 2 } ), day( 3, { status: 'draft', view: 'https://example.test/?p=3&preview=true' } ) ],
+	contents: [
+		day( 1, { print: 'https://example.test/?p=1&mode=print' } ),
+		day( 2, { pinned: 2, print: 'https://example.test/?p=2&mode=print' } ),
+		day( 3, { status: 'draft', view: 'https://example.test/?p=3&preview=true', print: 'https://example.test/?p=3&preview=true&mode=print' } ),
+	],
 };
 
 /** Builds the window over a fake dialog that records how it was opened. */
@@ -234,8 +238,36 @@ test( 'view and edit are links that open in a new tab, the view of a draft being
 	assert.strictEqual( edits[ 0 ].getAttribute( 'aria-label' ), 'Edit' );
 } );
 
+test( 'the print version opens in a new tab from an icon between view and edit', async () => {
+	const site = make( SECTION );
+	await open( site );
+
+	const prints = site.all( '.books-section-row__print' );
+
+	assert.deepStrictEqual( prints.map( ( node ) => node.getAttribute( 'href' ) ), [ 'https://example.test/?p=1&mode=print', 'https://example.test/?p=2&mode=print', 'https://example.test/?p=3&preview=true&mode=print' ] );
+	prints.forEach( ( node ) => {
+		assert.strictEqual( node.getAttribute( 'target' ), '_blank' );
+		assert.strictEqual( node.getAttribute( 'rel' ), 'noopener' );
+		assert.strictEqual( node.getAttribute( 'aria-label' ), 'Open the print version' );
+		assert.strictEqual( node.title, 'Open the print version' );
+		assert.ok( node.querySelector( '.dashicons-printer' ) );
+	} );
+
+	const order = Array.from( site.all( '.books-section-row__tools' )[ 0 ].children ).map( ( node ) => node.className.match( /books-section-row__(\w+)/ )[ 1 ] );
+
+	assert.deepStrictEqual( order, [ 'remove', 'view', 'print', 'edit' ], 'Remove, view, print, edit.' );
+} );
+
+test( 'a post with no print version has no such icon', async () => {
+	const site = make( { section: true, contents: [ day( 1 ), day( 2, { print: '' } ) ] } );
+	await open( site );
+
+	assert.strictEqual( site.all( '.books-section-row__print' ).length, 0 );
+	assert.strictEqual( site.all( '.books-section-row__view' ).length, 2, 'The others are there.' );
+} );
+
 test( 'a post without link to view or edit has no such icon', async () => {
-	const site = make( { section: true, contents: [ day( 1, { view: '', edit: '' } ) ] } );
+	const site = make( { section: true, contents: [ day( 1, { view: '', edit: '', print: '' } ) ] } );
 	await open( site );
 
 	assert.strictEqual( site.all( '.books-section-row__view' ).length, 0 );

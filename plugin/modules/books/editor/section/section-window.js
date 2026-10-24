@@ -304,6 +304,10 @@
 					tools.appendChild( iconLink( 'visibility', __( 'View' ), 'books-section-row__view', post.view ) );
 				}
 
+				if ( post.print ) {
+					tools.appendChild( iconLink( 'printer', __( 'Open the print version' ), 'books-section-row__print', post.print ) );
+				}
+
 				if ( post.edit ) {
 					tools.appendChild( iconLink( 'edit', __( 'Edit' ), 'books-section-row__edit', post.edit ) );
 				}

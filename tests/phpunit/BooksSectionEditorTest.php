@@ -169,4 +169,23 @@ class BooksSectionEditorTest extends TestCase {
 		$this->assertSame( array( 'boolean' ), $registry->definitions['books/is-section']->object_types() );
 		$this->assertSame( 1, $registry->definitions['books/is-section']->max_objects_per_subject() );
 	}
+
+	/**
+	 * Without the Modes module, or with nothing usable in the filter, there is no print version to open.
+	 *
+	 * @return void
+	 */
+	public function test_no_print_address_without_the_modes(): void {
+		$module = new Module();
+
+		$this->assertSame( '', $module->print_address( 'https://example.test/?p=1' ), 'Without the Modes module (the test has none).' );
+
+		$GLOBALS['otherguise_test_filters'] = array( 'books_preview_frame_modes' => 'print' );
+		$this->assertSame( '', $module->print_address( 'https://example.test/?p=1' ), 'A filter that does not give a list.' );
+
+		$GLOBALS['otherguise_test_filters'] = array( 'books_preview_frame_modes' => array() );
+		$this->assertSame( '', $module->print_address( 'https://example.test/?p=1' ), 'An empty list.' );
+
+		unset( $GLOBALS['otherguise_test_filters'] );
+	}
 }

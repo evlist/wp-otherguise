@@ -198,8 +198,27 @@ final class Module implements ModuleInterface {
 
 				return $triples->statements();
 			},
-			new WordPressPostStore( $trusted )
+			new WordPressPostStore( $trusted ),
+			array( $this, 'print_address' )
 		);
+	}
+
+	/**
+	 * The address of the print version of a page: the address with the first of the print modes (the filter `books_preview_frame_modes`,
+	 * `print` by default). Empty without the Modes module or when that mode does not exist: there is no print version to open.
+	 *
+	 * @param string $address Address of the page.
+	 * @return string
+	 */
+	public function print_address( $address ) {
+		$modes = apply_filters( 'books_preview_frame_modes', array( 'print' ) );
+		$slug  = is_array( $modes ) ? reset( $modes ) : false;
+
+		if ( ! is_string( $slug ) || ! $this->mode_exists( $slug ) ) {
+			return '';
+		}
+
+		return $this->page_address( (string) $address, $slug );
 	}
 
 	/**
