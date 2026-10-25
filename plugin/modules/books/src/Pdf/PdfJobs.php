@@ -17,7 +17,7 @@ use Otherguise\Books\Settings\RendererSettings;
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Starts, runs and reads the conversion of a published post to PDF by the rendering server (slice 220). A conversion takes tens of
+ * Starts, runs and reads the conversion of a post to PDF by the rendering server (slice 220); a post that is not published is converted through its private link, as a preview (slice 403). A conversion takes tens of
  * seconds, so it runs as a WP-Cron event (`books_render_pdf`) and the editor asks for its state. The PDF is kept under a key made from
  * what it depends on (the post and its last change, the mode, the page format, the settings of the conversion): the same key is served
  * from the files without a new conversion. Nothing here calls WordPress: the post, the addresses, the scheduling and the renderer are
@@ -63,7 +63,7 @@ final class PdfJobs {
 	private $state;
 
 	/**
-	 * Returns what is known of a post: `status`, `modified`, `slug`, `url` (its permalink); null when it does not exist.
+	 * Receives a post id and whether to make a private link; returns what is known of a post: `status`, `modified`, `slug`, `url` (its permalink, or its private link when it is not published), `preview`, `available`; null when it does not exist.
 	 *
 	 * @var callable
 	 */
@@ -140,18 +140,19 @@ final class PdfJobs {
 	 * @return array<string, mixed>|\WP_Error The state.
 	 */
 	public function request( $post_id, $mode, $force = false ) {
-		$check = $this->check( $post_id, $mode );
+		$check = $this->check( $post_id, $mode, true );
 
 		if ( $check instanceof \WP_Error ) {
 			return $check;
 		}
 
-		$key   = $this->key( $post_id, $mode, $check );
-		$state = $this->state->get( $post_id, $mode );
+		$key     = $this->key( $post_id, $mode, $check );
+		$state   = $this->state->get( $post_id, $mode );
+		$preview = ! empty( $check['preview'] );
 
 		if ( ! $force && $this->store->has( $key ) ) {
 			if ( ( $state['key'] ?? '' ) !== $key || 'done' !== ( $state['status'] ?? '' ) ) {
-				$state = $this->fresh( $key, 'done' );
+				$state = $this->fresh( $key, 'done', $preview );
 				$this->state->set( $post_id, $mode, $state );
 			}
 
@@ -162,7 +163,7 @@ final class PdfJobs {
 			return $this->present( $state );
 		}
 
-		$state = $this->fresh( $key, 'queued' );
+		$state = $this->fresh( $key, 'queued', $preview );
 		$this->state->set( $post_id, $mode, $state );
 		( $this->schedule )( $post_id, $mode, $key );
 
@@ -183,11 +184,12 @@ final class PdfJobs {
 			return $check;
 		}
 
-		$key   = $this->key( $post_id, $mode, $check );
-		$state = $this->state->get( $post_id, $mode );
+		$key     = $this->key( $post_id, $mode, $check );
+		$state   = $this->state->get( $post_id, $mode );
+		$preview = ! empty( $check['preview'] );
 
 		if ( ( $state['key'] ?? '' ) !== $key || ( 'done' === ( $state['status'] ?? '' ) && ! $this->store->has( $key ) ) ) {
-			return $this->present( $this->store->has( $key ) ? $this->fresh( $key, 'done' ) : $this->fresh( $key, 'none' ) );
+			return $this->present( $this->store->has( $key ) ? $this->fresh( $key, 'done', $preview ) : $this->fresh( $key, 'none', $preview ) );
 		}
 
 		if ( in_array( $state['status'] ?? '', array( 'queued', 'running' ), true ) && $this->is_stale( $state ) ) {
@@ -217,10 +219,15 @@ final class PdfJobs {
 		$state['started_at'] = ( $this->now )();
 		$this->state->set( $post_id, $mode, $state );
 
-		$info = ( $this->post_info )( $post_id );
+		$info = ( $this->post_info )( $post_id, true );
 
-		if ( ! is_array( $info ) || 'publish' !== ( $info['status'] ?? '' ) ) {
-			$this->fail( $post_id, $mode, $state, __( 'The post is not published.', 'otherguise' ) );
+		if ( ! is_array( $info ) || ( 'publish' !== ( $info['status'] ?? '' ) && empty( $info['available'] ) ) ) {
+			$this->fail( $post_id, $mode, $state, __( 'The post is not published, and it cannot have a private link.', 'otherguise' ) );
+			return;
+		}
+
+		if ( '' === (string) ( $info['url'] ?? '' ) ) {
+			$this->fail( $post_id, $mode, $state, __( 'The private link of the post could not be made.', 'otherguise' ) );
 			return;
 		}
 
@@ -266,7 +273,7 @@ final class PdfJobs {
 	 *
 	 * @param int    $post_id Post.
 	 * @param string $mode    Slug of the mode.
-	 * @return array{filename:string, base64:string, pages:int|null}|\WP_Error
+	 * @return array{filename:string, base64:string, pages:int|null, preview:bool}|\WP_Error
 	 */
 	public function file( $post_id, $mode ) {
 		$check = $this->check( $post_id, $mode );
@@ -286,9 +293,10 @@ final class PdfJobs {
 		$name  = trim( (string) preg_replace( '/[^a-z0-9_-]+/', '-', strtolower( (string) $check['slug'] ) ), '-' );
 
 		return array(
-			'filename' => ( '' !== $name ? $name : 'post-' . (int) $post_id ) . '.pdf',
+			'filename' => ( '' !== $name ? $name : 'post-' . (int) $post_id ) . ( ! empty( $check['preview'] ) ? '-preview' : '' ) . '.pdf',
 			'base64'   => base64_encode( $bytes ),
 			'pages'    => ( $state['key'] ?? '' ) === $key && isset( $state['pages'] ) ? $state['pages'] : null,
+			'preview'  => ! empty( $check['preview'] ),
 		);
 	}
 
@@ -302,13 +310,15 @@ final class PdfJobs {
 	}
 
 	/**
-	 * Checks that a conversion can be asked for: a server, an existing mode, a published post. Returns what is known of the post.
+	 * Checks that a conversion can be asked for: a server, an existing mode, a published post or a post that can have a private link
+	 * (slice 403: it is converted as a preview). Returns what is known of the post.
 	 *
 	 * @param int    $post_id Post.
 	 * @param string $mode    Slug of the mode.
+	 * @param bool   $create  Make the private link of a post that is not published (only when the conversion is asked for).
 	 * @return array<string, mixed>|\WP_Error
 	 */
-	private function check( $post_id, $mode ) {
+	private function check( $post_id, $mode, $create = false ) {
 		if ( ! $this->settings->is_configured() ) {
 			return new \WP_Error( 'books_pdf_disabled', __( 'No rendering server is configured.', 'otherguise' ), array( 'status' => 501 ) );
 		}
@@ -317,14 +327,18 @@ final class PdfJobs {
 			return new \WP_Error( 'books_pdf_unknown_mode', __( 'This mode does not exist.', 'otherguise' ), array( 'status' => 400 ) );
 		}
 
-		$info = ( $this->post_info )( $post_id );
+		$info = ( $this->post_info )( $post_id, $create );
 
 		if ( ! is_array( $info ) ) {
 			return new \WP_Error( 'books_pdf_not_found', __( 'This post does not exist.', 'otherguise' ), array( 'status' => 404 ) );
 		}
 
-		if ( 'publish' !== ( $info['status'] ?? '' ) ) {
-			return new \WP_Error( 'books_pdf_not_published', __( 'Only a published post can be converted to PDF.', 'otherguise' ), array( 'status' => 400 ) );
+		if ( 'publish' !== ( $info['status'] ?? '' ) && empty( $info['available'] ) ) {
+			return new \WP_Error( 'books_pdf_not_published', __( 'Only a published post can be converted to PDF, unless it can have a private link (the Access module, with the private links switched on).', 'otherguise' ), array( 'status' => 400 ) );
+		}
+
+		if ( $create && '' === (string) ( $info['url'] ?? '' ) ) {
+			return new \WP_Error( 'books_pdf_no_link', __( 'The private link of this post could not be made.', 'otherguise' ), array( 'status' => 400 ) );
 		}
 
 		return $info;
@@ -350,6 +364,7 @@ final class PdfJobs {
 					'post'     => (int) $post_id,
 					'modified' => (string) ( $info['modified'] ?? '' ),
 					'mode'     => $mode,
+					'preview'  => ! empty( $info['preview'] ),
 					'format'   => $this->format->get(),
 					'settings' => $settings,
 				)
@@ -360,16 +375,18 @@ final class PdfJobs {
 	/**
 	 * Builds a state.
 	 *
-	 * @param string $key    Key.
-	 * @param string $status Status.
+	 * @param string $key     Key.
+	 * @param string $status  Status.
+	 * @param bool   $preview The post is not published: the PDF is a preview.
 	 * @return array<string, mixed>
 	 */
-	private function fresh( $key, $status ) {
+	private function fresh( $key, $status, $preview = false ) {
 		return array(
 			'status'    => $status,
 			'key'       => $key,
 			'message'   => '',
 			'pages'     => null,
+			'preview'   => (bool) $preview,
 			'queued_at' => ( $this->now )(),
 		);
 	}
@@ -416,6 +433,7 @@ final class PdfJobs {
 			'status'  => (string) ( $state['status'] ?? 'none' ),
 			'message' => (string) ( $state['message'] ?? '' ),
 			'pages'   => isset( $state['pages'] ) ? (int) $state['pages'] : null,
+			'preview' => ! empty( $state['preview'] ),
 			'elapsed' => max( 0, $to - $from ),
 		);
 	}

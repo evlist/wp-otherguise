@@ -156,3 +156,5 @@ It is true at once on a page with no map or QR code, counts a tile in error as f
 ## Not in this slice
 
 The merge of several posts, the numbering, the table of contents, the book manifest, another rendering engine, the preview of drafts, and any change to the rollout scripts.
+
+**Changed by slice 403 (2026-10-25):** a post that is not published is no longer refused when it can have a private link (module Access): it is converted through the link, as a preview that says so.

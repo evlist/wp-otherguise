@@ -70,6 +70,7 @@
 			pdfUrl: '',
 			pdfName: '',
 			pdfPages: null,
+			pdfPreview: false,
 			// A forced refresh of the HTML view means that what the page shows has changed (a photo, a change that the key of the cache cannot
 			// see): the PDF that was made is then out of date, and the next time it is asked for it is made again.
 			pdfForce: false,
@@ -396,6 +397,9 @@
 			if ( '' !== state.pdfText ) {
 				parts.push( state.pdfText );
 			}
+			if ( state.pdfPreview && '' !== state.pdfUrl ) {
+				parts.push( __( 'Preview of a post that is not published: the QR code and the addresses are not final, so this is not the version to print.', 'otherguise' ) );
+			}
 			if ( state.stale && '' !== state.pdfUrl ) {
 				parts.push( __( 'Out of date: update the post, then refresh.', 'otherguise' ) );
 			}
@@ -412,6 +416,7 @@
 			state.pdfUrl = '';
 			state.pdfName = '';
 			state.pdfPages = null;
+			state.pdfPreview = false;
 			state.pdfFailed = false;
 			if ( pdfFrame && pdfFrame.parentNode ) {
 				pdfFrame.parentNode.removeChild( pdfFrame );
@@ -458,6 +463,7 @@
 			state.pdfUrl = url;
 			state.pdfName = file.filename || 'page.pdf';
 			state.pdfPages = file.pages || null;
+			state.pdfPreview = !! file.preview;
 			state.pdfFailed = false;
 			state.pdfText = state.pdfPages ? 'PDF: ' + state.pdfPages + ' ' + ( 1 === state.pdfPages ? __( 'page', 'otherguise' ) : __( 'pages', 'otherguise' ) ) + '.' : __( 'PDF ready.', 'otherguise' );
 

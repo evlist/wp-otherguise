@@ -77,3 +77,23 @@ if ( ! function_exists( 'access_unlisted_path' ) ) {
 		return '/' . \Otherguise\Access\Rest\LinkRoutes::REST_NAMESPACE . '/posts';
 	}
 }
+
+if ( ! function_exists( 'access_links_available' ) ) {
+	/**
+	 * Tells whether a post can have a private link: the module is there, the links are switched on (slice 401) and the post is one that
+	 * can have one (not an attachment, not in the trash, a type that has a page). Does not look at who is asking: the caller checks the
+	 * capability.
+	 *
+	 * @param int|object $post Id of the post, or the post.
+	 * @return bool
+	 */
+	function access_links_available( $post ) {
+		$module = \Otherguise\Core\Modules::get( 'access' );
+
+		if ( ! $module instanceof \Otherguise\Access\Module || ! $module->settings()->links_enabled() ) {
+			return false;
+		}
+
+		return $module->links()->eligible( is_object( $post ) ? $post : get_post( (int) $post ) );
+	}
+}

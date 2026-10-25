@@ -39,38 +39,76 @@ final class WordPressPosts {
 	private $address;
 
 	/**
+	 * Returns the private link of a post that is not published (slice 403): receives the post and whether to make the link.
+	 *
+	 * @var callable
+	 */
+	private $link;
+
+	/**
+	 * Tells whether a post that is not published can have a private link: receives the post.
+	 *
+	 * @var callable
+	 */
+	private $link_available;
+
+	/**
 	 * Builds the reader.
 	 *
-	 * @param callable|null $get_post  Defaults to `get_post`.
-	 * @param callable|null $permalink Defaults to `get_permalink`.
-	 * @param callable|null $address   Defaults to the permalink with `?mode=<slug>`.
+	 * @param callable|null $get_post       Defaults to `get_post`.
+	 * @param callable|null $permalink      Defaults to `get_permalink`.
+	 * @param callable|null $address        Defaults to the permalink with `?mode=<slug>`.
+	 * @param callable|null $link           Defaults to `access_url()` of the Access module, when there is one.
+	 * @param callable|null $link_available Defaults to `access_links_available()` of the Access module, when there is one.
 	 */
-	public function __construct( $get_post = null, $permalink = null, $address = null ) {
-		$this->get_post  = $get_post ?? 'get_post';
-		$this->permalink = $permalink ?? 'get_permalink';
-		$this->address   = $address ?? array( $this, 'default_address' );
+	public function __construct( $get_post = null, $permalink = null, $address = null, $link = null, $link_available = null ) {
+		$this->get_post       = $get_post ?? 'get_post';
+		$this->permalink      = $permalink ?? 'get_permalink';
+		$this->address        = $address ?? array( $this, 'default_address' );
+		$this->link           = $link ?? static function ( $post, $create ) {
+			return function_exists( 'access_url' ) ? access_url( $post, array( 'create' => (bool) $create ) ) : false;
+		};
+		$this->link_available = $link_available ?? static function ( $post ) {
+			return function_exists( 'access_links_available' ) && access_links_available( $post );
+		};
 	}
 
 	/**
 	 * Returns what is known of a post, or null when it does not exist.
 	 *
-	 * @param int $post_id Post.
-	 * @return array{status:string, modified:string, slug:string, url:string}|null
+	 * A post that is not published is converted through its **private link** of the Access module (slice 403): `preview` is then true,
+	 * `available` tells whether such a link can exist, and `url` is the link, which is made only when `$create` is true (the polling of
+	 * the state must not make tokens), an empty string while there is none.
+	 *
+	 * @param int  $post_id Post.
+	 * @param bool $create  Make the private link of a post that is not published when it has none.
+	 * @return array{status:string, modified:string, slug:string, url:string, preview:bool, available:bool}|null
 	 */
-	public function info( $post_id ) {
+	public function info( $post_id, $create = false ) {
 		$post = ( $this->get_post )( (int) $post_id );
 
 		if ( ! is_object( $post ) || ! isset( $post->ID ) ) {
 			return null;
 		}
 
-		$url = ( $this->permalink )( $post );
+		$status  = (string) ( $post->post_status ?? '' );
+		$preview = 'publish' !== $status;
+
+		if ( $preview ) {
+			$available = (bool) ( $this->link_available )( $post );
+			$url       = $available ? ( $this->link )( $post, (bool) $create ) : '';
+		} else {
+			$available = true;
+			$url       = ( $this->permalink )( $post );
+		}
 
 		return array(
-			'status'   => (string) ( $post->post_status ?? '' ),
-			'modified' => (string) ( $post->post_modified_gmt ?? '' ),
-			'slug'     => (string) ( $post->post_name ?? '' ),
-			'url'      => is_string( $url ) ? $url : '',
+			'status'    => $status,
+			'modified'  => (string) ( $post->post_modified_gmt ?? '' ),
+			'slug'      => (string) ( $post->post_name ?? '' ),
+			'url'       => is_string( $url ) ? $url : '',
+			'preview'   => $preview,
+			'available' => $available,
 		);
 	}
 

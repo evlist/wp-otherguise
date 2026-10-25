@@ -140,6 +140,26 @@ test( 'a PDF without a page count says it is ready', async () => {
 	assert.strictEqual( site.text(), 'PDF ready.' );
 } );
 
+test( 'slice 403: the PDF of a post that is not published says it is a preview, and a published one does not', async () => {
+	const draft = make( { start: [ { status: 'done', preview: true } ], file: [ { filename: 'draft-preview.pdf', base64: Buffer.from( '%PDF' ).toString( 'base64' ), pages: 3, preview: true } ] } );
+
+	draft.panel.open();
+	draft.click( '.books-preview__view--pdf' );
+	await flush();
+	await flush();
+
+	assert.match( draft.text(), /^PDF: 3 pages\. Preview of a post that is not published: the QR code and the addresses are not final, so this is not the version to print\.$/ );
+
+	const published = make( { start: [ { status: 'done' } ], file: [ { filename: 'p.pdf', base64: Buffer.from( '%PDF' ).toString( 'base64' ), pages: 3 } ] } );
+
+	published.panel.open();
+	published.click( '.books-preview__view--pdf' );
+	await flush();
+	await flush();
+
+	assert.strictEqual( published.text(), 'PDF: 3 pages.' );
+} );
+
 test( 'download makes a link with the name of the file; open uses the address in a new window', async () => {
 	const site = make( { start: [ { status: 'done' } ], file: [ { filename: 'repos.pdf', base64: Buffer.from( '%PDF' ).toString( 'base64' ), pages: 2 } ] } );
 	const clicked = [];

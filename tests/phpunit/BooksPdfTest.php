@@ -230,8 +230,10 @@ class BooksPdfTest extends TestCase {
 			array(
 				'status'   => 'publish',
 				'modified' => '2026-10-20 10:00:00',
-				'slug'     => 'repos-a-fonti',
-				'url'      => 'https://x.test/repos/',
+				'slug'      => 'repos-a-fonti',
+				'url'       => 'https://x.test/repos/',
+				'preview'   => false,
+				'available' => true,
 			),
 			$read->info( '12' )
 		);
@@ -247,10 +249,12 @@ class BooksPdfTest extends TestCase {
 		$odd = new WordPressPosts( static fn() => (object) array( 'ID' => 3 ), static fn() => false );
 		$this->assertSame(
 			array(
-				'status'   => '',
-				'modified' => '',
-				'slug'     => '',
-				'url'      => '',
+				'status'    => '',
+				'modified'  => '',
+				'slug'      => '',
+				'url'       => '',
+				'preview'   => true,
+				'available' => false,
 			),
 			$odd->info( 3 )
 		);
@@ -657,6 +661,248 @@ class BooksPdfTest extends TestCase {
 
 		$this->assertSame( array(), $calls );
 		$this->assertStringContainsString( 'not published', $this->private_state( $jobs )->get( 5, 'print' )['message'] );
+	}
+
+	/**
+	 * A post that is not published is read through its private link, made only when asked (slice 403).
+	 *
+	 * @return void
+	 */
+	public function test_a_post_that_is_not_published_is_read_through_its_link(): void {
+		$post   = (object) array(
+			'ID'                => 13,
+			'post_status'       => 'draft',
+			'post_modified_gmt' => 'm',
+			'post_name'         => 'brouillon',
+		);
+		$made   = array();
+		$linked = true;
+		$read   = new WordPressPosts(
+			static fn() => $post,
+			static fn() => 'https://x.test/?p=13',
+			null,
+			static function ( $found, $create ) use ( &$made ) {
+				$made[] = $create;
+
+				return $create ? 'https://x.test/?shared=T' : '';
+			},
+			static function () use ( &$linked ) {
+				return $linked;
+			}
+		);
+
+		$without = $read->info( 13 );
+
+		$this->assertSame(
+			array(
+				'url' => '',
+				'preview' => true,
+				'available' => true,
+			),
+			array_intersect_key( $without, array_flip( array( 'preview', 'available', 'url' ) ) ),
+			'No link yet: the polling does not make one.'
+		);
+		$this->assertSame( 'https://x.test/?shared=T', $read->info( 13, true )['url'] );
+		$this->assertSame( array( false, true ), $made );
+		$this->assertSame( 'https://x.test/?shared=T&mode=print', $read->address( 'https://x.test/?shared=T', 'print' ) );
+
+		$linked = false;
+		$made   = array();
+
+		$this->assertSame(
+			array(
+				'url' => '',
+				'available' => false,
+			),
+			array_intersect_key( $read->info( 13, true ), array_flip( array( 'available', 'url' ) ) )
+		);
+		$this->assertSame( array(), $made, 'No link is asked for when none can exist.' );
+	}
+
+	/**
+	 * Builds jobs whose post is a draft with a private link. `$create` collects what was asked of the link.
+	 *
+	 * @param array $info      Info of the post 13.
+	 * @param array $calls     Calls of the renderer.
+	 * @param array $scheduled Events scheduled.
+	 * @param array $creates   Values of `$create` received.
+	 * @param array $answers   Answers of the renderer.
+	 * @return PdfJobs
+	 */
+	private function draft_jobs( array $info, array &$calls, array &$scheduled, array &$creates, array $answers = array() ) {
+		$renderer = $this->renderer( $answers, 3, $calls );
+
+		return new PdfJobs(
+			new RendererSettings(),
+			new PageFormat(),
+			$this->store(),
+			new JobState(),
+			static function ( $id, $create = false ) use ( $info, &$creates ) {
+				$creates[] = $create;
+
+				return $create || '' === ( $info['url'] ?? '' ) ? $info : array_merge( $info, array( 'url' => '' ) );
+			},
+			static fn( $slug ) => 'print' === $slug,
+			static fn( $url, $mode ) => $url . '&mode=' . $mode,
+			static fn( $address ) => $renderer,
+			static function ( $post_id, $mode, $key ) use ( &$scheduled ) {
+				$scheduled[] = array( $post_id, $mode, $key );
+			},
+			fn() => $this->time
+		);
+	}
+
+	/**
+	 * A draft is converted through its private link, as a preview: flagged in the state and the file, the link made only by the request
+	 * and the job, never by the polling (slice 403).
+	 *
+	 * @return void
+	 */
+	public function test_a_draft_is_converted_as_a_preview(): void {
+		$calls     = array();
+		$scheduled = array();
+		$creates   = array();
+		$jobs      = $this->draft_jobs(
+			array(
+				'status'    => 'draft',
+				'modified'  => 'm',
+				'slug'      => 'brouillon',
+				'url'       => 'https://x.test/?shared=T',
+				'preview'   => true,
+				'available' => true,
+			),
+			$calls,
+			$scheduled,
+			$creates,
+			array( '%PDF-1' )
+		);
+		$this->configure();
+
+		$status = $jobs->status( 13, 'print' );
+
+		$this->assertSame( 'none', $status['status'] );
+		$this->assertTrue( $status['preview'] );
+		$this->assertSame( array( false ), $creates, 'The polling does not make a link.' );
+
+		$queued = $jobs->request( 13, 'print' );
+
+		$this->assertSame( 'queued', $queued['status'] );
+		$this->assertTrue( $queued['preview'] );
+		$this->assertSame( true, $creates[1], 'The request makes it.' );
+
+		$jobs->run( ...$scheduled[0] );
+
+		$this->assertSame( 'https://x.test/?shared=T&mode=print', $calls[0][0] );
+		$this->assertSame( true, end( $creates ), 'The job makes it too: it may have been revoked since the request.' );
+
+		$file = $jobs->file( 13, 'print' );
+
+		$this->assertSame( 'brouillon-preview.pdf', $file['filename'], 'The name says that it is a preview.' );
+		$this->assertTrue( $file['preview'] );
+		$this->assertSame( 3, $file['pages'] );
+		$this->assertTrue( $jobs->status( 13, 'print' )['preview'] );
+
+		$published = $this->jobs( $calls, $scheduled );
+		$this->assertFalse( $published->status( 12, 'print' )['preview'] );
+	}
+
+	/**
+	 * A draft that cannot have a link is refused as before; one whose link could not be made is refused with its own code, and a job that
+	 * finds no link fails.
+	 *
+	 * @return void
+	 */
+	public function test_a_draft_without_a_link(): void {
+		$calls     = array();
+		$scheduled = array();
+		$creates   = array();
+		$base      = array(
+			'status'   => 'draft',
+			'modified' => 'm',
+			'slug'     => 'b',
+			'preview'  => true,
+		);
+		$this->configure();
+
+		$off = $this->draft_jobs(
+			$base + array(
+				'available' => false,
+				'url' => '',
+			),
+			$calls,
+			$scheduled,
+			$creates
+		);
+		$this->assertSame( 'books_pdf_not_published', $off->request( 13, 'print' )->get_error_code() );
+		$this->assertStringContainsString( 'private link', $off->request( 13, 'print' )->get_error_message() );
+
+		$none = $this->draft_jobs(
+			$base + array(
+				'available' => true,
+				'url' => '',
+			),
+			$calls,
+			$scheduled,
+			$creates
+		);
+		$this->assertSame( 'books_pdf_no_link', $none->request( 13, 'print' )->get_error_code() );
+		$this->assertSame( array(), $scheduled );
+
+		$lost = $this->draft_jobs(
+			$base + array(
+				'available' => true,
+				'url' => '',
+			),
+			$calls,
+			$scheduled,
+			$creates
+		);
+		$this->assertSame( 'none', $lost->status( 13, 'print' )['status'] );
+
+		$closed = $this->draft_jobs(
+			$base + array(
+				'available' => false,
+				'url' => '',
+			),
+			$calls,
+			$scheduled,
+			$creates
+		);
+		$state  = $this->private_state( $closed );
+		$state->set(
+			13,
+			'print',
+			array(
+				'status' => 'queued',
+				'key' => 'k',
+				'preview' => true,
+			)
+		);
+		$closed->run( 13, 'print', 'k' );
+		$this->assertStringContainsString( 'cannot have a private link', $state->get( 13, 'print' )['message'] );
+
+		$empty = $this->draft_jobs(
+			$base + array(
+				'available' => true,
+				'url' => '',
+			),
+			$calls,
+			$scheduled,
+			$creates
+		);
+		$state = $this->private_state( $empty );
+		$state->set(
+			13,
+			'print',
+			array(
+				'status' => 'queued',
+				'key' => 'k',
+				'preview' => true,
+			)
+		);
+		$empty->run( 13, 'print', 'k' );
+		$this->assertStringContainsString( 'could not be made', $state->get( 13, 'print' )['message'] );
+		$this->assertSame( array(), $calls );
 	}
 
 	/**
