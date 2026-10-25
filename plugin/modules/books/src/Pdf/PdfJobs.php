@@ -63,7 +63,7 @@ final class PdfJobs {
 	private $state;
 
 	/**
-	 * Receives a post id and whether to make a private link; returns what is known of a post: `status`, `modified`, `slug`, `url` (its permalink, or its private link when it is not published), `preview`, `available`, `allowed`; null when it does not exist.
+	 * Receives a post id, whether to make a private link and whether to ask the capability of the current user (false in the job of WP-Cron, which has no user); returns what is known of a post: `status`, `modified`, `slug`, `url` (its permalink, or its private link when it is not published), `preview`, `available`, `allowed`; null when it does not exist.
 	 *
 	 * @var callable
 	 */
@@ -219,7 +219,7 @@ final class PdfJobs {
 		$state['started_at'] = ( $this->now )();
 		$this->state->set( $post_id, $mode, $state );
 
-		$info = ( $this->post_info )( $post_id, true );
+		$info = ( $this->post_info )( $post_id, true, false );
 
 		if ( ! is_array( $info ) || ( 'publish' !== ( $info['status'] ?? '' ) && empty( $info['available'] ) ) ) {
 			$this->fail( $post_id, $mode, $state, __( 'The post is not published, and it cannot have a private link.', 'otherguise' ) );
