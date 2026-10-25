@@ -239,7 +239,8 @@ final class PdfJobs {
 			return;
 		}
 
-		$pdf = $renderer->convert_url(
+		$started = microtime( true );
+		$pdf     = $renderer->convert_url(
 			( $this->url_for )( $info['url'], $mode ),
 			$this->format->get(),
 			array(
@@ -248,6 +249,18 @@ final class PdfJobs {
 				'wait_expression' => $settings[ RendererSettings::WAIT_EXPRESSION ],
 				'wait_selector'   => $settings[ RendererSettings::WAIT_SELECTOR ],
 				'timeout'         => 300,
+			)
+		);
+
+		\Otherguise\Books\Merge\MergeLog::write(
+			'pdf_convert',
+			array(
+				'post'    => (int) $post_id,
+				'mode'    => $mode,
+				'seconds' => round( microtime( true ) - $started, 2 ),
+				'ok'      => ! ( $pdf instanceof \WP_Error ),
+				'error'   => $pdf instanceof \WP_Error ? $pdf->get_error_message() : '',
+				'pdf_kb'  => is_string( $pdf ) ? (int) round( strlen( $pdf ) / 1024 ) : 0,
 			)
 		);
 

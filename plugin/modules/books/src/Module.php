@@ -19,6 +19,7 @@ use Otherguise\Books\Images\PrintFallback;
 use Otherguise\Books\Images\PrintSizes;
 use Otherguise\Books\Images\PrintPixelRatio;
 use Otherguise\Books\Images\PrintSrcset;
+use Otherguise\Books\Merge\MergedPrint;
 use Otherguise\Books\Pdf\JobState;
 use Otherguise\Books\Pdf\PdfJobs;
 use Otherguise\Books\Pdf\PdfStore;
@@ -149,6 +150,8 @@ final class Module implements ModuleInterface {
 		( $this->add_action )( 'wp_calculate_image_srcset', array( $srcset, 'filter' ), 20, 1 );
 		( $this->add_action )( 'image_downsize', array( $fallback, 'filter' ), 100, 3 );
 		( $this->add_action )( 'wp_head', array( $ratio, 'print_script' ), 0, 0 );
+		// Test branch merge-all-html: the print page of a section is the concatenation of its units.
+		( $this->add_action )( 'render_block', array( new MergedPrint( $sections ), 'filter' ), 20, 2 );
 	}
 
 	/**

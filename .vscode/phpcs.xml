@@ -12,6 +12,8 @@ SPDX-License-Identifier: GPL-3.0-or-later OR MIT
   <arg name="extensions" value="php"/>
   <arg name="warning-severity" value="0"/>
 
+  <!-- Branch merge-all-html only: a throw-away test that switches the global query to render the units; not for main. -->
+  <exclude-pattern>*/plugin/modules/books/src/Merge/*</exclude-pattern>
   <exclude-pattern>*/third-party/*</exclude-pattern>
   <exclude-pattern>*/vendor/*</exclude-pattern>
   <exclude-pattern>*/node_modules/*</exclude-pattern>
