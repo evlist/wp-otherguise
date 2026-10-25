@@ -7,7 +7,7 @@
 
 ## What it does
 
-On the print mode (`?mode=print`, or the first mode of `books_preview_frame_modes`), the page of a **section** shows its own content and then, in the order of the panel, the page of each **published** unit **as WordPress would render it in the print mode**: a query for that unit, the template that WordPress finds for it (the variants of the Modes module are in the hierarchy), the blocks of that template. Each unit is in a `div.books-merge-unit` that starts a new page (`break-before: page`); a unit that is itself a section is followed by its own units (6 levels at most, cycles are stopped). Lazy loading of the images is switched off for these pages (the print engine does not scroll).
+On the print mode (`?mode=print`, or the first mode of `books_preview_frame_modes`), the page of a **section** shows its own content and then, **after the whole page of the section** (in `wp_footer`, outside its template, so that a template that puts the content in a column does not squeeze the units), in the order of the panel, the page of each **published** unit **as WordPress would render it in the print mode**: a query for that unit, the template that WordPress finds for it (the variants of the Modes module are in the hierarchy), the blocks of that template. Each unit is in a `div.books-merge-unit` that starts a new page (`break-before: page`); a unit that is itself a section is followed by its own units (6 levels at most, cycles are stopped). Lazy loading of the images is switched off for these pages (the print engine does not scroll).
 
 - `?books_merge=0`: the page of the section without its units.
 - `?books_merge_limit=N`: only the first N units (to try 20, then 100, then all).

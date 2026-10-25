@@ -17,7 +17,7 @@ defined( 'ABSPATH' ) || exit;
 /**
  * **Test branch `merge-all-html` only** (option 4 of `docs/design/books.md`: merge the HTML of the units before the pagination).
  *
- * In the print mode, the page of a section shows its own content and then, one after the other, the page of each unit **in the print mode**
+ * In the print mode, the page of a section shows its own content and then, after the whole page, one after the other, the page of each unit **in the print mode**
  * (the template that the Modes module would give that unit, rendered for it), each one in a `div` that starts a new page; a unit that is a
  * section is followed by its own units. Only published units. `?books_merge=0` shows the page without the units, `?books_merge_limit=N`
  * stops after N units (to try 20 and then 100). Every unit and the whole are written to the log (`MergeLog`). A hack for a test: no
@@ -77,21 +77,21 @@ final class MergedPrint {
 	}
 
 	/**
-	 * Adds the units after the content of a section. Filter `render_block`.
+	 * Prints the units after the whole page of the section, outside its template (the print template of a section may put its content in a
+	 * column: the units would be squeezed in it). Action `wp_footer`, early, so that the styles and scripts that the units enqueue are
+	 * printed with the others.
 	 *
-	 * @param mixed $html  Rendered block.
-	 * @param array $block The block as parsed.
-	 * @return mixed
+	 * @return void
 	 */
-	public function filter( $html, $block = array() ) {
-		if ( $this->busy || ! is_string( $html ) || 'core/post-content' !== ( $block['blockName'] ?? '' ) || ! $this->wanted() ) {
-			return $html;
+	public function footer() {
+		if ( $this->busy || ! $this->wanted() ) {
+			return;
 		}
 
 		$section = (int) get_queried_object_id();
 
 		if ( array() === $this->sections->order( $section ) ) {
-			return $html;
+			return;
 		}
 
 		$limit_argument = filter_input( INPUT_GET, self::LIMIT, FILTER_VALIDATE_INT );
@@ -108,7 +108,7 @@ final class MergedPrint {
 			'merge_start',
 			array(
 				'section' => $section,
-				'limit' => $this->limit,
+				'limit'   => $this->limit,
 			)
 		);
 
@@ -119,16 +119,16 @@ final class MergedPrint {
 		}
 
 		$summary = array(
-			'section'  => $section,
-			'units'    => $this->count,
-			'seconds'  => round( microtime( true ) - $started, 2 ),
-			'queries'  => get_num_queries() - $queries,
-			'html_kb'  => (int) round( strlen( $units ) / 1024 ),
+			'section' => $section,
+			'units'   => $this->count,
+			'seconds' => round( microtime( true ) - $started, 2 ),
+			'queries' => get_num_queries() - $queries,
+			'html_kb' => (int) round( strlen( $units ) / 1024 ),
 		);
 
 		MergeLog::write( 'merge_done', $summary );
 
-		return $html . '<style>.books-merge-unit{break-before:page;}</style>' . $units . '<!-- books-merge ' . wp_json_encode( $summary + MergeLog::memory() ) . ' -->';
+		echo '<style>.books-merge-unit{break-before:page;}</style>' . $units . '<!-- books-merge ' . wp_json_encode( $summary + MergeLog::memory() ) . ' -->';
 	}
 
 	/**
@@ -137,14 +137,14 @@ final class MergedPrint {
 	 * @return bool
 	 */
 	private function wanted() {
-		if ( ! is_singular() || ! in_the_loop() || '0' === filter_input( INPUT_GET, self::SWITCH ) || ! function_exists( 'modes_active_mode' ) ) {
+		if ( ! is_singular() || '0' === filter_input( INPUT_GET, self::SWITCH ) || ! function_exists( 'modes_active_mode' ) ) {
 			return false;
 		}
 
 		$mode  = modes_active_mode();
 		$modes = apply_filters( 'books_preview_frame_modes', array( 'print' ) );
 
-		return null !== $mode && is_array( $modes ) && in_array( $mode->slug(), $modes, true ) && get_the_ID() === get_queried_object_id();
+		return null !== $mode && is_array( $modes ) && in_array( $mode->slug(), $modes, true );
 	}
 
 	/**

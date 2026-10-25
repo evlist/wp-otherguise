@@ -94,7 +94,7 @@ class BooksModuleTest extends TestCase {
 				'wp_calculate_image_srcset'          => array( array( 'filter', 20, 1 ) ),
 				'image_downsize'                     => array( array( 'filter', 100, 3 ) ),
 				'wp_head'                            => array( array( 'print_script', 0, 0 ) ),
-				'render_block'                       => array( array( 'filter', 20, 2 ) ),
+				'wp_footer'                          => array( array( 'footer', 1, 0 ) ),
 			),
 			$hooks
 		);
