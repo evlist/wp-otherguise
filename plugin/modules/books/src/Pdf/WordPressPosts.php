@@ -94,9 +94,11 @@ final class WordPressPosts {
 	 *
 	 * @param int  $post_id Post.
 	 * @param bool $create  Make the private link of a post that is not published when it has none.
+	 * @param bool $as_user Ask the capability of the current user to make the link: true for a request, false for the job that WP-Cron runs
+	 *                      (it has no user: the capability was checked when the conversion was asked for).
 	 * @return array{status:string, modified:string, slug:string, url:string, preview:bool, available:bool, allowed:bool}|null
 	 */
-	public function info( $post_id, $create = false ) {
+	public function info( $post_id, $create = false, $as_user = true ) {
 		$post = ( $this->get_post )( (int) $post_id );
 
 		if ( ! is_object( $post ) || ! isset( $post->ID ) ) {
@@ -108,7 +110,7 @@ final class WordPressPosts {
 
 		if ( $preview ) {
 			$available = (bool) ( $this->link_available )( $post );
-			$allowed   = $available && (bool) ( $this->link_allowed )( $post );
+			$allowed   = $available && ( ! $as_user || (bool) ( $this->link_allowed )( $post ) );
 			$url       = $available && ( $allowed || ! $create ) ? ( $this->link )( $post, (bool) $create && $allowed ) : '';
 		} else {
 			$available = true;

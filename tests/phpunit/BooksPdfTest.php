@@ -50,6 +50,13 @@ class BooksPdfTest extends TestCase {
 	private $time = 1000000;
 
 	/**
+	 * Values of the third argument received by the post reader of `draft_jobs()`: whether the capability of the user is asked.
+	 *
+	 * @var bool[]
+	 */
+	private $as_user = array();
+
+	/**
 	 * A directory and no option.
 	 *
 	 * @return void
@@ -740,8 +747,9 @@ class BooksPdfTest extends TestCase {
 			new PageFormat(),
 			$this->store(),
 			new JobState(),
-			static function ( $id, $create = false ) use ( $info, &$creates ) {
+			function ( $id, $create = false, $as_user = true ) use ( $info, &$creates ) {
 				$creates[] = $create;
+				$this->as_user[] = $as_user;
 
 				return $create || '' === ( $info['url'] ?? '' ) ? $info : array_merge( $info, array( 'url' => '' ) );
 			},
@@ -797,6 +805,8 @@ class BooksPdfTest extends TestCase {
 
 		$this->assertSame( 'https://x.test/?shared=T&mode=print', $calls[0][0] );
 		$this->assertSame( true, end( $creates ), 'The job makes it too: it may have been revoked since the request.' );
+		$this->assertSame( false, end( $this->as_user ), 'The job has no user (WP-Cron): it must not ask for a capability.' );
+		$this->assertContains( true, $this->as_user, 'The request and the polling do.' );
 
 		$file = $jobs->file( 13, 'print' );
 
@@ -841,6 +851,11 @@ class BooksPdfTest extends TestCase {
 		$this->assertFalse( $no['allowed'] );
 		$this->assertSame( '', $no['url'], 'No link, and none is made, for a user who may not.' );
 		$this->assertNotContains( true, $made );
+
+		$cron = $read->info( 13, true, false );
+
+		$this->assertSame( 'https://x.test/?shared=T', $cron['url'], 'The job of WP-Cron has no user: the link is made without the capability.' );
+		$this->assertTrue( $cron['allowed'] );
 
 		$allowed = true;
 		$yes     = $read->info( 13, true );
