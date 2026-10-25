@@ -296,4 +296,9 @@ Brainstorming; nothing is decided or coded. It continues "The definition of a bo
 - **The cache.** The key of the PDF of a section must include its contents (the list and the order), which are not in `post_modified`.
 - **Not a single HTML for the whole book.** The loop that includes the content of every post serves lists and short sections; for the book the assembly stays one PDF per unit, merged (the objection of Eric about a single HTML is still right).
 
-**Questions.** Where the **role** is chosen (the panel "Book section", a selector and a switch "unlisted"); whether the **manifest** is emitted by the loop block in every print render or only for the production (a token, or the right to edit); the name of the module (`Access`, or `Shares` for the token alone).
+**Decided (Eric, 2026-10-25), the three points left open above:**
+- **Where the role is chosen**: in the panel "Book section" of the editor, with **a selector of the role and a switch "unlisted"**.
+- **When the manifest is emitted**: **at every print render** of the section (not only for the production). Consequence, to keep in mind: the page of a published section in the print mode then shows, in its source, the identifiers of its units, their roles and the pages expected. That reveals nothing that the enumeration of `?p=<id>` does not (WordPress redirects it to the address of an unlisted post, and shows nothing of a draft or a private post without access), and the manifest holds no title and no address; but it is public, so it holds nothing that is not meant to be.
+- **The module is called `Access`** (the token of slice 400 and the unlisted state), not `Shares`.
+
+Still **Proposed**: everything else of this section, in particular the variation of the Query Loop block (to try first), the format of the manifest and the use of the hidden data for the pagination.
