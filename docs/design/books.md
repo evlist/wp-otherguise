@@ -324,3 +324,35 @@ Still **Proposed**: everything else of this section, in particular the variation
 
 **To start with**: 1, with 2 as the way out, and 0 as a possible tightening if mixed sections turn out to be more trouble than they are worth. 3 and 4 are kept in reserve.
 
+#### Experiment of 2026-10-25: a Query Loop that lists the units of a section, and a manifest collected from the render
+
+Tried on a scratch WordPress 7.1.3 (Twenty Twenty-Five), with a throw-away must-use plugin (not kept, not part of the plugin): three filters and one action, about 60 lines. **Nothing of this is built yet**; this is what was seen.
+
+- **The marker.** The namespace of a variation is **not** visible to the filter that changes the query: `query_loop_block_query_vars` receives the block `core/post-template`, whose context has the `query` attribute of the Query Loop but not its `namespace`. A key added **inside the `query` attribute** (here `books_units`) reaches it, and the editor keeps it.
+- **The list and the order.** In the filter: `post__in` = the ids of the section in order (the order of `Sections::order()`, pins included), `orderby = post__in`, `post_type = any`. The loop then shows the units in the order of the panel; a pin (a unit moved to the first rank) changes the loop and the manifest. The unlisted unit (slice 402) **is shown**, since a query with `post__in` is left alone by the filters of the unlisted state: wanted for a section, to remember for the other lists.
+- **The collector.** A frame is opened in `pre_render_block` and closed in `render_block` for the Query Loop that carries the marker, and every `the_post` inside it adds the post to the frame: the manifest holds **what is really rendered**, in the order of the document. Two details: `setup_postdata()` fires `the_post` too (so `wp_reset_postdata()` adds the section itself at the end of the loop), the events of the main query must be ignored; and the manifest is written in `wp_footer`, which a block theme calls, as `<script type="application/json" data-books-manifest>`.
+- **Nesting.** A unit that is itself a section, shown in the loop with its content, opens a second frame: the manifest is a list of frames (`section` and its `units` with a `depth`); the nesting is rebuilt from the section ids. Not tried: the same inside a template part, or a loop inside the content of a unit that is not a section.
+- **Unpublished units (slice 403, the part left for later).** When the visitor holds the **token of the section**, the filter adds `draft`, `pending`, `private` and `future` to `post_status`: the units appear in the loop and in the manifest. The link of each unpublished unit is given **its own token** by a filter on `post_link` and `page_link` (only inside the loop, and only when the visit carries the token of the section), and following that link as an anonymous visitor shows the draft. Without the token of the section: the published units only, and no token anywhere. Side effect to decide: the tokens of the units are **made while a page is displayed** (a GET); it only happens for someone who holds the token of the section.
+- **Still open**: the collector as a class of Books and where it lives (a filter on the render, a block at the end of the template); what the manifest holds for a unit of a section included in the loop (only the identifiers); the cost of the second query; whether a variation registered in the editor (JavaScript) is worth having, since the marker is in the attribute.
+
+#### Experiment of 2026-10-25: how heavy is merging all the HTML before the pagination (option 4)
+
+Eric asked to check that the option is too heavy. **Measured with synthetic pages, in Chromium (Playwright `page.pdf`), A5, 5 JPEG photos of 1200 x 800 (about 170 KB each) and some text per unit, one unit per page; local images, no JavaScript, no web fonts, no map, no chart. It says little about the real pages of the blog, which have all of those.**
+
+| Units | One document: time | peak memory of Chromium | PDF |
+|---|---|---|---|
+| 214 (the first book) | 5 s | 1.1 GB | 183 MB |
+| 1000 | 32 s | 3.8 GB | 856 MB |
+
+The same 214 units rendered **one by one** (a page each, one at a time): 17 s in all, the PDFs adding up to 186 MB (the same weight: the images are in the PDF either way).
+
+**What this shows**: the volume alone does not make the option impossible. The memory grows with the number of units (about 1 to 4 MB per unit with this content) and a first book of about 200 units asks about 1 GB for the browser, which a small container would refuse and a normal one would not. Nothing slower than the per-unit way on this synthetic case.
+
+**What it does not show, and where the real weight is likely**
+- **WordPress has to render the whole section in one request**: 200 posts with their shortcodes, galleries, GPX maps and charts, against the memory limit and the time limit of PHP (30 s by default). Not measured: the pages of the blog are not reachable from here.
+- **All the JavaScript of 200 posts in one page** (maps, charts, QR codes): duplicated element ids, scripts that assume one map per page, remote tiles asked all at once, and a wait for the end of all of them (the server of the PDF has a timeout; we set 300 s). Not measured.
+- **One failure loses everything**, and there is **no cache per unit**: correcting one day renders the whole book again, where the per-unit way renders one unit and merges (the cache key of slice 220 is per post).
+- The numbering and the table of contents are not simpler: the merge of the PDFs gives the page numbers just as well.
+
+**Conclusion (Claude; for Eric to confirm)**: the argument against merging all the HTML is **not the volume** (a first book fits on a normal machine), it is the **robustness and the cost of a correction**: no cache per unit, one request to WordPress for the whole book, and all the JavaScript of the blog in one page. That is not proven either, since the real pages were not tried. If it ever has to be checked, the test is: the real section of 20 then 100 days, on the real site, through Gotenberg, watching the memory of PHP and of Chromium.
+
