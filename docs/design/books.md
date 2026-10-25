@@ -266,6 +266,7 @@ The generic entity is called a **section** (French: *section*), not "part": "par
 - **Considered and not retained.** Sending the **login cookie** of the user to Gotenberg (`cookies` option): it hands a session to another service. Rendering the page in WordPress and sending the **HTML** to Gotenberg (no fetch of the page): the scripts of the maps, the chart and the QR code, and the relative addresses of the assets, would run from a document without the origin of the site (not tried).
 - **Not covered.** Unsaved changes of the editor (decision 12 of slice 219): the link shows what is **saved**.
 - **Open.** Whether an assembly of a section **includes** its unpublished units (Eric needs it while preparing; a published book would not).
+- **Decided (Eric, 2026-10-25), after a try of slice 400 on testing: the link with a token is for preview and page counting, not for the final printed version.** `?shared=<token>&mode=print` works for Gotenberg, but the QR code carries `?p=<id>` while the post is not published (no final address yet), shorter than the final one, so its size and the page count differ and the printed code would be wrong. The PDF to print is made from a published post.
 
 ### Roles, a loop block, unlisted posts, and the templates as the plan of the book (Eric and Claude, 2026-10-25; Proposed)
 

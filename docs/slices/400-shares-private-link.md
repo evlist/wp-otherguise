@@ -45,6 +45,7 @@ Coexistence (documented in `Visit`): `parse_request` and `posts_pre_query` at pr
 - **No token that covers a section** (see 2). To proofread a section before it is published, a link per post, or the assembled PDF.
 - **The use by the PDF job** (the job asks `access_url( $id, array( 'create' => true, 'mode' => … ) )` when the post is not published, and the panel then shows that a link exists) comes in a slice of Books.
 - **The unlisted state** ("published but hidden") of the module `Access` is not here: a slice of its own.
+- **Not for the final printed version of an unpublished post** (decided by Eric, 2026-10-25, after a try on testing): `?shared=<token>&mode=print` works, so it serves to **preview** and to **count the pages** of an unpublished post, but the addresses the page computes are those of WordPress for a post that has no final address: the QR code of the template carries `?p=<id>` (`get_permalink()`), which is shorter than the final address (the size of the QR code depends on its length, so the count can be off by a page) and wrong in print until the post is published. A PDF meant to be printed is made from a published post. A possible later improvement, **not decided**: use `get_sample_permalink()` for unpublished posts in `Modes\LinkBlock::default_page_url`.
 
 ## Precautions (security-sensitive)
 
