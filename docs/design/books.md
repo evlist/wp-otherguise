@@ -266,3 +266,34 @@ The generic entity is called a **section** (French: *section*), not "part": "par
 - **Considered and not retained.** Sending the **login cookie** of the user to Gotenberg (`cookies` option): it hands a session to another service. Rendering the page in WordPress and sending the **HTML** to Gotenberg (no fetch of the page): the scripts of the maps, the chart and the QR code, and the relative addresses of the assets, would run from a document without the origin of the site (not tried).
 - **Not covered.** Unsaved changes of the editor (decision 12 of slice 219): the link shows what is **saved**.
 - **Open.** Whether an assembly of a section **includes** its unpublished units (Eric needs it while preparing; a published book would not).
+
+### Roles, a loop block, unlisted posts, and the templates as the plan of the book (Eric and Claude, 2026-10-25; Proposed)
+
+Brainstorming; nothing is decided or coded. It continues "The definition of a book: sections, units and kinds" above.
+
+**1. A role for the posts.** Cover (front and back), title page, content, table of contents, index… A role is the **kind** of a unit of the sections above, given here **to the post** as a default, which a section can override (the lean already recorded). A registry of roles declared by the theme or the site, like the modes, each with its rules (pages, page break, in the table of contents).
+
+**2. A block that loops over the posts of a section.** To put in a post or in a template of a section, to loop over the included posts, filtered by role, in the order of the section (dates and positions). Candidate route, **to verify with a short experiment before anything is written**: a *variation* of the core Query Loop block (`core/query`) whose query is replaced, through the filter `query_loop_block_query_vars`, by the ordered list of the section (`post__in` and `orderby=post__in`), so that the blocks of a line (title, image, excerpt, content) are the core ones. Consequences:
+- a section **with or without content of its own**: the template has the block of the content or not;
+- the **order of assembly is the order of the blocks of the template**, which is in the theme: the index before or after the content, the cover first, a title page, and so on. Several editions are several templates.
+
+**3. Different templates in web and in print** (the variants of the Modes module). For the same loop: in the web mode **links** to the pages (or sub-sections), or their summaries; in the print mode either the pages **included**, or **nothing visible**, because the pages are printed separately. In that last case the loop can write **hidden data** that the production of the book uses: the plan of the book (see below), the pagination.
+
+**4. Unlisted posts ("published but hidden").** For a cover or a title page, which is not meant to be read as a post of the blog. Two independent things: **visibility** (listed, **unlisted**, private) and **access by a token** (slice 400). *Unlisted* = the address works, but the post is absent from the home page, the archives, the feeds, the search, the sitemaps and the previous/next links, with `noindex`. Proposed: a **flag** on the post and filters on the queries (`pre_get_posts` for what is not a single post, the sitemaps, the adjacent links, the robots), not a custom status of WordPress (the block editor handles them badly). An unlisted post needs **no token** (Gotenberg reaches it by its address); the token is for drafts and private posts. Limit: a plugin that reads the database without the filters of WordPress sees them.
+
+**5. A module without dependency, not a plugin (yet).** The token and the unlisted state need neither Triples nor Books: **one module, `Access`**, with no dependency (checked by `ArchitectureTest`), used by Books through functions and filters as Books uses the modes. Separating it into a plugin would add a unit to tag and to copy by hand on the sites and a dependency between plugins, for no gain now; the architecture already says that the modules can be split later, when a second use or another rhythm of release asks for it.
+
+#### The templates as the plan of the book (Eric's addition and Claude's opinion)
+
+**The idea (Eric).** The templates of a theme decide **the order in which the book is assembled** (the index before or after the content, for example). In the print mode the loop block can show **nothing visible** and write **hidden data** that the production uses, in particular for the pagination.
+
+**Opinion (Claude): a good idea**, with these points:
+- **One place for the structure.** The data (the posts of the section, their order, their roles) says *what* and *in which order within a role*; the template says *how the groups are arranged*. The theme repository is already where the templates change, and an edition is a template.
+- **The plan of the book is read from the page.** The production fetches the print page of the section and reads a **manifest**: the ordered list of units (post, role, pages expected), with the places of the generated units (table of contents, index). Nothing to store apart from the statements and the templates. A section inside a section gives a nested manifest.
+- **Format.** A `<script type="application/json" data-books-manifest>`, not hidden elements: it has no box and cannot move the layout. This matters since a block that looks empty is enough to push a page over (the empty paragraph of 2026-10-21, 20 px of margin); a script has no margin and cannot be printed by a wrong rule of the theme.
+- **Only identifiers, not addresses or titles.** The page of a published section is public: a manifest with the addresses of unlisted posts would list them. The production works out the addresses itself.
+- **Two uses of "hidden data", to keep apart**: (a) the **plan** of the book, read by the production from the page of the section; (b) **markers for the pagination inside each unit** (anchors of the headings that go in the table of contents), read from the PDF or the page of the unit. The first can also come later from a walk of the blocks of the template on the server, with the same format.
+- **The cache.** The key of the PDF of a section must include its contents (the list and the order), which are not in `post_modified`.
+- **Not a single HTML for the whole book.** The loop that includes the content of every post serves lists and short sections; for the book the assembly stays one PDF per unit, merged (the objection of Eric about a single HTML is still right).
+
+**Questions.** Where the **role** is chosen (the panel "Book section", a selector and a switch "unlisted"); whether the **manifest** is emitted by the loop block in every print render or only for the production (a token, or the right to edit); the name of the module (`Access`, or `Shares` for the token alone).

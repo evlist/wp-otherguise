@@ -41,6 +41,15 @@ Eric's judgement of the risk: the pages concerned are **of little sensitivity** 
 - The check is done **only** on the main request of a front page of the post (not in the admin, not in REST, not in `admin-ajax`); the WordPress core's own `preview_nonce` and the capability checks are **not weakened** (the token is a second way in, narrower).
 - A token lookup by `meta_value` is a plain query; the 128 bits make a search by guessing hopeless, and `hash_equals` is used on the value found.
 
+## Proposal: the module `Access`, with the unlisted state (Eric and Claude, 2026-10-25; Proposed, not applied to the text above)
+
+Brainstorming recorded in [`../design/books.md`](../design/books.md) ("Roles, a loop block, unlisted posts…"). The private link of this slice and a **state "published but hidden"** (*unlisted*: the address works, the post is absent from the listings) need neither Triples nor Books, and Books needs both. So **one module with no dependency**, called `Access` (instead of `Shares`), would hold:
+
+- the token and the link of this slice (unchanged);
+- the **unlisted state**: a flag on the post and filters on the queries that list (not a custom status), `noindex` on the post, the post out of the sitemaps and of the previous/next links. An unlisted post is reached by its address, so it needs no token; the token stays for drafts and private posts.
+
+It is a module, not a plugin, for now (the architecture allows splitting later). To write in detail as a slice of its own when it is taken up; the state of this slice (planned, nothing coded) does not change.
+
 ## A simplification (Eric, 2026-10-23; Proposed, not applied to the text above)
 
 **One token per unit, created by the PDF job when the post has none**, instead of a token of a section that covers its units. It would be transparent for the user and removes pieces of this slice:
