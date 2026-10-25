@@ -55,6 +55,13 @@ final class LinksCommand {
 	private $fail;
 
 	/**
+	 * Tells whether the private links are on.
+	 *
+	 * @var callable
+	 */
+	private $enabled;
+
+	/**
 	 * Builds the command.
 	 *
 	 * @param Links         $links    The links.
@@ -62,8 +69,12 @@ final class LinksCommand {
 	 * @param callable|null $log      Default `WP_CLI::log`.
 	 * @param callable|null $success  Default `WP_CLI::success`.
 	 * @param callable|null $fail     Default `WP_CLI::error`.
+	 * @param callable|null $enabled  Tells whether the private links are on (slice 401); default: yes.
 	 */
-	public function __construct( Links $links, $get_post = null, $log = null, $success = null, $fail = null ) {
+	public function __construct( Links $links, $get_post = null, $log = null, $success = null, $fail = null, $enabled = null ) {
+		$this->enabled  = $enabled ?? static function () {
+			return true;
+		};
 		$this->links    = $links;
 		$this->get_post = $get_post ?? 'get_post';
 		$this->log      = $log ?? array( 'WP_CLI', 'log' );
@@ -140,6 +151,11 @@ final class LinksCommand {
 	 * @return void
 	 */
 	public function create( $args, $assoc_args ) {
+		if ( ! (bool) ( $this->enabled )() ) {
+			( $this->fail )( 'The private links are switched off (Settings, Otherguise access): no link is made.' );
+			return;
+		}
+
 		$id   = $this->id( $args[0] ?? null );
 		$post = ( $this->get_post )( $id );
 

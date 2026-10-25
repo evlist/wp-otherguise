@@ -10,11 +10,13 @@
 
 namespace Otherguise\Access;
 
+use Otherguise\Access\Admin\SettingsScreen;
 use Otherguise\Access\Cli\LinksCommand;
 use Otherguise\Access\Editor\LinkPanel;
 use Otherguise\Access\Link\Links;
 use Otherguise\Access\Link\Visit;
 use Otherguise\Access\Rest\LinkRoutes;
+use Otherguise\Access\Settings\Settings;
 use Otherguise\Core\ModuleInterface;
 
 defined( 'ABSPATH' ) || exit;
@@ -45,6 +47,13 @@ final class Module implements ModuleInterface {
 	 * @var Links|null
 	 */
 	private $links = null;
+
+	/**
+	 * The settings, built when they are needed.
+	 *
+	 * @var Settings|null
+	 */
+	private $settings = null;
 
 	/**
 	 * Builds the module.
@@ -100,16 +109,63 @@ final class Module implements ModuleInterface {
 	}
 
 	/**
-	 * Registers the hooks: the request that carries a token, the routes, the panel of the editor, the export, the command.
+	 * The settings.
+	 *
+	 * @return Settings
+	 */
+	public function settings() {
+		if ( null === $this->settings ) {
+			$this->settings = new Settings();
+		}
+
+		return $this->settings;
+	}
+
+	/**
+	 * Registers the hooks that stay whatever the settings: the settings screen, the export (a file that carries a token carries a valid
+	 * link, so the tokens stay out of it even when the links are off), the command, and the reading of the settings itself, on `init`
+	 * (priority 1, so that a plugin that sets a filter on `plugins_loaded` or earlier is heard).
 	 *
 	 * @return void
 	 */
 	public function boot() {
 		require_once dirname( __DIR__ ) . '/functions.php';
 
-		$visit  = new Visit( $this->links() );
-		$routes = new LinkRoutes( $this->links() );
-		$panel  = new LinkPanel( $this->editor_url );
+		if ( is_admin() ) {
+			( new SettingsScreen( $this->settings() ) )->register( $this->add_action );
+		}
+
+		( $this->add_action )( 'init', array( $this, 'enable_links' ), 1, 0 );
+		( $this->add_action )( 'wxr_export_skip_postmeta', array( $this, 'skip_in_export' ), 10, 2 );
+		( $this->add_action )( 'cli_init', array( $this, 'register_command' ), 10, 0 );
+	}
+
+	/**
+	 * Registers the hooks of the private links, **only when the setting is on**: switched off, the request that carries a token is not
+	 * answered, and the panel and the routes do not exist. Action `init`, priority 1.
+	 *
+	 * @return void
+	 */
+	public function enable_links() {
+		if ( ! $this->settings()->links_enabled() ) {
+			return;
+		}
+
+		$settings = $this->settings();
+		$can      = static function ( $id ) use ( $settings ) {
+			return $settings->may_share( (int) $id );
+		};
+		$visit    = new Visit( $this->links() );
+		$routes   = new LinkRoutes( $this->links(), $can );
+		$panel    = new LinkPanel(
+			$this->editor_url,
+			null,
+			static function ( $capability, $id = 0 ) use ( $can ) {
+				unset( $capability );
+
+				return $can( $id );
+			}
+		);
 
 		( $this->add_action )( 'query_vars', array( $visit, 'query_vars' ), 10, 1 );
 		( $this->add_action )( 'parse_request', array( $visit, 'parse_request' ), 10, 1 );
@@ -119,8 +175,6 @@ final class Module implements ModuleInterface {
 		( $this->add_action )( 'wp_robots', array( $visit, 'robots' ), 10, 1 );
 		( $this->add_action )( 'rest_api_init', array( $routes, 'register' ), 10, 0 );
 		( $this->add_action )( 'enqueue_block_editor_assets', array( $panel, 'enqueue' ), 10, 0 );
-		( $this->add_action )( 'wxr_export_skip_postmeta', array( $this, 'skip_in_export' ), 10, 2 );
-		( $this->add_action )( 'cli_init', array( $this, 'register_command' ), 10, 0 );
 	}
 
 	/**
@@ -140,7 +194,7 @@ final class Module implements ModuleInterface {
 	 * @return void
 	 */
 	public function register_command() {
-		\WP_CLI::add_command( 'otherguise access', new LinksCommand( $this->links() ) );
+		\WP_CLI::add_command( 'otherguise access', new LinksCommand( $this->links(), null, null, null, null, array( $this->settings(), 'links_enabled' ) ) );
 	}
 
 	/**
@@ -151,5 +205,6 @@ final class Module implements ModuleInterface {
 	public function uninstall() {
 		delete_post_meta_by_key( Links::TOKEN );
 		delete_post_meta_by_key( Links::CREATED );
+		delete_option( Settings::OPTION );
 	}
 }

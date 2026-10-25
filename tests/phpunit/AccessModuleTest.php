@@ -61,19 +61,50 @@ class AccessModuleTest extends TestCase {
 
 		$this->assertSame(
 			array(
-				'query_vars'                 => array( array( 'query_vars', 10, 1 ) ),
-				'parse_request'              => array( array( 'parse_request', 10, 1 ) ),
-				'posts_pre_query'            => array( array( 'posts_pre_query', 10, 2 ) ),
-				'redirect_canonical'         => array( array( 'redirect_canonical', 10, 1 ) ),
-				'send_headers'               => array( array( 'send_headers', 10, 0 ) ),
-				'wp_robots'                  => array( array( 'robots', 10, 1 ) ),
-				'rest_api_init'              => array( array( 'register', 10, 0 ) ),
+				'init'                     => array( array( 'enable_links', 1, 0 ) ),
+				'wxr_export_skip_postmeta' => array( array( 'skip_in_export', 10, 2 ) ),
+				'cli_init'                 => array( array( 'register_command', 10, 0 ) ),
+			),
+			$hooks,
+			'Outside the administration, and before the settings are read, only these three.'
+		);
+
+		$hooks = array();
+		$module->enable_links();
+
+		$this->assertSame(
+			array(
+				'query_vars'                  => array( array( 'query_vars', 10, 1 ) ),
+				'parse_request'               => array( array( 'parse_request', 10, 1 ) ),
+				'posts_pre_query'             => array( array( 'posts_pre_query', 10, 2 ) ),
+				'redirect_canonical'          => array( array( 'redirect_canonical', 10, 1 ) ),
+				'send_headers'                => array( array( 'send_headers', 10, 0 ) ),
+				'wp_robots'                   => array( array( 'robots', 10, 1 ) ),
+				'rest_api_init'               => array( array( 'register', 10, 0 ) ),
 				'enqueue_block_editor_assets' => array( array( 'enqueue', 10, 0 ) ),
-				'wxr_export_skip_postmeta'   => array( array( 'skip_in_export', 10, 2 ) ),
-				'cli_init'                   => array( array( 'register_command', 10, 0 ) ),
 			),
 			$hooks
 		);
+	}
+
+	/**
+	 * Switched off, the module registers none of the hooks of the links (slice 401).
+	 *
+	 * @return void
+	 */
+	public function test_nothing_is_hooked_when_the_links_are_off(): void {
+		update_option( 'access_settings', array( 'links' => false ) );
+
+		$hooks  = array();
+		$module = new Module(
+			static function ( $hook ) use ( &$hooks ) {
+				$hooks[] = $hook;
+			}
+		);
+
+		$module->enable_links();
+
+		$this->assertSame( array(), $hooks );
 	}
 
 	/**
@@ -96,11 +127,14 @@ class AccessModuleTest extends TestCase {
 	 * @return void
 	 */
 	public function test_uninstalling_deletes_every_token(): void {
+		update_option( 'access_settings', array( 'links' => false ) );
+
 		( new Module() )->uninstall();
 
 		$calls = array_values( array_filter( $GLOBALS['otherguise_test_calls'], static fn( $call ) => 'delete_post_meta_by_key' === $call[0] ) );
 
 		$this->assertSame( array( array( 'delete_post_meta_by_key', '_access_token' ), array( 'delete_post_meta_by_key', '_access_token_created' ) ), $calls );
+		$this->assertFalse( get_option( 'access_settings' ), 'The option is deleted too.' );
 	}
 
 	/**

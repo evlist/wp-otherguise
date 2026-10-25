@@ -164,6 +164,7 @@ A **private link** shows a post to someone who is not logged in, whatever its st
 - **`list`** prints `id`, status, title and date of the token of each post that has a link. **The address is not printed** (it gives access to the post: keep it out of the logs of a rollout) unless `--show-token`.
 - **`create`** makes the link of a post; the one it has is kept, so it can be run twice. A post in the trash, an attachment or a post that cannot be seen on the front end is refused.
 - **`revoke`** takes the link away; the old address then gives a 404. `--dry-run` says what would be done.
+- When the setting "Private links" is **off** (Settings, Otherguise access; slice 401), `create` refuses; `list` and `revoke` still work, to clean up.
 
 ```sh
 wp otherguise access create 58840 --show-token
@@ -171,7 +172,7 @@ wp otherguise access create 58840 --show-token
 
 ## What was tried
 
-- **`access`** (2026-10-25, real WordPress 7.1.3 with the real WP-CLI): `create` (with `--show-token`, twice), a post in the trash and a missing post refused, `list`. Not on the sites of the blog.
+- **`access`** (2026-10-25, real WordPress 7.1.3 with the real WP-CLI): `create` (with `--show-token`, twice), a post in the trash and a missing post refused, `list`. `create` refused when the setting is off (401). Not on the sites of the blog.
 - **`books section`** (2026-10-23, real WordPress 7.1.3 with the real WP-CLI): `add` by selection (and run twice), `show`, `list`, `list --format=json`, `remove`. Not on the sites of the blog.
 - **Automated tests** (PHPUnit with a database, 415 tests in all): the three commands (output, options, refusals, the case where the modules are missing, the hook `cli_init`).
 - **Real WordPress 7.1.3 with the real WP-CLI, `books renderer`** (2026-10-20, against a stand-in of Gotenberg): `get`, `get --format=json`, `set` (with `--dry-run`, run twice, a wrong media, an invalid address, no option), `unset`, `check` up and down with the exit status. Not against a real Gotenberg.

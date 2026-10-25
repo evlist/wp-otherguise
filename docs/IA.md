@@ -50,7 +50,7 @@ No REST route exists yet. What was never run on a real WordPress: the existence 
 
 ## Modules
 
-The plugin is a single plugin with several modules (Triples, Modes, Media, Books, Access), to be split into several plugins later if useful. `Access` (slice 400: the private links with a secret token) has no dependency and nothing depends on it: it is the first one that could be lifted out as it is.
+The plugin is a single plugin with several modules (Triples, Modes, Media, Books, Access), to be split into several plugins later if useful. `Access` (slice 400: the private links with a secret token; slice 401: a settings page that can switch them off) has no dependency and nothing depends on it: it is the first one that could be lifted out as it is.
 
 | Module | Namespace | Directory | Depends on |
 |---|---|---|---|

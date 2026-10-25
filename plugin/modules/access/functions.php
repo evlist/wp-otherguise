@@ -18,12 +18,16 @@ if ( ! function_exists( 'access_url' ) ) {
 	 * @param int|object $post      Id of the post, or the post.
 	 * @param array      $arguments `create`: make the link when the post has none (false by default); `mode`: the slug of a mode to open
 	 *                              the page in.
-	 * @return string|false The address, false when the post has no link (or cannot have one) or the module is not enabled.
+	 * @return string|false The address, false when the post has no link (or cannot have one) or the private links are switched off (slice 401).
 	 */
 	function access_url( $post, array $arguments = array() ) {
 		$module = \Otherguise\Core\Modules::get( 'access' );
 
 		if ( ! $module instanceof \Otherguise\Access\Module ) {
+			return false;
+		}
+
+		if ( ! $module->settings()->links_enabled() ) {
 			return false;
 		}
 
