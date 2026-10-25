@@ -30,7 +30,7 @@ final class MergedPrint {
 	public const SWITCH = 'books_merge';
 
 	/**
-	 * Query argument that stops the merge after a number of units.
+	 * Name of the query argument, of the custom field of the section and of the option that stop the merge after a number of units.
 	 */
 	public const LIMIT = 'books_merge_limit';
 
@@ -94,9 +94,8 @@ final class MergedPrint {
 			return;
 		}
 
-		$limit_argument = filter_input( INPUT_GET, self::LIMIT, FILTER_VALIDATE_INT );
-		$this->limit    = is_int( $limit_argument ) && $limit_argument > 0 ? $limit_argument : 0;
-		$this->count    = 0;
+		$this->limit = $this->limit_for( $section );
+		$this->count = 0;
 		$this->busy     = true;
 		$started        = microtime( true );
 		$queries        = get_num_queries();
@@ -129,6 +128,26 @@ final class MergedPrint {
 		MergeLog::write( 'merge_done', $summary );
 
 		echo '<style>.books-merge-unit{break-before:page;}</style>' . $units . '<!-- books-merge ' . wp_json_encode( $summary + MergeLog::memory() ) . ' -->';
+	}
+
+	/**
+	 * The number of units to stop at, 0 for no limit: the query argument `books_merge_limit` of the page, else the custom field of the same
+	 * name of the section (the PDF is fetched by the print server, which has no way to add an argument: the custom field is for it), else
+	 * the option of the same name.
+	 *
+	 * @param int $section Id of the section.
+	 * @return int
+	 */
+	private function limit_for( $section ) {
+		$argument = filter_input( INPUT_GET, self::LIMIT, FILTER_VALIDATE_INT );
+
+		if ( is_int( $argument ) && $argument > 0 ) {
+			return $argument;
+		}
+
+		$field = (int) get_post_meta( $section, self::LIMIT, true );
+
+		return $field > 0 ? $field : max( 0, (int) get_option( self::LIMIT, 0 ) );
 	}
 
 	/**
