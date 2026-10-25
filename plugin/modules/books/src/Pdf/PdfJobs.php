@@ -63,7 +63,7 @@ final class PdfJobs {
 	private $state;
 
 	/**
-	 * Receives a post id and whether to make a private link; returns what is known of a post: `status`, `modified`, `slug`, `url` (its permalink, or its private link when it is not published), `preview`, `available`; null when it does not exist.
+	 * Receives a post id and whether to make a private link; returns what is known of a post: `status`, `modified`, `slug`, `url` (its permalink, or its private link when it is not published), `preview`, `available`, `allowed`; null when it does not exist.
 	 *
 	 * @var callable
 	 */
@@ -310,7 +310,7 @@ final class PdfJobs {
 	}
 
 	/**
-	 * Checks that a conversion can be asked for: a server, an existing mode, a published post or a post that can have a private link
+	 * Checks that a conversion can be asked for: a server, an existing mode, a published post or a post that can have a private link that the user may make
 	 * (slice 403: it is converted as a preview). Returns what is known of the post.
 	 *
 	 * @param int    $post_id Post.
@@ -335,6 +335,10 @@ final class PdfJobs {
 
 		if ( 'publish' !== ( $info['status'] ?? '' ) && empty( $info['available'] ) ) {
 			return new \WP_Error( 'books_pdf_not_published', __( 'Only a published post can be converted to PDF, unless it can have a private link (the Access module, with the private links switched on).', 'otherguise' ), array( 'status' => 400 ) );
+		}
+
+		if ( 'publish' !== ( $info['status'] ?? '' ) && empty( $info['allowed'] ?? true ) ) {
+			return new \WP_Error( 'books_pdf_link_forbidden', __( 'You may not make the private link that the PDF of a post that is not published needs (Settings, Otherguise access).', 'otherguise' ), array( 'status' => 403 ) );
 		}
 
 		if ( $create && '' === (string) ( $info['url'] ?? '' ) ) {

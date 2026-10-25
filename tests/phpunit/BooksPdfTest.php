@@ -234,6 +234,7 @@ class BooksPdfTest extends TestCase {
 				'url'       => 'https://x.test/repos/',
 				'preview'   => false,
 				'available' => true,
+				'allowed'   => true,
 			),
 			$read->info( '12' )
 		);
@@ -255,6 +256,7 @@ class BooksPdfTest extends TestCase {
 				'url'       => '',
 				'preview'   => true,
 				'available' => false,
+				'allowed'   => false,
 			),
 			$odd->info( 3 )
 		);
@@ -688,7 +690,8 @@ class BooksPdfTest extends TestCase {
 			},
 			static function () use ( &$linked ) {
 				return $linked;
-			}
+			},
+			static fn() => true
 		);
 
 		$without = $read->info( 13 );
@@ -804,6 +807,74 @@ class BooksPdfTest extends TestCase {
 
 		$published = $this->jobs( $calls, $scheduled );
 		$this->assertFalse( $published->status( 12, 'print' )['preview'] );
+	}
+
+	/**
+	 * The setting of the Access module that says who may make a link applies to the PDF of a post that is not published (slice 403).
+	 *
+	 * @return void
+	 */
+	public function test_the_capability_of_the_links_applies(): void {
+		$post    = (object) array(
+			'ID'          => 13,
+			'post_status' => 'draft',
+		);
+		$allowed = false;
+		$made    = array();
+		$read    = new WordPressPosts(
+			static fn() => $post,
+			null,
+			null,
+			static function ( $found, $create ) use ( &$made ) {
+				$made[] = $create;
+
+				return 'https://x.test/?shared=T';
+			},
+			static fn() => true,
+			static function () use ( &$allowed ) {
+				return $allowed;
+			}
+		);
+
+		$no = $read->info( 13, true );
+
+		$this->assertFalse( $no['allowed'] );
+		$this->assertSame( '', $no['url'], 'No link, and none is made, for a user who may not.' );
+		$this->assertNotContains( true, $made );
+
+		$allowed = true;
+		$yes     = $read->info( 13, true );
+
+		$this->assertTrue( $yes['allowed'] );
+		$this->assertSame( 'https://x.test/?shared=T', $yes['url'] );
+
+		$calls     = array();
+		$scheduled = array();
+		$creates   = array();
+		$this->configure();
+
+		$jobs = $this->draft_jobs(
+			array(
+				'status'    => 'draft',
+				'modified'  => 'm',
+				'slug'      => 'b',
+				'url'       => 'https://x.test/?shared=T',
+				'preview'   => true,
+				'available' => true,
+				'allowed'   => false,
+			),
+			$calls,
+			$scheduled,
+			$creates
+		);
+
+		foreach ( array( 'request', 'status', 'file' ) as $method ) {
+			$error = $jobs->$method( 13, 'print' );
+			$this->assertSame( 'books_pdf_link_forbidden', $error->get_error_code(), $method );
+			$this->assertSame( array( 'status' => 403 ), $error->get_error_data() );
+		}
+
+		$this->assertSame( array(), $scheduled );
 	}
 
 	/**

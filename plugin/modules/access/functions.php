@@ -97,3 +97,23 @@ if ( ! function_exists( 'access_links_available' ) ) {
 		return $module->links()->eligible( is_object( $post ) ? $post : get_post( (int) $post ) );
 	}
 }
+
+if ( ! function_exists( 'access_user_may_share' ) ) {
+	/**
+	 * Tells whether the current user may make the private link of a post: the links are on and the user has the capability that the
+	 * settings ask for (slice 401), on top of editing the post. For a caller that acts for the user (a request), not for one that runs
+	 * without a user (WP-Cron).
+	 *
+	 * @param int|object $post Id of the post, or the post.
+	 * @return bool
+	 */
+	function access_user_may_share( $post ) {
+		$module = \Otherguise\Core\Modules::get( 'access' );
+
+		if ( ! $module instanceof \Otherguise\Access\Module ) {
+			return false;
+		}
+
+		return $module->settings()->may_share( is_object( $post ) && isset( $post->ID ) ? (int) $post->ID : (int) $post );
+	}
+}

@@ -53,6 +53,13 @@ final class WordPressPosts {
 	private $link_available;
 
 	/**
+	 * Tells whether the current user may make the private link of a post: receives the post.
+	 *
+	 * @var callable
+	 */
+	private $link_allowed;
+
+	/**
 	 * Builds the reader.
 	 *
 	 * @param callable|null $get_post       Defaults to `get_post`.
@@ -60,8 +67,9 @@ final class WordPressPosts {
 	 * @param callable|null $address        Defaults to the permalink with `?mode=<slug>`.
 	 * @param callable|null $link           Defaults to `access_url()` of the Access module, when there is one.
 	 * @param callable|null $link_available Defaults to `access_links_available()` of the Access module, when there is one.
+	 * @param callable|null $link_allowed   Defaults to `access_user_may_share()` of the Access module, when there is one.
 	 */
-	public function __construct( $get_post = null, $permalink = null, $address = null, $link = null, $link_available = null ) {
+	public function __construct( $get_post = null, $permalink = null, $address = null, $link = null, $link_available = null, $link_allowed = null ) {
 		$this->get_post       = $get_post ?? 'get_post';
 		$this->permalink      = $permalink ?? 'get_permalink';
 		$this->address        = $address ?? array( $this, 'default_address' );
@@ -71,18 +79,22 @@ final class WordPressPosts {
 		$this->link_available = $link_available ?? static function ( $post ) {
 			return function_exists( 'access_links_available' ) && access_links_available( $post );
 		};
+		$this->link_allowed   = $link_allowed ?? static function ( $post ) {
+			return function_exists( 'access_user_may_share' ) && access_user_may_share( $post );
+		};
 	}
 
 	/**
 	 * Returns what is known of a post, or null when it does not exist.
 	 *
 	 * A post that is not published is converted through its **private link** of the Access module (slice 403): `preview` is then true,
-	 * `available` tells whether such a link can exist, and `url` is the link, which is made only when `$create` is true (the polling of
+	 * `available` tells whether such a link can exist, `allowed` whether the current user may have it made (the capability of the settings
+	 * of the Access module; WP-Cron has no user, so the job does not look at it), and `url` is the link, which is made only when `$create` is true (the polling of
 	 * the state must not make tokens), an empty string while there is none.
 	 *
 	 * @param int  $post_id Post.
 	 * @param bool $create  Make the private link of a post that is not published when it has none.
-	 * @return array{status:string, modified:string, slug:string, url:string, preview:bool, available:bool}|null
+	 * @return array{status:string, modified:string, slug:string, url:string, preview:bool, available:bool, allowed:bool}|null
 	 */
 	public function info( $post_id, $create = false ) {
 		$post = ( $this->get_post )( (int) $post_id );
@@ -96,9 +108,11 @@ final class WordPressPosts {
 
 		if ( $preview ) {
 			$available = (bool) ( $this->link_available )( $post );
-			$url       = $available ? ( $this->link )( $post, (bool) $create ) : '';
+			$allowed   = $available && (bool) ( $this->link_allowed )( $post );
+			$url       = $available && ( $allowed || ! $create ) ? ( $this->link )( $post, (bool) $create && $allowed ) : '';
 		} else {
 			$available = true;
+			$allowed   = true;
 			$url       = ( $this->permalink )( $post );
 		}
 
@@ -109,6 +123,7 @@ final class WordPressPosts {
 			'url'       => is_string( $url ) ? $url : '',
 			'preview'   => $preview,
 			'available' => $available,
+			'allowed'   => $allowed,
 		);
 	}
 

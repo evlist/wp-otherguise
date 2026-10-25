@@ -15,7 +15,7 @@ Count the pages of, and proofread, a post that is **not published**, with the PD
 - **The link is made only by what asks for the conversion** (the request, and the job when it runs, in case the link was revoked in between), **never by the polling** of the state, which would otherwise make a token every few seconds.
 - **Refusals**: a post that cannot have a link keeps the error `books_pdf_not_published` (its message now says why); a link that could not be made is `books_pdf_no_link`; a job that finds no link fails with a message.
 - **The PDF says that it is a preview**: the state and the file answer carry `preview`, the file is named `<slug>-preview.pdf`, the cache key includes it (so the PDF made before publication is not served after it), and the panel says: "Preview of a post that is not published: the QR code and the addresses are not final, so this is not the version to print."
-- Who may ask is unchanged: `edit_post` on the post (the routes of slice 220). Making a link by this way is therefore allowed to whoever may start a conversion, even when the setting of slice 401 asks for a stricter capability for the panel "Share link": **to decide** (it is a link made on behalf of the user for a PDF).
+- **Who may ask** (decided by Eric, 2026-10-25): `edit_post` on the post (the routes of slice 220) **and the capability that the settings of the Access module ask for to make a link** (slice 401). Otherwise the state, the request and the file answer `books_pdf_link_forbidden` (403), and no link is made. The job run by WP-Cron has no user, so it does not look at this: it was checked when the conversion was asked for. Books asks `access_user_may_share()`, a function of the Access module.
 
 ## Limits
 
@@ -29,10 +29,12 @@ The part of the proposal about the **page of a section**: opened with a valid li
 
 ## Tests
 
-`BooksPdfTest`: reading a post through its link (the link made only when asked, none when none can exist), a draft converted as a preview (state, request, job, file, name, polling), a draft without a link (all the refusals and the failed jobs); `books-preview-pdf.test.js`: the notice of the panel, and none for a published post.
+`BooksPdfTest`: reading a post through its link (the link made only when asked, none when none can exist), a draft converted as a preview (state, request, job, file, name, polling), a draft without a link (all the refusals and the failed jobs), the capability of the settings (reading with and without it, the three routes refused); `books-preview-pdf.test.js`: the notice of the panel, and none for a published post.
 
 ## Verified
 
 On a scratch WordPress 7.1.3, through the real REST routes in a logged-in editor (Chromium), with a **stand-in for Gotenberg** written for the occasion (a few lines of PHP: it records the address it is asked for and answers a small file): the status of a draft before the request (`preview`, no token made), the request, the job run by WP-Cron, `done` with 3 pages (the stand-in's answer), the file named `post-323-preview.pdf` with `preview`. The address received by the server was the link with `&mode=print`, and that address, fetched by hand as an anonymous visitor, shows the draft.
+
+The capability of the settings, with a real editor user: refused with `books_pdf_link_forbidden` when the setting asks for administrators, accepted when it asks for editors.
 
 **Not verified**: a **real Gotenberg** (so nothing about how it renders the page), the stand-in did not fetch the page itself (the PHP development server of the scratch site serves one request at a time, so the job could not call it back: not a problem of the plugin, but it means that no conversion of the real page was seen), the panel's notice in the real editor, the blog's sites.
