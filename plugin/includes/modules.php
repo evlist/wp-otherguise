@@ -17,4 +17,5 @@ return array(
 	new \Otherguise\Modes\Module(),
 	new \Otherguise\Media\Module(),
 	new \Otherguise\Books\Module(),
+	new \Otherguise\Access\Module(),
 );

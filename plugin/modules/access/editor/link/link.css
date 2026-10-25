@@ -1,0 +1,11 @@
+/* SPDX-FileCopyrightText: 2026 Eric van der Vlist <vdv@dyomedea.com> */
+/* SPDX-License-Identifier: GPL-3.0-or-later */
+/* Slice 400: the Share link panel of the post editor. */
+.access-link p { margin: 0 0 8px; }
+.access-link__error { background: #fcf0f1; border-left: 4px solid #d63638; padding: 6px 8px; margin-bottom: 8px; }
+.access-link__warning { color: #3c434a; }
+.access-link__url { width: 100%; margin-bottom: 8px; font-family: monospace; font-size: 12px; }
+.access-link__created { color: #757575; font-size: 12px; }
+.access-link__actions { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.access-link__ask { flex-basis: 100%; }
+.access-link button { cursor: pointer; }

@@ -170,6 +170,12 @@ class ModuleLoaderTest extends TestCase {
 		$modules = require dirname( __DIR__, 2 ) . '/plugin/includes/modules.php';
 		$order   = ( new ModuleLoader( array_reverse( $modules ) ) )->order();
 
-		$this->assertSame( array( 'triples', 'modes', 'books', 'media' ), $order );
+		$this->assertSame( array( 'access', 'triples', 'modes', 'books', 'media' ), $order );
+
+		foreach ( $modules as $module ) {
+			if ( 'access' === $module->id() ) {
+				$this->assertSame( array(), $module->dependencies(), 'Access depends on nothing: it can be lifted out.' );
+			}
+		}
 	}
 }

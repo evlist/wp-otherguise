@@ -5,7 +5,7 @@
 
 The commands that the plugin offers today, written from the code (`Cli\VariantCommand`, `Cli\MigrateCommand`) and their tests. They are the tools of the migrations of the blog ([`design/rollout.md`](https://github.com/evlist/shared-room/blob/main/docs/design/rollout.md), [`rollouts/` of shared-room](https://github.com/evlist/shared-room/blob/main/docs/rollouts/README.md)), and follow the rule of the repository: a step of a migration that touches what the plugin is responsible for is a command that **can be run twice**, with `--dry-run`, a report, and a way to check the result.
 
-Three commands exist (and the four sub-commands of the PDF server, and the four of the sections, below). All are registered on `cli_init`, appear in `wp help otherguise`, and need the modules they name to be active (otherwise they stop with a message). To know whether a site has one: `wp cli has-command "otherguise media migrate"` (exit code 0 or 1). The commands that are still **missing** (`variant add|remove`, `modes enable`, `media list`, `status`…) are listed in [`design/rollout.md`](https://github.com/evlist/shared-room/blob/main/docs/design/rollout.md), each written only when an iteration needs it.
+Three commands exist (and the four sub-commands of the PDF server, the four of the sections and the three of the private links, below). All are registered on `cli_init`, appear in `wp help otherguise`, and need the modules they name to be active (otherwise they stop with a message). To know whether a site has one: `wp cli has-command "otherguise media migrate"` (exit code 0 or 1). The commands that are still **missing** (`variant add|remove`, `modes enable`, `media list`, `status`…) are listed in [`design/rollout.md`](https://github.com/evlist/shared-room/blob/main/docs/design/rollout.md), each written only when an iteration needs it.
 
 | Command | Does | Slice | Used by |
 |---|---|---|---|
@@ -14,6 +14,7 @@ Three commands exist (and the four sub-commands of the PDF server, and the four 
 | [`wp otherguise media migrate`](#wp-otherguise-media-migrate) | turns the parents of the attachments and a meta into links | [211](slices/211-media-migration.md), [215](slices/215-media-migrate-criterion.md), [217](slices/217-media-migrate-all-types-and-posts.md) | rollout 003 (planned) |
 | [`wp otherguise books renderer get\|set\|unset\|check`](#wp-otherguise-books-renderer) | reads, sets, turns off and checks the PDF server of the site | [220](slices/220-books-gotenberg-pdf-preview.md) | the synchronisation scripts of the sites (to be added in `shared-room`) |
 | [`wp otherguise books section list\|show\|add\|remove`](#wp-otherguise-books-section) | lists the sections, shows what one contains, adds posts to it (by id or by search and dates) or takes them out | [223](slices/223-books-section-container.md) | preparing a book |
+| [`wp otherguise access list\|create\|revoke`](#wp-otherguise-access) | lists, makes and revokes the private links of posts (`?shared=<token>`) | [400](slices/400-shares-private-link.md) | sharing a post before it is published; the PDF of posts that are not published |
 
 ## wp otherguise modes variant list
 
@@ -150,8 +151,27 @@ A section is a post or page that holds other posts (slice 223). A command line h
 wp otherguise books section add 311 --from=2026-05-16 --to=2026-05-30
 ```
 
+## wp otherguise access
+
+```
+wp otherguise access list   [--show-token] [--format=<table|json>]
+wp otherguise access create <post> [--show-token]
+wp otherguise access revoke <post> [--dry-run]
+```
+
+A **private link** shows a post to someone who is not logged in, whatever its status (draft, pending, private, future), through the address of the site with a secret token: `https://site/?shared=<token>` (add `&mode=print` for the print mode). Anyone who has the address can read the post until the link is revoked (slice 400). A command line has no logged-in user, so no capability is asked.
+
+- **`list`** prints `id`, status, title and date of the token of each post that has a link. **The address is not printed** (it gives access to the post: keep it out of the logs of a rollout) unless `--show-token`.
+- **`create`** makes the link of a post; the one it has is kept, so it can be run twice. A post in the trash, an attachment or a post that cannot be seen on the front end is refused.
+- **`revoke`** takes the link away; the old address then gives a 404. `--dry-run` says what would be done.
+
+```sh
+wp otherguise access create 58840 --show-token
+```
+
 ## What was tried
 
+- **`access`** (2026-10-25, real WordPress 7.1.3 with the real WP-CLI): `create` (with `--show-token`, twice), a post in the trash and a missing post refused, `list`. Not on the sites of the blog.
 - **`books section`** (2026-10-23, real WordPress 7.1.3 with the real WP-CLI): `add` by selection (and run twice), `show`, `list`, `list --format=json`, `remove`. Not on the sites of the blog.
 - **Automated tests** (PHPUnit with a database, 415 tests in all): the three commands (output, options, refusals, the case where the modules are missing, the hook `cli_init`).
 - **Real WordPress 7.1.3 with the real WP-CLI, `books renderer`** (2026-10-20, against a stand-in of Gotenberg): `get`, `get --format=json`, `set` (with `--dry-run`, run twice, a wrong media, an invalid address, no option), `unset`, `check` up and down with the exit status. Not against a real Gotenberg.

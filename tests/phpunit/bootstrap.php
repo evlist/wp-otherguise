@@ -633,6 +633,37 @@ function wp_print_inline_script_tag( $javascript ) {
 }
 
 /**
+ * Stub of home_url().
+ *
+ * @param string $path Path.
+ * @return string
+ */
+function home_url( $path = '' ) {
+    return 'https://example.test' . $path;
+}
+
+/**
+ * Stub of add_query_arg() for an array of arguments.
+ *
+ * @param array  $args Arguments.
+ * @param string $url  Address.
+ * @return string
+ */
+function add_query_arg( $args, $url ) {
+    return $url . ( false === strpos( $url, '?' ) ? '?' : '&' ) . http_build_query( $args );
+}
+
+/**
+ * Stub of delete_post_meta_by_key(): records the call.
+ *
+ * @param string $key Key.
+ * @return void
+ */
+function delete_post_meta_by_key( $key ) {
+    otherguise_test_record( 'delete_post_meta_by_key', array( $key ) );
+}
+
+/**
  * Stub of add_screen_option().
  *
  * @return void

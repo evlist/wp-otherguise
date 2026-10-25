@@ -35,11 +35,13 @@ SPDX-License-Identifier: GPL-3.0-or-later OR MIT
         <element value="modes"/>
         <element value="books"/>
         <element value="media"/>
+        <element value="access"/>
         <element value="Otherguise"/>
         <element value="Triples"/>
         <element value="Modes"/>
         <element value="Books"/>
         <element value="Media"/>
+        <element value="Access"/>
         <element value="OTHERGUISE"/>
       </property>
       <property name="custom_test_classes" type="array">
