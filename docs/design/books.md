@@ -303,3 +303,24 @@ Brainstorming; nothing is decided or coded. It continues "The definition of a bo
 - **The module is called `Access`** (the token of slice 400 and the unlisted state), not `Shares`.
 
 Still **Proposed**: everything else of this section, in particular the variation of the Query Loop block (to try first), the format of the manifest and the use of the hidden data for the pagination.
+
+#### Blocks decide the plan; the manifest is collected from them (Eric and Claude, 2026-10-25; Proposed)
+
+- **Who decides the list and the order.** The data (`books/contains` and the position pins) give the posts of a section and their order **within a role**; the blocks of the templates and of the posts (the loop block) read them, filter them (role, unlisted, not published, mode) and decide which groups appear and in which order. So the blocks are the **engine** of the manifest: only the rendering knows what the page really holds. A manifest worked out from the data alone could differ from what the template shows.
+- **One collector, not one script per block.** Each loop block hands its units to a collector, in the order of the document; one manifest is written at the end of the render. A section inside a section gives a nested manifest. Open: how the collector knows that the render is over (a block at the end of the template, or a filter), and a block placed in the content of a post that is itself included in a loop.
+
+#### Mixed sections: sub-sections and own content (Eric and Claude, 2026-10-25; Proposed, starting orientation agreed by Eric)
+
+**The difficulty.** Each unit of the book is a PDF of its own, and the PDFs are merged. A post is rendered as one HTML page, one continuous flow. A section laid out as *start, sub-sections, own content, sub-sections, end* is a sequence of units, the own content being **one** unit (start and end being generated units: title page, table of contents, index). A section whose own content appears **twice** around sub-sections (*start, sub-sections, own content, sub-sections, own content, end*) would need one post to be cut into two renders.
+
+**Consequences if it were allowed**: every cut is a hard page break (a right-hand page in a two-sided book); the page numbers cannot come from the CSS counters of a page, they are worked out when the PDFs are merged, from the number of pages of each one; running heads and heading counters must carry on; the table of contents depends on the number of pages of everything before it, so all the units must be rendered before the numbers are known; a unit of the manifest would be identified by (post, part) and no longer by the post.
+
+**Options, from the most restrictive**
+0. **Forbid mixed sections**: a section either lists sub-sections or has content of its own, not both. The most extreme; keeps every unit a whole post.
+1. **One own content per section** (the **starting orientation**): a section may mix sub-sections and own content, but the content of the post appears **once** in the template. The collector refuses or warns when a template inserts it twice, with a clear message.
+2. **Solve it in the plan**: the second part becomes another post or a sub-section (a "Conclusion", an "Appendix"). Every unit stays a whole post; the editorial answer to a need for 1+.
+3. **A block "cut here" in the content of a post**: the post is rendered twice (`part=1`, `part=2`), each render keeping its side of the cut; one cache key per part; widows and orphans at the cut. Only if the need is real.
+4. **Merge all the HTML before the pagination** (one document for the whole section, with a print engine that paginates it): it removes the problem of the cuts and the numbering, but it **reverts a founding decision** (one PDF per post, merged) and the merged document may be too large to render (memory, time, the images of the whole book at once). Not retained now; to reconsider only if the volume turns out to be manageable.
+
+**To start with**: 1, with 2 as the way out, and 0 as a possible tightening if mixed sections turn out to be more trouble than they are worth. 3 and 4 are kept in reserve.
+
