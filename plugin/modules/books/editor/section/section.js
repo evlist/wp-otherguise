@@ -133,6 +133,50 @@
 		return el( 'div', { ref: ref } );
 	}
 
+	// The switch "Unlisted" (slice 402): only when the Access module offers its route (window.booksSection.unlisted); the state lives in
+	// that module, this panel only shows and changes it.
+	function Unlisted() {
+		var config = settings.unlisted;
+		var Toggle = wp.components && wp.components.ToggleControl;
+		var id = wp.data.select( 'core/editor' ).getCurrentPostId();
+		var state = wp.element.useState( null );
+
+		function address() {
+			return config.path + '/' + id + '/unlisted';
+		}
+
+		wp.element.useEffect( function () {
+			if ( ! config || ! Toggle ) {
+				return;
+			}
+
+			wp.apiFetch( { path: address() } ).then( function ( answer ) {
+				state[ 1 ]( { unlisted: !! answer.unlisted, busy: false } );
+			}, function () {} );
+		}, [] );
+
+		if ( ! config || ! Toggle || ! state[ 0 ] ) {
+			return null;
+		}
+
+		return el( Toggle, {
+			label: __( 'Unlisted' ),
+			help: __( 'The address works, but the post is left out of the home page, the archives, the search, the feeds, the sitemaps and the previous and next links.' ),
+			checked: state[ 0 ].unlisted,
+			disabled: state[ 0 ].busy,
+			onChange: function ( value ) {
+				var before = state[ 0 ].unlisted;
+
+				state[ 1 ]( { unlisted: before, busy: true } );
+				wp.apiFetch( { path: address(), method: 'POST', data: { unlisted: !! value } } ).then( function ( answer ) {
+					state[ 1 ]( { unlisted: !! answer.unlisted, busy: false } );
+				}, function () {
+					state[ 1 ]( { unlisted: before, busy: false } );
+				} );
+			},
+		} );
+	}
+
 	// The item of the "⋮" menu that opens or closes the window: for a section only.
 	function Item() {
 		var current = ensure();
@@ -176,7 +220,7 @@
 			return el(
 				wp.element.Fragment,
 				null,
-				el( Panel, { name: 'books-section', title: __( 'Book section' ), className: 'books-section-panel' }, el( Body ) ),
+				el( Panel, { name: 'books-section', title: __( 'Book section' ), className: 'books-section-panel' }, el( Body ), settings.unlisted ? el( Unlisted ) : null ),
 				MenuItem ? el( Item ) : null
 			);
 		},

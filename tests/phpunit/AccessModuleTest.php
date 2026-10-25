@@ -61,7 +61,7 @@ class AccessModuleTest extends TestCase {
 
 		$this->assertSame(
 			array(
-				'init'                     => array( array( 'enable_links', 1, 0 ) ),
+				'init'                     => array( array( 'enable_links', 1, 0 ), array( 'enable_unlisted', 1, 0 ) ),
 				'wxr_export_skip_postmeta' => array( array( 'skip_in_export', 10, 2 ) ),
 				'cli_init'                 => array( array( 'register_command', 10, 0 ) ),
 			),
@@ -108,6 +108,41 @@ class AccessModuleTest extends TestCase {
 	}
 
 	/**
+	 * The filters of the unlisted state, with their priority and number of arguments, only when the setting is on (slice 402).
+	 *
+	 * @return void
+	 */
+	public function test_the_unlisted_hooks_follow_the_setting(): void {
+		$hooks  = array();
+		$module = new Module(
+			static function ( $hook, $callback, $priority, $accepted ) use ( &$hooks ) {
+				$hooks[ $hook ][] = array( $callback[1], $priority, $accepted );
+			}
+		);
+
+		$module->enable_unlisted();
+
+		$this->assertSame(
+			array(
+				'pre_get_posts'                => array( array( 'pre_get_posts', 10, 1 ) ),
+				'wp_sitemaps_posts_query_args' => array( array( 'sitemap_arguments', 10, 1 ) ),
+				'get_previous_post_where'      => array( array( 'adjacent_where', 10, 1 ) ),
+				'get_next_post_where'          => array( array( 'adjacent_where', 10, 1 ) ),
+				'wp_robots'                    => array( array( 'robots', 10, 1 ) ),
+				'display_post_states'          => array( array( 'post_states', 10, 2 ) ),
+				'rest_api_init'                => array( array( 'register', 10, 0 ) ),
+			),
+			$hooks
+		);
+
+		update_option( 'access_settings', array( 'unlisted' => false ) );
+		$hooks = array();
+		$module->enable_unlisted();
+
+		$this->assertSame( array(), $hooks, 'Switched off: no filter, the unlisted posts are back in the lists.' );
+	}
+
+	/**
 	 * The tokens stay out of the export of WordPress, and nothing else is skipped by this module.
 	 *
 	 * @return void
@@ -133,7 +168,14 @@ class AccessModuleTest extends TestCase {
 
 		$calls = array_values( array_filter( $GLOBALS['otherguise_test_calls'], static fn( $call ) => 'delete_post_meta_by_key' === $call[0] ) );
 
-		$this->assertSame( array( array( 'delete_post_meta_by_key', '_access_token' ), array( 'delete_post_meta_by_key', '_access_token_created' ) ), $calls );
+		$this->assertSame(
+			array(
+				array( 'delete_post_meta_by_key', '_access_token' ),
+				array( 'delete_post_meta_by_key', '_access_token_created' ),
+				array( 'delete_post_meta_by_key', '_access_unlisted' ),
+			),
+			$calls
+		);
 		$this->assertFalse( get_option( 'access_settings' ), 'The option is deleted too.' );
 	}
 

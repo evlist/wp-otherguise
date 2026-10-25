@@ -102,14 +102,21 @@ final class SectionEditor {
 		);
 		wp_enqueue_style( self::SCRIPT, ( $this->url )( 'section.css' ), array( 'dashicons' ), '224.1' );
 
+		$settings = array(
+			'path'      => '/' . SectionRoutes::REST_NAMESPACE . '/sections',
+			'postTypes' => array_values( $types ),
+		);
+
+		// The switch "Unlisted" (slice 402): the route comes from the Access module, which Books does not depend on; without it, no switch.
+		$unlisted = function_exists( 'access_unlisted_path' ) ? access_unlisted_path() : false;
+
+		if ( is_string( $unlisted ) && '' !== $unlisted ) {
+			$settings['unlisted'] = array( 'path' => $unlisted );
+		}
+
 		wp_add_inline_script(
 			self::SCRIPT,
-			'window.booksSection = ' . wp_json_encode(
-				array(
-					'path'      => '/' . SectionRoutes::REST_NAMESPACE . '/sections',
-					'postTypes' => array_values( $types ),
-				)
-			) . ';',
+			'window.booksSection = ' . wp_json_encode( $settings ) . ';',
 			'before'
 		);
 	}

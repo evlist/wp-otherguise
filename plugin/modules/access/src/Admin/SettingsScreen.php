@@ -145,7 +145,7 @@ final class SettingsScreen {
 		echo '</select></td></tr>';
 
 		echo '<tr><th scope="row">' . esc_html__( 'Unlisted posts', 'otherguise' ) . '</th><td><label><input type="checkbox" name="' . esc_attr( $name( Settings::UNLISTED ) ) . '" value="1"' . ( ! empty( $values[ Settings::UNLISTED ] ) ? ' checked="checked"' : '' ) . ' /> ' . esc_html__( 'Allow a published post to be hidden from the lists of the site', 'otherguise' ) . '</label>';
-		echo '<p class="description">' . esc_html__( 'Not available yet: this setting is kept for a later version.', 'otherguise' ) . '</p></td></tr>';
+		echo '<p class="description">' . esc_html__( 'An unlisted post keeps its address but is left out of the home page, the archives, the search, the feeds, the sitemaps and the previous and next links. Switched off, the posts already unlisted are back in the lists; their state is kept.', 'otherguise' ) . '</p></td></tr>';
 
 		echo '</tbody></table>';
 		echo '<input type="submit" class="button button-primary" value="' . esc_attr__( 'Save', 'otherguise' ) . '" /></form></div>';

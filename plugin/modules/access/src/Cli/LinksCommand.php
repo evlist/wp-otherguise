@@ -11,6 +11,7 @@
 namespace Otherguise\Access\Cli;
 
 use Otherguise\Access\Link\Links;
+use Otherguise\Access\Unlisted\Unlisted;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -55,6 +56,13 @@ final class LinksCommand {
 	private $fail;
 
 	/**
+	 * The unlisted state.
+	 *
+	 * @var Unlisted
+	 */
+	private $unlisted;
+
+	/**
 	 * Tells whether the private links are on.
 	 *
 	 * @var callable
@@ -70,8 +78,10 @@ final class LinksCommand {
 	 * @param callable|null $success  Default `WP_CLI::success`.
 	 * @param callable|null $fail     Default `WP_CLI::error`.
 	 * @param callable|null $enabled  Tells whether the private links are on (slice 401); default: yes.
+	 * @param Unlisted|null $unlisted The unlisted state (slice 402); default: built from the links.
 	 */
-	public function __construct( Links $links, $get_post = null, $log = null, $success = null, $fail = null, $enabled = null ) {
+	public function __construct( Links $links, $get_post = null, $log = null, $success = null, $fail = null, $enabled = null, $unlisted = null ) {
+		$this->unlisted = $unlisted ?? new Unlisted( $links );
 		$this->enabled  = $enabled ?? static function () {
 			return true;
 		};
@@ -207,6 +217,95 @@ final class LinksCommand {
 		$this->links->revoke( $id );
 
 		( $this->success )( $had ? sprintf( 'Link of post %d revoked.', $id ) : sprintf( 'Post %d had no link.', $id ) );
+	}
+
+	/**
+	 * Hides a published post from the lists of the site (home page, archives, search, feeds, sitemaps, previous and next links), or shows
+	 * it again. Its address keeps working. It can be run twice.
+	 *
+	 * ## OPTIONS
+	 *
+	 * <post>
+	 * : Id of the post.
+	 *
+	 * [--off]
+	 * : Show the post in the lists again.
+	 *
+	 * [--dry-run]
+	 * : Say what would be done.
+	 *
+	 * @param array $args       Positional arguments.
+	 * @param array $assoc_args Named arguments.
+	 * @return void
+	 */
+	public function unlisted( $args, $assoc_args ) {
+		$id   = $this->id( $args[0] ?? null );
+		$post = ( $this->get_post )( $id );
+		$off  = ! empty( $assoc_args['off'] );
+
+		if ( ! is_object( $post ) ) {
+			( $this->fail )( 'This post does not exist.' );
+			return;
+		}
+
+		if ( ! $off && ! $this->unlisted->eligible( $post ) ) {
+			( $this->fail )( 'This post cannot be unlisted: it is in the trash or it is not a page of the site.' );
+			return;
+		}
+
+		$was = $this->unlisted->is_unlisted( $id );
+
+		if ( ! empty( $assoc_args['dry-run'] ) ) {
+			( $this->log )( sprintf( $off ? 'Would show post %d in the lists again (it is %s).' : 'Would hide post %d from the lists (it is %s).', $id, $was ? 'unlisted' : 'listed' ) );
+			return;
+		}
+
+		$this->unlisted->set( $id, ! $off );
+
+		( $this->success )( sprintf( $off ? 'Post %d is listed again.' : 'Post %d is unlisted.', $id ) );
+	}
+
+	/**
+	 * Lists the unlisted posts.
+	 *
+	 * ## OPTIONS
+	 *
+	 * [--format=<format>]
+	 * : `table` (default) or `json`.
+	 *
+	 * @subcommand unlisted-list
+	 *
+	 * @param array $args       Positional arguments.
+	 * @param array $assoc_args Named arguments.
+	 * @return void
+	 */
+	public function unlisted_list( $args, $assoc_args ) {
+		unset( $args );
+
+		$rows = array();
+
+		foreach ( $this->unlisted->ids() as $id ) {
+			$post   = ( $this->get_post )( $id );
+			$rows[] = array(
+				'id'     => $id,
+				'status' => is_object( $post ) ? (string) $post->post_status : '',
+				'title'  => is_object( $post ) ? (string) $post->post_title : '',
+			);
+		}
+
+		if ( 'json' === ( $assoc_args['format'] ?? 'table' ) ) {
+			( $this->log )( (string) wp_json_encode( $rows ) );
+			return;
+		}
+
+		if ( array() === $rows ) {
+			( $this->log )( 'No unlisted post.' );
+			return;
+		}
+
+		foreach ( $rows as $row ) {
+			( $this->log )( sprintf( '%d  %s  %s', $row['id'], $row['status'], $row['title'] ) );
+		}
 	}
 
 	/**

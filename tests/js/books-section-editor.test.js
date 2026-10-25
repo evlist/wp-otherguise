@@ -30,13 +30,16 @@ function load( options ) {
 			Fragment: 'Fragment',
 			useRef: () => refs,
 			useEffect: ( effect, deps ) => effects.push( [ effect, deps ] ),
-			useState: ( initial ) => [ initial, ( update ) => ticks.push( update ) ],
+			useState: ( initial ) => [ options.store ? options.store.value : initial, ( update ) => ( ticks.push( update ), options.store && ( options.store.value = update ) ) ],
 		},
 		i18n: { __: ( value, domain ) => ( 'otherguise' === domain ? value : '[no domain] ' + value ) },
 		data: { select: () => ( { getCurrentPostId: () => 58325, getCurrentPostType: () => options.type || 'page' } ) },
 		plugins: { registerPlugin: ( name, definition ) => ( registered.name = name, registered.definition = definition ) },
 		apiFetch: ( request ) => {
 			fetched.push( request );
+			if ( /\/unlisted$/.test( request.path ) ) {
+				return options.failUnlisted ? Promise.reject( new Error( 'no' ) ) : Promise.resolve( { id: 58325, unlisted: request.method ? !! request.data.unlisted : !! options.unlisted, eligible: true } );
+			}
 			return Promise.resolve( { id: 58325, title: 'Trip', section: !! options.section, range: { from: '', to: '' }, contents: [], containing: [] } );
 		},
 	};
@@ -53,8 +56,11 @@ function load( options ) {
 	if ( options.noFetch ) {
 		delete dom.window.wp.apiFetch;
 	}
+	if ( options.toggle ) {
+		dom.window.wp.components = { ToggleControl: 'Toggle' };
+	}
 	if ( ! options.noSettings ) {
-		dom.window.booksSection = SETTINGS;
+		dom.window.booksSection = options.withUnlisted ? Object.assign( {}, SETTINGS, { unlisted: { path: '/access/v1/posts' } } ) : SETTINGS;
 	}
 	if ( ! options.noScripts ) {
 		SCRIPTS.forEach( ( file ) => dom.window.eval( source( file ) ) );
@@ -167,4 +173,56 @@ test( 'the routes: the paths, the methods and the data of each call, with a plac
 
 	assert.ok( seen.some( ( call ) => '/books/v1/sections/58325' === call[ 0 ] && 'PUT' === call[ 1 ] && false === call[ 2 ].section ) );
 	assert.ok( seen.some( ( call ) => '/books/v1/sections?search=alp%20ine' === call[ 0 ] && 'GET' === call[ 1 ] ) );
+} );
+
+test( 'slice 402: the switch "Unlisted" is in the panel only when the Access module gives its route', () => {
+	assert.strictEqual( load().registered.definition.render().children[ 0 ].children.length, 2, 'The body and nothing.' );
+	assert.strictEqual( load().registered.definition.render().children[ 0 ].children[ 1 ], null );
+
+	const withRoute = load( { withUnlisted: true } ).registered.definition.render().children[ 0 ].children;
+
+	assert.strictEqual( typeof withRoute[ 1 ].type, 'function' );
+} );
+
+test( 'slice 402: the switch reads the state, shows it, changes it through the route and goes back when the change fails', async () => {
+	const store = { value: null };
+	const { registered, fetched, effects } = load( { withUnlisted: true, toggle: true, store, unlisted: true } );
+	const component = registered.definition.render().children[ 0 ].children[ 1 ].type;
+
+	assert.strictEqual( component(), null, 'Nothing before the state is read.' );
+	effects[ effects.length - 1 ][ 0 ]();
+	await flush();
+
+	assert.strictEqual( JSON.stringify( fetched[ fetched.length - 1 ] ), '{"path":"/access/v1/posts/58325/unlisted"}' );
+	assert.strictEqual( JSON.stringify( store.value ), JSON.stringify( { unlisted: true, busy: false } ) );
+
+	const toggle = component();
+
+	assert.strictEqual( toggle.type, 'Toggle' );
+	assert.strictEqual( toggle.props.label, 'Unlisted', 'The text domain is passed.' );
+	assert.strictEqual( toggle.props.checked, true );
+	assert.strictEqual( toggle.props.disabled, false );
+
+	toggle.props.onChange( false );
+	assert.strictEqual( JSON.stringify( store.value ), JSON.stringify( { unlisted: true, busy: true } ), 'Busy while the route answers.' );
+	await flush();
+
+	assert.strictEqual( JSON.stringify( fetched[ fetched.length - 1 ] ), '{"path":"/access/v1/posts/58325/unlisted","method":"POST","data":{"unlisted":false}}' );
+	assert.strictEqual( JSON.stringify( store.value ), JSON.stringify( { unlisted: false, busy: false } ) );
+} );
+
+test( 'slice 402: a failed change leaves the switch as it was, and without the toggle component nothing is shown', async () => {
+	const store = { value: { unlisted: true, busy: false } };
+	const failing = load( { withUnlisted: true, toggle: true, store, failUnlisted: true } );
+	const component = failing.registered.definition.render().children[ 0 ].children[ 1 ].type;
+
+	component().props.onChange( false );
+	await flush();
+	assert.strictEqual( JSON.stringify( store.value ), JSON.stringify( { unlisted: true, busy: false } ) );
+
+	const bare = load( { withUnlisted: true, store: { value: { unlisted: true, busy: false } } } );
+
+	assert.strictEqual( bare.registered.definition.render().children[ 0 ].children[ 1 ].type(), null );
+	bare.effects.forEach( ( effect ) => effect[ 0 ]() );
+	assert.ok( bare.fetched.every( ( request ) => ! /unlisted/.test( request.path ) ), 'Nothing is asked.' );
 } );

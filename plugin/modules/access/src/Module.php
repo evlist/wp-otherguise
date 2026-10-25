@@ -16,7 +16,10 @@ use Otherguise\Access\Editor\LinkPanel;
 use Otherguise\Access\Link\Links;
 use Otherguise\Access\Link\Visit;
 use Otherguise\Access\Rest\LinkRoutes;
+use Otherguise\Access\Rest\UnlistedRoutes;
 use Otherguise\Access\Settings\Settings;
+use Otherguise\Access\Unlisted\Filters;
+use Otherguise\Access\Unlisted\Unlisted;
 use Otherguise\Core\ModuleInterface;
 
 defined( 'ABSPATH' ) || exit;
@@ -47,6 +50,13 @@ final class Module implements ModuleInterface {
 	 * @var Links|null
 	 */
 	private $links = null;
+
+	/**
+	 * The unlisted state, built when it is needed.
+	 *
+	 * @var Unlisted|null
+	 */
+	private $unlisted = null;
 
 	/**
 	 * The settings, built when they are needed.
@@ -109,6 +119,19 @@ final class Module implements ModuleInterface {
 	}
 
 	/**
+	 * The unlisted state.
+	 *
+	 * @return Unlisted
+	 */
+	public function unlisted() {
+		if ( null === $this->unlisted ) {
+			$this->unlisted = new Unlisted( $this->links() );
+		}
+
+		return $this->unlisted;
+	}
+
+	/**
 	 * The settings.
 	 *
 	 * @return Settings
@@ -122,7 +145,7 @@ final class Module implements ModuleInterface {
 	}
 
 	/**
-	 * Registers the hooks that stay whatever the settings: the settings screen, the export (a file that carries a token carries a valid
+	 * Registers the hooks that stay whatever the settings: the settings screen, the reading of the settings (`enable_links`, `enable_unlisted`), the export (a file that carries a token carries a valid
 	 * link, so the tokens stay out of it even when the links are off), the command, and the reading of the settings itself, on `init`
 	 * (priority 1, so that a plugin that sets a filter on `plugins_loaded` or earlier is heard).
 	 *
@@ -136,6 +159,7 @@ final class Module implements ModuleInterface {
 		}
 
 		( $this->add_action )( 'init', array( $this, 'enable_links' ), 1, 0 );
+		( $this->add_action )( 'init', array( $this, 'enable_unlisted' ), 1, 0 );
 		( $this->add_action )( 'wxr_export_skip_postmeta', array( $this, 'skip_in_export' ), 10, 2 );
 		( $this->add_action )( 'cli_init', array( $this, 'register_command' ), 10, 0 );
 	}
@@ -178,6 +202,29 @@ final class Module implements ModuleInterface {
 	}
 
 	/**
+	 * Registers the filters of the unlisted state, **only when the setting is on**: switched off, the unlisted posts are back in the lists
+	 * (the state is kept). Action `init`, priority 1.
+	 *
+	 * @return void
+	 */
+	public function enable_unlisted() {
+		if ( ! $this->settings()->unlisted_enabled() ) {
+			return;
+		}
+
+		$filters = new Filters( $this->unlisted() );
+		$routes  = new UnlistedRoutes( $this->unlisted() );
+
+		( $this->add_action )( 'pre_get_posts', array( $filters, 'pre_get_posts' ), 10, 1 );
+		( $this->add_action )( 'wp_sitemaps_posts_query_args', array( $filters, 'sitemap_arguments' ), 10, 1 );
+		( $this->add_action )( 'get_previous_post_where', array( $filters, 'adjacent_where' ), 10, 1 );
+		( $this->add_action )( 'get_next_post_where', array( $filters, 'adjacent_where' ), 10, 1 );
+		( $this->add_action )( 'wp_robots', array( $filters, 'robots' ), 10, 1 );
+		( $this->add_action )( 'display_post_states', array( $filters, 'post_states' ), 10, 2 );
+		( $this->add_action )( 'rest_api_init', array( $routes, 'register' ), 10, 0 );
+	}
+
+	/**
 	 * Keeps the tokens out of the WordPress export (a file that carries a token carries a valid link). Filter `wxr_export_skip_postmeta`.
 	 *
 	 * @param mixed  $skip     Whether the meta is skipped.
@@ -194,7 +241,7 @@ final class Module implements ModuleInterface {
 	 * @return void
 	 */
 	public function register_command() {
-		\WP_CLI::add_command( 'otherguise access', new LinksCommand( $this->links(), null, null, null, null, array( $this->settings(), 'links_enabled' ) ) );
+		\WP_CLI::add_command( 'otherguise access', new LinksCommand( $this->links(), null, null, null, null, array( $this->settings(), 'links_enabled' ), $this->unlisted() ) );
 	}
 
 	/**
@@ -205,6 +252,7 @@ final class Module implements ModuleInterface {
 	public function uninstall() {
 		delete_post_meta_by_key( Links::TOKEN );
 		delete_post_meta_by_key( Links::CREATED );
+		delete_post_meta_by_key( Unlisted::META );
 		delete_option( Settings::OPTION );
 	}
 }
