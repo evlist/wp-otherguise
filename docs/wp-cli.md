@@ -114,7 +114,7 @@ Only the links that already exist as `post_parent` are made: a photo cannot be l
 ```
 wp otherguise books renderer get   [--format=<text|json>]
 wp otherguise books renderer set   [--address=<address>] [--wait-delay=<seconds>] [--wait-expression=<js>]
-                                   [--wait-selector=<css>] [--media=<print|screen>] [--keep-days=<n>] [--dry-run]
+                                   [--wait-selector=<css>] [--media=<print|screen>] [--keep-days=<n>] [--site-address=<address>] [--dry-run]
 wp otherguise books renderer unset [--dry-run]
 wp otherguise books renderer check
 ```
@@ -128,6 +128,7 @@ The PDF server (a Gotenberg container) of **one site**. A copy of production mad
 
 ```sh
 wp otherguise books renderer set --address=http://gotenberg-testing:3000 && wp otherguise books renderer check
+wp otherguise books renderer set --site-address=http://wordpress-testing-vli-st   # the PDF server asks the pages by this address (slice 225)
 ```
 
 ## wp otherguise books section

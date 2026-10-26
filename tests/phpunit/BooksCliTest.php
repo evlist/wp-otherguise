@@ -112,6 +112,7 @@ class BooksCliTest extends TestCase {
 				array( 'log', 'wait_selector: ' ),
 				array( 'log', 'media: print' ),
 				array( 'log', 'keep_days: 7' ),
+				array( 'log', 'site_address: ' ),
 			),
 			$this->out
 		);
@@ -157,6 +158,7 @@ class BooksCliTest extends TestCase {
 				'wait_selector'   => '',
 				'media'           => 'screen',
 				'keep_days'       => 30,
+				'site_address'    => '',
 			),
 			( new RendererSettings() )->get()
 		);

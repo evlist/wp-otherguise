@@ -11,13 +11,14 @@
 namespace Otherguise\Books\Settings;
 
 use Otherguise\Books\Render\ServerAddress;
+use Otherguise\Books\Render\SiteAddress;
 
 defined( 'ABSPATH' ) || exit;
 
 /**
  * The option `books_renderer` (slice 220): the address of the Gotenberg server (empty by default: no server, no PDF mode), how the
  * conversion waits for the page (a fixed delay, a JavaScript expression, a CSS selector: Gotenberg waits for none by default), the media
- * the page is printed with, and for how many days a PDF is kept.
+ * the page is printed with, for how many days a PDF is kept, and the address by which the server reaches this site (slice 225).
  */
 final class RendererSettings {
 	/**
@@ -49,6 +50,11 @@ final class RendererSettings {
 	 * Key of the media.
 	 */
 	public const MEDIA = 'media';
+
+	/**
+	 * Key of the address by which the rendering server reaches this site (slice 225); empty to use the public address.
+	 */
+	public const SITE = 'site_address';
 
 	/**
 	 * Key of the number of days a PDF is kept.
@@ -101,6 +107,7 @@ final class RendererSettings {
 			self::WAIT_SELECTOR   => '',
 			self::MEDIA           => 'print',
 			self::KEEP_DAYS       => 7,
+			self::SITE            => '',
 		);
 	}
 
@@ -140,6 +147,13 @@ final class RendererSettings {
 			$input[ self::URL ] = $current;
 		}
 
+		$site = isset( $input[ self::SITE ] ) && is_string( $input[ self::SITE ] ) ? trim( $input[ self::SITE ] ) : '';
+
+		if ( '' !== $site && null === SiteAddress::normalize( $site ) ) {
+			( $this->notify )( __( 'The address of this site for the PDF server is not valid: it must be an http or https address of a host only (for example http://wordpress), without path, user, password, query or fragment. The previous address was kept.', 'otherguise' ) );
+			$input[ self::SITE ] = $this->get()[ self::SITE ];
+		}
+
 		return $this->normalize( $input, $current );
 	}
 
@@ -163,6 +177,16 @@ final class RendererSettings {
 					}
 
 					$values[ $key ] = $address;
+					break;
+
+				case self::SITE:
+					$site = '' === $value ? '' : SiteAddress::normalize( $value );
+
+					if ( null === $site ) {
+						return $this->refused( __( 'The address is not valid: it must be an http or https address of a host only (for example http://wordpress), without path, user, password, query or fragment.', 'otherguise' ) );
+					}
+
+					$values[ $key ] = $site;
 					break;
 
 				case self::WAIT_DELAY:
@@ -246,6 +270,8 @@ final class RendererSettings {
 		$delay = ( is_int( $delay ) || is_float( $delay ) || ( is_string( $delay ) && is_numeric( $delay ) ) ) ? round( (float) $delay, 1 ) : null;
 		$days  = $values[ self::KEEP_DAYS ] ?? null;
 		$media = $values[ self::MEDIA ] ?? null;
+		$site  = $values[ self::SITE ] ?? '';
+		$site  = is_string( $site ) && '' !== trim( $site ) ? SiteAddress::normalize( $site ) : '';
 
 		return array(
 			self::URL             => null !== $url ? $url : $address,
@@ -254,6 +280,7 @@ final class RendererSettings {
 			self::WAIT_SELECTOR   => $this->text( $values[ self::WAIT_SELECTOR ] ?? '', self::MAX_SELECTOR ),
 			self::MEDIA           => in_array( $media, array( 'print', 'screen' ), true ) ? $media : $defaults[ self::MEDIA ],
 			self::KEEP_DAYS       => ( is_int( $days ) || ( is_string( $days ) && 1 === preg_match( '/^[0-9]{1,3}$/', $days ) ) ) && (int) $days >= 1 && (int) $days <= 90 ? (int) $days : $defaults[ self::KEEP_DAYS ],
+			self::SITE            => null !== $site ? $site : '',
 		);
 	}
 
