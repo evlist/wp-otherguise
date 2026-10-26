@@ -27,11 +27,16 @@ Their look is the one of a template of the theme (`wp-twenty-twenty-five-printab
 - **minimum and maximum number of pages depend on the binding** (perfect-bound: 60 or 80 minimum, 500 to 700 maximum by paper; hardcover: 24 to 100 or 150; stapled: 8 to 60; spiral: 1 to 290 or 500); the spine thickness depends on the number of pages;
 - **if the last page is blank, the printer prints its "achevé d'imprimer" notice there, otherwise it adds pages**: a final blank page is therefore wanted, and its text is the author's choice;
 - a **combined cover file** needs a blank page 2 and a blank second-to-last page (a separate cover file does not);
-- margins of 2 cm, bleed of 3 mm when the pages carry images to the edge; images at 300 ppi at least; CMYK recommended, with an ICC profile by paper; the file at most **700 MB** (a 184-unit book was 292 MB).
+- **safety zone**: the FAQ asks for 2 cm "all around" and nothing important in it, "otherwise in the binding or cut at the finishing", for every format (no figure by format), and a bleed of 3 mm when the pages carry images to the edge. **This is a safety recommendation, not a measured limit**: the printer says it does not check layout, centring, font sizes or margins (an automatic check only reports some technical points). Eric's book of last year had its folios 1 cm from the bottom in A5 and was printed; that is a fact for that book, not a guarantee for another format or binding. The risk is mostly on the **inner side** (the gutter) of a perfect-bound book;
+- images at 300 ppi at least; CMYK recommended, with an ICC profile by paper; the file at most **700 MB** (a 184-unit book was 292 MB).
 
 ## The role `blank`, as the printer's constraints
 
 A **layout rule** of the book, not just a role to place by hand: the section may declare `printer` constraints (even page count, minimum and maximum, a final blank page, blank pages before a chapter that must start on the right-hand page) and Books **adds the `blank` pages that are missing** when it assembles, and says so in the log. Chromium already adds the blank pages needed by `break-before: right`; the rule concerns the ones it cannot know (the total, the end).
+
+## Margins, as settings of the printer preset
+
+The margins are **not** a constant of the plugin: they belong to the preset of the printer (see "Not decided"), with these values to set separately: the **safety margin** (2 cm is the value of the FAQ; the book of last year used less for its folios), the **gutter** (inner margin, on the binding side), the **bleed** (3 mm, only when images go to the edge) and the **position of the folios**. The check of slice 229 reports content inside the safety zone as an indication, never as a block.
 
 ## Not decided (open)
 
