@@ -614,6 +614,75 @@ function wp_enqueue_style() {
 }
 
 /**
+ * Stub of wp_register_style(): records the call.
+ *
+ * @return bool
+ */
+function wp_register_style() {
+    otherguise_test_record( 'wp_register_style', func_get_args() );
+
+    return true;
+}
+
+/**
+ * Stub of wp_add_inline_style(): records the call.
+ *
+ * @return bool
+ */
+function wp_add_inline_style() {
+    otherguise_test_record( 'wp_add_inline_style', func_get_args() );
+
+    return true;
+}
+
+/**
+ * Stub of wp_nonce_field(): prints a recognizable field.
+ *
+ * @return void
+ */
+function wp_nonce_field() {
+    echo '<input type="hidden" name="nonce-stub" />';
+}
+
+/**
+ * Stub of register_post_type(): records the call.
+ *
+ * @return void
+ */
+function register_post_type() {
+    otherguise_test_record( 'register_post_type', func_get_args() );
+}
+
+/**
+ * Stub of add_meta_box(): records the call.
+ *
+ * @return void
+ */
+function add_meta_box() {
+    otherguise_test_record( 'add_meta_box', func_get_args() );
+}
+
+/**
+ * Stub of get_posts(): the posts a test put in `$GLOBALS['otherguise_test_posts']`, by default none.
+ *
+ * @return array
+ */
+function get_posts() {
+    return $GLOBALS['otherguise_test_posts'] ?? array();
+}
+
+/**
+ * Stub of wp_delete_post(): records the call.
+ *
+ * @return bool
+ */
+function wp_delete_post() {
+    otherguise_test_record( 'wp_delete_post', func_get_args() );
+
+    return true;
+}
+
+/**
  * Stub of wp_add_inline_script(): records the call.
  *
  * @return void

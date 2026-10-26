@@ -392,7 +392,7 @@ class BooksPdfTest extends TestCase {
 	 * @param array $info      Overrides of the info of the post 12.
 	 * @return PdfJobs
 	 */
-	private function jobs( array &$calls, array &$scheduled, array $answers = array(), $pages = 2, array $info = array() ) {
+	private function jobs( array &$calls, array &$scheduled, array $answers = array(), $pages = 2, array $info = array(), $rules = null ) {
 		$renderer = $this->renderer( $answers, $pages, $calls );
 		$posts    = array(
 			12 => $info + array(
@@ -421,7 +421,9 @@ class BooksPdfTest extends TestCase {
 			static function ( $post_id, $mode, $key ) use ( &$scheduled ) {
 				$scheduled[] = array( $post_id, $mode, $key );
 			},
-			fn() => $this->time
+			fn() => $this->time,
+			null,
+			$rules
 		);
 	}
 
@@ -550,6 +552,57 @@ class BooksPdfTest extends TestCase {
 
 		$jobs->run( ...$scheduled[0] );
 		$this->assertCount( 1, $calls, 'A job that already ran does nothing.' );
+	}
+
+	/**
+	 * A book project that covers the post gives its format, its CSS and its address to the conversion, and changes the key (slice 230).
+	 *
+	 * @return void
+	 */
+	public function test_the_rules_of_a_book_project(): void {
+		$calls     = array();
+		$scheduled = array();
+		$rules     = array(
+			'project' => 77,
+			'format'  => array(
+				'width_mm'  => 150.0,
+				'height_mm' => 210.0,
+				'margin_mm' => 12.0,
+			),
+			'css'     => '@page{size:150mm 210mm}',
+		);
+		$this->configure();
+
+		$plain = $this->jobs( $calls, $scheduled, array( '%PDF-1.7 a' ) );
+		$plain->request( 12, 'print' );
+		$plain_key = $scheduled[0][2];
+		$plain->run( ...$scheduled[0] );
+
+		$this->assertSame( 148.0, $calls[0][1]['width_mm'] );
+		$this->assertFalse( $calls[0][2]['prefer_css_page_size'] );
+		$this->assertSame( 'https://x.test/repos/?mode=print', $calls[0][0] );
+
+		$calls     = array();
+		$scheduled = array();
+		$ruled     = $this->jobs( $calls, $scheduled, array( '%PDF-1.7 b' ), 2, array(), static fn( $post_id ) => 12 === $post_id ? $rules : null );
+		$ruled->request( 12, 'print' );
+
+		$this->assertNotSame( $plain_key, $scheduled[0][2], 'The project is part of what the PDF depends on.' );
+		$ruled->run( ...$scheduled[0] );
+
+		$this->assertSame( 150.0, $calls[0][1]['width_mm'], 'The format of the profile.' );
+		$this->assertTrue( $calls[0][2]['prefer_css_page_size'] );
+		$this->assertStringContainsString( 'books_project=77', $calls[0][0], 'The page is asked for the project.' );
+
+		$other = $rules;
+
+		$other['css'] = '@page{size:150mm 210mm;margin:5mm}';
+		$calls        = array();
+		$scheduled    = array();
+		$changed      = $this->jobs( $calls, $scheduled, array(), 2, array(), static fn( $post_id ) => $other );
+		$changed->request( 12, 'print' );
+		$this->assertNotSame( $plain_key, $scheduled[0][2] );
+		$this->assertNotSame( $ruled->status( 12, 'print' )['key'] ?? '', $scheduled[0][2], 'A change of the CSS makes another key.' );
 	}
 
 	/**

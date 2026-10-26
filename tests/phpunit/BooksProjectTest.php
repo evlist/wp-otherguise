@@ -1,0 +1,729 @@
+<?php
+/**
+ * SPDX-FileCopyrightText: 2026 Eric van der Vlist <vdv@dyomedea.com>
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ *
+ * Tests of the printer profiles and of the book projects (slice 230).
+ *
+ * @package Otherguise
+ */
+
+use Otherguise\Books\Cli\ProfileCommand;
+use Otherguise\Books\Cli\ProjectCommand;
+use Otherguise\Books\Project\MetaBoxes;
+use Otherguise\Books\Project\PageRules;
+use Otherguise\Books\Project\PostTypes;
+use Otherguise\Books\Project\PrinterProfile;
+use Otherguise\Books\Project\PrintStyles;
+use Otherguise\Books\Project\Presets;
+use Otherguise\Books\Project\Projects;
+use PHPUnit\Framework\TestCase;
+
+/**
+ * No WordPress and no database: the posts, the sections and the capabilities are doubles.
+ *
+ * @covers \Otherguise\Books\Project\PrinterProfile
+ * @covers \Otherguise\Books\Project\PageRules
+ * @covers \Otherguise\Books\Project\Presets
+ * @covers \Otherguise\Books\Project\Projects
+ * @covers \Otherguise\Books\Project\PrintStyles
+ * @covers \Otherguise\Books\Project\MetaBoxes
+ * @covers \Otherguise\Books\Project\PostTypes
+ * @covers \Otherguise\Books\Cli\ProfileCommand
+ * @covers \Otherguise\Books\Cli\ProjectCommand
+ */
+class BooksProjectTest extends TestCase {
+
+	/**
+	 * Starts clean.
+	 *
+	 * @return void
+	 */
+	protected function setUp(): void {
+		otherguise_test_reset();
+	}
+
+	/**
+	 * Cleans up.
+	 *
+	 * @return void
+	 */
+	protected function tearDown(): void {
+		otherguise_test_reset();
+	}
+
+	/**
+	 * What is not valid is replaced by the default, a missing gutter is the margin, the numbers are rounded.
+	 *
+	 * @return void
+	 */
+	public function test_a_profile_is_normalized(): void {
+		$this->assertSame( PrinterProfile::defaults(), PrinterProfile::normalize( null ) );
+		$this->assertSame( PrinterProfile::defaults(), PrinterProfile::normalize( 'x' ) );
+
+		$profile = PrinterProfile::normalize(
+			array(
+				'width_mm'       => '150,04',
+				'height_mm'      => 5,
+				'margin_mm'      => '12',
+				'safe_mm'        => 'wide',
+				'bleed_mm'       => 3,
+				'folio'          => 'outside',
+				'pages_multiple' => '4',
+				'pages_min'      => -3,
+				'final_blank'    => 'on',
+				'chapter_recto'  => 'no',
+				'cover'          => 'spine',
+				'min_ppi'        => '300',
+				'colour'         => 'cmyk',
+				'max_mb'         => '700',
+				'url'            => 'javascript:alert(1)',
+				'read_on'        => '2026-02-30',
+			)
+		);
+
+		$this->assertSame( 150.0, $profile['width_mm'], 'Rounded to a tenth.' );
+		$this->assertSame( 210.0, $profile['height_mm'], 'Out of bounds: the default.' );
+		$this->assertSame( 12.0, $profile['margin_mm'] );
+		$this->assertSame( 12.0, $profile['gutter_mm'], 'No gutter: the margin.' );
+		$this->assertSame( 10.0, $profile['safe_mm'], 'Not a number: the default.' );
+		$this->assertSame( 3.0, $profile['bleed_mm'] );
+		$this->assertSame( 'outside', $profile['folio'] );
+		$this->assertSame( 4, $profile['pages_multiple'] );
+		$this->assertSame( 0, $profile['pages_min'] );
+		$this->assertTrue( $profile['final_blank'] );
+		$this->assertFalse( $profile['chapter_recto'] );
+		$this->assertSame( 'none', $profile['cover'] );
+		$this->assertSame( 300, $profile['min_ppi'] );
+		$this->assertSame( 'cmyk', $profile['colour'] );
+		$this->assertSame( 700, $profile['max_mb'] );
+		$this->assertSame( '', $profile['url'], 'Only http and https.' );
+		$this->assertSame( '', $profile['read_on'], 'An impossible date.' );
+
+		$this->assertSame( 20.0, PrinterProfile::normalize( array( 'gutter_mm' => 20 ) )['gutter_mm'] );
+		$this->assertSame( 10.0, PrinterProfile::normalize( array( 'gutter_mm' => 90 ) )['gutter_mm'], 'A gutter of more than half the page is refused.' );
+		$this->assertLessThan( 74.0, PrinterProfile::normalize( array( 'margin_mm' => 80 ) )['margin_mm'], 'A margin that leaves no page is replaced.' );
+		$this->assertSame( 'https://www.coollibri.com/faq', PrinterProfile::normalize( array( 'url' => ' https://www.coollibri.com/faq ' ) )['url'] );
+		$this->assertSame( '2026-10-26', PrinterProfile::normalize( array( 'read_on' => '2026-10-26' ) )['read_on'] );
+		$this->assertSame(
+			array(
+				'width_mm'  => 148.0,
+				'height_mm' => 210.0,
+				'margin_mm' => 10.0,
+			),
+			PrinterProfile::format( PrinterProfile::defaults() )
+		);
+	}
+
+	/**
+	 * The CSS: one rule for equal margins, the gutter on the binding side otherwise, the bleed, the folios, the variables.
+	 *
+	 * @return void
+	 */
+	public function test_the_page_rules(): void {
+		$plain = PageRules::css( PrinterProfile::defaults() );
+
+		$this->assertSame( ':root{--books-margin:10mm;--books-gutter:10mm;--books-safe:10mm;}@page{size:148mm 210mm;margin:10mm;}', $plain );
+
+		$gutter = PageRules::css(
+			PrinterProfile::normalize(
+				array(
+					'margin_mm' => 8,
+					'gutter_mm' => 20,
+					'folio' => 'outside',
+				)
+			)
+		);
+
+		$this->assertStringContainsString( '@page :right{margin-left:20mm;margin-right:8mm;}', $gutter );
+		$this->assertStringContainsString( '@page :left{margin-left:8mm;margin-right:20mm;}', $gutter );
+		$this->assertStringContainsString( '@page :right{@bottom-right{content:counter(page);', $gutter );
+		$this->assertStringContainsString( '@page :left{@bottom-left{content:counter(page);', $gutter );
+		$this->assertStringNotContainsString( '@bottom-center', $gutter );
+
+		$this->assertStringContainsString( '@page{@bottom-center{content:counter(page);', PageRules::css( PrinterProfile::normalize( array( 'folio' => 'center' ) ) ) );
+		$this->assertStringNotContainsString( 'counter(page)', PageRules::css( PrinterProfile::normalize( array( 'folio' => 'outside' ) ), false ), 'The project can turn the folios off.' );
+
+		$bleed = PageRules::css( PrinterProfile::normalize( array( 'bleed_mm' => 3 ) ) );
+
+		$this->assertStringContainsString( '@page{size:154mm 216mm;margin:13mm;}', $bleed, 'The page and every margin grow by the bleed.' );
+		$this->assertStringContainsString( '--books-margin:10mm', $bleed, 'The variables are the profile\'s, without the bleed.' );
+	}
+
+	/**
+	 * The presets are valid profiles.
+	 *
+	 * @return void
+	 */
+	public function test_the_presets(): void {
+		$this->assertSame( array( 'coollibri', 'flexilivre' ), array_keys( Presets::all() ) );
+
+		$coollibri = Presets::profile( 'coollibri' );
+
+		$this->assertSame( 20.0, $coollibri['safe_mm'] );
+		$this->assertSame( 700, $coollibri['max_mb'] );
+		$this->assertTrue( $coollibri['final_blank'] );
+		$this->assertSame( 5.0, Presets::profile( 'flexilivre' )['safe_mm'] );
+		$this->assertSame( 3000, Presets::profile( 'flexilivre' )['max_mb'] );
+		$this->assertNull( Presets::profile( 'imprimerie' ) );
+	}
+
+	/**
+	 * Builds the service: the projects 5 (root 10, profile 20), 6 (root 10, profile 21, no folios) and 7 (root 11, profile 99, missing), the
+	 * section 10 holds 100 (and, through the section 12, 101).
+	 *
+	 * @return Projects
+	 */
+	private function projects() {
+		$rows     = array(
+			array(
+				'id'    => 7,
+				'title' => 'Orphan',
+				'meta'  => array(
+					'root'    => 11,
+					'profile' => 99,
+				),
+			),
+			array(
+				'id'    => 5,
+				'title' => 'CoolLibri',
+				'meta'  => array(
+					'root'    => 10,
+					'profile' => 20,
+				),
+			),
+			array(
+				'id'    => 6,
+				'title' => 'Flexilivre',
+				'meta'  => array(
+					'root'    => '10',
+					'profile' => 21,
+					'folios'  => '0',
+					'author'  => 'Eric',
+				),
+			),
+			array(
+				'id'    => 8,
+				'title' => 'No root',
+				'meta'  => 'broken',
+			),
+		);
+		$profiles = array(
+			20 => array(
+				'safe_mm' => 20,
+				'folio'   => 'center',
+			),
+			21 => array( 'width_mm' => 150 ),
+		);
+		$reach    = array(
+			10 => array( 100, 12, 101 ),
+			11 => array( 100 ),
+		);
+
+		return new Projects(
+			static fn() => $rows,
+			static fn( $id ) => $profiles[ $id ] ?? null,
+			static fn( $root, $post ) => in_array( $post, $reach[ $root ] ?? array(), true )
+		);
+	}
+
+	/**
+	 * The projects are read as valid values, by id.
+	 *
+	 * @return void
+	 */
+	public function test_the_projects(): void {
+		$projects = $this->projects();
+
+		$this->assertSame( array( 5, 6, 7, 8 ), array_keys( $projects->all() ) );
+		$this->assertSame(
+			array(
+				'id'      => 6,
+				'title'   => 'Flexilivre',
+				'root'    => 10,
+				'profile' => 21,
+				'author'  => 'Eric',
+				'folios'  => false,
+			),
+			$projects->get( 6 )
+		);
+		$this->assertTrue( $projects->get( 5 )['folios'], 'The folios are on by default.' );
+		$this->assertSame( 0, $projects->get( 8 )['root'], 'A broken meta gives no root.' );
+		$this->assertNull( $projects->get( 99 ) );
+		$this->assertSame( 150.0, $projects->profile( 21 )['width_mm'] );
+		$this->assertNull( $projects->profile( 99 ) );
+		$this->assertNull( $projects->profile( 0 ) );
+	}
+
+	/**
+	 * A post is covered by the project whose root is the post or reaches it; the one asked for wins, then the lowest id, then the filter.
+	 *
+	 * @return void
+	 */
+	public function test_the_project_of_a_post(): void {
+		$projects = $this->projects();
+		$found    = $projects->for_post( 100 );
+
+		$this->assertSame( 5, $found['project']['id'], 'Two projects cover the post: the lowest id.' );
+		$this->assertSame( 20.0, $found['profile']['safe_mm'] );
+		$this->assertStringContainsString( '@bottom-center', $found['css'] );
+		$this->assertSame( 6, $projects->for_post( 100, 6 )['project']['id'], 'The one asked for.' );
+		$this->assertStringNotContainsString( 'counter(page)', $projects->for_post( 100, 6 )['css'], 'Folios off in that project.' );
+		$this->assertSame( 5, $projects->for_post( 100, 7 )['project']['id'], 'A project that does not cover the post is ignored.' );
+		$this->assertSame( 5, $projects->for_post( 10 )['project']['id'], 'The root itself.' );
+		$this->assertNull( $projects->for_post( 55 ), 'No project covers it.' );
+		$this->assertNull( $projects->for_post( 11 ), 'The profile of the project 7 is missing: no rules.' );
+		$this->assertSame( 5, $projects->for_post( 100, 7 )['project']['id'], 'A project without a profile is not used.' );
+
+		$GLOBALS['otherguise_test_filters']['books_project_for_post'] = 6;
+		$this->assertSame( 6, $projects->for_post( 100 )['project']['id'], 'The filter chooses.' );
+		$GLOBALS['otherguise_test_filters']['books_project_for_post'] = 7;
+		$this->assertSame( 5, $projects->for_post( 100 )['project']['id'], 'A choice that does not cover the post is ignored.' );
+	}
+
+	/**
+	 * The style is added in a print mode only, for a post that a project covers.
+	 *
+	 * @return void
+	 */
+	public function test_the_print_styles(): void {
+		$print    = true;
+		$post     = 100;
+		$asked    = 0;
+		$styles   = new PrintStyles(
+			$this->projects(),
+			static function () use ( &$print ) {
+				return $print;
+			},
+			static function () use ( &$post ) {
+				return $post;
+			},
+			static function () use ( &$asked ) {
+				return $asked;
+			}
+		);
+		$recorded = static function ( $name ) {
+			return array_values( array_filter( $GLOBALS['otherguise_test_calls'], static fn( $call ) => $call[0] === $name ) );
+		};
+
+		$print = false;
+		$styles->enqueue();
+		$this->assertSame( array(), $recorded( 'wp_add_inline_style' ), 'Not in the print mode: nothing.' );
+
+		$print = true;
+		$post  = 55;
+		$styles->enqueue();
+		$this->assertSame( array(), $recorded( 'wp_add_inline_style' ), 'No project covers the post.' );
+
+		$post = 0;
+		$styles->enqueue();
+		$this->assertSame( array(), $recorded( 'wp_add_inline_style' ), 'Not a single page.' );
+
+		$post  = 100;
+		$asked = 6;
+		$styles->enqueue();
+		$added = $recorded( 'wp_add_inline_style' );
+
+		$this->assertCount( 1, $added );
+		$this->assertSame( PrintStyles::HANDLE, $added[0][1] );
+		$this->assertStringContainsString( '@page{size:150mm 210mm', $added[0][2], 'The project asked for in the address.' );
+		$this->assertCount( 1, $recorded( 'wp_register_style' ) );
+		$this->assertCount( 1, $recorded( 'wp_enqueue_style' ) );
+	}
+
+	/**
+	 * Builds the boxes with doubles; the posted form is `$posted`.
+	 *
+	 * @param array|null $posted Posted form.
+	 * @param bool       $can    Whether the user may edit the post.
+	 * @param bool       $valid  Whether the nonce is valid.
+	 * @param array      $stored Receives what is stored.
+	 * @return MetaBoxes
+	 */
+	private function boxes( $posted, $can, $valid, array &$stored ) {
+		return new MetaBoxes(
+			static fn() => array(
+				10 => 'Book 2025',
+				11 => '',
+			),
+			static fn() => array(
+				20 => 'CoolLibri A5',
+			),
+			static fn( $id, $key ) => array(
+				'root'    => 11,
+				'profile' => 20,
+				'author'  => 'Eric <b>',
+				'width_mm' => 150,
+			),
+			static function ( $id, $key, $value ) use ( &$stored ) {
+				$stored[] = array( $id, $key, $value );
+			},
+			static fn() => $can,
+			static fn() => null === $posted ? null : $posted + array( '__nonce' => 'n' ),
+			static fn() => $valid
+		);
+	}
+
+	/**
+	 * The forms show what is stored and escape it; the box is added to the two types.
+	 *
+	 * @return void
+	 */
+	public function test_the_forms(): void {
+		$stored = array();
+		$boxes  = $this->boxes( null, true, true, $stored );
+
+		$boxes->add();
+		$added = array_values( array_filter( $GLOBALS['otherguise_test_calls'], static fn( $call ) => 'add_meta_box' === $call[0] ) );
+		$this->assertSame( array( PostTypes::PROFILE, PostTypes::PROJECT ), array( $added[0][4], $added[1][4] ) );
+
+		ob_start();
+		$boxes->render_profile( (object) array( 'ID' => 3 ) );
+		$profile = (string) ob_get_clean();
+
+		$this->assertStringContainsString( 'nonce-stub', $profile );
+		$this->assertStringContainsString( 'name="books_profile[width_mm]"', $profile );
+		$this->assertStringContainsString( 'value="150"', $profile );
+		$this->assertStringContainsString( '<option value="outside">', $profile );
+		$this->assertStringContainsString( 'name="books_profile[final_blank]"', $profile );
+
+		ob_start();
+		$boxes->render_project( (object) array( 'ID' => 4 ) );
+		$project = (string) ob_get_clean();
+
+		$this->assertStringContainsString( '<option value="10">Book 2025</option>', $project );
+		$this->assertStringContainsString( '<option value="11" selected="selected">#11</option>', $project, 'An untitled section is shown by its id.' );
+		$this->assertStringContainsString( '<option value="20" selected="selected">CoolLibri A5</option>', $project );
+		$this->assertStringContainsString( 'value="Eric &lt;b&gt;"', $project );
+		$this->assertStringContainsString( 'checked="checked"', $project, 'Folios on by default.' );
+	}
+
+	/**
+	 * What is posted is normalized and stored; nothing is stored without the capability, the nonce or the form.
+	 *
+	 * @return void
+	 */
+	public function test_saving(): void {
+		$stored = array();
+
+		$this->boxes(
+			array(
+				'width_mm' => '155,5',
+				'folio'    => 'sideways',
+			),
+			true,
+			true,
+			$stored
+		)->save_profile( 3 );
+
+		$this->assertCount( 1, $stored );
+		$this->assertSame( array( 3, '_books_profile' ), array( $stored[0][0], $stored[0][1] ) );
+		$this->assertSame( 155.5, $stored[0][2]['width_mm'] );
+		$this->assertSame( 'none', $stored[0][2]['folio'], 'A value that is not offered is replaced.' );
+		$this->assertArrayNotHasKey( '__nonce', $stored[0][2] );
+
+		$stored = array();
+
+		$this->boxes(
+			array(
+				'root'    => '10',
+				'profile' => '20',
+				'folios'  => '0',
+				'extra'   => 'x',
+			),
+			true,
+			true,
+			$stored
+		)->save_project( 4 );
+
+		$this->assertSame(
+			array(
+				'root'    => 10,
+				'profile' => 20,
+				'author'  => '',
+				'folios'  => false,
+			),
+			$stored[0][2]
+		);
+		$this->assertSame( '_books_project', $stored[0][1] );
+
+		$stored = array();
+		$this->boxes( array( 'width_mm' => 1 ), false, true, $stored )->save_profile( 3 );
+		$this->boxes( array( 'width_mm' => 1 ), true, false, $stored )->save_profile( 3 );
+		$this->boxes( null, true, true, $stored )->save_profile( 3 );
+		$this->assertSame( array(), $stored, 'No capability, no valid nonce, no form: nothing is stored.' );
+	}
+
+	/**
+	 * The two types are not public, are edited by those who can edit others' posts, and are exported.
+	 *
+	 * @return void
+	 */
+	public function test_the_post_types(): void {
+		( new PostTypes() )->register();
+
+		$calls = array_values( array_filter( $GLOBALS['otherguise_test_calls'], static fn( $call ) => 'register_post_type' === $call[0] ) );
+
+		$this->assertSame( array( 'books_printer', 'books_project' ), array( $calls[0][1], $calls[1][1] ) );
+
+		foreach ( $calls as $call ) {
+			$arguments = $call[2];
+
+			$this->assertFalse( $arguments['public'] );
+			$this->assertFalse( $arguments['publicly_queryable'] );
+			$this->assertFalse( $arguments['show_in_rest'], 'Not in the REST API: edited with a meta box.' );
+			$this->assertFalse( $arguments['rewrite'] );
+			$this->assertTrue( $arguments['exclude_from_search'] );
+			$this->assertTrue( $arguments['can_export'] );
+			$this->assertSame( 'options-general.php', $arguments['show_in_menu'] );
+			$this->assertSame( array( 'title' ), $arguments['supports'] );
+			$this->assertSame( array( 'edit_others_posts' ), array_values( array_unique( $arguments['capabilities'] ) ) );
+		}
+	}
+
+	/**
+	 * Builds a fake store of posts.
+	 *
+	 * @param array $created Receives what is created.
+	 * @return object
+	 */
+	private function store( array &$created ) {
+		return new class( $created ) {
+			/**
+			 * Created posts.
+			 *
+			 * @var array
+			 */
+			private $created;
+
+			/**
+			 * Builds the double.
+			 *
+			 * @param array $created Receives what is created.
+			 */
+			public function __construct( array &$created ) {
+				$this->created = &$created;
+			}
+
+			/**
+			 * Profiles.
+			 *
+			 * @return array
+			 */
+			public function profiles() {
+				return array(
+					20 => 'CoolLibri A5',
+					21 => 'Flexilivre',
+				);
+			}
+
+			/**
+			 * Creates.
+			 *
+			 * @param string $type  Type.
+			 * @param string $title Title.
+			 * @param array  $meta  Meta.
+			 * @return int
+			 */
+			public function create( $type, $title, array $meta ) {
+				$this->created[] = array( $type, $title, $meta );
+
+				return 40 + count( $this->created );
+			}
+
+			/**
+			 * Updates a project.
+			 *
+			 * @param int   $id   Id.
+			 * @param array $meta Meta.
+			 * @return void
+			 */
+			public function update_project( $id, array $meta ) {
+				$this->created[] = array( 'update', $id, $meta );
+			}
+		};
+	}
+
+	/**
+	 * The commands on profiles: list, show, create (with a preset, twice, with --dry-run).
+	 *
+	 * @return void
+	 */
+	public function test_the_profile_commands(): void {
+		$out     = array();
+		$created = array();
+		$log     = static function ( $line ) use ( &$out ) {
+			$out[] = $line;
+		};
+		$fail    = static function ( $message ) {
+			throw new RuntimeException( esc_html( $message ) );
+		};
+		$command = new ProfileCommand( $this->projects(), $this->store( $created ), $log, $log, $fail );
+
+		$command->list( array(), array() );
+		$this->assertSame( "20\tCoolLibri A5\t148x210\t20", $out[0], 'A profile that is not a post is shown with the defaults.' );
+
+		$out = array();
+		$command->show( array( '21' ), array() );
+		$this->assertContains( 'width_mm: 150', $out );
+		$this->assertContains( 'final_blank: no', $out );
+
+		$this->expectException( RuntimeException::class );
+		$command->show( array( '99' ), array() );
+	}
+
+	/**
+	 * Creating a profile.
+	 *
+	 * @return void
+	 */
+	public function test_creating_a_profile(): void {
+		$out     = array();
+		$created = array();
+		$log     = static function ( $line ) use ( &$out ) {
+			$out[] = $line;
+		};
+		$fail    = static function ( $message ) {
+			throw new RuntimeException( esc_html( $message ) );
+		};
+		$command = new ProfileCommand( $this->projects(), $this->store( $created ), $log, $log, $fail );
+
+		$command->create(
+			array( 'New' ),
+			array(
+				'dry-run' => true,
+				'preset' => 'coollibri',
+			)
+		);
+		$this->assertSame( array(), $created );
+		$this->assertSame( array( 'Would create the profile "New".' ), $out );
+
+		$command->create( array( 'New' ), array( 'preset' => 'coollibri' ) );
+		$this->assertSame( PostTypes::PROFILE, $created[0][0] );
+		$this->assertSame( 700, $created[0][2]['max_mb'] );
+
+		$out = array();
+		$command->create( array( 'Flexilivre' ), array() );
+		$this->assertCount( 1, $created, 'A profile with that title exists: left as it is.' );
+		$this->assertStringContainsString( 'exists already', $out[0] );
+
+		foreach ( array( array( array( '' ), array() ), array( array( 'X' ), array( 'preset' => 'nope' ) ) ) as $case ) {
+			try {
+				$command->create( $case[0], $case[1] );
+				$this->fail( 'An error was expected.' );
+			} catch ( RuntimeException $exception ) {
+				$this->assertNotSame( '', $exception->getMessage() );
+			}
+		}
+	}
+
+	/**
+	 * The commands on projects: list, show, create, set-profile, each run twice.
+	 *
+	 * @return void
+	 */
+	public function test_the_project_commands(): void {
+		$out     = array();
+		$created = array();
+		$log     = static function ( $line ) use ( &$out ) {
+			$out[] = $line;
+		};
+		$fail    = static function ( $message ) {
+			throw new RuntimeException( esc_html( $message ) );
+		};
+		$command = new ProjectCommand( $this->projects(), $this->store( $created ), static fn( $id ) => in_array( $id, array( 10, 11, 12 ), true ), $log, $log, $fail );
+
+		$command->list( array(), array() );
+		$this->assertSame( "5\tCoolLibri\t10\t20", $out[0] );
+
+		$out = array();
+		$command->show( array( '5' ), array() );
+		$this->assertContains( 'root: 10', $out );
+		$this->assertStringContainsString( '@page{size:148mm 210mm', end( $out ) );
+
+		$out = array();
+		$command->show( array( '7' ), array() );
+		$this->assertStringContainsString( 'none', end( $out ), 'No rules without a profile.' );
+
+		$out = array();
+		$command->create(
+			array( 'Book 2026' ),
+			array(
+				'root' => '12',
+				'profile' => '20',
+				'dry-run' => true,
+			)
+		);
+		$this->assertSame( array(), $created );
+		$command->create(
+			array( 'Book 2026' ),
+			array(
+				'root' => '12',
+				'profile' => '20',
+			)
+		);
+		$this->assertSame(
+			array(
+				'root' => 12,
+				'profile' => 20,
+				'author' => '',
+				'folios' => true,
+			),
+			$created[0][2]
+		);
+		$command->create(
+			array( 'CoolLibri' ),
+			array(
+				'root' => '12',
+				'profile' => '20',
+			)
+		);
+		$this->assertCount( 1, $created, 'A project with that title exists: left as it is.' );
+
+		$command->set_profile( array( '5', '20' ), array() );
+		$this->assertCount( 1, $created, 'Already that profile: nothing changes.' );
+		$command->set_profile( array( '5', '21' ), array( 'dry-run' => true ) );
+		$this->assertCount( 1, $created );
+		$command->set_profile( array( '5', '21' ), array() );
+		$this->assertSame( array( 'update', 5 ), array( $created[1][0], $created[1][1] ) );
+		$this->assertSame( 21, $created[1][2]['profile'] );
+		$this->assertSame( 10, $created[1][2]['root'] );
+
+		foreach ( array(
+			array(
+				'create',
+				array( 'T' ),
+				array(
+					'root' => '99',
+					'profile' => '20',
+				),
+			),
+			array(
+				'create',
+				array( 'T' ),
+				array(
+					'root' => '12',
+					'profile' => '99',
+				),
+			),
+			array(
+				'create',
+				array( '' ),
+				array(
+					'root' => '12',
+					'profile' => '20',
+				),
+			),
+			array( 'set_profile', array( '99', '20' ), array() ),
+			array( 'set_profile', array( '5', '99' ), array() ),
+			array( 'show', array( '99' ), array() ),
+		) as $case ) {
+			try {
+				$command->{$case[0]}( $case[1], $case[2] );
+				$this->fail( 'An error was expected for ' . $case[0] );
+			} catch ( RuntimeException $exception ) {
+				$this->assertNotSame( '', $exception->getMessage() );
+			}
+		}
+	}
+}
