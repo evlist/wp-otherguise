@@ -135,10 +135,10 @@ final class PdfJobs {
 	 * @param callable         $mode_exists   Receives a slug; tells whether the mode exists.
 	 * @param callable         $url_for       Receives the permalink and the mode; returns the address to convert.
 	 * @param callable         $make_renderer Receives the address of the server; returns a `Renderer`.
-	 * @param callable         $schedule      Receives the post id, the mode and the key; schedules the event.
+	 * @param callable         $schedule      Receives the post id, the mode, the key and the project; schedules the event.
 	 * @param callable|null    $now           Defaults to `time`.
 	 * @param callable|null    $reach         Receives the address to convert; returns the address by which the server reaches it (the same by default).
-	 * @param callable|null    $rules         Receives a post id; returns the rules of its book project (`project`, `format`, `css`) or null (none by default).
+	 * @param callable|null    $rules         Receives a post id and the project asked for; returns the rules of the book project (`project`, `format`, `css`) or null (none by default).
 	 */
 	public function __construct( RendererSettings $settings, PageFormat $format, PdfStore $store, JobState $state, $post_info, $mode_exists, $url_for, $make_renderer, $schedule, $now = null, $reach = null, $rules = null ) {
 		$this->settings      = $settings;
@@ -165,16 +165,17 @@ final class PdfJobs {
 	 * @param int    $post_id Post.
 	 * @param string $mode    Slug of the mode.
 	 * @param bool   $force   Make a new conversion even when the files hold one.
+	 * @param int    $project Id of the book project whose rules apply (0: the first that covers the post).
 	 * @return array<string, mixed>|\WP_Error The state.
 	 */
-	public function request( $post_id, $mode, $force = false ) {
+	public function request( $post_id, $mode, $force = false, $project = 0 ) {
 		$check = $this->check( $post_id, $mode, true );
 
 		if ( $check instanceof \WP_Error ) {
 			return $check;
 		}
 
-		$key     = $this->key( $post_id, $mode, $check );
+		$key     = $this->key( $post_id, $mode, $check, $project );
 		$state   = $this->state->get( $post_id, $mode );
 		$preview = ! empty( $check['preview'] );
 
@@ -193,7 +194,7 @@ final class PdfJobs {
 
 		$state = $this->fresh( $key, 'queued', $preview );
 		$this->state->set( $post_id, $mode, $state );
-		( $this->schedule )( $post_id, $mode, $key );
+		( $this->schedule )( $post_id, $mode, $key, (int) $project );
 
 		return $this->present( $state );
 	}
@@ -203,16 +204,17 @@ final class PdfJobs {
 	 *
 	 * @param int    $post_id Post.
 	 * @param string $mode    Slug of the mode.
+	 * @param int    $project Id of the book project whose rules apply (0: the first that covers the post).
 	 * @return array<string, mixed>|\WP_Error
 	 */
-	public function status( $post_id, $mode ) {
+	public function status( $post_id, $mode, $project = 0 ) {
 		$check = $this->check( $post_id, $mode );
 
 		if ( $check instanceof \WP_Error ) {
 			return $check;
 		}
 
-		$key     = $this->key( $post_id, $mode, $check );
+		$key     = $this->key( $post_id, $mode, $check, $project );
 		$state   = $this->state->get( $post_id, $mode );
 		$preview = ! empty( $check['preview'] );
 
@@ -234,9 +236,10 @@ final class PdfJobs {
 	 * @param int    $post_id Post.
 	 * @param string $mode    Slug of the mode.
 	 * @param string $key     Key of the conversion that was queued.
+	 * @param int    $project Id of the book project whose rules apply (0: the first that covers the post).
 	 * @return void
 	 */
-	public function run( $post_id, $mode, $key ) {
+	public function run( $post_id, $mode, $key, $project = 0 ) {
 		$state = $this->state->get( $post_id, $mode );
 
 		if ( ( $state['key'] ?? '' ) !== $key || 'queued' !== ( $state['status'] ?? '' ) ) {
@@ -274,7 +277,7 @@ final class PdfJobs {
 			return;
 		}
 
-		$rules   = ( $this->rules )( $post_id );
+		$rules   = ( $this->rules )( $post_id, (int) $project );
 		$url     = ( $this->url_for )( $info['url'], $mode );
 		$started = microtime( true );
 		$result  = $renderer->convert_url_to_file(
@@ -327,16 +330,17 @@ final class PdfJobs {
 	 *
 	 * @param int    $post_id Post.
 	 * @param string $mode    Slug of the mode.
+	 * @param int    $project Id of the book project whose rules apply (0: the first that covers the post).
 	 * @return array{path:string, filename:string, pages:int|null, preview:bool, size:int}|\WP_Error
 	 */
-	public function download( $post_id, $mode ) {
+	public function download( $post_id, $mode, $project = 0 ) {
 		$check = $this->check( $post_id, $mode );
 
 		if ( $check instanceof \WP_Error ) {
 			return $check;
 		}
 
-		$key = $this->key( $post_id, $mode, $check );
+		$key = $this->key( $post_id, $mode, $check, $project );
 
 		if ( ! $this->store->has( $key ) ) {
 			return new \WP_Error( 'books_pdf_not_ready', __( 'The PDF is not ready.', 'otherguise' ), array( 'status' => 409 ) );
@@ -429,14 +433,15 @@ final class PdfJobs {
 	 * @param int                  $post_id Post.
 	 * @param string               $mode    Slug of the mode.
 	 * @param array<string, mixed> $info    What is known of the post.
+	 * @param int                  $project Id of the book project asked for (0 for none).
 	 * @return string
 	 */
-	private function key( $post_id, $mode, array $info ) {
+	private function key( $post_id, $mode, array $info, $project = 0 ) {
 		$settings = $this->settings->get();
 
 		unset( $settings[ RendererSettings::URL ], $settings[ RendererSettings::KEEP_DAYS ] );
 
-		$rules = ( $this->rules )( $post_id );
+		$rules = ( $this->rules )( $post_id, (int) $project );
 
 		$parts = array(
 			'version'  => 1,

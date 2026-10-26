@@ -75,7 +75,7 @@
 	 * The address shown in the iframe: the permalink of a published post, the preview link of the editor for the others, with the mode
 	 * and the argument that tells the page it is in the preview. Empty when there is nothing to show.
 	 */
-	function previewUrl( post, mode, argument ) {
+	function previewUrl( post, mode, argument, project ) {
 		var base = 'publish' === post.status ? post.permalink : post.previewLink;
 
 		if ( ! base ) {
@@ -89,6 +89,11 @@
 			url.searchParams.set( 'mode', mode );
 		}
 		url.searchParams.set( argument, '1' );
+
+		// The book project whose rules the page takes (slice 230): the server chooses the first one that covers the post when there is none.
+		if ( project > 0 ) {
+			url.searchParams.set( 'books_project', String( project ) );
+		}
 
 		return relative ? url.pathname + url.search + url.hash : url.toString();
 	}

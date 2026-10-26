@@ -385,11 +385,12 @@ class BooksPdfTest extends TestCase {
 	/**
 	 * Builds the jobs with doubles. The post 12 is published, 13 is a draft, others do not exist.
 	 *
-	 * @param array $calls     Calls of the renderer.
-	 * @param array $scheduled Events scheduled.
-	 * @param array $answers   Answers of the renderer.
-	 * @param int   $pages     Pages.
-	 * @param array $info      Overrides of the info of the post 12.
+	 * @param array         $calls     Calls of the renderer.
+	 * @param array         $scheduled Events scheduled.
+	 * @param array         $answers   Answers of the renderer.
+	 * @param int           $pages     Pages.
+	 * @param array         $info      Overrides of the info of the post 12.
+	 * @param callable|null $rules Receives a post id; returns the rules of its book project, or null (slice 230).
 	 * @return PdfJobs
 	 */
 	private function jobs( array &$calls, array &$scheduled, array $answers = array(), $pages = 2, array $info = array(), $rules = null ) {
@@ -418,8 +419,8 @@ class BooksPdfTest extends TestCase {
 			static fn( $slug ) => in_array( $slug, array( 'web', 'print' ), true ),
 			static fn( $url, $mode ) => $url . '?mode=' . $mode,
 			static fn( $address ) => '' === $address ? null : $renderer,
-			static function ( $post_id, $mode, $key ) use ( &$scheduled ) {
-				$scheduled[] = array( $post_id, $mode, $key );
+			static function ( $post_id, $mode, $key, $project = 0 ) use ( &$scheduled ) {
+				$scheduled[] = array( $post_id, $mode, $key, $project );
 			},
 			fn() => $this->time,
 			null,
@@ -603,6 +604,52 @@ class BooksPdfTest extends TestCase {
 		$changed->request( 12, 'print' );
 		$this->assertNotSame( $plain_key, $scheduled[0][2] );
 		$this->assertNotSame( $ruled->status( 12, 'print' )['key'] ?? '', $scheduled[0][2], 'A change of the CSS makes another key.' );
+	}
+
+	/**
+	 * When several book projects cover a post, the one asked for goes to the rules, to the event and to the key; asking for the project that
+	 * applies anyway gives the same key as not asking.
+	 *
+	 * @return void
+	 */
+	public function test_the_project_asked_for(): void {
+		$calls     = array();
+		$scheduled = array();
+		$asked     = array();
+		$rules     = static function ( $post_id, $project = 0 ) use ( &$asked ) {
+			$asked[] = array( $post_id, $project );
+			$id      = in_array( $project, array( 5, 6 ), true ) ? $project : 5;
+
+			return array(
+				'project' => $id,
+				'format'  => array(
+					'width_mm'  => 5 === $id ? 148.0 : 210.0,
+					'height_mm' => 210.0,
+					'margin_mm' => 10.0,
+				),
+				'css'     => '@page{size:' . $id . '}',
+			);
+		};
+		$jobs      = $this->jobs( $calls, $scheduled, array( '%PDF-1.7 a', '%PDF-1.7 b' ), 2, array(), $rules );
+		$this->configure();
+
+		$jobs->request( 12, 'print' );
+		$default = $scheduled[0][2];
+		$jobs->request( 12, 'print', false, 5 );
+		$this->assertCount( 1, $scheduled, 'The project that applies anyway: the same key, the same job.' );
+		$jobs->request( 12, 'print', false, 6 );
+
+		$this->assertNotSame( $default, $scheduled[1][2], 'Another project: another key.' );
+		$this->assertSame( 6, $scheduled[1][3], 'The project goes to the event.' );
+
+		$jobs->run( ...$scheduled[1] );
+		$this->assertSame( 210.0, $calls[0][1]['width_mm'], 'The job makes the project that was asked for.' );
+		$this->assertStringContainsString( 'books_project=6', $calls[0][0] );
+		$this->assertContains( array( 12, 6 ), $asked );
+
+		$this->assertSame( 'done', $jobs->status( 12, 'print', 6 )['status'] );
+		$this->assertSame( 'none', $jobs->status( 12, 'print', 5 )['status'], 'The other project was not made.' );
+		$this->assertIsArray( $jobs->download( 12, 'print', 6 ) );
 	}
 
 	/**

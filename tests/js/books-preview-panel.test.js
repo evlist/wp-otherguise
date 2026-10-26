@@ -24,7 +24,7 @@ function make( extra ) {
 	const panel = createPanel( {
 		document: dom.window.document,
 		geometry,
-		settings: SETTINGS,
+		settings: Object.assign( {}, SETTINGS, context.settings ),
 		getPost: () => context.post,
 		storage: context.noStorage
 			? null
@@ -325,4 +325,40 @@ test( 'a saved position and size are restored; garbage and a blocked storage are
 	const none = make( { noStorage: true } );
 	none.panel.open();
 	assert.strictEqual( none.panel.isOpen(), true );
+} );
+
+test( 'the book projects (slice 230): no choice for one, a choice for several, the page and the address follow the project', () => {
+	const projects = [
+		{ id: 5, title: 'CoolLibri', page: { width_mm: 148, height_mm: 210, margin_mm: 10 } },
+		{ id: 6, title: 'Flexilivre', page: { width_mm: 210, height_mm: 210, margin_mm: 5 } },
+	];
+
+	const none = make();
+	assert.strictEqual( none.q( '.books-preview__project' ).hidden, true, 'no project: nothing to choose' );
+	none.panel.open();
+	assert.ok( ! /books_project/.test( none.panel.iframe().src ), 'no project: nothing is added to the address' );
+
+	const one = make( { settings: { projects: [ projects[ 0 ] ] } } );
+	assert.strictEqual( one.q( '.books-preview__project' ).hidden, true, 'one project: nothing to choose' );
+	one.panel.open();
+	assert.match( one.panel.iframe().src, /books_project=5/, 'but it is the one asked for' );
+
+	const { panel, q } = make( { settings: { projects } } );
+	const choice = q( '.books-preview__project' );
+
+	assert.strictEqual( choice.hidden, false );
+	assert.deepStrictEqual( [ ...choice.options ].map( ( o ) => o.textContent ), [ 'CoolLibri', 'Flexilivre' ] );
+	assert.strictEqual( panel.project(), 5, 'the first project is chosen' );
+
+	panel.open();
+	assert.match( panel.iframe().src, /books_project=5/ );
+	assert.strictEqual( panel.iframe().style.width, geometry.mmToPx( 128 ) + 'px' );
+
+	choice.value = '6';
+	choice.dispatchEvent( new choice.ownerDocument.defaultView.Event( 'change' ) );
+
+	assert.strictEqual( panel.project(), 6 );
+	assert.match( panel.iframe().src, /books_project=6/, 'the page is loaded again for the other project' );
+	assert.strictEqual( panel.iframe().style.width, geometry.mmToPx( 200 ) + 'px', 'laid out at the page of that project' );
+	assert.strictEqual( panel.iframe().style.height, geometry.mmToPx( 200 ) + 'px' );
 } );

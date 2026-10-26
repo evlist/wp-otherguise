@@ -42,7 +42,7 @@ final class PdfRoutes {
 	private $can_edit;
 
 	/**
-	 * Gives the address of the route that sends the file: receives the post id and the mode.
+	 * Gives the address of the route that sends the file: receives the post id, the mode and the project.
 	 *
 	 * @var callable
 	 */
@@ -68,10 +68,11 @@ final class PdfRoutes {
 		$this->can_edit = $can_edit ?? static function ( $post_id ) {
 			return current_user_can( 'edit_post', $post_id );
 		};
-		$this->address  = $address ?? static function ( $post_id, $mode ) {
+		$this->address  = $address ?? static function ( $post_id, $mode, $project = 0 ) {
 			return add_query_arg(
 				array(
 					'mode'     => $mode,
+					'project'  => (int) $project,
 					'_wpnonce' => wp_create_nonce( 'wp_rest' ),
 				),
 				rest_url( self::REST_NAMESPACE . '/pdf/' . (int) $post_id . '/download' )
@@ -92,10 +93,15 @@ final class PdfRoutes {
 				'required'          => true,
 				'sanitize_callback' => 'absint',
 			),
-			'mode' => array(
+			'mode'    => array(
 				'type'              => 'string',
 				'default'           => 'print',
 				'sanitize_callback' => array( $this, 'sanitize_mode' ),
+			),
+			'project' => array(
+				'type'              => 'integer',
+				'default'           => 0,
+				'sanitize_callback' => 'absint',
 			),
 		);
 
@@ -175,7 +181,7 @@ final class PdfRoutes {
 	 * @return array<string, mixed>|\WP_Error
 	 */
 	public function start( $request ) {
-		return $this->jobs->request( (int) $request->get_param( 'id' ), $this->sanitize_mode( $request->get_param( 'mode' ) ), (bool) $request->get_param( 'refresh' ) );
+		return $this->jobs->request( (int) $request->get_param( 'id' ), $this->sanitize_mode( $request->get_param( 'mode' ) ), (bool) $request->get_param( 'refresh' ), (int) $request->get_param( 'project' ) );
 	}
 
 	/**
@@ -185,7 +191,7 @@ final class PdfRoutes {
 	 * @return array<string, mixed>|\WP_Error
 	 */
 	public function status( $request ) {
-		return $this->jobs->status( (int) $request->get_param( 'id' ), $this->sanitize_mode( $request->get_param( 'mode' ) ) );
+		return $this->jobs->status( (int) $request->get_param( 'id' ), $this->sanitize_mode( $request->get_param( 'mode' ) ), (int) $request->get_param( 'project' ) );
 	}
 
 	/**
@@ -196,8 +202,9 @@ final class PdfRoutes {
 	 */
 	public function file( $request ) {
 		$id   = (int) $request->get_param( 'id' );
-		$mode = $this->sanitize_mode( $request->get_param( 'mode' ) );
-		$info = $this->jobs->download( $id, $mode );
+		$mode    = $this->sanitize_mode( $request->get_param( 'mode' ) );
+		$project = (int) $request->get_param( 'project' );
+		$info    = $this->jobs->download( $id, $mode, $project );
 
 		if ( $info instanceof \WP_Error ) {
 			return $info;
@@ -208,7 +215,7 @@ final class PdfRoutes {
 			'pages'    => $info['pages'],
 			'preview'  => $info['preview'],
 			'size'     => $info['size'],
-			'url'      => ( $this->address )( $id, $mode ),
+			'url'      => ( $this->address )( $id, $mode, $project ),
 		);
 	}
 
@@ -219,7 +226,7 @@ final class PdfRoutes {
 	 * @return mixed An error, or what the sender gives (it ends the request).
 	 */
 	public function download( $request ) {
-		$info = $this->jobs->download( (int) $request->get_param( 'id' ), $this->sanitize_mode( $request->get_param( 'mode' ) ) );
+		$info = $this->jobs->download( (int) $request->get_param( 'id' ), $this->sanitize_mode( $request->get_param( 'mode' ) ), (int) $request->get_param( 'project' ) );
 
 		if ( $info instanceof \WP_Error ) {
 			return $info;

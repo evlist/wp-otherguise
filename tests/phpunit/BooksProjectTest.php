@@ -169,8 +169,87 @@ class BooksProjectTest extends TestCase {
 	}
 
 	/**
-	 * Builds the service: the projects 5 (root 10, profile 20), 6 (root 10, profile 21, no folios) and 7 (root 11, profile 99, missing), the
-	 * section 10 holds 100 (and, through the section 12, 101).
+	 * A double of the relations: the projects 5 (root 10, profile 20), 6 (root 10, profile 21) and 7 (root 11, profile 99, missing) and 8
+	 * (none); the section 10 reaches 100, 12 and 101, the section 11 reaches 100.
+	 *
+	 * @return object
+	 */
+	private function links() {
+		return new class() {
+			/**
+			 * Roots.
+			 *
+			 * @var array
+			 */
+			private $roots = array(
+				5 => 10,
+				6 => 10,
+				7 => 11,
+			);
+
+			/**
+			 * Profiles.
+			 *
+			 * @var array
+			 */
+			private $profiles = array(
+				5 => 20,
+				6 => 21,
+				7 => 99,
+			);
+
+			/**
+			 * Posts that a section reaches.
+			 *
+			 * @var array
+			 */
+			private $reach = array(
+				10 => array( 100, 12, 101 ),
+				11 => array( 100 ),
+			);
+
+			/**
+			 * Root.
+			 *
+			 * @param int $id Project.
+			 * @return int
+			 */
+			public function root( $id ) {
+				return $this->roots[ $id ] ?? 0;
+			}
+
+			/**
+			 * Profile.
+			 *
+			 * @param int $id Project.
+			 * @return int
+			 */
+			public function profile( $id ) {
+				return $this->profiles[ $id ] ?? 0;
+			}
+
+			/**
+			 * Projects that cover a post.
+			 *
+			 * @param int $post Post.
+			 * @return int[]
+			 */
+			public function covering( $post ) {
+				$ids = array();
+
+				foreach ( $this->roots as $project => $root ) {
+					if ( $root === $post || in_array( $post, $this->reach[ $root ] ?? array(), true ) ) {
+						$ids[] = $project;
+					}
+				}
+
+				return $ids;
+			}
+		};
+	}
+
+	/**
+	 * Builds the service with the double of the relations; the project 6 has no folios.
 	 *
 	 * @return Projects
 	 */
@@ -179,27 +258,19 @@ class BooksProjectTest extends TestCase {
 			array(
 				'id'    => 7,
 				'title' => 'Orphan',
-				'meta'  => array(
-					'root'    => 11,
-					'profile' => 99,
-				),
+				'meta'  => array(),
 			),
 			array(
 				'id'    => 5,
 				'title' => 'CoolLibri',
-				'meta'  => array(
-					'root'    => 10,
-					'profile' => 20,
-				),
+				'meta'  => array(),
 			),
 			array(
 				'id'    => 6,
 				'title' => 'Flexilivre',
 				'meta'  => array(
-					'root'    => '10',
-					'profile' => 21,
-					'folios'  => '0',
-					'author'  => 'Eric',
+					'folios' => '0',
+					'author' => 'Eric',
 				),
 			),
 			array(
@@ -215,15 +286,11 @@ class BooksProjectTest extends TestCase {
 			),
 			21 => array( 'width_mm' => 150 ),
 		);
-		$reach    = array(
-			10 => array( 100, 12, 101 ),
-			11 => array( 100 ),
-		);
 
 		return new Projects(
 			static fn() => $rows,
 			static fn( $id ) => $profiles[ $id ] ?? null,
-			static fn( $root, $post ) => in_array( $post, $reach[ $root ] ?? array(), true )
+			$this->links()
 		);
 	}
 
@@ -248,7 +315,14 @@ class BooksProjectTest extends TestCase {
 			$projects->get( 6 )
 		);
 		$this->assertTrue( $projects->get( 5 )['folios'], 'The folios are on by default.' );
-		$this->assertSame( 0, $projects->get( 8 )['root'], 'A broken meta gives no root.' );
+		$this->assertSame( 0, $projects->get( 8 )['root'], 'No relation: no root.' );
+		$this->assertSame(
+			array(
+				'author' => '',
+				'folios' => true,
+			),
+			Projects::normalize( 'broken' )
+		);
 		$this->assertNull( $projects->get( 99 ) );
 		$this->assertSame( 150.0, $projects->profile( 21 )['width_mm'] );
 		$this->assertNull( $projects->profile( 99 ) );
@@ -270,6 +344,7 @@ class BooksProjectTest extends TestCase {
 		$this->assertSame( 6, $projects->for_post( 100, 6 )['project']['id'], 'The one asked for.' );
 		$this->assertStringNotContainsString( 'counter(page)', $projects->for_post( 100, 6 )['css'], 'Folios off in that project.' );
 		$this->assertSame( 5, $projects->for_post( 100, 7 )['project']['id'], 'A project that does not cover the post is ignored.' );
+		$this->assertSame( array( 5, 6 ), array_keys( $projects->covering( 100 ) ), 'Two projects cover it; the one without a profile is left out.' );
 		$this->assertSame( 5, $projects->for_post( 10 )['project']['id'], 'The root itself.' );
 		$this->assertNull( $projects->for_post( 55 ), 'No project covers it.' );
 		$this->assertNull( $projects->for_post( 11 ), 'The profile of the project 7 is missing: no rules.' );
@@ -332,15 +407,108 @@ class BooksProjectTest extends TestCase {
 	}
 
 	/**
+	 * A double of the relations that records what is set, and reads root 11 and profile 20 for any project.
+	 *
+	 * @param array $calls   Receives the calls: `array( 'root'|'profile', project, id )`.
+	 * @param int   $root    The root that is read.
+	 * @param int   $profile The profile that is read.
+	 * @return object
+	 */
+	private function recorder( array &$calls, $root = 11, $profile = 20 ) {
+		return new class( $calls, $root, $profile ) {
+			/**
+			 * Calls.
+			 *
+			 * @var array
+			 */
+			private $calls;
+
+			/**
+			 * The root that is read.
+			 *
+			 * @var int
+			 */
+			private $root;
+
+			/**
+			 * The profile that is read.
+			 *
+			 * @var int
+			 */
+			private $profile;
+
+			/**
+			 * Builds the double.
+			 *
+			 * @param array $calls   Receives the calls.
+			 * @param int   $root    The root that is read.
+			 * @param int   $profile The profile that is read.
+			 */
+			public function __construct( array &$calls, $root, $profile ) {
+				$this->calls   = &$calls;
+				$this->root    = $root;
+				$this->profile = $profile;
+			}
+
+			/**
+			 * Root.
+			 *
+			 * @param int $id Project.
+			 * @return int
+			 */
+			public function root( $id ) {
+				return $this->root;
+			}
+
+			/**
+			 * Profile.
+			 *
+			 * @param int $id Project.
+			 * @return int
+			 */
+			public function profile( $id ) {
+				return $this->profile;
+			}
+
+			/**
+			 * Sets the root.
+			 *
+			 * @param int $project Project.
+			 * @param int $section Section.
+			 * @return bool
+			 */
+			public function set_root( $project, $section ) {
+				$this->calls[] = array( 'root', $project, $section );
+
+				return true;
+			}
+
+			/**
+			 * Sets the profile.
+			 *
+			 * @param int $project Project.
+			 * @param int $profile Profile.
+			 * @return bool
+			 */
+			public function set_profile( $project, $profile ) {
+				$this->calls[] = array( 'profile', $project, $profile );
+
+				return true;
+			}
+		};
+	}
+
+	/**
 	 * Builds the boxes with doubles; the posted form is `$posted`.
 	 *
 	 * @param array|null $posted Posted form.
 	 * @param bool       $can    Whether the user may edit the post.
 	 * @param bool       $valid  Whether the nonce is valid.
 	 * @param array      $stored Receives what is stored.
+	 * @param array      $linked Receives the relations that are set.
 	 * @return MetaBoxes
 	 */
-	private function boxes( $posted, $can, $valid, array &$stored ) {
+	private function boxes( $posted, $can, $valid, array &$stored, array &$linked = array() ) {
 		return new MetaBoxes(
 			static fn() => array(
 				10 => 'Book 2025',
@@ -349,10 +517,9 @@ class BooksProjectTest extends TestCase {
 			static fn() => array(
 				20 => 'CoolLibri A5',
 			),
+			$this->recorder( $linked ),
 			static fn( $id, $key ) => array(
-				'root'    => 11,
-				'profile' => 20,
-				'author'  => 'Eric <b>',
+				'author'   => 'Eric <b>',
 				'width_mm' => 150,
 			),
 			static function ( $id, $key, $value ) use ( &$stored ) {
@@ -423,6 +590,7 @@ class BooksProjectTest extends TestCase {
 		$this->assertArrayNotHasKey( '__nonce', $stored[0][2] );
 
 		$stored = array();
+		$linked = array();
 
 		$this->boxes(
 			array(
@@ -433,25 +601,41 @@ class BooksProjectTest extends TestCase {
 			),
 			true,
 			true,
-			$stored
+			$stored,
+			$linked
 		)->save_project( 4 );
 
 		$this->assertSame(
 			array(
-				'root'    => 10,
-				'profile' => 20,
-				'author'  => '',
-				'folios'  => false,
+				'author' => '',
+				'folios' => false,
 			),
-			$stored[0][2]
+			$stored[0][2],
+			'The meta holds the author and the folios only.'
 		);
 		$this->assertSame( '_books_project', $stored[0][1] );
+		$this->assertSame(
+			array(
+				array( 'root', 4, 10 ),
+				array( 'profile', 4, 20 ),
+			),
+			$linked,
+			'The root and the profile are relations.'
+		);
 
 		$stored = array();
-		$this->boxes( array( 'width_mm' => 1 ), false, true, $stored )->save_profile( 3 );
-		$this->boxes( array( 'width_mm' => 1 ), true, false, $stored )->save_profile( 3 );
-		$this->boxes( null, true, true, $stored )->save_profile( 3 );
-		$this->assertSame( array(), $stored, 'No capability, no valid nonce, no form: nothing is stored.' );
+		$linked = array();
+		$this->boxes( array( 'root' => 'x' ), true, true, $stored, $linked )->save_project( 4 );
+		$this->assertSame( array( array( 'root', 4, 0 ), array( 'profile', 4, 0 ) ), $linked, 'Not a number: the relation is taken away.' );
+
+		$stored = array();
+		$linked = array();
+		$this->boxes( array( 'width_mm' => 1 ), false, true, $stored, $linked )->save_profile( 3 );
+		$this->boxes( array( 'width_mm' => 1 ), true, false, $stored, $linked )->save_profile( 3 );
+		$this->boxes( null, true, true, $stored, $linked )->save_profile( 3 );
+		$this->boxes( array( 'root' => '10' ), false, true, $stored, $linked )->save_project( 3 );
+		$this->boxes( array( 'root' => '10' ), true, false, $stored, $linked )->save_project( 3 );
+		$this->assertSame( array(), array_merge( $stored, $linked ), 'No capability, no valid nonce, no form: nothing is stored.' );
 	}
 
 	/**
@@ -514,6 +698,30 @@ class BooksProjectTest extends TestCase {
 				return array(
 					20 => 'CoolLibri A5',
 					21 => 'Flexilivre',
+				);
+			}
+
+			/**
+			 * The stored projects: one made before the relations, one after.
+			 *
+			 * @return array
+			 */
+			public function projects() {
+				return array(
+					array(
+						'id'    => 5,
+						'title' => 'Old',
+						'meta'  => array(
+							'root'    => 10,
+							'profile' => 20,
+							'author'  => 'Eric',
+						),
+					),
+					array(
+						'id'    => 6,
+						'title' => 'New',
+						'meta'  => array( 'author' => 'x' ),
+					),
 				);
 			}
 
@@ -631,7 +839,8 @@ class BooksProjectTest extends TestCase {
 		$fail    = static function ( $message ) {
 			throw new RuntimeException( esc_html( $message ) );
 		};
-		$command = new ProjectCommand( $this->projects(), $this->store( $created ), static fn( $id ) => in_array( $id, array( 10, 11, 12 ), true ), $log, $log, $fail );
+		$linked  = array();
+		$command = new ProjectCommand( $this->projects(), $this->store( $created ), $this->recorder( $linked ), static fn( $id ) => in_array( $id, array( 10, 11, 12 ), true ), $log, $log, $fail );
 
 		$command->list( array(), array() );
 		$this->assertSame( "5\tCoolLibri\t10\t20", $out[0] );
@@ -664,12 +873,19 @@ class BooksProjectTest extends TestCase {
 		);
 		$this->assertSame(
 			array(
-				'root' => 12,
-				'profile' => 20,
 				'author' => '',
 				'folios' => true,
 			),
-			$created[0][2]
+			$created[0][2],
+			'The meta of a new project.'
+		);
+		$this->assertSame(
+			array(
+				array( 'root', 41, 12 ),
+				array( 'profile', 41, 20 ),
+			),
+			$linked,
+			'The root and the profile are relations.'
 		);
 		$command->create(
 			array( 'CoolLibri' ),
@@ -682,12 +898,13 @@ class BooksProjectTest extends TestCase {
 
 		$command->set_profile( array( '5', '20' ), array() );
 		$this->assertCount( 1, $created, 'Already that profile: nothing changes.' );
+		$this->assertCount( 2, $linked );
 		$command->set_profile( array( '5', '21' ), array( 'dry-run' => true ) );
 		$this->assertCount( 1, $created );
+		$this->assertCount( 2, $linked );
 		$command->set_profile( array( '5', '21' ), array() );
-		$this->assertSame( array( 'update', 5 ), array( $created[1][0], $created[1][1] ) );
-		$this->assertSame( 21, $created[1][2]['profile'] );
-		$this->assertSame( 10, $created[1][2]['root'] );
+		$this->assertCount( 1, $created );
+		$this->assertSame( array( 'profile', 5, 21 ), $linked[2] );
 
 		foreach ( array(
 			array(
@@ -725,5 +942,53 @@ class BooksProjectTest extends TestCase {
 				$this->assertNotSame( '', $exception->getMessage() );
 			}
 		}
+	}
+
+	/**
+	 * The migration moves the root and the profile of the projects made before the relations from their meta, and can be run twice.
+	 *
+	 * @return void
+	 */
+	public function test_the_migration(): void {
+		$out     = array();
+		$created = array();
+		$linked  = array();
+		$log     = static function ( $line ) use ( &$out ) {
+			$out[] = $line;
+		};
+		$command = new ProjectCommand( $this->projects(), $this->store( $created ), $this->recorder( $linked, 0, 0 ), static fn() => true, $log, $log, $log );
+
+		$command->migrate( array(), array( 'dry-run' => true ) );
+		$this->assertSame( array(), $linked );
+		$this->assertSame( array(), $created );
+		$this->assertSame( array( 'Would move the root and the profile of the project 5 to relations.', '1 project(s) to migrate.' ), $out );
+
+		$out = array();
+		$command->migrate( array(), array() );
+		$this->assertSame(
+			array(
+				array( 'root', 5, 10 ),
+				array( 'profile', 5, 20 ),
+			),
+			$linked
+		);
+		$this->assertSame(
+			array(
+				'update',
+				5,
+				array(
+					'author' => 'Eric',
+					'folios' => true,
+				),
+			),
+			$created[0],
+			'The legacy keys are dropped from the meta.'
+		);
+		$this->assertSame( array( '1 project(s) migrated.' ), $out );
+
+		$linked = array();
+		$other  = new ProjectCommand( $this->projects(), $this->store( $created ), $this->recorder( $linked, 10, 20 ), static fn() => true, $log, $log, $log );
+		$other->migrate( array(), array() );
+		$this->assertSame( array(), $linked, 'The relations exist already: they are not set again.' );
 	}
 }

@@ -78,6 +78,8 @@ test( 'the address keeps the other arguments, replaces a mode that is already th
 		'https://x.test/p/?a=1&mode=print&books_preview=1#top'
 	);
 	assert.strictEqual( g.previewUrl( { status: 'publish', permalink: '/p/?a=1' }, 'print', 'books_preview' ), '/p/?a=1&mode=print&books_preview=1' );
+	assert.strictEqual( g.previewUrl( { status: 'publish', permalink: '/p/?a=1' }, 'print', 'books_preview', 7 ), '/p/?a=1&mode=print&books_preview=1&books_project=7', 'a book project is asked for by its id' );
+	assert.strictEqual( g.previewUrl( { status: 'publish', permalink: '/p/?a=1' }, 'print', 'books_preview', 0 ), '/p/?a=1&mode=print&books_preview=1', 'none: nothing is added' );
 	assert.strictEqual( g.previewUrl( { status: 'publish', permalink: 'https://x.test/p/' }, '', 'books_preview' ), 'https://x.test/p/?books_preview=1', 'no mode: none added' );
 } );
 

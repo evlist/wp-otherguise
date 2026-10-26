@@ -59,21 +59,31 @@
 			return null;
 		}
 
-		var route = function ( suffix, mode ) {
-			return settings.pdf.path + '/' + editor().getCurrentPostId() + suffix + ( mode ? '?mode=' + encodeURIComponent( mode ) : '' );
+		var route = function ( suffix, mode, project ) {
+			var query = [];
+
+			if ( mode ) {
+				query.push( 'mode=' + encodeURIComponent( mode ) );
+			}
+
+			if ( project > 0 ) {
+				query.push( 'project=' + encodeURIComponent( project ) );
+			}
+
+			return settings.pdf.path + '/' + editor().getCurrentPostId() + suffix + ( query.length ? '?' + query.join( '&' ) : '' );
 		};
 
 		return {
 			enabled: true,
 			api: {
-				start: function ( mode, refresh ) {
-					return wp.apiFetch( { path: route( '' ), method: 'POST', data: { mode: mode, refresh: !! refresh } } );
+				start: function ( mode, refresh, project ) {
+					return wp.apiFetch( { path: route( '' ), method: 'POST', data: { mode: mode, refresh: !! refresh, project: project || 0 } } );
 				},
-				status: function ( mode ) {
-					return wp.apiFetch( { path: route( '', mode ) } );
+				status: function ( mode, project ) {
+					return wp.apiFetch( { path: route( '', mode, project ) } );
 				},
-				file: function ( mode ) {
-					return wp.apiFetch( { path: route( '/file', mode ) } );
+				file: function ( mode, project ) {
+					return wp.apiFetch( { path: route( '/file', mode, project ) } );
 				},
 			},
 		};
