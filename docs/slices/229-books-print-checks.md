@@ -3,7 +3,7 @@
 
 # Slice 229 — Books: checks before printing (margins, weight, resolution)
 
-Status: **proposed (2026-10-26), not coded**. Dependencies: slices 226 (large PDFs, `PdfPages`), 227 (the reader of the PDF), 228 (the printer preset and its constraints). Context: [`../design/books.md`](../design/books.md).
+Status: **proposed (2026-10-26), not coded**. Dependencies: slices 226 (large PDFs, `PdfPages`), 227 (the reader of the PDF), 230 (the printer profile and the book project: the thresholds). Context: [`../design/books.md`](../design/books.md).
 
 ## Goal
 
@@ -11,7 +11,7 @@ The printer checks nothing of the layout (its FAQ: no check of centring, font si
 
 ## Proposed checks
 
-- **Margins**: content (text, images) inside the safety zone, the gutter or the bleed of the preset (slice 228), per page. Two ways to measure, to compare: from the HTML in Chromium (the boxes of the elements in the print layout, which tells which element is concerned) or from the PDF itself (the drawn area of each page). The first is more useful to fix a page, the second checks the real file.
+- **Margins**: content (text, images) inside the safety zone, the gutter or the bleed of the printer profile (slice 230), per page. Two ways to measure, to compare: from the HTML in Chromium (the boxes of the elements in the print layout, which tells which element is concerned) or from the PDF itself (the drawn area of each page). The first is more useful to fix a page, the second checks the real file.
 - **Weight**: size of the whole file against the limit of the printer (700 MB at CoolLibri), size by unit and, if it can be read, **by page** (the bytes of the streams a page uses), to find the heavy pages and optimise them first (the condition of the merged HTML).
 - **Images**: for each image of a page, its pixels and the size at which it is printed, so its **effective resolution** in ppi against the minimum of the printer (300 ppi). In the HTML: `naturalWidth` against the displayed width in the print layout; in the PDF: the image objects and the transformation that places them (readable with the reader of slice 227, no `shell_exec`). Also reported: images much larger than needed (weight), and the colour space (RGB, CMYK: the PDFs of Chromium are RGB, so a conversion to CMYK is done after, to be decided).
 - **Fonts**: whether they are embedded (not mentioned by the FAQ, to check on a proof).
@@ -20,7 +20,7 @@ The printer checks nothing of the layout (its FAQ: no check of centring, font si
 ## Output
 
 - **WP-CLI** `wp otherguise books check <section-id> [--pdf=<id>] [--format=table|json]`, a report by unit and page, and a total; the same data through a REST route for the panel of the editor (a "checks" tab next to the preview, slice 219/220), where a page of the preview can show its zones.
-- A threshold is a setting of the printer preset; nothing is ever refused.
+- A threshold is a field of the printer profile (slice 230); nothing is ever refused.
 
 ## Not decided (open)
 

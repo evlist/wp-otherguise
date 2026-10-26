@@ -17,7 +17,7 @@ A link in the HTML (`<a href="#u-3">`, or an external marker `https://marker.inv
 
 - **Markers in the print mode.** In the print mode only, each unit of a section starts with a marker link (`#u-<post id>`) and the passages to index (the elements the Triples module or a block mark) get an `id` and a marker (`#p-<post id>-<n>`). In a merged HTML they are emitted by the merge; in the per-unit way, by the print mode of each post.
 - **A reader** `Otherguise\Books\Pdf\PdfMarkers`: reads the page tree and the `/Link` annotations of a PDF file (in pieces, like `PdfPages`, no `shell_exec`, no library) and returns `marker => page`. Named destinations are read as a second source, when the annotations are not enough.
-- **The pagination map**: for a book, `unit or passage => page in the body`, stored with the PDF job (not in the post, which stays stable); a page offset is added when the front matter is known (slice 228). In the per-unit way the starts are the cumulative sum of `PdfPages::count()`; only the passages need the reader.
+- **The pagination map**: for a book project (slice 230: the format, hence the pagination, depends on the project), `unit or passage => page in the body`, stored with the PDF job (not in the post, which stays stable); a page offset is added when the front matter is known (slice 228). In the per-unit way the starts are the cumulative sum of `PdfPages::count()`; only the passages need the reader.
 - **WP-CLI** `wp otherguise books pagination <section-id>` prints the map (JSON or table) and `--check` reports a marker found twice or missing.
 
 ## Not decided (open)
