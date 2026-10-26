@@ -12,6 +12,7 @@ use Otherguise\Books\Admin\SettingsScreen;
 use Otherguise\Books\Module;
 use Otherguise\Books\Pdf\JobState;
 use Otherguise\Books\Pdf\PdfJobs;
+use Otherguise\Books\Pdf\PdfPages;
 use Otherguise\Books\Pdf\PdfStore;
 use Otherguise\Books\Pdf\WordPressPosts;
 use Otherguise\Books\Preview\EditorPreview;
@@ -55,6 +56,13 @@ class BooksPdfTest extends TestCase {
 	 * @var bool[]
 	 */
 	private $as_user = array();
+
+	/**
+	 * What the sender of the download route was given: the file and the range.
+	 *
+	 * @var array
+	 */
+	private $sent = array();
 
 	/**
 	 * A directory and no option.
@@ -102,7 +110,7 @@ class BooksPdfTest extends TestCase {
 	 * @return PdfStore
 	 */
 	private function store() {
-		return new PdfStore( $this->directory . '/', fn() => $this->time );
+		return new PdfStore( $this->directory . '/', fn() => $this->time, null, null, null, static fn( $from, $to ) => rename( $from, $to ) );
 	}
 
 	/**
@@ -119,16 +127,18 @@ class BooksPdfTest extends TestCase {
 		foreach ( array( '', 'abc', str_repeat( 'g', 32 ), '../' . str_repeat( 'a', 29 ), null, 12 ) as $bad ) {
 			$this->assertFalse( PdfStore::is_key( $bad ), 'Not a key: ' . var_export( $bad, true ) );
 			$this->assertFalse( $store->has( $bad ) );
-			$this->assertNull( $store->read( $bad ) );
+			$this->assertSame( '', $store->partial_path( $bad ) );
+			$this->assertSame( 0, $store->size( $bad ) );
 		}
 
 		$this->assertFalse( $store->has( $key ) );
-		$this->assertNull( $store->read( $key ) );
+		$this->assertSame( 0, $store->size( $key ) );
 		$this->assertFalse( $store->write( 'bad', '%PDF-1.7' ) );
 		$this->assertFalse( $store->write( $key, '' ), 'Nothing is written for an empty file.' );
 		$this->assertTrue( $store->write( $key, '%PDF-1.7 bytes' ) );
 		$this->assertTrue( $store->has( $key ) );
-		$this->assertSame( '%PDF-1.7 bytes', $store->read( $key ) );
+		$this->assertSame( '%PDF-1.7 bytes', file_get_contents( $store->path( $key ) ) );
+		$this->assertSame( 14, $store->size( $key ) );
 		$this->assertSame( $this->directory . '/' . $key . '.pdf', $store->path( $key ) );
 		$this->assertFileExists( $this->directory . '/index.php' );
 		$this->assertStringContainsString( 'Deny from all', (string) file_get_contents( $this->directory . '/.htaccess' ) );
@@ -328,6 +338,27 @@ class BooksPdfTest extends TestCase {
 			}
 
 			/**
+			 * Converts to a file: the answer is written there, as the real client does with the answer of the server.
+			 *
+			 * @param string $url     Address.
+			 * @param array  $format  Format.
+			 * @param array  $options Options.
+			 * @param string $path    File.
+			 * @return true|WP_Error
+			 */
+			public function convert_url_to_file( $url, array $format, array $options, $path ) {
+				$answer = $this->convert_url( $url, $format, $options );
+
+				if ( $answer instanceof WP_Error ) {
+					return $answer;
+				}
+
+				file_put_contents( $path, $answer );
+
+				return true;
+			}
+
+			/**
 			 * Pages.
 			 *
 			 * @param string $pdf Bytes.
@@ -414,7 +445,7 @@ class BooksPdfTest extends TestCase {
 		$scheduled = array();
 		$jobs      = $this->jobs( $calls, $scheduled );
 
-		foreach ( array( 'request', 'status', 'file' ) as $method ) {
+		foreach ( array( 'request', 'status', 'download' ) as $method ) {
 			$error = $jobs->$method( 12, 'print' );
 			$this->assertSame( 'books_pdf_disabled', $error->get_error_code(), $method . ' without a server' );
 			$this->assertSame( array( 'status' => 501 ), $error->get_error_data() );
@@ -430,7 +461,7 @@ class BooksPdfTest extends TestCase {
 		);
 
 		foreach ( $cases as $case ) {
-			foreach ( array( 'request', 'status', 'file' ) as $method ) {
+			foreach ( array( 'request', 'status', 'download' ) as $method ) {
 				$error = $jobs->$method( $case[0], $case[1] );
 				$this->assertInstanceOf( WP_Error::class, $error );
 				$this->assertSame( $case[2], $error->get_error_code(), $method . ' ' . $case[2] );
@@ -506,10 +537,12 @@ class BooksPdfTest extends TestCase {
 		$this->assertSame( 'done', $state['status'] );
 		$this->assertSame( 2, $state['pages'] );
 
-		$file = $jobs->file( 12, 'print' );
+		$file = $jobs->download( 12, 'print' );
 		$this->assertSame( 'repos-fonti.pdf', $file['filename'], 'The name is made of the slug.' );
-		$this->assertSame( '%PDF-1.7 bytes', base64_decode( $file['base64'], true ) );
+		$this->assertSame( '%PDF-1.7 bytes', file_get_contents( $file['path'] ) );
+		$this->assertSame( 14, $file['size'] );
 		$this->assertSame( 2, $file['pages'] );
+		$this->assertSame( array(), glob( $this->directory . '/*.part' ), 'The file that was being written is gone.' );
 
 		$again = $jobs->request( 12, 'print' );
 		$this->assertSame( 'done', $again['status'], 'The same conversion is served from the files.' );
@@ -537,7 +570,7 @@ class BooksPdfTest extends TestCase {
 		$this->assertCount( 2, $scheduled, 'Forced: queued again although the file exists.' );
 		$this->assertSame( $scheduled[0][2], $scheduled[1][2], 'The same key.' );
 		$jobs->run( ...$scheduled[1] );
-		$this->assertSame( '%PDF-2', base64_decode( $jobs->file( 12, 'print' )['base64'], true ), 'The file was replaced.' );
+		$this->assertSame( '%PDF-2', file_get_contents( $jobs->download( 12, 'print' )['path'] ), 'The file was replaced.' );
 
 		$other = $this->jobs( $calls, $scheduled, array(), 2, array( 'modified' => '2026-10-21 08:00:00' ) );
 		$other->request( 12, 'print' );
@@ -549,8 +582,8 @@ class BooksPdfTest extends TestCase {
 		$this->assertCount( 4, $scheduled, 'The format changed: a new conversion.' );
 		$this->assertNotSame( $scheduled[1][2], $scheduled[3][2] );
 
-		$this->assertSame( 'books_pdf_not_ready', $other->file( 12, 'print' )->get_error_code() );
-		$this->assertSame( array( 'status' => 409 ), $other->file( 12, 'print' )->get_error_data() );
+		$this->assertSame( 'books_pdf_not_ready', $other->download( 12, 'print' )->get_error_code() );
+		$this->assertSame( array( 'status' => 409 ), $other->download( 12, 'print' )->get_error_data() );
 	}
 
 	/**
@@ -574,7 +607,9 @@ class BooksPdfTest extends TestCase {
 		$jobs->request( 12, 'print' );
 		$this->assertCount( 2, $scheduled, 'A failed conversion is queued again on request.' );
 
-		// The directory cannot be written.
+		// The directory cannot be written (it does not exist and cannot be made: the failed job above created it, so it is removed).
+		$this->store()->remove_all();
+
 		$blocked = $this->jobs( $calls, $scheduled, array( '%PDF-1' ) );
 		$ref     = new ReflectionProperty( PdfJobs::class, 'store' );
 		$ref->setAccessible( true );
@@ -808,7 +843,7 @@ class BooksPdfTest extends TestCase {
 		$this->assertSame( false, end( $this->as_user ), 'The job has no user (WP-Cron): it must not ask for a capability.' );
 		$this->assertContains( true, $this->as_user, 'The request and the polling do.' );
 
-		$file = $jobs->file( 13, 'print' );
+		$file = $jobs->download( 13, 'print' );
 
 		$this->assertSame( 'brouillon-preview.pdf', $file['filename'], 'The name says that it is a preview.' );
 		$this->assertTrue( $file['preview'] );
@@ -883,7 +918,7 @@ class BooksPdfTest extends TestCase {
 			$creates
 		);
 
-		foreach ( array( 'request', 'status', 'file' ) as $method ) {
+		foreach ( array( 'request', 'status', 'download' ) as $method ) {
 			$error = $jobs->$method( 13, 'print' );
 			$this->assertSame( 'books_pdf_link_forbidden', $error->get_error_code(), $method );
 			$this->assertSame( array( 'status' => 403 ), $error->get_error_data() );
@@ -1030,6 +1065,157 @@ class BooksPdfTest extends TestCase {
 	}
 
 	/**
+	 * A file is written where `partial_path()` says, then becomes the file of the key when it is a PDF; anything else is deleted (slice 226).
+	 *
+	 * @return void
+	 */
+	public function test_the_store_partial_files(): void {
+		$store = $this->store();
+		$key   = $this->key();
+
+		$this->assertSame( $this->directory . '/' . $key . '.part', $store->partial_path( $key ) );
+		$this->assertFileExists( $this->directory . '/.htaccess', 'The directory is protected as soon as it is made.' );
+
+		file_put_contents( $store->partial_path( $key ), "%PDF-1.7\nbytes" );
+		$this->assertFalse( $store->has( $key ), 'Not a file of the cache yet.' );
+		$this->assertTrue( $store->commit( $key ) );
+		$this->assertTrue( $store->has( $key ) );
+		$this->assertFileDoesNotExist( $this->directory . '/' . $key . '.part' );
+		$this->assertSame( 14, $store->size( $key ) );
+
+		$other = str_repeat( 'b', 32 );
+
+		file_put_contents( $store->partial_path( $other ), 'an error page' );
+		$this->assertFalse( $store->commit( $other ), 'A file that is not a PDF is refused.' );
+		$this->assertFileDoesNotExist( $this->directory . '/' . $other . '.part' );
+
+		$this->assertFalse( $store->commit( $other ), 'Nothing to commit.' );
+		file_put_contents( $store->partial_path( $other ), '' );
+		$this->assertFalse( $store->commit( $other ), 'An empty file is refused.' );
+
+		file_put_contents( $store->partial_path( $other ), '%PDF-x' );
+		$store->discard( $other );
+		$store->discard( 'bad' );
+		$this->assertFileDoesNotExist( $this->directory . '/' . $other . '.part' );
+		$this->assertSame( '', $store->partial_path( 'bad' ) );
+
+		$old = str_repeat( 'c', 32 );
+
+		file_put_contents( $store->partial_path( $old ), '%PDF-old' );
+		touch( $this->directory . '/' . $old . '.part', $this->time - 10 * 86400 );
+		$this->assertSame( 1, $store->cleanup( 7 ), 'A file that was never finished is cleaned up too.' );
+		$this->assertTrue( $store->has( $key ), 'The recent file stays.' );
+	}
+
+	/**
+	 * The pages are counted by reading the file in pieces: the pages and not the page tree, and a mark cut by the end of a piece.
+	 *
+	 * @return void
+	 */
+	public function test_the_pages_are_counted_in_the_file(): void {
+		$path = $this->directory . '-pages.pdf';
+		$body = "%PDF-1.4\n1 0 obj\n<< /Type /Pages /Count 3 >>\nendobj\n"
+			. "2 0 obj\n<< /Type /Page /Parent 1 0 R >>\nendobj\n"
+			. "3 0 obj\n<</Type/Page/Parent 1 0 R>>\nendobj\n"
+			. str_repeat( 'x', 300 )
+			. "4 0 obj\n<< /Type  /Page\n/Parent 1 0 R >>\nendobj\n"
+			. "5 0 obj\n<< /Type /Pagesx >>\nendobj\n";
+
+		file_put_contents( $path, $body );
+		$this->assertSame( 3, PdfPages::count( $path ) );
+
+		// A small piece makes the marks fall on the end of a piece: still counted once each.
+		foreach ( array( 128, 129, 131, 137, 150, 211 ) as $chunk ) {
+			$this->assertSame( 3, PdfPages::count( $path, $chunk ), 'Piece of ' . $chunk . ' bytes.' );
+		}
+
+		file_put_contents( $path, "%PDF-1.5\n1 0 obj\n<< /Type /ObjStm >>\nendobj\n" );
+		$this->assertNull( PdfPages::count( $path ), 'No page object that can be read.' );
+		$this->assertNull( PdfPages::count( $path . '.missing' ) );
+		$this->assertNull( PdfPages::count( $path, 10 ), 'A piece too small is refused.' );
+		wp_delete_file( $path );
+	}
+
+	/**
+	 * The part of a file that a header Range asks for.
+	 *
+	 * @return void
+	 */
+	public function test_the_range(): void {
+		$whole = array(
+			'start'   => 0,
+			'end'     => 99,
+			'partial' => false,
+		);
+
+		$this->assertSame( $whole, PdfRoutes::range( '', 100 ) );
+		$this->assertSame( $whole, PdfRoutes::range( 'items=0-5', 100 ), 'Another unit: the whole file.' );
+		$this->assertSame( $whole, PdfRoutes::range( 'bytes=-', 100 ) );
+		$this->assertSame(
+			array(
+				'start'   => 10,
+				'end'     => 19,
+				'partial' => true,
+			),
+			PdfRoutes::range( 'bytes=10-19', 100 )
+		);
+		$this->assertSame(
+			array(
+				'start'   => 90,
+				'end'     => 99,
+				'partial' => true,
+			),
+			PdfRoutes::range( 'bytes=90-', 100 )
+		);
+		$this->assertSame(
+			array(
+				'start'   => 80,
+				'end'     => 99,
+				'partial' => true,
+			),
+			PdfRoutes::range( 'bytes=-20', 100 ),
+			'The last 20 bytes.'
+		);
+		$this->assertSame( 99, PdfRoutes::range( 'bytes=10-500', 100 )['end'], 'An end past the file is cut.' );
+		$this->assertNull( PdfRoutes::range( 'bytes=100-', 100 ) );
+		$this->assertNull( PdfRoutes::range( 'bytes=50-10', 100 ) );
+		$this->assertNull( PdfRoutes::range( 'bytes=0-5', 0 ), 'An empty file cannot be asked a range.' );
+	}
+
+	/**
+	 * A conversion that fails or gives something else than a PDF leaves no file; a file that Chromium wrote without readable pages is
+	 * counted by the server when it is small.
+	 *
+	 * @return void
+	 */
+	public function test_the_job_leaves_no_partial_file(): void {
+		$calls     = array();
+		$scheduled = array();
+		$this->configure();
+
+		$jobs = $this->jobs( $calls, $scheduled, array( new WP_Error( 'books_gotenberg_http', 'deadline' ) ) );
+		$jobs->request( 12, 'print' );
+		$jobs->run( ...$scheduled[0] );
+
+		$this->assertSame( array(), glob( $this->directory . '/*' ) ? array_diff( array_map( 'basename', glob( $this->directory . '/*' ) ), array( 'index.php' ) ) : array(), 'No file.' );
+
+		$jobs = $this->jobs( $calls, $scheduled, array( '<html>not a pdf</html>' ) );
+		$jobs->request( 12, 'web' );
+		$jobs->run( ...$scheduled[1] );
+
+		$this->assertStringContainsString( 'could not be written', $jobs->status( 12, 'web' )['message'] );
+		$this->assertSame( array(), glob( $this->directory . '/*.part' ) );
+		$this->assertSame( array(), glob( $this->directory . '/*.pdf' ) );
+
+		// No readable page object, a small file: the server counts (the double answers 2).
+		$jobs = $this->jobs( $calls, $scheduled, array( "%PDF-1.5\nno page object" ), 7 );
+		$jobs->request( 12, 'print' );
+		$jobs->run( ...$scheduled[2] );
+
+		$this->assertSame( 7, $jobs->status( 12, 'print' )['pages'] );
+	}
+
+	/**
 	 * Without a page count from the server the pages are unknown; the daily cleanup uses the days of the settings.
 	 *
 	 * @return void
@@ -1044,7 +1230,7 @@ class BooksPdfTest extends TestCase {
 		$jobs->run( ...$scheduled[0] );
 
 		$this->assertNull( $jobs->status( 12, 'print' )['pages'] );
-		$this->assertNull( $jobs->file( 12, 'print' )['pages'] );
+		$this->assertNull( $jobs->download( 12, 'print' )['pages'] );
 
 		touch( $this->store()->path( $scheduled[0][2] ), $this->time - 4 * 86400 );
 		clearstatcache();
@@ -1082,13 +1268,22 @@ class BooksPdfTest extends TestCase {
 		$scheduled = array();
 		$jobs      = $this->jobs( $calls, $scheduled, array( '%PDF-1.7 x' ) );
 		$allowed   = array( 12 );
-		$routes    = new PdfRoutes( $jobs, static fn( $id ) => in_array( $id, $allowed, true ) );
+		$routes    = new PdfRoutes(
+			$jobs,
+			static fn( $id ) => in_array( $id, $allowed, true ),
+			static fn( $id, $mode ) => 'https://x.test/download/' . $id . '/' . $mode,
+			function ( $info, $range ) {
+				$this->sent = array( $info, $range );
+
+				return 'sent';
+			}
+		);
 		$this->configure();
 
 		$routes->register();
 		$registered = array_values( array_filter( $GLOBALS['otherguise_test_calls'], static fn( $call ) => 'register_rest_route' === $call[0] ) );
 
-		$this->assertCount( 2, $registered );
+		$this->assertCount( 3, $registered );
 		$this->assertSame( 'books/v1', $registered[0][1] );
 		$this->assertSame( '/pdf/(?P<id>[0-9]+)', $registered[0][2] );
 		$this->assertSame( 'POST', $registered[0][3][0]['methods'] );
@@ -1098,6 +1293,9 @@ class BooksPdfTest extends TestCase {
 		$this->assertSame( 'print', $registered[0][3][1]['args']['mode']['default'] );
 		$this->assertSame( '/pdf/(?P<id>[0-9]+)/file', $registered[1][2] );
 		$this->assertSame( array( $routes, 'file' ), $registered[1][3]['callback'] );
+		$this->assertSame( '/pdf/(?P<id>[0-9]+)/download', $registered[2][2] );
+		$this->assertSame( array( $routes, 'download' ), $registered[2][3]['callback'] );
+		$this->assertSame( array( $routes, 'can' ), $registered[2][3]['permission_callback'] );
 
 		$request = static fn( array $params ) => new class( $params ) {
 			/**
@@ -1124,6 +1322,16 @@ class BooksPdfTest extends TestCase {
 			 */
 			public function get_param( $name ) {
 				return $this->params[ $name ] ?? null;
+			}
+
+			/**
+			 * Reads a header: the parameter `range` stands for the header `Range`.
+			 *
+			 * @param string $name Name.
+			 * @return string|null
+			 */
+			public function get_header( $name ) {
+				return 'range' === $name ? ( $this->params['range'] ?? null ) : null;
 			}
 		};
 
@@ -1168,7 +1376,37 @@ class BooksPdfTest extends TestCase {
 				)
 			)
 		);
-		$this->assertSame( '%PDF-1.7 x', base64_decode( $file['base64'], true ) );
+		$this->assertSame( 'https://x.test/download/12/print', $file['url'] );
+		$this->assertSame( 2, $file['pages'] );
+		$this->assertSame( 10, $file['size'] );
+
+		$sent = $routes->download(
+			$request(
+				array(
+					'id' => '12',
+					'mode' => 'print',
+					'range' => 'bytes=0-4',
+				)
+			)
+		);
+		$this->assertSame( 'sent', $sent );
+		$this->assertSame( 'repos-fonti.pdf', $this->sent[0]['filename'] );
+		$this->assertSame( '%PDF-1.7 x', file_get_contents( $this->sent[0]['path'] ) );
+		$this->assertSame( 'bytes=0-4', $this->sent[1] );
+
+		$this->sent = array();
+		$this->assertSame(
+			'books_pdf_not_ready',
+			$routes->download(
+				$request(
+					array(
+						'id' => '12',
+						'mode' => 'web',
+					)
+				)
+			)->get_error_code()
+		);
+		$this->assertSame( array(), $this->sent, 'Nothing is sent when there is no file.' );
 
 		$routes->start(
 			$request(

@@ -408,11 +408,6 @@
 		}
 
 		function releasePdf() {
-			if ( '' !== state.pdfUrl ) {
-				( pdfOptions.revokeObjectURL || function ( url ) {
-					win.URL.revokeObjectURL( url );
-				} )( state.pdfUrl );
-			}
 			state.pdfUrl = '';
 			state.pdfName = '';
 			state.pdfPages = null;
@@ -435,27 +430,13 @@
 			say();
 		}
 
-		// Turns the answer of the file route (the PDF in base64) into an address that the iframe and the buttons can use.
+		// Shows the PDF whose address the file route gave (slice 226): the browser asks for it as a file, in pieces, and nothing is decoded here.
 		function showPdf( id, file ) {
 			if ( id !== generation ) {
 				return;
 			}
-			var decode = pdfOptions.atob || function ( text ) {
-				return win.atob( text );
-			};
-			var BlobClass = pdfOptions.Blob || win.Blob;
-			var make = pdfOptions.createObjectURL || function ( blob ) {
-				return win.URL.createObjectURL( blob );
-			};
-			var url = '';
-			try {
-				var binary = decode( file.base64 );
-				var bytes = new Uint8Array( binary.length );
-				for ( var i = 0; i < binary.length; i++ ) {
-					bytes[ i ] = binary.charCodeAt( i );
-				}
-				url = make( new BlobClass( [ bytes ], { type: 'application/pdf' } ) );
-			} catch ( e ) {
+			var url = file && 'string' === typeof file.url ? file.url : '';
+			if ( '' === url ) {
 				pdfFailed( id, __( 'the file could not be read.', 'otherguise' ) );
 				return;
 			}
