@@ -12,6 +12,8 @@ namespace Otherguise\Books;
 
 use Otherguise\Books\Admin\SettingsScreen;
 use Otherguise\Books\Preview\EditorPreview;
+use Otherguise\Books\Cli\ProfileCommand;
+use Otherguise\Books\Cli\ProjectCommand;
 use Otherguise\Books\Cli\RendererCommand;
 use Otherguise\Books\Cli\SectionCommand;
 use Otherguise\Books\Cli\SizesCommand;
@@ -23,6 +25,12 @@ use Otherguise\Books\Pdf\JobState;
 use Otherguise\Books\Pdf\PdfJobs;
 use Otherguise\Books\Pdf\PdfStore;
 use Otherguise\Books\Pdf\WordPressPosts;
+use Otherguise\Books\Project\MetaBoxes;
+use Otherguise\Books\Project\PostTypes;
+use Otherguise\Books\Project\PrinterProfile;
+use Otherguise\Books\Project\PrintStyles;
+use Otherguise\Books\Project\Projects;
+use Otherguise\Books\Project\WordPressProjects;
 use Otherguise\Books\Render\GotenbergClient;
 use Otherguise\Books\Render\InternalHost;
 use Otherguise\Books\Render\SiteAddress;
@@ -122,7 +130,7 @@ final class Module implements ModuleInterface {
 		$format         = new PageFormat();
 		$renderer       = new RendererSettings();
 		$settings       = new SettingsScreen( $format, $renderer );
-		$preview        = new EditorPreview( $format, array( $this, 'preview_modes' ), $this->editor_url, null, null, null, array( $renderer, 'is_configured' ) );
+		$preview        = new EditorPreview( $format, array( $this, 'preview_modes' ), $this->editor_url, null, null, null, array( $renderer, 'is_configured' ), array( $this, 'project_format' ) );
 		$jobs           = $this->jobs( $format, $renderer );
 		$sizes          = new PrintSizes( $format );
 		$srcset         = new PrintSrcset();
@@ -132,6 +140,9 @@ final class Module implements ModuleInterface {
 		$sections       = $this->sections();
 		$section_routes = new SectionRoutes( $sections );
 		$section_editor = new SectionEditor( $this->section_url, array( new WordPressPostStore(), 'types' ) );
+		$types          = new PostTypes();
+		$boxes          = new MetaBoxes( array( $this, 'section_titles' ), array( new WordPressProjects(), 'profiles' ) );
+		$styles         = new PrintStyles( $this->projects(), array( $this, 'is_print_request' ) );
 
 		( $this->add_action )( 'admin_init', array( $settings, 'register' ), 10, 0 );
 		( $this->add_action )( 'admin_menu', array( $settings, 'add_menu' ), 10, 0 );
@@ -152,6 +163,11 @@ final class Module implements ModuleInterface {
 		( $this->add_action )( 'image_downsize', array( $fallback, 'filter' ), 100, 3 );
 		( $this->add_action )( 'wp_head', array( $ratio, 'print_script' ), 0, 0 );
 		( $this->add_action )( 'redirect_canonical', array( new InternalHost( $renderer ), 'filter' ), 5, 1 );
+		( $this->add_action )( 'init', array( $types, 'register' ), 10, 0 );
+		( $this->add_action )( 'add_meta_boxes', array( $boxes, 'add' ), 10, 0 );
+		( $this->add_action )( 'save_post_' . PostTypes::PROFILE, array( $boxes, 'save_profile' ), 10, 1 );
+		( $this->add_action )( 'save_post_' . PostTypes::PROJECT, array( $boxes, 'save_project' ), 10, 1 );
+		( $this->add_action )( 'wp_enqueue_scripts', array( $styles, 'enqueue' ), 20, 0 );
 	}
 
 	/**
@@ -232,6 +248,17 @@ final class Module implements ModuleInterface {
 	public function register_command() {
 		\WP_CLI::add_command( 'otherguise books sizes', new SizesCommand( new PrintSizes( new PageFormat() ) ) );
 		\WP_CLI::add_command( 'otherguise books section', new SectionCommand( $this->sections( true ) ) );
+		\WP_CLI::add_command( 'otherguise books profile', new ProfileCommand( $this->projects(), new WordPressProjects() ) );
+		\WP_CLI::add_command(
+			'otherguise books project',
+			new ProjectCommand(
+				$this->projects(),
+				new WordPressProjects(),
+				function ( $id ) {
+					return $this->sections( true )->is_section( (int) $id );
+				}
+			)
+		);
 		\WP_CLI::add_command(
 			'otherguise books renderer',
 			new RendererCommand(
@@ -271,8 +298,78 @@ final class Module implements ModuleInterface {
 			null,
 			static function ( $address ) use ( $renderer ) {
 				return SiteAddress::rewrite( (string) $address, home_url(), (string) $renderer->get()[ RendererSettings::SITE ] );
+			},
+			function ( $post_id ) {
+				$found = $this->projects()->for_post( (int) $post_id );
+
+				return null === $found ? null : array(
+					'project' => $found['project']['id'],
+					'format'  => PrinterProfile::format( $found['profile'] ),
+					'css'     => $found['css'],
+				);
 			}
 		);
+	}
+
+	/**
+	 * The book projects (slice 230): the posts of WordPress, the sections of Books.
+	 *
+	 * @return Projects
+	 */
+	public function projects() {
+		$posts = new WordPressProjects();
+
+		return new Projects(
+			array( $posts, 'projects' ),
+			array( $posts, 'profile_meta' ),
+			function ( $root, $post ) {
+				return $this->sections( true )->reaches( (int) $root, (int) $post );
+			}
+		);
+	}
+
+	/**
+	 * The format of the page of the book project that covers a post, for the preview panel; null without one.
+	 *
+	 * @param int $post_id The post.
+	 * @return array<string, float>|null
+	 */
+	public function project_format( $post_id ) {
+		$found = $this->projects()->for_post( (int) $post_id );
+
+		return null === $found ? null : PrinterProfile::format( $found['profile'] );
+	}
+
+	/**
+	 * The titles of the sections a project can be rooted in (id => title): the sections that exist.
+	 *
+	 * @return array<int, string>
+	 */
+	public function section_titles() {
+		$titles = array();
+
+		foreach ( $this->sections( true )->marked() as $id ) {
+			$titles[ (int) $id ] = (string) get_the_title( (int) $id );
+		}
+
+		return $titles;
+	}
+
+	/**
+	 * Tells whether the page is in the first print mode (the filter `books_preview_frame_modes`, `print` by default) of the Modes module.
+	 *
+	 * @return bool
+	 */
+	public function is_print_request() {
+		$modes = Modules::get( 'modes' );
+
+		if ( ! $modes instanceof \Otherguise\Modes\Module ) {
+			return false;
+		}
+
+		$frames = apply_filters( 'books_preview_frame_modes', array( 'print' ) );
+
+		return is_array( $frames ) && in_array( $modes->active()->mode()->slug(), $frames, true );
 	}
 
 	/**
@@ -357,6 +454,7 @@ final class Module implements ModuleInterface {
 	public function uninstall() {
 		delete_option( PageFormat::OPTION );
 		delete_option( RendererSettings::OPTION );
+		( new WordPressProjects() )->delete_all();
 		wp_clear_scheduled_hook( self::CLEANUP_EVENT );
 		wp_clear_scheduled_hook( PdfJobs::EVENT );
 		self::store()->remove_all();

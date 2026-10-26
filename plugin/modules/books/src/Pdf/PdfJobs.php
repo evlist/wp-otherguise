@@ -118,6 +118,13 @@ final class PdfJobs {
 	private $reach;
 
 	/**
+	 * Receives a post id; returns the rules of the book project that covers it (`project` id, `format`, `css`), or null (slice 230).
+	 *
+	 * @var callable
+	 */
+	private $rules;
+
+	/**
 	 * Builds the jobs.
 	 *
 	 * @param RendererSettings $settings      Settings of the server.
@@ -131,8 +138,9 @@ final class PdfJobs {
 	 * @param callable         $schedule      Receives the post id, the mode and the key; schedules the event.
 	 * @param callable|null    $now           Defaults to `time`.
 	 * @param callable|null    $reach         Receives the address to convert; returns the address by which the server reaches it (the same by default).
+	 * @param callable|null    $rules         Receives a post id; returns the rules of its book project (`project`, `format`, `css`) or null (none by default).
 	 */
-	public function __construct( RendererSettings $settings, PageFormat $format, PdfStore $store, JobState $state, $post_info, $mode_exists, $url_for, $make_renderer, $schedule, $now = null, $reach = null ) {
+	public function __construct( RendererSettings $settings, PageFormat $format, PdfStore $store, JobState $state, $post_info, $mode_exists, $url_for, $make_renderer, $schedule, $now = null, $reach = null, $rules = null ) {
 		$this->settings      = $settings;
 		$this->format        = $format;
 		$this->store         = $store;
@@ -145,6 +153,9 @@ final class PdfJobs {
 		$this->now           = $now ?? 'time';
 		$this->reach         = $reach ?? static function ( $address ) {
 			return $address;
+		};
+		$this->rules         = $rules ?? static function () {
+			return null;
 		};
 	}
 
@@ -263,10 +274,13 @@ final class PdfJobs {
 			return;
 		}
 
+		$rules  = ( $this->rules )( $post_id );
+		$url    = ( $this->url_for )( $info['url'], $mode );
 		$result = $renderer->convert_url_to_file(
-			( $this->reach )( ( $this->url_for )( $info['url'], $mode ) ),
-			$this->format->get(),
+			( $this->reach )( is_array( $rules ) ? add_query_arg( array( 'books_project' => (int) $rules['project'] ), $url ) : $url ),
+			$this->format_for( $rules ),
 			array(
+				'prefer_css_page_size' => is_array( $rules ),
 				'media'           => $settings[ RendererSettings::MEDIA ],
 				'wait_delay'      => $settings[ RendererSettings::WAIT_DELAY ],
 				'wait_expression' => $settings[ RendererSettings::WAIT_EXPRESSION ],
@@ -409,19 +423,34 @@ final class PdfJobs {
 
 		unset( $settings[ RendererSettings::URL ], $settings[ RendererSettings::KEEP_DAYS ] );
 
-		return md5(
-			(string) wp_json_encode(
-				array(
-					'version'  => 1,
-					'post'     => (int) $post_id,
-					'modified' => (string) ( $info['modified'] ?? '' ),
-					'mode'     => $mode,
-					'preview'  => ! empty( $info['preview'] ),
-					'format'   => $this->format->get(),
-					'settings' => $settings,
-				)
-			)
+		$rules = ( $this->rules )( $post_id );
+
+		$parts = array(
+			'version'  => 1,
+			'post'     => (int) $post_id,
+			'modified' => (string) ( $info['modified'] ?? '' ),
+			'mode'     => $mode,
+			'preview'  => ! empty( $info['preview'] ),
+			'format'   => $this->format_for( $rules ),
+			'settings' => $settings,
 		);
+
+		// Added only for a book project, so that the PDF files of the posts that have none keep their key.
+		if ( is_array( $rules ) ) {
+			$parts['rules'] = array( (int) $rules['project'], md5( (string) $rules['css'] ) );
+		}
+
+		return md5( (string) wp_json_encode( $parts ) );
+	}
+
+	/**
+	 * The format of the page: the one of the book project that covers the post, else the one of the settings.
+	 *
+	 * @param array<string, mixed>|null $rules The rules of the project, or null.
+	 * @return array<string, float>
+	 */
+	private function format_for( $rules ) {
+		return is_array( $rules ) && is_array( $rules['format'] ?? null ) ? $rules['format'] : $this->format->get();
 	}
 
 	/**

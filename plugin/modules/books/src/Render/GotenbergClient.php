@@ -136,6 +136,10 @@ final class GotenbergClient implements Renderer {
 			$fields['emulatedMediaType'] = $options['media'];
 		}
 
+		if ( ! empty( $options['prefer_css_page_size'] ) ) {
+			$fields['preferCssPageSize'] = 'true';
+		}
+
 		if ( isset( $options['wait_delay'] ) && (float) $options['wait_delay'] > 0 ) {
 			$fields['waitDelay'] = rtrim( rtrim( number_format( (float) $options['wait_delay'], 1, '.', '' ), '0' ), '.' ) . 's';
 		}

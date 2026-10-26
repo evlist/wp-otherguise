@@ -347,6 +347,30 @@ class BooksRenderTest extends TestCase {
 	}
 
 	/**
+	 * With the rules of a book project the form asks the server to use the size and the margins of the CSS (slice 230); without, it does not.
+	 *
+	 * @return void
+	 */
+	public function test_prefer_css_page_size(): void {
+		$requests = array();
+		$format   = array(
+			'width_mm'  => 148.0,
+			'height_mm' => 210.0,
+			'margin_mm' => 10.0,
+		);
+
+		foreach ( array( true, false ) as $prefer ) {
+			$path = tempnam( sys_get_temp_dir(), 'books-pdf' );
+
+			$this->streaming_client( array( $this->answer( 200, "%PDF-1.7\nbytes" ) ), $requests )->convert_url_to_file( 'https://x.test/', $format, array( 'prefer_css_page_size' => $prefer ), $path );
+			wp_delete_file( $path );
+		}
+
+		$this->assertStringContainsString( 'name="preferCssPageSize"', $requests[0][1]['body'] );
+		$this->assertStringNotContainsString( 'preferCssPageSize', $requests[1][1]['body'] );
+	}
+
+	/**
 	 * A refusal of the server, a file that is not a PDF, a transport error: an error, and no file left behind.
 	 *
 	 * @return void

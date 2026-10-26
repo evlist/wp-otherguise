@@ -3,7 +3,7 @@
 
 # Slice 230 — Books: printer profiles and book projects
 
-Status: **proposed (2026-10-26), not coded**. Dependencies: slice 223 (sections). Needed by slices 228 (roles, blank pages) and 229 (checks); slice 227 (the pagination map) is computed per project. Context: [`../design/books.md`](../design/books.md).
+Status: **coded (2026-10-26)** except the theme's part and what slices 228 and 229 do with the rules, see "What was coded" and "Verified". Dependencies: slice 223 (sections). Needed by slices 228 (roles, blank pages) and 229 (checks); slice 227 (the pagination map) is computed per project. Context: [`../design/books.md`](../design/books.md).
 
 ## Why
 
@@ -22,7 +22,7 @@ What a printer asks (format, margins, number of pages, blank pages, cover, resol
 **`books_project`: a book project**: one post per book to print, with
 - the **root section**, a **top-level** section (Eric's choice): the project does not list sections one by one. What last year was a "hat" (cover, title page, ...) is made of units of that root section, before the sections; the sections of the book are its children;
 - the **printer profile**;
-- what belongs to this book only: the title and the author, the options that are not the printer's (folios on or off, a chapter on a right-hand page), the pages of the output (the PDF jobs and their pagination map are kept by project).
+- what belongs to this book only: the title and the author, the folios on or off (a chapter on a right-hand page is a rule of the profile), the pages of the output (the PDF jobs and their pagination map are kept by project).
 
 The same section can have **several projects** (one per printer, or a book that gathers the sections of the year).
 
@@ -75,7 +75,18 @@ To do in the theme, once Books gives the rules:
 
 **What it changes**: for A5, Books alone (`@page`) is enough with this theme and this template; the theme work is **one rule (`max-width: none` on the content blocks in `print.css`) for formats wider than about 170 mm**, plus the roles (point 6). Points 2 to 5 stay to be checked on pages with images and maps.
 
-## Not decided (open)
+## What was coded (2026-10-26)
+
+- **Two post types**, `books_printer` and `books_project` (`Project\PostTypes`): not public (no page, no rewrite, not in the search or the REST API), edited under **Settings** by users who can `edit_others_posts` (all their capabilities map to it), exported with the site, deleted by the uninstall of the module. They are edited with **a meta box** (`Project\MetaBoxes`: nonce, `edit_post` checked again, everything posted goes through `PrinterProfile::normalize()` / `Projects::normalize()` before it is stored in one protected meta: `_books_profile`, `_books_project`), so the block editor is not used.
+- **The profile** (`Project\PrinterProfile`): the width and height of the page, the margin, the gutter, the safety zone, the bleed, the position of the folios (none, centred, outside), the fewest, the most and the multiple of pages, a blank last page, a chapter on a right-hand page, the cover (none, separate, first and last pages, combined), the fewest ppi, the colours, the largest file, the address of the documentation and the date it was read. A value that is not valid is replaced by its default; a missing gutter is the margin. **A project does not override a field of its profile** (decided: keep one source). The rules of the blank pages and of the images are stored and shown but **nothing reads them yet** (slices 228 and 229).
+- **The presets** (`Project\Presets`, in PHP, not JSON files): `coollibri` and `flexilivre`, from their documentation read on 2026-10-26, **to check against the printers' sites**; created by `wp otherguise books profile create <title> --preset=<slug>`. A section without a project keeps the global page format of the settings.
+- **The project** (`Project\Projects`): the root section (one id: the sections of the book are its children, the "hat" are units of it), the profile, the author and the folios on or off; the title is the title of the post. **Which project covers a post**: the one asked for (`books_project` in the address) when it covers the post, else the lowest id whose root is the post or reaches it through `books/contains` at any depth, whose profile exists; the filter `books_project_for_post` can choose among those.
+- **The rules in the page** (`Project\PageRules`, `Project\PrintStyles`): in a print mode (the first of `books_preview_frame_modes`) and for a post a project covers, `wp_add_inline_style()` at priority 20 of `wp_enqueue_scripts` adds `@page` (size, margin, gutter with `:right` and `:left`, the bleed that enlarges the page and every margin), the folios in the margin boxes (unless the project turns them off) and the variables `--books-margin`, `--books-gutter` and `--books-safe` (the profile's values, without the bleed).
+- **The PDF job and the panel**: the job asks the page with `books_project=<id>`, sends the format of the profile and `preferCssPageSize` (new option of `GotenbergClient`, field `preferCssPageSize`), and the key of the cache depends on the project and on its CSS (added only for a post that has a project, so the PDF files already made keep their key); the preview panel measures the page with the format of the profile.
+- **WP-CLI** (see `docs/wp-cli.md`): `books profile list|show|create`, `books project list|show|create|set-profile`; `create` and `set-profile` can be run twice, `--dry-run` writes nothing.
+- **Not done**: the theme's part (below, nothing changed in `wp-twenty-twenty-five-printable`); the screen's link from a section to its projects; the use of the other fields (slices 228 and 229).
+
+## Decided while coding, and still open
 
 - Whether `preferCssPageSize` is always sent (a project) or only when the project has a profile (a section without a project keeps the options of the settings).
 - Where the blank pages are made for a PDF made unit by unit (the parity of each unit starts at a recto).
@@ -87,10 +98,12 @@ To do in the theme, once Books gives the rules:
 - What a project of a section **without** a top-level section means (a book that is a single section).
 - Whether a project can override a field of its profile.
 
-## Tests (planned)
+## Tests
 
-Registration of the two types (not public, capabilities), the fields and their sanitising, the profile of a project, the format given to the renderer, a section without a project unchanged, uninstall, WP-CLI `books project list|show|set-profile`.
+`BooksProjectTest` (12 tests: normalization of a profile, the CSS for equal margins, a gutter, a bleed and each position of the folios, the presets, the projects and which one covers a post, the filter, the print styles in and out of the print mode, the forms and their escaping, saving with and without capability, nonce or form, the registration of the two types, the commands on profiles and on projects with their refusals and runs twice), `BooksPdfTest` (the format, the address, the option and the key with a project), `BooksRenderTest` (`preferCssPageSize` sent only with the rules), `BooksModuleTest` (the hooks). 590 PHPUnit tests pass, `phpcs` is clean.
 
-## Verification (planned)
+## Verified
 
-On a scratch WordPress; **never tried** with a printer's proof, nor on the real blog.
+- **Chromium** (Playwright 141, `pdftotext -bbox`, scratch WordPress 7.1.3): a printer profile and a project created with the commands (a second run changes nothing), the page of a post of the section in the print mode carries the style and the page in the web mode does not; the PDF made from it has the size of the profile (150.5 mm), **18.0 mm** on the left of a right-hand page and **7.9 mm** on a left-hand page (profile: gutter 18, margin 8), 8.2 mm at the top.
+- **The admin in Chromium (logged in as admin)**: the two menu entries under Settings, the form of a profile (values, saving of a comma-less decimal, a select and a check box), the form of a project (the sections and the profiles as selects, the author and the folios), the values read again after saving; no error in the page. A subscriber cannot edit a profile or add a project (`user_can`).
+- **Never tried**: the real Gotenberg with `preferCssPageSize` (the field name is from its documentation; the PDF made by it was not looked at), the blog's sites, a project with several covering sections or a book of hundreds of units, the uninstall on a real site, the `Settings` menu entries with several users, the merged HTML branch with a project.

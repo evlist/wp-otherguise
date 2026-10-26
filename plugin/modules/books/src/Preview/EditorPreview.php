@@ -89,6 +89,13 @@ final class EditorPreview {
 	private $pdf_enabled;
 
 	/**
+	 * Receives a post id; returns the format of the page of its book project, or null (slice 230).
+	 *
+	 * @var callable
+	 */
+	private $project_format;
+
+	/**
 	 * Builds the loader.
 	 *
 	 * @param PageFormat    $format     Format of the page.
@@ -98,8 +105,9 @@ final class EditorPreview {
 	 * @param callable|null $can        Defaults to `current_user_can`.
 	 * @param callable|null $in_preview Defaults to a read of the query string with `filter_input()`.
 	 * @param callable|null $pdf_enabled Tells whether a rendering server is configured; defaults to false.
+	 * @param callable|null $project_format Receives a post id; returns the format of its book project or null; defaults to none.
 	 */
-	public function __construct( PageFormat $format, $modes, $url, $post_id = null, $can = null, $in_preview = null, $pdf_enabled = null ) {
+	public function __construct( PageFormat $format, $modes, $url, $post_id = null, $can = null, $in_preview = null, $pdf_enabled = null, $project_format = null ) {
 		$this->format     = $format;
 		$this->modes      = $modes;
 		$this->url        = $url;
@@ -107,6 +115,7 @@ final class EditorPreview {
 		$this->can        = $can ?? 'current_user_can';
 		$this->in_preview = $in_preview ?? array( $this, 'query_has_argument' );
 		$this->pdf_enabled = $pdf_enabled ?? static fn() => false;
+		$this->project_format = $project_format ?? static fn() => null;
 	}
 
 	/**
@@ -143,7 +152,7 @@ final class EditorPreview {
 			self::SCRIPT,
 			'window.booksPreview = ' . wp_json_encode(
 				array(
-					'page'        => $this->format->get(),
+					'page'        => ( $this->project_format )( $post_id ) ?? $this->format->get(),
 					'modes'       => $modes,
 					'defaultMode' => $default,
 					'frameModes'  => is_array( $frames ) ? array_values( array_filter( $frames, 'is_string' ) ) : array( 'print' ),

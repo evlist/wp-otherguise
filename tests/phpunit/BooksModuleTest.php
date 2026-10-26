@@ -90,11 +90,15 @@ class BooksModuleTest extends TestCase {
 				'books_render_pdf'                   => array( array( 'run', 10, 3 ) ),
 				'books_pdf_cleanup'                  => array( array( 'cleanup', 10, 0 ) ),
 				'cli_init'                           => array( array( 'register_command', 10, 0 ) ),
-				'init'                               => array( array( 'register', 20, 0 ) ),
+				'init'                               => array( array( 'register', 20, 0 ), array( 'register', 10, 0 ) ),
 				'wp_calculate_image_srcset'          => array( array( 'filter', 20, 1 ) ),
 				'image_downsize'                     => array( array( 'filter', 100, 3 ) ),
 				'wp_head'                            => array( array( 'print_script', 0, 0 ) ),
 				'redirect_canonical'                 => array( array( 'filter', 5, 1 ) ),
+				'add_meta_boxes'                     => array( array( 'add', 10, 0 ) ),
+				'save_post_books_printer'            => array( array( 'save_profile', 10, 1 ) ),
+				'save_post_books_project'            => array( array( 'save_project', 10, 1 ) ),
+				'wp_enqueue_scripts'                 => array( array( 'enqueue', 20, 0 ) ),
 			),
 			$hooks
 		);

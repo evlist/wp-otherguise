@@ -13,6 +13,7 @@ Three commands exist (and the four sub-commands of the PDF server, the four of t
 | [`wp otherguise modes variant retheme`](#wp-otherguise-modes-variant-retheme) | moves the variants of a theme to another theme | [212](slices/212-variant-retheme.md) | rollout 002 |
 | [`wp otherguise media migrate`](#wp-otherguise-media-migrate) | turns the parents of the attachments and a meta into links | [211](slices/211-media-migration.md), [215](slices/215-media-migrate-criterion.md), [217](slices/217-media-migrate-all-types-and-posts.md) | rollout 003 (planned) |
 | [`wp otherguise books renderer get\|set\|unset\|check`](#wp-otherguise-books-renderer) | reads, sets, turns off and checks the PDF server of the site | [220](slices/220-books-gotenberg-pdf-preview.md) | the synchronisation scripts of the sites (to be added in `shared-room`) |
+| [`wp otherguise books profile list\|show\|create` and `books project list\|show\|create\|set-profile`](#wp-otherguise-books-profile-and-project) | lists, shows and creates the printer profiles and the book projects (a top-level section and a profile) | [230](slices/230-books-printer-profile-and-project.md) | preparing a book for a printer |
 | [`wp otherguise books section list\|show\|add\|remove`](#wp-otherguise-books-section) | lists the sections, shows what one contains, adds posts to it (by id or by search and dates) or takes them out | [223](slices/223-books-section-container.md) | preparing a book |
 | [`wp otherguise access list\|create\|revoke`](#wp-otherguise-access) | lists, makes and revokes the private links of posts (`?shared=<token>`) | [400](slices/400-shares-private-link.md) | sharing a post before it is published; the PDF of posts that are not published |
 
@@ -130,6 +131,20 @@ The PDF server (a Gotenberg container) of **one site**. A copy of production mad
 wp otherguise books renderer set --address=http://gotenberg-testing:3000 && wp otherguise books renderer check
 wp otherguise books renderer set --site-address=http://wordpress-testing-vli-st   # the PDF server asks the pages by this address (slice 225)
 ```
+
+## wp otherguise books profile and project
+
+```
+wp otherguise books profile list   [--format=<text|json>]
+wp otherguise books profile show   <id> [--format=<text|json>]
+wp otherguise books profile create <title> [--preset=<coollibri|flexilivre>] [--dry-run]
+wp otherguise books project list   [--format=<text|json>]
+wp otherguise books project show   <id>
+wp otherguise books project create <title> --root=<section> --profile=<id> [--dry-run]
+wp otherguise books project set-profile <project> <profile> [--dry-run]
+```
+
+The rules of a printer (a profile) and a book (a project: a top-level section and a profile), slice 230. `list` prints tab-separated lines (`id`, `title`, …) or JSON. `show` prints the fields of a profile, or of a project with the CSS that its profile gives to the page (or says there is none). `create` and `set-profile` can be run twice: a profile or a project with that title is left as it is, a project that has the profile already says so; `--dry-run` writes nothing. The presets are starting points to check against the printers' sites.
 
 ## wp otherguise books section
 
