@@ -13,6 +13,7 @@ Three commands exist (and the four sub-commands of the PDF server, the four of t
 | [`wp otherguise modes variant retheme`](#wp-otherguise-modes-variant-retheme) | moves the variants of a theme to another theme | [212](slices/212-variant-retheme.md) | rollout 002 |
 | [`wp otherguise media migrate`](#wp-otherguise-media-migrate) | turns the parents of the attachments and a meta into links | [211](slices/211-media-migration.md), [215](slices/215-media-migrate-criterion.md), [217](slices/217-media-migrate-all-types-and-posts.md) | rollout 003 (planned) |
 | [`wp otherguise books renderer get\|set\|unset\|check`](#wp-otherguise-books-renderer) | reads, sets, turns off and checks the PDF server of the site | [220](slices/220-books-gotenberg-pdf-preview.md) | the synchronisation scripts of the sites (to be added in `shared-room`) |
+| [`wp otherguise books merge-log [--lines=<n>] [--show-path] [--clear]`](#wp-otherguise-books-merge-log) | prints the last lines of the log of the merge of a section with its units, its path, or empties it | [231](slices/231-books-merged-section-print.md) | measuring a merge |
 | [`wp otherguise books profile list\|show\|create` and `books project list\|show\|create\|set-profile\|migrate`](#wp-otherguise-books-profile-and-project) | lists, shows and creates the printer profiles and the book projects (a top-level section and a profile) | [230](slices/230-books-printer-profile-and-project.md) | preparing a book for a printer |
 | [`wp otherguise books section list\|show\|add\|remove`](#wp-otherguise-books-section) | lists the sections, shows what one contains, adds posts to it (by id or by search and dates) or takes them out | [223](slices/223-books-section-container.md) | preparing a book |
 | [`wp otherguise access list\|create\|revoke`](#wp-otherguise-access) | lists, makes and revokes the private links of posts (`?shared=<token>`) | [400](slices/400-shares-private-link.md) | sharing a post before it is published; the PDF of posts that are not published |
@@ -131,6 +132,14 @@ The PDF server (a Gotenberg container) of **one site**. A copy of production mad
 wp otherguise books renderer set --address=http://gotenberg-testing:3000 && wp otherguise books renderer check
 wp otherguise books renderer set --site-address=http://wordpress-testing-vli-st   # the PDF server asks the pages by this address (slice 225)
 ```
+
+## wp otherguise books merge-log
+
+```
+wp otherguise books merge-log [--lines=<n>] [--show-path] [--clear]
+```
+
+The log of the merge of a section with its units (slice 231): durations, SQL queries and memory, one JSON line per event. **Off by default**: `wp option update books_merge_log 1` turns it on, `wp option delete books_merge_log` off. The file is in the protected directory of the PDF files under a name made with a key of the site; `--show-path` prints it (not `--path`: WP-CLI keeps that one for the path of WordPress), `--clear` empties it, `--lines` (40 by default) prints the last lines. The number of units of a merge is lowered with `wp option update books_merge_limit <n>` or a custom field `books_merge_limit` of the section.
 
 ## wp otherguise books profile and project
 

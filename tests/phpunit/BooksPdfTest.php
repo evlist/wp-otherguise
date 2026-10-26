@@ -391,9 +391,11 @@ class BooksPdfTest extends TestCase {
 	 * @param int           $pages     Pages.
 	 * @param array         $info      Overrides of the info of the post 12.
 	 * @param callable|null $rules Receives a post id; returns the rules of its book project, or null (slice 230).
+	 * @param callable|null $merge_token Receives a post id; returns the token that lets a section be merged (slice 231).
+	 * @param callable|null $log Receives an event and its fields (slice 231).
 	 * @return PdfJobs
 	 */
-	private function jobs( array &$calls, array &$scheduled, array $answers = array(), $pages = 2, array $info = array(), $rules = null ) {
+	private function jobs( array &$calls, array &$scheduled, array $answers = array(), $pages = 2, array $info = array(), $rules = null, $merge_token = null, $log = null ) {
 		$renderer = $this->renderer( $answers, $pages, $calls );
 		$posts    = array(
 			12 => $info + array(
@@ -424,7 +426,9 @@ class BooksPdfTest extends TestCase {
 			},
 			fn() => $this->time,
 			null,
-			$rules
+			$rules,
+			$merge_token,
+			$log
 		);
 	}
 
@@ -650,6 +654,54 @@ class BooksPdfTest extends TestCase {
 		$this->assertSame( 'done', $jobs->status( 12, 'print', 6 )['status'] );
 		$this->assertSame( 'none', $jobs->status( 12, 'print', 5 )['status'], 'The other project was not made.' );
 		$this->assertIsArray( $jobs->download( 12, 'print', 6 ) );
+	}
+
+	/**
+	 * The page that the print server asks for carries the token that lets a section be merged with its units (and the project, when there is
+	 * one); the conversion is written in the log of the merge.
+	 *
+	 * @return void
+	 */
+	public function test_the_address_with_the_merge_token_and_the_log(): void {
+		$calls     = array();
+		$scheduled = array();
+		$logged    = array();
+		$this->configure();
+
+		$plain = $this->jobs( $calls, $scheduled, array( '%PDF-1.7 a' ) );
+		$plain->request( 12, 'print' );
+		$plain->run( ...$scheduled[0] );
+		$this->assertSame( 'https://x.test/repos/?mode=print', $calls[0][0], 'No token without a token maker.' );
+
+		$calls     = array();
+		$scheduled = array();
+		$jobs      = $this->jobs(
+			$calls,
+			$scheduled,
+			array( '%PDF-1.7 b' ),
+			2,
+			array(),
+			static fn() => array(
+				'project' => 5,
+				'format'  => array(
+					'width_mm'  => 148.0,
+					'height_mm' => 210.0,
+					'margin_mm' => 10.0,
+				),
+				'css'     => 'x',
+			),
+			static fn( $post_id ) => 'tok-' . $post_id,
+			static function ( $event, $fields ) use ( &$logged ) {
+				$logged[] = array( $event, $fields );
+			}
+		);
+		$jobs->request( 12, 'print' );
+		$jobs->run( ...$scheduled[0] );
+
+		$this->assertSame( 'https://x.test/repos/?mode=print&books_project=5&books_merge_token=tok-12', $calls[0][0] );
+		$this->assertSame( 'pdf_convert', $logged[0][0] );
+		$this->assertTrue( $logged[0][1]['ok'] );
+		$this->assertSame( 12, $logged[0][1]['post'] );
 	}
 
 	/**

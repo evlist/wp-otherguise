@@ -683,6 +683,37 @@ function wp_delete_post() {
 }
 
 /**
+ * Stub of get_post_meta(): the values a test put in `$GLOBALS['otherguise_test_meta'][ $post_id ][ $key ]`.
+ *
+ * @param int    $post_id Post.
+ * @param string $key     Key.
+ * @return mixed
+ */
+function get_post_meta( $post_id, $key = '' ) {
+    return $GLOBALS['otherguise_test_meta'][ $post_id ][ $key ] ?? '';
+}
+
+/**
+ * Stub of get_num_queries().
+ *
+ * @return int
+ */
+function get_num_queries() {
+    return 0;
+}
+
+/**
+ * Stub of add_filter(): records the call.
+ *
+ * @return bool
+ */
+function add_filter() {
+    otherguise_test_record( 'add_filter', func_get_args() );
+
+    return true;
+}
+
+/**
  * Stub of wp_add_inline_script(): records the call.
  *
  * @return void

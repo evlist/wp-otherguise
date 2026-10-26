@@ -125,6 +125,20 @@ final class PdfJobs {
 	private $rules;
 
 	/**
+	 * Receives a post id; returns the token that lets the page of a section be merged with its units (slice 231).
+	 *
+	 * @var callable
+	 */
+	private $merge_token;
+
+	/**
+	 * Receives the name of an event and its fields; writes them in the log of the merge.
+	 *
+	 * @var callable
+	 */
+	private $log;
+
+	/**
 	 * Builds the jobs.
 	 *
 	 * @param RendererSettings $settings      Settings of the server.
@@ -139,8 +153,10 @@ final class PdfJobs {
 	 * @param callable|null    $now           Defaults to `time`.
 	 * @param callable|null    $reach         Receives the address to convert; returns the address by which the server reaches it (the same by default).
 	 * @param callable|null    $rules         Receives a post id and the project asked for; returns the rules of the book project (`project`, `format`, `css`) or null (none by default).
+	 * @param callable|null    $merge_token   Receives a post id; returns the token that lets a section be printed with its units (none by default).
+	 * @param callable|null    $log           Receives an event and its fields; writes the log of the merge (nothing by default).
 	 */
-	public function __construct( RendererSettings $settings, PageFormat $format, PdfStore $store, JobState $state, $post_info, $mode_exists, $url_for, $make_renderer, $schedule, $now = null, $reach = null, $rules = null ) {
+	public function __construct( RendererSettings $settings, PageFormat $format, PdfStore $store, JobState $state, $post_info, $mode_exists, $url_for, $make_renderer, $schedule, $now = null, $reach = null, $rules = null, $merge_token = null, $log = null ) {
 		$this->settings      = $settings;
 		$this->format        = $format;
 		$this->store         = $store;
@@ -155,6 +171,12 @@ final class PdfJobs {
 			return $address;
 		};
 		$this->rules         = $rules ?? static function () {
+			return null;
+		};
+		$this->merge_token   = $merge_token ?? static function () {
+			return '';
+		};
+		$this->log           = $log ?? static function () {
 			return null;
 		};
 	}
@@ -281,7 +303,7 @@ final class PdfJobs {
 		$url     = ( $this->url_for )( $info['url'], $mode );
 		$started = microtime( true );
 		$result  = $renderer->convert_url_to_file(
-			( $this->reach )( is_array( $rules ) ? add_query_arg( array( 'books_project' => (int) $rules['project'] ), $url ) : $url ),
+			( $this->reach )( $this->address_of( $url, $post_id, $rules ) ),
 			$this->format_for( $rules ),
 			array(
 				'prefer_css_page_size' => is_array( $rules ),
@@ -294,7 +316,7 @@ final class PdfJobs {
 			$part
 		);
 
-		\Otherguise\Books\Merge\MergeLog::write(
+		( $this->log )(
 			'pdf_convert',
 			array(
 				'post'    => (int) $post_id,
@@ -459,6 +481,30 @@ final class PdfJobs {
 		}
 
 		return md5( (string) wp_json_encode( $parts ) );
+	}
+
+	/**
+	 * The address that the print server asks for: the page of the post in the mode, with the book project whose rules apply and the token that
+	 * lets a section be merged with its units.
+	 *
+	 * @param string                    $url     Address of the page in the mode.
+	 * @param int                       $post_id Post.
+	 * @param array<string, mixed>|null $rules   The rules of the project, or null.
+	 * @return string
+	 */
+	private function address_of( $url, $post_id, $rules ) {
+		$arguments = array();
+		$token     = (string) ( $this->merge_token )( $post_id );
+
+		if ( is_array( $rules ) ) {
+			$arguments['books_project'] = (int) $rules['project'];
+		}
+
+		if ( '' !== $token ) {
+			$arguments['books_merge_token'] = $token;
+		}
+
+		return array() === $arguments ? $url : add_query_arg( $arguments, $url );
 	}
 
 	/**

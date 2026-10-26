@@ -284,12 +284,23 @@ final class PdfStore {
 	}
 
 	/**
-	 * Lists the PDF files of the directory, and the files that were being written.
+	 * Returns the path of the log of the merge of the sections (slice 231): in this directory, which is made when needed, under a name that
+	 * nobody can guess (a server that does not read `.htaccess` would give a file that has a known name).
+	 *
+	 * @param string $name Name of the file: `merge-` and sixteen hexadecimal digits, `.log`.
+	 * @return string An empty string when the name is not valid or the directory cannot be made.
+	 */
+	public function log_path( $name ) {
+		return 1 === preg_match( '/^merge-[0-9a-f]{16}\.log$/', (string) $name ) && $this->prepare() ? $this->directory . '/' . $name : '';
+	}
+
+	/**
+	 * Lists the PDF files of the directory, the files that were being written and the log.
 	 *
 	 * @return string[]
 	 */
 	private function files() {
-		$files = glob( $this->directory . '/*.{pdf,part}', GLOB_BRACE );
+		$files = glob( $this->directory . '/*.{pdf,part,log}', GLOB_BRACE );
 
 		return is_array( $files ) ? $files : array();
 	}

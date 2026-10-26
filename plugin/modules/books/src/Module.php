@@ -12,6 +12,7 @@ namespace Otherguise\Books;
 
 use Otherguise\Books\Admin\SettingsScreen;
 use Otherguise\Books\Preview\EditorPreview;
+use Otherguise\Books\Cli\MergeLogCommand;
 use Otherguise\Books\Cli\ProfileCommand;
 use Otherguise\Books\Cli\ProjectCommand;
 use Otherguise\Books\Cli\RendererCommand;
@@ -21,7 +22,9 @@ use Otherguise\Books\Images\PrintFallback;
 use Otherguise\Books\Images\PrintSizes;
 use Otherguise\Books\Images\PrintPixelRatio;
 use Otherguise\Books\Images\PrintSrcset;
+use Otherguise\Books\Merge\MergeAccess;
 use Otherguise\Books\Merge\MergedPrint;
+use Otherguise\Books\Merge\MergeLog;
 use Otherguise\Books\Pdf\JobState;
 use Otherguise\Books\Pdf\PdfJobs;
 use Otherguise\Books\Pdf\PdfStore;
@@ -164,8 +167,7 @@ final class Module implements ModuleInterface {
 		( $this->add_action )( 'wp_calculate_image_srcset', array( $srcset, 'filter' ), 20, 1 );
 		( $this->add_action )( 'image_downsize', array( $fallback, 'filter' ), 100, 3 );
 		( $this->add_action )( 'wp_head', array( $ratio, 'print_script' ), 0, 0 );
-		// Test branch merge-all-html: the print page of a section is the concatenation of its units.
-		( $this->add_action )( 'wp_footer', array( new MergedPrint( $sections ), 'footer' ), 1, 0 );
+		( $this->add_action )( 'wp_footer', array( new MergedPrint( $sections, new MergeAccess(), new MergeLog() ), 'footer' ), 1, 0 );
 		( $this->add_action )( 'redirect_canonical', array( new InternalHost( $renderer ), 'filter' ), 5, 1 );
 		( $this->add_action )( 'init', array( $types, 'register' ), 10, 0 );
 		( $this->add_action )( 'add_meta_boxes', array( $boxes, 'add' ), 10, 0 );
@@ -276,6 +278,7 @@ final class Module implements ModuleInterface {
 	public function register_command() {
 		\WP_CLI::add_command( 'otherguise books sizes', new SizesCommand( new PrintSizes( new PageFormat() ) ) );
 		\WP_CLI::add_command( 'otherguise books section', new SectionCommand( $this->sections( true ) ) );
+		\WP_CLI::add_command( 'otherguise books merge-log', new MergeLogCommand( new MergeLog() ) );
 		\WP_CLI::add_command( 'otherguise books profile', new ProfileCommand( $this->projects(), new WordPressProjects() ) );
 		\WP_CLI::add_command(
 			'otherguise books project',
@@ -336,6 +339,12 @@ final class Module implements ModuleInterface {
 					'format'  => PrinterProfile::format( $found['profile'] ),
 					'css'     => $found['css'],
 				);
+			},
+			static function ( $post_id ) {
+				return ( new MergeAccess() )->token( (int) $post_id );
+			},
+			static function ( $event, array $fields ) {
+				( new MergeLog() )->write( $event, $fields );
 			}
 		);
 	}

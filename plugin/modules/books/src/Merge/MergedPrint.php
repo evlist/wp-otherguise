@@ -15,29 +15,35 @@ use Otherguise\Books\Section\Sections;
 defined( 'ABSPATH' ) || exit;
 
 /**
- * **Test branch `merge-all-html` only** (option 4 of `docs/design/books.md`: merge the HTML of the units before the pagination).
+ * Option 4 of `docs/design/books.md` (slice 231): merge the HTML of the units before the pagination, so that one PDF of a section has the pages
+ * of all its units.
  *
- * In the print mode, the page of a section shows its own content and then, after the whole page, one after the other, the page of each unit **in the print mode**
- * (the template that the Modes module would give that unit, rendered for it), each one in a `div` that starts a new page; a unit that is a
- * section is followed by its own units. Only published units. `?books_merge=0` shows the page without the units, `?books_merge_limit=N`
- * stops after N units (to try 20 and then 100). Every unit and the whole are written to the log (`MergeLog`). A hack for a test: no
- * settings, no cache, nothing for the editor.
+ * In a print mode, the page of a section shows its own content and then, **after the whole page**, one after the other, the page of each
+ * unit in that mode (the template that the Modes module would give that unit, rendered for it), each in a `div` that starts a new page;
+ * a unit that is a section is followed by its own units. Only published units that have no password. It is **asked for**, never given to
+ * a visitor: see `MergeAccess` (a user who can edit the section, or the PDF job with its token), and the preview of the editor does not
+ * merge (the PDF does). At most `MAX_UNITS` units and, by default, ten minutes of PHP.
  */
 final class MergedPrint {
-	/**
-	 * Query argument that switches the merge off (`0`).
-	 */
-	public const SWITCH = 'books_merge';
-
 	/**
 	 * Name of the query argument, of the custom field of the section and of the option that stop the merge after a number of units.
 	 */
 	public const LIMIT = 'books_merge_limit';
 
 	/**
+	 * Name of the query argument that marks the preview of the editor.
+	 */
+	public const PREVIEW = 'books_preview';
+
+	/**
 	 * Deepest level of sections followed.
 	 */
 	public const DEPTH = 6;
+
+	/**
+	 * The most units of a merge.
+	 */
+	public const MAX_UNITS = 1000;
 
 	/**
 	 * The sections.
@@ -47,11 +53,61 @@ final class MergedPrint {
 	private $sections;
 
 	/**
-	 * True while the units are being rendered: the content of a unit is not merged again, the recursion is done here.
+	 * Who may have a section merged.
+	 *
+	 * @var MergeAccess
+	 */
+	private $access;
+
+	/**
+	 * The log.
+	 *
+	 * @var MergeLog
+	 */
+	private $log;
+
+	/**
+	 * Describes the request: `print` (a print mode), `section` (the id of the single post shown, 0 for none), `preview` (the preview of
+	 * the editor) and `limit` (the number of units asked for in the address).
+	 *
+	 * @var callable
+	 */
+	private $request;
+
+	/**
+	 * Receives a post id; returns the HTML of that unit.
+	 *
+	 * @var callable
+	 */
+	private $render;
+
+	/**
+	 * Receives a post id; returns `status` and `password` of the post, or null when it does not exist.
+	 *
+	 * @var callable
+	 */
+	private $post_of;
+
+	/**
+	 * The HTML of the units, once they are rendered.
+	 *
+	 * @var string|null
+	 */
+	private $html = null;
+
+	/**
+	 * Whether the units were put in front of the output.
 	 *
 	 * @var bool
 	 */
-	private $busy = false;
+	private $inserted = false;
+
+	/**
+	 * Largest number of units.
+	 *
+	 * @var int
+	 */
+	private $limit = self::MAX_UNITS;
 
 	/**
 	 * Units rendered in the current merge.
@@ -68,6 +124,13 @@ final class MergedPrint {
 	private $current = 0;
 
 	/**
+	 * Whether a merge is going on (a unit that renders a section is not merged again: the recursion is done here).
+	 *
+	 * @var bool
+	 */
+	private $busy = false;
+
+	/**
 	 * Start of the merge, for the log of an aborted one.
 	 *
 	 * @var float
@@ -75,59 +138,103 @@ final class MergedPrint {
 	private $started = 0.0;
 
 	/**
-	 * Largest number of units, 0 for no limit.
-	 *
-	 * @var int
-	 */
-	private $limit = 0;
-
-	/**
 	 * Builds the merge.
 	 *
-	 * @param Sections $sections The sections.
+	 * @param Sections      $sections The sections.
+	 * @param MergeAccess   $access   Who may have a section merged.
+	 * @param MergeLog      $log      The log.
+	 * @param callable|null $request  Describes the request; defaults to a read of WordPress.
+	 * @param callable|null $render   Renders a unit; defaults to `UnitRenderer`.
+	 * @param callable|null $post_of  Reads a post; defaults to `get_post()`.
 	 */
-	public function __construct( Sections $sections ) {
+	public function __construct( Sections $sections, MergeAccess $access, MergeLog $log, $request = null, $render = null, $post_of = null ) {
 		$this->sections = $sections;
+		$this->access   = $access;
+		$this->log      = $log;
+		$this->request  = $request ?? array( $this, 'read_request' );
+		$this->render   = $render ?? array( new UnitRenderer(), 'render' );
+		$this->post_of  = $post_of ?? static function ( $id ) {
+			$post = get_post( (int) $id );
+
+			return $post instanceof \WP_Post ? array(
+				'status'   => (string) $post->post_status,
+				'password' => (string) $post->post_password,
+			) : null;
+		};
 	}
 
 	/**
-	 * Prints the units after the whole page of the section, outside its template (the print template of a section may put its content in a
-	 * column: the units would be squeezed in it). Action `wp_footer`, early, so that the styles and scripts that the units enqueue are
-	 * printed with the others.
+	 * Renders the units at the start of the footer and puts them in front of what follows: after the whole page of the section, outside its
+	 * template (a template may put the content in a column: the units would be squeezed in it), and before the scripts of the footer, which
+	 * find the units in the page. No HTML is printed here: the output buffer hands the units to the page. Action `wp_footer`, priority 1.
 	 *
 	 * @return void
 	 */
 	public function footer() {
-		if ( $this->busy || ! $this->wanted() ) {
+		if ( null !== $this->html || $this->busy ) {
 			return;
 		}
 
-		$section = (int) get_queried_object_id();
+		$html = $this->merge();
 
-		if ( array() === $this->sections->order( $section ) ) {
+		if ( '' === $html ) {
 			return;
 		}
 
-		$this->limit = $this->limit_for( $section );
-		$this->count = 0;
-		$this->busy     = true;
-		$started        = microtime( true );
-		$queries        = get_num_queries();
+		$this->html = $html;
 
-		$this->started = $started;
+		ob_start( array( $this, 'prepend' ) );
+	}
 
-		// A test measures the real cost: it must not be cut at the time limit of PHP (30 seconds by default). If PHP stops anyway, the
-		// shutdown function writes why.
+	/**
+	 * Output callback: puts the units in front of the buffer, once.
+	 *
+	 * @param string $buffer What the page prints from the footer on.
+	 * @return string
+	 */
+	public function prepend( $buffer ) {
+		if ( null === $this->html || $this->inserted ) {
+			return $buffer;
+		}
+
+		$this->inserted = true;
+
+		return $this->html . $buffer;
+	}
+
+	/**
+	 * The HTML of the units of the section of the request: empty when the request is not a print page of a section, is the preview of the
+	 * editor, is not allowed to merge, or the section holds nothing.
+	 *
+	 * @return string
+	 */
+	public function merge() {
+		$request = (array) ( $this->request )();
+		$section = (int) ( $request['section'] ?? 0 );
+
+		if ( empty( $request['print'] ) || ! empty( $request['preview'] ) || $section <= 0 || ! $this->access->allowed( $section ) || array() === $this->sections->order( $section ) ) {
+			return '';
+		}
+
+		$this->limit   = $this->limit_for( $section, (int) ( $request['limit'] ?? 0 ) );
+		$this->count   = 0;
+		$this->busy    = true;
+		$this->started = microtime( true );
+		$queries       = get_num_queries();
+
+		// The time that a merge may take: the limit of the server and of the print server remain.
 		if ( function_exists( 'set_time_limit' ) ) {
-			set_time_limit( 0 );
+			set_time_limit( max( 30, (int) apply_filters( 'books_merge_time_limit', 600 ) ) );
 		}
 
-		register_shutdown_function( array( $this, 'shutdown' ) );
+		if ( $this->log->enabled() ) {
+			register_shutdown_function( array( $this, 'shutdown' ) );
+		}
 
 		// Images that are lazy are not loaded by the print engine unless it scrolls: all of them must be loaded for the PDF.
 		add_filter( 'wp_lazy_loading_enabled', '__return_false' );
 
-		MergeLog::write(
+		$this->log->write(
 			'merge_start',
 			array(
 				'section' => $section,
@@ -144,34 +251,14 @@ final class MergedPrint {
 		$summary = array(
 			'section' => $section,
 			'units'   => $this->count,
-			'seconds' => round( microtime( true ) - $started, 2 ),
+			'seconds' => round( microtime( true ) - $this->started, 2 ),
 			'queries' => get_num_queries() - $queries,
 			'html_kb' => (int) round( strlen( $units ) / 1024 ),
 		);
 
-		MergeLog::write( 'merge_done', $summary );
+		$this->log->write( 'merge_done', $summary );
 
-		echo '<style>.books-merge-unit{break-before:page;}</style>' . $units . '<!-- books-merge ' . wp_json_encode( $summary + MergeLog::memory() ) . ' -->';
-	}
-
-	/**
-	 * The number of units to stop at, 0 for no limit: the query argument `books_merge_limit` of the page, else the custom field of the same
-	 * name of the section (the PDF is fetched by the print server, which has no way to add an argument: the custom field is for it), else
-	 * the option of the same name.
-	 *
-	 * @param int $section Id of the section.
-	 * @return int
-	 */
-	private function limit_for( $section ) {
-		$argument = filter_input( INPUT_GET, self::LIMIT, FILTER_VALIDATE_INT );
-
-		if ( is_int( $argument ) && $argument > 0 ) {
-			return $argument;
-		}
-
-		$field = (int) get_post_meta( $section, self::LIMIT, true );
-
-		return $field > 0 ? $field : max( 0, (int) get_option( self::LIMIT, 0 ) );
+		return '<style>.books-merge-unit{break-before:page;}</style>' . $units . '<!-- books-merge ' . wp_json_encode( $summary ) . ' -->';
 	}
 
 	/**
@@ -185,7 +272,7 @@ final class MergedPrint {
 			return;
 		}
 
-		MergeLog::write(
+		$this->log->write(
 			'merge_aborted',
 			array(
 				'units'      => $this->count,
@@ -198,19 +285,37 @@ final class MergedPrint {
 	}
 
 	/**
-	 * Whether the current request is the print page of a section that should be merged.
+	 * Reads the request: a print mode, the single post shown, the preview of the editor, the number of units asked for.
 	 *
-	 * @return bool
+	 * @return array{print:bool, section:int, preview:bool, limit:int}
 	 */
-	private function wanted() {
-		if ( ! is_singular() || '0' === filter_input( INPUT_GET, self::SWITCH ) || ! function_exists( 'modes_active_mode' ) ) {
-			return false;
-		}
-
-		$mode  = modes_active_mode();
+	public function read_request() {
 		$modes = apply_filters( 'books_preview_frame_modes', array( 'print' ) );
+		$mode  = function_exists( 'modes_active_mode' ) ? modes_active_mode() : null;
+		$limit = filter_input( INPUT_GET, self::LIMIT, FILTER_VALIDATE_INT );
 
-		return null !== $mode && is_array( $modes ) && in_array( $mode->slug(), $modes, true );
+		return array(
+			'print'   => null !== $mode && is_array( $modes ) && in_array( $mode->slug(), $modes, true ),
+			'section' => is_singular() ? (int) get_queried_object_id() : 0,
+			'preview' => null !== filter_input( INPUT_GET, self::PREVIEW, FILTER_UNSAFE_RAW ),
+			'limit'   => is_int( $limit ) ? $limit : 0,
+		);
+	}
+
+	/**
+	 * The number of units to stop at: the argument of the address, else the custom field of the section (the PDF is fetched by the print
+	 * server, which adds none), else the option of the same name; never more than `MAX_UNITS`.
+	 *
+	 * @param int $section  Id of the section.
+	 * @param int $argument The number asked for in the address.
+	 * @return int
+	 */
+	private function limit_for( $section, $argument ) {
+		$field  = (int) get_post_meta( $section, self::LIMIT, true );
+		$option = (int) get_option( self::LIMIT, 0 );
+		$wanted = $argument > 0 ? $argument : ( $field > 0 ? $field : $option );
+
+		return $wanted > 0 ? min( $wanted, self::MAX_UNITS ) : self::MAX_UNITS;
 	}
 
 	/**
@@ -225,22 +330,22 @@ final class MergedPrint {
 		$out = '';
 
 		foreach ( $this->sections->order( $section ) as $id ) {
-			if ( $this->limit > 0 && $this->count >= $this->limit ) {
+			if ( $this->count >= $this->limit ) {
 				break;
 			}
 
-			$post = get_post( $id );
+			$post = ( $this->post_of )( (int) $id );
 
-			if ( ! $post instanceof \WP_Post || 'publish' !== $post->post_status ) {
-				MergeLog::write( 'unit_skipped', array( 'post' => (int) $id ) );
+			if ( null === $post || 'publish' !== $post['status'] || '' !== $post['password'] ) {
+				$this->log->write( 'unit_skipped', array( 'post' => (int) $id ) );
 				continue;
 			}
 
 			$started       = microtime( true );
 			$queries       = get_num_queries();
-			$this->current = (int) $post->ID;
+			$this->current = (int) $id;
 
-			MergeLog::write(
+			$this->log->write(
 				'unit_start',
 				array(
 					'n'    => $this->count + 1,
@@ -248,17 +353,17 @@ final class MergedPrint {
 				)
 			);
 
-			$html          = $this->render( $post );
+			$html          = (string) ( $this->render )( (int) $id );
 			$this->current = 0;
 
 			++$this->count;
-			$out .= '<div class="books-merge-unit" data-post="' . (int) $post->ID . '" data-depth="' . (int) $depth . '">' . $html . '</div>';
+			$out .= '<div class="books-merge-unit" data-post="' . (int) $id . '" data-depth="' . (int) $depth . '">' . $html . '</div>';
 
-			MergeLog::write(
+			$this->log->write(
 				'unit',
 				array(
 					'n'       => $this->count,
-					'post'    => (int) $post->ID,
+					'post'    => (int) $id,
 					'depth'   => $depth,
 					'ms'      => (int) round( ( microtime( true ) - $started ) * 1000 ),
 					'queries' => get_num_queries() - $queries,
@@ -266,69 +371,11 @@ final class MergedPrint {
 				)
 			);
 
-			if ( $depth < self::DEPTH && ! isset( $seen[ $post->ID ] ) && array() !== $this->sections->order( $post->ID ) ) {
-				$out .= $this->units( $post->ID, $seen + array( $post->ID => true ), $depth + 1 );
+			if ( $depth < self::DEPTH && ! isset( $seen[ $id ] ) && array() !== $this->sections->order( (int) $id ) ) {
+				$out .= $this->units( (int) $id, $seen + array( $id => true ), $depth + 1 );
 			}
 		}
 
 		return $out;
-	}
-
-	/**
-	 * Renders a unit as WordPress would render its own page in the mode of the request: a query for that post, the template that
-	 * WordPress finds for it (the Modes module has put the variant in the hierarchy), and the blocks of that template. A classic theme, or
-	 * a template that cannot be found, gives the content of the post.
-	 *
-	 * @param \WP_Post $post The unit.
-	 * @return string
-	 */
-	private function render( \WP_Post $post ) {
-		$keep = array();
-
-		foreach ( array( 'wp_query', 'post', '_wp_current_template_content', '_wp_current_template_id' ) as $name ) {
-			$keep[ $name ] = $GLOBALS[ $name ] ?? null;
-		}
-
-		$GLOBALS['wp_query']                     = new \WP_Query(
-			array(
-				'p'                   => $post->ID,
-				'post_type'           => $post->post_type,
-				'post_status'         => 'publish',
-				'no_found_rows'       => true,
-				'ignore_sticky_posts' => true,
-			)
-		);
-		$GLOBALS['_wp_current_template_content'] = null;
-		$GLOBALS['_wp_current_template_id']      = null;
-		// The current post is the unit, not the section: the shortcodes of the templates (`[modes_url]`, hence the QR codes) use `get_the_ID()`.
-		$GLOBALS['post'] = $post;
-		setup_postdata( $post );
-
-		try {
-			if ( is_page() ) {
-				get_page_template();
-			} elseif ( is_single() ) {
-				get_single_template();
-			} else {
-				get_singular_template();
-			}
-
-			if ( ! empty( $GLOBALS['_wp_current_template_content'] ) ) {
-				$html = get_the_block_template_html();
-			} else {
-				setup_postdata( $post );
-				$html = (string) apply_filters( 'the_content', $post->post_content );
-			}
-		} finally {
-			foreach ( $keep as $name => $value ) {
-				$GLOBALS[ $name ] = $value;
-			}
-
-			if ( $keep['post'] instanceof \WP_Post ) {
-				setup_postdata( $keep['post'] );
-			}
-		}
-
-		return $html;
 	}
 }
