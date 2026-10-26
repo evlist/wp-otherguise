@@ -61,6 +61,20 @@ final class MergedPrint {
 	private $count = 0;
 
 	/**
+	 * Id of the unit being rendered, 0 outside a unit.
+	 *
+	 * @var int
+	 */
+	private $current = 0;
+
+	/**
+	 * Start of the merge, for the log of an aborted one.
+	 *
+	 * @var float
+	 */
+	private $started = 0.0;
+
+	/**
 	 * Largest number of units, 0 for no limit.
 	 *
 	 * @var int
@@ -99,6 +113,16 @@ final class MergedPrint {
 		$this->busy     = true;
 		$started        = microtime( true );
 		$queries        = get_num_queries();
+
+		$this->started = $started;
+
+		// A test measures the real cost: it must not be cut at the time limit of PHP (30 seconds by default). If PHP stops anyway, the
+		// shutdown function writes why.
+		if ( function_exists( 'set_time_limit' ) ) {
+			set_time_limit( 0 );
+		}
+
+		register_shutdown_function( array( $this, 'shutdown' ) );
 
 		// Images that are lazy are not loaded by the print engine unless it scrolls: all of them must be loaded for the PDF.
 		add_filter( 'wp_lazy_loading_enabled', '__return_false' );
@@ -151,6 +175,29 @@ final class MergedPrint {
 	}
 
 	/**
+	 * Writes why a merge stopped before its end (a fatal error such as the time or the memory limit, or a client that went away). Called
+	 * when PHP shuts down; does nothing when the merge ended.
+	 *
+	 * @return void
+	 */
+	public function shutdown() {
+		if ( ! $this->busy ) {
+			return;
+		}
+
+		MergeLog::write(
+			'merge_aborted',
+			array(
+				'units'      => $this->count,
+				'unit'       => $this->current,
+				'seconds'    => round( microtime( true ) - $this->started, 2 ),
+				'error'      => error_get_last(),
+				'connection' => connection_status(),
+			)
+		);
+	}
+
+	/**
 	 * Whether the current request is the print page of a section that should be merged.
 	 *
 	 * @return bool
@@ -189,9 +236,20 @@ final class MergedPrint {
 				continue;
 			}
 
-			$started = microtime( true );
-			$queries = get_num_queries();
-			$html    = $this->render( $post );
+			$started       = microtime( true );
+			$queries       = get_num_queries();
+			$this->current = (int) $post->ID;
+
+			MergeLog::write(
+				'unit_start',
+				array(
+					'n'    => $this->count + 1,
+					'post' => $this->current,
+				)
+			);
+
+			$html          = $this->render( $post );
+			$this->current = 0;
 
 			++$this->count;
 			$out .= '<div class="books-merge-unit" data-post="' . (int) $post->ID . '" data-depth="' . (int) $depth . '">' . $html . '</div>';
