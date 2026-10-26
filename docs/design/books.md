@@ -378,3 +378,19 @@ Eric ran the branch `merge-all-html` on testing (the pages "journée" of last ye
 
 **Conclusion, revised (Claude; to confirm by Eric)**: the argument of 2026-10-25 against merging all the HTML ("the volume") is **not confirmed for a book of daily pages**: 184 units take 3 minutes and a normal machine, once the three obstacles above are removed. What remains of the objection is not volume: **no cache per unit** (a correction in one day renders the whole book again, about 3 minutes, where the per-unit way renders one unit and merges), **all or nothing** (one failing unit, one page that does not load, and the whole conversion fails), **the pages that are not daily pages** (JavaScript, the templates that do not exist yet), and **the margin on the time of the print server** for a longer book. So the founding decision (one PDF per post, merged) is not overturned by a measure; option 4 becomes a **possible alternative for the book of daily pages**, to compare with the per-unit way **on the same pages** (time of the whole, time of a correction, failures) before deciding.
 
+
+**Condition added by Eric (2026-10-26, to keep)**: merging the HTML is a possible alternative **provided the weight of every page is optimised as early as possible**, as was done for the daily pages (print-size images made once, light templates). The measure above holds only because of that work.
+
+#### Page numbers, table of contents and index with a merged HTML, and markers in the PDF (Proposed; checked only in Chromium, 2026-10-26)
+
+**What Chromium puts in a PDF** (checked with Playwright Chromium and `pypdf` on a document of 4 units, one of them over 3 pages; **not yet tried through Gotenberg**, nor after `gs`):
+- an internal link (`<a href="#u-3">`) and an external marker link (`https://marker.invalid/unit/3`), even of one pixel and transparent, become `/Link` annotations carried by the page where they sit; the page of the annotation is the page where the unit starts;
+- every `id` targeted by an internal link becomes a named destination (`/u-3` gives its page);
+- `outline: true` also gives bookmarks (Gotenberg option to check);
+- the number of pages of a unit is the difference between two consecutive starts; blank pages are counted for free.
+
+**Proposed**: a marker link per unit and an `id` per passage to index, then a small reader of the page tree and of the annotations (the PDFs of Chromium have no object streams, which is what `PdfPages` already relies on; no `shell_exec`), which gives the page of each unit and of each passage. Markers are safer in the merged flow, because merging per-unit PDFs may rewrite the destinations; with per-unit PDFs the cumulative sum of `PdfPages::count()` is enough for the starts, and only the passages of the index need markers.
+
+**Page numbers** (Proposed): a merged body is one document, so the physical pages are exact. The ToC and the index are small separate PDFs placed in front and at the end; their length does not depend on the digits, so the body is **not** rendered again. The folios are stamped on the final PDF (pdfcpu), which is the last pass, cheap because nothing is rendered.
+
+**Open**: ToC and index as **posts with a role** ("ToC", "Index"), generated from the content, placed where wanted and styled by templates of the theme like the category pages. Their numbers come from the pagination map of the first pass, so in print they need one more small render (see the answer of the session); in web mode they carry links only.
