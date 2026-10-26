@@ -67,7 +67,13 @@ To do in the theme, once Books gives the rules:
 5. **Folios.** Books writes the `@page` margin boxes. If the theme wants to style them (font, size), it provides the rule; otherwise the default of Books applies.
 6. **Roles.** The overrides of the default templates of Books for `toc`, `index` and `blank`, and the classes of the lines of the toc and of the index. New work; none of it exists.
 
-**To check before relying on it**: whether the full-width groups stop at the margin of the page or overflow, and whether `contentSize` reduces the render under Gotenberg. Both can be measured with the checks of slice 229. A first try on testing: set `@page` by hand with the child theme, then measure the margins in the PDF.
+**First try with the child theme (scratch WordPress, 2026-10-26; Playwright Chromium 141, `@page` added to the page by hand, theme repository untouched; margins read in the PDF with `pdftotext -bbox`; one text-only post with the template `journee-print`; not Gotenberg, not the real blog)**:
+- **Without `@page`** (the options of the call, 10 mm): the text sits at 9.8 mm left, 9.7 mm right and 10 mm at the top: `print.css` already clears the padding of `#post-content` and the margin of `main`, so **the vertical padding `spacing|60` of the template does not show** in the print mode. Point 2 above is not confirmed for this template.
+- **`@page { size: A5; margin: 20mm 8mm 20mm 20mm }`**: 20.1 mm left, 7.9 mm right, 20.2 mm at the top, exactly the profile, with **no change to the theme**; adding rules that remove the padding and `max-width` of the groups changed nothing on A5.
+- **A4 with margins of 20 mm** (printable width 170 mm, about the `contentSize` of 645 px): 20.1 / 19.6 / 20.0 mm, as asked. **A4 with margins of 10 mm** (printable width 190 mm): the text stops at 19.3 mm from the right edge instead of 10: **`contentSize` limits the width as soon as the printable width exceeds about 170 mm**; with `max-width: none` on the content blocks it is 9.6 mm. So point 1 matters for large formats (A4 with small margins, square or landscape books), not for A5 with 20 mm margins.
+- **Limits**: the right edge is the end of the longest line (ragged), so the right margin is only checked within a few millimetres; nothing tried with images, galleries, GPX maps, the QR code, or several units; the merged HTML was not used.
+
+**What it changes**: for A5, Books alone (`@page`) is enough with this theme and this template; the theme work is **one rule (`max-width: none` on the content blocks in `print.css`) for formats wider than about 170 mm**, plus the roles (point 6). Points 2 to 5 stay to be checked on pages with images and maps.
 
 ## Not decided (open)
 
