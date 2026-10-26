@@ -32,7 +32,25 @@ The same section can have **several projects** (one per printer, or a book that 
 - The thresholds of slice 229, the blank pages of slice 228 and the margins of the print templates are read from the profile of the project.
 - Capabilities: a profile and a project are edited with `edit_others_posts`; they are not public (no front-end page, not in sitemaps, not unlisted-visible) and they are exported with the site.
 
+## How Books gives the rules to the page (proposed; Chromium checked on 2026-10-26)
+
+Books **injects the rules into the page in the print mode**; the theme is asked for almost nothing.
+
+- **`@page` carries the rules**: the format (`size`), the margin, the gutter (`@page :right` and `@page :left` with the inner margin on the binding side), the bleed. No class of the theme is involved, and `margin`, `padding` of the main container remain the theme's concern (the child theme already clears them in `modes/print.css`).
+- **Margin boxes carry the folios**: `@bottom-center`, or `@bottom-right` on right-hand pages and `@bottom-left` on left-hand pages for folios on the outside, with `counter(page)`.
+- **The theme's contract** is reduced to what is not a page: Books defines CSS variables on the root (`--books-margin`, `--books-gutter`, `--books-safe`) that a theme can use for its own spacing, and a theme whose main container has padding adds one line to its `print.css`. A class contract (a name for the main container) is a fallback, not the principle.
+
+**What was checked** (Playwright Chromium 141, `pdftotext -bbox` on the PDF, an A5 page; **not through Gotenberg**):
+- `@page :right { margin-left: 20mm; margin-right: 8mm }` and `@page :left` with the sides swapped give **exactly** 20.1 and 7.9 mm on the recto and the opposite on the verso; the first page of a document is a right-hand page. The rules also win when the paper size and the margins are given as options of the call, but the page height then differs by one point (595.9 instead of 595.0), so **`preferCssPageSize`** (a field of Gotenberg, not sent today by `GotenbergClient`) is to be used and the margins of the settings dropped from the call, to have one source.
+- **Margin boxes work**: `@bottom-center { content: counter(page) }` and the folios on the outside (right on odd pages, left on even pages) are drawn at the expected places. Their font and position are the CSS's, so the stamp of pdfcpu is only needed for folios that Chromium cannot number (the offset of the front matter, slice 228).
+- **Chromium does not insert blank pages**: `break-before: right`, `left`, `recto` and `page-break-before: right` leave three units on three consecutive pages. The role `blank` of slice 228 therefore has to **produce** them.
+
+**Consequence for the blank pages** (to check): an odd number of pages inserted after the render would swap recto and verso for everything after it, and with it the gutter. The blank pages must therefore be **in the HTML**, counted from a first render (the map of slice 227) and the body rendered again. That is two renders of the body for a book with blank pages; they give the same pagination **if the sum of the inner and outer margin is the same on both sides** (the text then wraps the same on a recto and on a verso), which is what a gutter does, to check. A book with no blank page needs one render.
+
 ## Not decided (open)
+
+- Whether `preferCssPageSize` is always sent (a project) or only when the project has a profile (a section without a project keeps the options of the settings).
+- Where the blank pages are made for a PDF made unit by unit (the parity of each unit starts at a recto).
 
 - The names of the post types and of the fields; a table of settings or post meta (meta, to be exported with the posts).
 - The presets: shipped as JSON files read to create the first posts, or only documentation.
