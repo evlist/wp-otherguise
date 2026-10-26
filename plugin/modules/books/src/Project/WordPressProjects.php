@@ -123,7 +123,6 @@ final class WordPressProjects {
 					'post_status'      => 'any',
 					'numberposts'      => -1,
 					'fields'           => 'ids',
-					'suppress_filters' => true,
 				)
 			);
 
@@ -147,7 +146,6 @@ final class WordPressProjects {
 				'numberposts'      => self::LIMIT,
 				'orderby'          => 'ID',
 				'order'            => 'ASC',
-				'suppress_filters' => true,
 			)
 		);
 
