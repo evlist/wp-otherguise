@@ -300,6 +300,9 @@ final class MergedPrint {
 		);
 		$GLOBALS['_wp_current_template_content'] = null;
 		$GLOBALS['_wp_current_template_id']      = null;
+		// The current post is the unit, not the section: the shortcodes of the templates (`[modes_url]`, hence the QR codes) use `get_the_ID()`.
+		$GLOBALS['post'] = $post;
+		setup_postdata( $post );
 
 		try {
 			if ( is_page() ) {
