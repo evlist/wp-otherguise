@@ -16,14 +16,15 @@ const SETTINGS = {
 	argument: 'books_preview',
 };
 const PUBLISHED = { status: 'publish', permalink: 'https://testing.vli.st/post/', previewLink: '' };
+const FILE_URL = 'https://testing.vli.st/wp-json/books/v1/pdf/12/download?mode=print&_wpnonce=abc123';
 const flush = () => new Promise( ( resolve ) => setImmediate( resolve ) );
 
 /** Builds a panel with a PDF API whose answers the test queues. */
 function make( options ) {
 	options = options || {};
 	const dom = new JSDOM( '<!doctype html><body></body>', { pretendToBeVisual: true } );
-	const log = { start: [], status: [], file: [], revoked: [], opened: [], timers: [] };
-	const answers = { start: options.start || [ { status: 'queued', elapsed: 0 } ], status: options.status || [], file: options.file || [ { filename: 'post.pdf', base64: Buffer.from( '%PDF-1.7' ).toString( 'base64' ), pages: 2 } ] };
+	const log = { start: [], status: [], file: [], opened: [], timers: [] };
+	const answers = { start: options.start || [ { status: 'queued', elapsed: 0 } ], status: options.status || [], file: options.file || [ { filename: 'post.pdf', url: FILE_URL, pages: 2 } ] };
 	const next = ( name ) => {
 		const answer = answers[ name ].length > 1 ? answers[ name ].shift() : answers[ name ][ 0 ];
 		return answer instanceof Error ? Promise.reject( answer ) : Promise.resolve( answer );
@@ -33,13 +34,12 @@ function make( options ) {
 		status: ( mode ) => ( log.status.push( mode ), next( 'status' ) ),
 		file: ( mode ) => ( log.file.push( mode ), next( 'file' ) ),
 	};
-	let urls = 0;
 	const panel = createPanel( {
 		document: dom.window.document,
 		geometry,
 		settings: SETTINGS,
 		getPost: () => PUBLISHED,
-		pdf: options.noPdf ? null : { enabled: true, api, createObjectURL: () => 'blob:pdf-' + ++urls, revokeObjectURL: ( url ) => log.revoked.push( url ), openWindow: ( url ) => log.opened.push( url ), giveUpMs: options.giveUpMs },
+		pdf: options.noPdf ? null : { enabled: true, api, openWindow: ( url ) => log.opened.push( url ), giveUpMs: options.giveUpMs },
 		setTimeout: ( callback ) => log.timers.push( callback ),
 		clearTimeout: () => {},
 	} );
@@ -99,7 +99,7 @@ test( 'the PDF button asks for the PDF, polls its state, then shows it with the 
 	await flush();
 	assert.deepStrictEqual( site.log.file, [ 'print' ] );
 	assert.strictEqual( site.text(), 'PDF: 2 pages.' );
-	assert.strictEqual( site.q( '.books-preview__pdf' ).src, 'blob:pdf-1#zoom=page-fit&pagemode=none' );
+	assert.strictEqual( site.q( '.books-preview__pdf' ).src, FILE_URL + '#zoom=page-fit&pagemode=none' );
 	assert.strictEqual( site.q( '.books-preview__download' ).hidden, false );
 	assert.strictEqual( site.q( '.books-preview__open' ).hidden, false );
 	assert.strictEqual( site.log.timers.length, 0, 'the polling stopped' );
@@ -118,7 +118,7 @@ test( 'the PDF has the size of the page frame', async () => {
 } );
 
 test( 'a PDF that is already made is shown at once, with one page counted as singular', async () => {
-	const site = make( { start: [ { status: 'done' } ], file: [ { filename: 'one.pdf', base64: Buffer.from( '%PDF' ).toString( 'base64' ), pages: 1 } ] } );
+	const site = make( { start: [ { status: 'done' } ], file: [ { filename: 'one.pdf', url: FILE_URL, pages: 1 } ] } );
 
 	site.panel.open();
 	site.click( '.books-preview__view--pdf' );
@@ -130,7 +130,7 @@ test( 'a PDF that is already made is shown at once, with one page counted as sin
 } );
 
 test( 'a PDF without a page count says it is ready', async () => {
-	const site = make( { start: [ { status: 'done' } ], file: [ { filename: 'x.pdf', base64: Buffer.from( '%PDF' ).toString( 'base64' ), pages: null } ] } );
+	const site = make( { start: [ { status: 'done' } ], file: [ { filename: 'x.pdf', url: FILE_URL, pages: null } ] } );
 
 	site.panel.open();
 	site.click( '.books-preview__view--pdf' );
@@ -141,7 +141,7 @@ test( 'a PDF without a page count says it is ready', async () => {
 } );
 
 test( 'slice 403: the PDF of a post that is not published says it is a preview, and a published one does not', async () => {
-	const draft = make( { start: [ { status: 'done', preview: true } ], file: [ { filename: 'draft-preview.pdf', base64: Buffer.from( '%PDF' ).toString( 'base64' ), pages: 3, preview: true } ] } );
+	const draft = make( { start: [ { status: 'done', preview: true } ], file: [ { filename: 'draft-preview.pdf', url: FILE_URL, pages: 3, preview: true } ] } );
 
 	draft.panel.open();
 	draft.click( '.books-preview__view--pdf' );
@@ -150,7 +150,7 @@ test( 'slice 403: the PDF of a post that is not published says it is a preview, 
 
 	assert.match( draft.text(), /^PDF: 3 pages\. Preview of a post that is not published: the QR code and the addresses are not final, so this is not the version to print\.$/ );
 
-	const published = make( { start: [ { status: 'done' } ], file: [ { filename: 'p.pdf', base64: Buffer.from( '%PDF' ).toString( 'base64' ), pages: 3 } ] } );
+	const published = make( { start: [ { status: 'done' } ], file: [ { filename: 'p.pdf', url: FILE_URL, pages: 3 } ] } );
 
 	published.panel.open();
 	published.click( '.books-preview__view--pdf' );
@@ -161,7 +161,7 @@ test( 'slice 403: the PDF of a post that is not published says it is a preview, 
 } );
 
 test( 'download makes a link with the name of the file; open uses the address in a new window', async () => {
-	const site = make( { start: [ { status: 'done' } ], file: [ { filename: 'repos.pdf', base64: Buffer.from( '%PDF' ).toString( 'base64' ), pages: 2 } ] } );
+	const site = make( { start: [ { status: 'done' } ], file: [ { filename: 'repos.pdf', url: FILE_URL, pages: 2 } ] } );
 	const clicked = [];
 	site.dom.window.HTMLAnchorElement.prototype.click = function () {
 		clicked.push( [ this.getAttribute( 'href' ), this.getAttribute( 'download' ) ] );
@@ -179,8 +179,8 @@ test( 'download makes a link with the name of the file; open uses the address in
 	site.click( '.books-preview__download' );
 	site.click( '.books-preview__open' );
 
-	assert.deepStrictEqual( clicked, [ [ 'blob:pdf-1', 'repos.pdf' ] ] );
-	assert.deepStrictEqual( site.log.opened, [ 'blob:pdf-1' ] );
+	assert.deepStrictEqual( clicked, [ [ FILE_URL, 'repos.pdf' ] ] );
+	assert.deepStrictEqual( site.log.opened, [ FILE_URL ] );
 	assert.strictEqual( site.dom.window.document.querySelectorAll( 'body > a' ).length, 0, 'the temporary link is removed' );
 } );
 
@@ -224,20 +224,17 @@ test( 'an error of the route (a capability, no server) is shown too', async () =
 	assert.match( status.text(), /not allowed/ );
 } );
 
-test( 'a file that cannot be decoded is reported', async () => {
-	const site = make( { start: [ { status: 'done' } ] } );
-	const original = site.dom.window.atob;
+test( 'slice 226: an answer of the file route without an address is reported, and the PDF is not decoded by the panel', async () => {
+	const site = make( { start: [ { status: 'done' } ], file: [ { filename: 'x.pdf', pages: 2 } ] } );
 
 	site.panel.open();
-	// The decoder of the test page is replaced by one that fails.
-	Object.defineProperty( site.dom.window, 'atob', { configurable: true, value: () => { throw new Error( 'bad' ); } } );
 	site.click( '.books-preview__view--pdf' );
 	await flush();
 	await flush();
 
 	assert.match( site.text(), /the file could not be read/ );
 	assert.strictEqual( site.q( '.books-preview__pdf' ), null );
-	Object.defineProperty( site.dom.window, 'atob', { configurable: true, value: original } );
+	assert.strictEqual( site.q( '.books-preview__download' ).hidden, true );
 } );
 
 test( 'the panel gives up when the conversion takes too long', async () => {
@@ -263,10 +260,9 @@ test( 'Refresh in the PDF view makes a new conversion (forced); a refresh after 
 	site.panel.refresh( true );
 
 	assert.deepStrictEqual( site.log.start, [ [ 'print', false ], [ 'print', true ], [ 'print', false ], [ 'print', true ] ] );
-	assert.ok( site.log.revoked.includes( 'blob:pdf-1' ), 'the old address is released' );
 } );
 
-test( 'back to Web: the address of the PDF is released, the page is loaded, the buttons are hidden', async () => {
+test( 'back to Web: the PDF is removed, the page is loaded, the buttons are hidden', async () => {
 	const site = make( { start: [ { status: 'done' } ] } );
 
 	site.panel.open();
@@ -276,7 +272,6 @@ test( 'back to Web: the address of the PDF is released, the page is loaded, the 
 	site.click( '.books-preview__view--web' );
 
 	assert.strictEqual( site.panel.view(), 'web' );
-	assert.deepStrictEqual( site.log.revoked, [ 'blob:pdf-1' ] );
 	assert.strictEqual( site.q( '.books-preview__pdf' ), null );
 	assert.ok( site.q( '.books-preview__frame' ) );
 	assert.strictEqual( site.q( '.books-preview__usable' ).hidden, false );
@@ -298,7 +293,7 @@ test( 'a change of mode in the PDF view asks for the PDF of that mode', async ()
 	assert.strictEqual( site.log.file[ site.log.file.length - 1 ], 'web' );
 } );
 
-test( 'closing the panel releases the PDF and stops the polling; an answer that comes late is ignored', async () => {
+test( 'closing the panel removes the PDF and stops the polling; an answer that comes late is ignored', async () => {
 	const site = make( { start: [ { status: 'queued' } ], status: [ { status: 'done' } ] } );
 
 	site.panel.open();
@@ -318,7 +313,7 @@ test( 'closing the panel releases the PDF and stops the polling; an answer that 
 	await flush();
 	await flush();
 	ready.click( '.books-preview__close' );
-	assert.deepStrictEqual( ready.log.revoked, [ 'blob:pdf-1' ] );
+	assert.strictEqual( ready.q( '.books-preview__pdf' ), null );
 } );
 
 test( 'reopening the panel in the PDF view asks again; the stale mark applies to the PDF too', async () => {

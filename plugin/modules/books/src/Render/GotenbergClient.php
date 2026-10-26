@@ -62,6 +62,65 @@ final class GotenbergClient implements Renderer {
 	 * @return string|\WP_Error
 	 */
 	public function convert_url( $url, array $format, array $options = array() ) {
+		$timeout = $this->timeout( $options );
+		$result  = $this->post( '/forms/chromium/convert/url', $this->fields( $url, $format, $options ), array(), $timeout );
+
+		if ( $result instanceof \WP_Error ) {
+			return $result;
+		}
+
+		if ( 0 !== strpos( $result, '%PDF-' ) ) {
+			return new \WP_Error( 'books_gotenberg_not_pdf', __( 'The server answered, but not with a PDF.', 'otherguise' ) );
+		}
+
+		return $result;
+	}
+
+	/**
+	 * Converts a page to PDF and writes the answer in a file: the HTTP API writes the body of the answer there as it comes, so that the PDF
+	 * is never in memory (slice 226).
+	 *
+	 * @param string               $url     Address of the page.
+	 * @param array<string, float> $format  Format of the page.
+	 * @param array<string, mixed> $options Options.
+	 * @param string               $path    Path of the file to write.
+	 * @return true|\WP_Error
+	 */
+	public function convert_url_to_file( $url, array $format, array $options, $path ) {
+		$result = $this->post_to_file( '/forms/chromium/convert/url', $this->fields( $url, $format, $options ), $this->timeout( $options ), (string) $path );
+
+		if ( $result instanceof \WP_Error ) {
+			return $result;
+		}
+
+		if ( '%PDF-' !== file_get_contents( (string) $path, false, null, 0, 5 ) ) {
+			wp_delete_file( (string) $path );
+
+			return new \WP_Error( 'books_gotenberg_not_pdf', __( 'The server answered, but not with a PDF.', 'otherguise' ) );
+		}
+
+		return true;
+	}
+
+	/**
+	 * The time limit of a conversion, in seconds.
+	 *
+	 * @param array<string, mixed> $options Options.
+	 * @return int
+	 */
+	private function timeout( array $options ) {
+		return isset( $options['timeout'] ) ? max( 5, (int) $options['timeout'] ) : 120;
+	}
+
+	/**
+	 * The fields of the conversion of a page.
+	 *
+	 * @param string               $url     Address of the page.
+	 * @param array<string, float> $format  Format of the page.
+	 * @param array<string, mixed> $options Options.
+	 * @return array<string, string>
+	 */
+	private function fields( $url, array $format, array $options ) {
 		$fields = array(
 			'url'             => (string) $url,
 			'paperWidth'      => self::inches( $format['width_mm'] ),
@@ -90,18 +149,7 @@ final class GotenbergClient implements Renderer {
 			}
 		}
 
-		$timeout = isset( $options['timeout'] ) ? max( 5, (int) $options['timeout'] ) : 120;
-		$result  = $this->post( '/forms/chromium/convert/url', $fields, array(), $timeout );
-
-		if ( $result instanceof \WP_Error ) {
-			return $result;
-		}
-
-		if ( 0 !== strpos( $result, '%PDF-' ) ) {
-			return new \WP_Error( 'books_gotenberg_not_pdf', __( 'The server answered, but not with a PDF.', 'otherguise' ) );
-		}
-
-		return $result;
+		return $fields;
 	}
 
 	/**
@@ -221,6 +269,61 @@ final class GotenbergClient implements Renderer {
 		}
 
 		return $content;
+	}
+
+	/**
+	 * Posts a multipart form and writes the body of the answer in a file. A status other than 200 gives an error made of the start of the
+	 * answer, and the file is deleted.
+	 *
+	 * @param string                $route   Route.
+	 * @param array<string, string> $fields  Fields.
+	 * @param int                   $timeout Time limit, in seconds.
+	 * @param string                $path    Path of the file.
+	 * @return true|\WP_Error
+	 */
+	private function post_to_file( $route, array $fields, $timeout, $path ) {
+		$boundary = (string) ( $this->boundary )();
+
+		try {
+			$body = Multipart::build( $fields, array(), $boundary );
+		} catch ( \InvalidArgumentException $exception ) {
+			return new \WP_Error( 'books_gotenberg_request', $exception->getMessage() );
+		}
+
+		$response = ( $this->http )(
+			$this->base . $route,
+			array(
+				'method'   => 'POST',
+				'timeout'  => $timeout,
+				'headers'  => array( 'Content-Type' => 'multipart/form-data; boundary=' . $boundary ),
+				'body'     => $body,
+				'stream'   => true,
+				'filename' => $path,
+			)
+		);
+
+		if ( $response instanceof \WP_Error ) {
+			wp_delete_file( $path );
+
+			return new \WP_Error( 'books_gotenberg_unreachable', $response->get_error_message() );
+		}
+
+		$code = (int) ( $response['response']['code'] ?? 0 );
+
+		if ( 200 !== $code ) {
+			$content = is_file( $path ) ? (string) file_get_contents( $path, false, null, 0, 300 ) : '';
+			$text    = trim( (string) preg_replace( '/\s+/', ' ', $content ) );
+
+			wp_delete_file( $path );
+
+			return new \WP_Error(
+				'books_gotenberg_http',
+				sprintf( /* translators: 1: HTTP status code, 2: message of the server. */ __( 'The server answered with the status %1$d: %2$s', 'otherguise' ), $code, '' !== $text ? $text : '-' ),
+				array( 'status' => $code )
+			);
+		}
+
+		return true;
 	}
 
 	/**

@@ -28,6 +28,17 @@ interface Renderer {
 	public function convert_url( $url, array $format, array $options = array() );
 
 	/**
+	 * Converts a page to PDF and writes the PDF in a file, without keeping it in memory (a long page gives a PDF of hundreds of megabytes).
+	 *
+	 * @param string               $url     Address of the page: only an address of the site, given by WordPress.
+	 * @param array<string, float> $format  Format of the page.
+	 * @param array<string, mixed> $options Options, as for `convert_url()`.
+	 * @param string               $path    Path of the file to write.
+	 * @return true|\WP_Error True when the file holds a PDF; an error otherwise (the file is deleted).
+	 */
+	public function convert_url_to_file( $url, array $format, array $options, $path );
+
+	/**
 	 * Gives the number of pages of a PDF, when the engine can tell.
 	 *
 	 * @param string $pdf Bytes of the PDF.

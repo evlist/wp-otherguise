@@ -160,3 +160,5 @@ The merge of several posts, the numbering, the table of contents, the book manif
 **Changed by slice 403 (2026-10-25):** a post that is not published is no longer refused when it can have a private link (module Access): it is converted through the link, as a preview that says so.
 
 **Changed by slice 225 (2026-10-26):** an optional setting gives the address by which the server reaches the site, which replaces the beginning of the public address of the page sent to it.
+
+**Changed by slice 226 (2026-10-26):** the PDF is written to a file as the server sends it and is given to the panel as a file (route `download`), not as base64 in JSON; the route `file` now says where it is.

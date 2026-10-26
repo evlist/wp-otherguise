@@ -296,6 +296,93 @@ class BooksRenderTest extends TestCase {
 	}
 
 	/**
+	 * Builds a client whose HTTP function writes the body of the answer in the file it is given, as the HTTP API does with `stream`.
+	 *
+	 * @param array $answers  Answers: arrays as for `answer()`, or a WP_Error.
+	 * @param array $requests Requests recorded.
+	 * @return GotenbergClient
+	 */
+	private function streaming_client( array $answers, array &$requests ) {
+		return new GotenbergClient(
+			'http://gotenberg:3000/',
+			static function ( $url, $args ) use ( &$answers, &$requests ) {
+				$requests[] = array( $url, $args );
+				$answer     = array_shift( $answers );
+
+				if ( is_array( $answer ) && ! empty( $args['stream'] ) ) {
+					file_put_contents( $args['filename'], $answer['body'] );
+					$answer['body'] = '';
+				}
+
+				return $answer;
+			},
+			static fn() => 'BND'
+		);
+	}
+
+	/**
+	 * The conversion to a file asks the HTTP API to stream the answer into it, and leaves a PDF there (slice 226).
+	 *
+	 * @return void
+	 */
+	public function test_convert_url_to_file(): void {
+		$requests = array();
+		$path     = tempnam( sys_get_temp_dir(), 'books-pdf' );
+		$client   = $this->streaming_client( array( $this->answer( 200, "%PDF-1.7\nbytes" ) ), $requests );
+		$format   = array(
+			'width_mm'  => 148.0,
+			'height_mm' => 210.0,
+			'margin_mm' => 10.0,
+		);
+
+		$this->assertTrue( $client->convert_url_to_file( 'https://x.test/?mode=print', $format, array( 'timeout' => 300 ), $path ) );
+		$this->assertSame( "%PDF-1.7\nbytes", file_get_contents( $path ) );
+		$this->assertSame( 'http://gotenberg:3000/forms/chromium/convert/url', $requests[0][0] );
+		$this->assertTrue( $requests[0][1]['stream'] );
+		$this->assertSame( $path, $requests[0][1]['filename'] );
+		$this->assertSame( 300, $requests[0][1]['timeout'] );
+		$this->assertStringContainsString( 'name="url"', $requests[0][1]['body'] );
+		$this->assertStringContainsString( 'https://x.test/?mode=print', $requests[0][1]['body'] );
+		wp_delete_file( $path );
+	}
+
+	/**
+	 * A refusal of the server, a file that is not a PDF, a transport error: an error, and no file left behind.
+	 *
+	 * @return void
+	 */
+	public function test_convert_url_to_file_errors(): void {
+		$requests = array();
+		$path     = tempnam( sys_get_temp_dir(), 'books-pdf' );
+		$format   = array(
+			'width_mm'  => 148.0,
+			'height_mm' => 210.0,
+			'margin_mm' => 10.0,
+		);
+
+		$error = $this->streaming_client( array( $this->answer( 503, "convert URL to PDF:\n context deadline exceeded" ) ), $requests )->convert_url_to_file( 'https://x.test/', $format, array(), $path );
+
+		$this->assertSame( 'books_gotenberg_http', $error->get_error_code() );
+		$this->assertSame( array( 'status' => 503 ), $error->get_error_data() );
+		$this->assertStringContainsString( 'context deadline exceeded', $error->get_error_message() );
+		$this->assertFileDoesNotExist( $path, 'The error text is not kept as a PDF.' );
+
+		$error = $this->streaming_client( array( $this->answer( 200, '<html>login</html>' ) ), $requests )->convert_url_to_file( 'https://x.test/', $format, array(), $path );
+
+		$this->assertSame( 'books_gotenberg_not_pdf', $error->get_error_code() );
+		$this->assertFileDoesNotExist( $path );
+
+		$error = $this->streaming_client( array( new WP_Error( 'http_request_failed', 'cURL error 28: timed out' ) ), $requests )->convert_url_to_file( 'https://x.test/', $format, array(), $path );
+
+		$this->assertSame( 'books_gotenberg_unreachable', $error->get_error_code() );
+		$this->assertStringContainsString( 'timed out', $error->get_error_message() );
+
+		$error = $this->streaming_client( array(), $requests )->convert_url_to_file( 'https://x.test/BND', $format, array(), $path );
+
+		$this->assertSame( 'books_gotenberg_request', $error->get_error_code(), 'An address that carries the boundary is refused.' );
+	}
+
+	/**
 	 * The conversion sends the page, the paper size and margins in inches, the media and the waits; it returns the PDF.
 	 *
 	 * @return void

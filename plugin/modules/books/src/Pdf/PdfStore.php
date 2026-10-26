@@ -54,6 +54,13 @@ final class PdfStore {
 	private $rmdir;
 
 	/**
+	 * Moves a file over another: receives the source and the target.
+	 *
+	 * @var callable
+	 */
+	private $move;
+
+	/**
 	 * Builds the store.
 	 *
 	 * @param string        $directory Directory, without a trailing slash.
@@ -61,13 +68,15 @@ final class PdfStore {
 	 * @param callable|null $delete    Defaults to `wp_delete_file`.
 	 * @param callable|null $mkdir     Defaults to `wp_mkdir_p`.
 	 * @param callable|null $rmdir     Defaults to `remove_directory()`, which uses the WordPress file system API.
+	 * @param callable|null $move      Defaults to `move_file()`, which uses the WordPress file system API.
 	 */
-	public function __construct( $directory, $now = null, $delete = null, $mkdir = null, $rmdir = null ) {
+	public function __construct( $directory, $now = null, $delete = null, $mkdir = null, $rmdir = null, $move = null ) {
 		$this->directory = rtrim( (string) $directory, '/\\' );
 		$this->now       = $now ?? 'time';
 		$this->delete    = $delete ?? 'wp_delete_file';
 		$this->mkdir     = $mkdir ?? 'wp_mkdir_p';
 		$this->rmdir     = $rmdir ?? array( self::class, 'remove_directory' );
+		$this->move      = $move ?? array( self::class, 'move_file' );
 	}
 
 	/**
@@ -98,36 +107,82 @@ final class PdfStore {
 	 * @return bool
 	 */
 	public function write( $key, $bytes ) {
-		if ( ! self::is_key( $key ) || ! is_string( $bytes ) || '' === $bytes ) {
+		if ( ! self::is_key( $key ) || ! is_string( $bytes ) || '' === $bytes || ! $this->prepare() ) {
 			return false;
-		}
-
-		if ( ! is_dir( $this->directory ) ) {
-			if ( ! ( $this->mkdir )( $this->directory ) ) {
-				return false;
-			}
-
-			file_put_contents( $this->directory . '/index.php', "<?php\n// Silence is golden.\n" );
-			file_put_contents( $this->directory . '/.htaccess', "Require all denied\n<IfModule !mod_authz_core.c>\nDeny from all\n</IfModule>\n" );
 		}
 
 		return false !== file_put_contents( $this->path( $key ), $bytes );
 	}
 
 	/**
-	 * Reads the file of a key.
+	 * Creates the directory, with the files that protect it, when it does not exist.
 	 *
-	 * @param string $key Key.
-	 * @return string|null
+	 * @return bool
 	 */
-	public function read( $key ) {
-		if ( ! $this->has( $key ) ) {
-			return null;
+	private function prepare() {
+		if ( is_dir( $this->directory ) ) {
+			return true;
 		}
 
-		$bytes = file_get_contents( $this->path( $key ) );
+		if ( ! ( $this->mkdir )( $this->directory ) ) {
+			return false;
+		}
 
-		return false === $bytes ? null : $bytes;
+		file_put_contents( $this->directory . '/index.php', "<?php\n// Silence is golden.\n" );
+		file_put_contents( $this->directory . '/.htaccess', "Require all denied\n<IfModule !mod_authz_core.c>\nDeny from all\n</IfModule>\n" );
+
+		return true;
+	}
+
+	/**
+	 * Returns the path where a file is written while it is made (a server writes its answer there, which keeps a large PDF out of the
+	 * memory): the directory is created when needed. The file is made a PDF of the cache by `commit()`.
+	 *
+	 * @param string $key Key.
+	 * @return string An empty string when the key is not valid or the directory cannot be made.
+	 */
+	public function partial_path( $key ) {
+		return self::is_key( $key ) && $this->prepare() ? $this->directory . '/' . $key . '.part' : '';
+	}
+
+	/**
+	 * Makes the file written at `partial_path()` the file of the key, when it is a PDF; deletes it when it is not.
+	 *
+	 * @param string $key Key.
+	 * @return bool
+	 */
+	public function commit( $key ) {
+		$part = $this->partial_path( $key );
+
+		if ( '' === $part || ! is_file( $part ) || 0 === (int) filesize( $part ) || '%PDF-' !== file_get_contents( $part, false, null, 0, 5 ) ) {
+			$this->discard( $key );
+
+			return false;
+		}
+
+		return (bool) ( $this->move )( $part, $this->path( $key ) );
+	}
+
+	/**
+	 * Deletes the file that was being written for a key.
+	 *
+	 * @param string $key Key.
+	 * @return void
+	 */
+	public function discard( $key ) {
+		if ( self::is_key( $key ) && is_file( $this->directory . '/' . $key . '.part' ) ) {
+			( $this->delete )( $this->directory . '/' . $key . '.part' );
+		}
+	}
+
+	/**
+	 * Gives the size of the file of a key, in bytes.
+	 *
+	 * @param string $key Key.
+	 * @return int 0 when there is no file.
+	 */
+	public function size( $key ) {
+		return $this->has( $key ) ? (int) filesize( $this->path( $key ) ) : 0;
 	}
 
 	/**
@@ -198,6 +253,27 @@ final class PdfStore {
 	}
 
 	/**
+	 * Moves a file over another with the WordPress file system API (Plugin Check refuses a direct `rename()`).
+	 *
+	 * @param string $from Source.
+	 * @param string $to   Target.
+	 * @return bool
+	 */
+	public static function move_file( $from, $to ) {
+		global $wp_filesystem;
+
+		if ( ! function_exists( 'WP_Filesystem' ) ) {
+			require_once ABSPATH . 'wp-admin/includes/file.php';
+		}
+
+		if ( ! WP_Filesystem() || ! is_object( $wp_filesystem ) ) {
+			return false;
+		}
+
+		return (bool) $wp_filesystem->move( $from, $to, true );
+	}
+
+	/**
 	 * Returns the path of the file of a key.
 	 *
 	 * @param string $key Key.
@@ -208,12 +284,12 @@ final class PdfStore {
 	}
 
 	/**
-	 * Lists the PDF files of the directory.
+	 * Lists the PDF files of the directory, and the files that were being written.
 	 *
 	 * @return string[]
 	 */
 	private function files() {
-		$files = glob( $this->directory . '/*.pdf' );
+		$files = glob( $this->directory . '/*.{pdf,part}', GLOB_BRACE );
 
 		return is_array( $files ) ? $files : array();
 	}

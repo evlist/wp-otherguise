@@ -30,6 +30,12 @@ final class PdfJobs {
 	public const EVENT = 'books_render_pdf';
 
 	/**
+	 * Largest PDF, in bytes, that is sent back to the server to count its pages when the file itself could not tell (it has to be in
+	 * memory for that).
+	 */
+	public const COUNT_BY_SERVER_MAX = 20971520;
+
+	/**
 	 * Seconds after which a conversion that says it is queued or running is taken for lost, and may be started again.
 	 */
 	public const STALE = 900;
@@ -250,8 +256,15 @@ final class PdfJobs {
 			return;
 		}
 
+		$part = $this->store->partial_path( $key );
+
+		if ( '' === $part ) {
+			$this->fail( $post_id, $mode, $state, __( 'The PDF could not be written in the uploads directory.', 'otherguise' ) );
+			return;
+		}
+
 		$started = microtime( true );
-		$pdf     = $renderer->convert_url(
+		$result  = $renderer->convert_url_to_file(
 			( $this->reach )( ( $this->url_for )( $info['url'], $mode ) ),
 			$this->format->get(),
 			array(
@@ -260,7 +273,8 @@ final class PdfJobs {
 				'wait_expression' => $settings[ RendererSettings::WAIT_EXPRESSION ],
 				'wait_selector'   => $settings[ RendererSettings::WAIT_SELECTOR ],
 				'timeout'         => 300,
-			)
+			),
+			$part
 		);
 
 		\Otherguise\Books\Merge\MergeLog::write(
@@ -269,47 +283,48 @@ final class PdfJobs {
 				'post'    => (int) $post_id,
 				'mode'    => $mode,
 				'seconds' => round( microtime( true ) - $started, 2 ),
-				'ok'      => ! ( $pdf instanceof \WP_Error ),
-				'error'   => $pdf instanceof \WP_Error ? $pdf->get_error_message() : '',
-				'pdf_kb'  => is_string( $pdf ) ? (int) round( strlen( $pdf ) / 1024 ) : 0,
+				'ok'      => ! ( $result instanceof \WP_Error ),
+				'error'   => $result instanceof \WP_Error ? $result->get_error_message() : '',
+				'pdf_kb'  => $result instanceof \WP_Error ? 0 : (int) round( (int) filesize( $part ) / 1024 ),
 			)
 		);
 
-		if ( $pdf instanceof \WP_Error ) {
-			$this->fail( $post_id, $mode, $state, $pdf->get_error_message() );
+		if ( $result instanceof \WP_Error ) {
+			$this->store->discard( $key );
+			$this->fail( $post_id, $mode, $state, $result->get_error_message() );
 			return;
 		}
 
-		if ( ! $this->store->write( $key, $pdf ) ) {
+		if ( ! $this->store->commit( $key ) ) {
 			$this->fail( $post_id, $mode, $state, __( 'The PDF could not be written in the uploads directory.', 'otherguise' ) );
 			return;
 		}
 
 		$state['status']      = 'done';
 		$state['message']     = '';
-		$state['pages']       = $renderer->page_count( $pdf );
+		$state['pages']       = $this->count_pages( $renderer, $key );
 		$state['finished_at'] = ( $this->now )();
 		$this->state->set( $post_id, $mode, $state );
 	}
 
 	/**
-	 * Gives the PDF of a post, ready: its bytes in base64 and the name of the file.
+	 * Says where the PDF of a post is, for the route that sends it: the path of its file, its name for the browser, its number of pages.
+	 * The bytes are not read here.
 	 *
 	 * @param int    $post_id Post.
 	 * @param string $mode    Slug of the mode.
-	 * @return array{filename:string, base64:string, pages:int|null, preview:bool}|\WP_Error
+	 * @return array{path:string, filename:string, pages:int|null, preview:bool, size:int}|\WP_Error
 	 */
-	public function file( $post_id, $mode ) {
+	public function download( $post_id, $mode ) {
 		$check = $this->check( $post_id, $mode );
 
 		if ( $check instanceof \WP_Error ) {
 			return $check;
 		}
 
-		$key   = $this->key( $post_id, $mode, $check );
-		$bytes = $this->store->read( $key );
+		$key = $this->key( $post_id, $mode, $check );
 
-		if ( null === $bytes ) {
+		if ( ! $this->store->has( $key ) ) {
 			return new \WP_Error( 'books_pdf_not_ready', __( 'The PDF is not ready.', 'otherguise' ), array( 'status' => 409 ) );
 		}
 
@@ -317,11 +332,33 @@ final class PdfJobs {
 		$name  = trim( (string) preg_replace( '/[^a-z0-9_-]+/', '-', strtolower( (string) $check['slug'] ) ), '-' );
 
 		return array(
+			'path'     => $this->store->path( $key ),
 			'filename' => ( '' !== $name ? $name : 'post-' . (int) $post_id ) . ( ! empty( $check['preview'] ) ? '-preview' : '' ) . '.pdf',
-			'base64'   => base64_encode( $bytes ),
 			'pages'    => ( $state['key'] ?? '' ) === $key && isset( $state['pages'] ) ? $state['pages'] : null,
 			'preview'  => ! empty( $check['preview'] ),
+			'size'     => $this->store->size( $key ),
 		);
+	}
+
+	/**
+	 * Counts the pages of a PDF file: by reading the file, which keeps a large PDF out of memory; by asking the server for a small one
+	 * when the file has no page object that can be read.
+	 *
+	 * @param Renderer $renderer The renderer.
+	 * @param string   $key      Key of the file.
+	 * @return int|null
+	 */
+	private function count_pages( Renderer $renderer, $key ) {
+		$path  = $this->store->path( $key );
+		$pages = PdfPages::count( $path );
+
+		if ( null !== $pages || $this->store->size( $key ) > self::COUNT_BY_SERVER_MAX ) {
+			return $pages;
+		}
+
+		$bytes = file_get_contents( $path );
+
+		return false === $bytes ? null : $renderer->page_count( $bytes );
 	}
 
 	/**
