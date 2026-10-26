@@ -207,6 +207,7 @@ final class SettingsScreen {
 			RendererSettings::WAIT_DELAY      => array( __( 'Wait (seconds)', 'otherguise' ), 'number', 'small-text', __( 'A fixed wait before the page is converted. Gotenberg waits for nothing by default: 0 is allowed.', 'otherguise' ) ),
 			RendererSettings::WAIT_EXPRESSION => array( __( 'Wait until (JavaScript)', 'otherguise' ), 'text', 'large-text', __( 'Optional: a JavaScript expression that the page makes true when it is ready, for example window.status === "ready".', 'otherguise' ) ),
 			RendererSettings::WAIT_SELECTOR   => array( __( 'Wait for (CSS selector)', 'otherguise' ), 'text', 'regular-text', __( 'Optional: a CSS selector of an element that appears when the page is ready.', 'otherguise' ) ),
+			RendererSettings::SITE            => array( __( 'Address of this site for the server', 'otherguise' ), 'url', 'regular-text', __( 'Optional: the address by which the PDF server reaches this site, for example http://wordpress on the same Docker network. The beginning of the public address of the page is replaced by it, which avoids the proxy and its time limits; the images and styles keep their addresses. Leave empty to use the public address.', 'otherguise' ) ),
 			RendererSettings::KEEP_DAYS       => array( __( 'Keep the PDF files (days)', 'otherguise' ), 'number', 'small-text', __( 'The files are deleted after this number of days, between 1 and 90.', 'otherguise' ) ),
 		);
 

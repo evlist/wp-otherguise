@@ -992,6 +992,44 @@ class BooksPdfTest extends TestCase {
 	}
 
 	/**
+	 * The renderer is given the address by which it reaches the site, not the public one (slice 225).
+	 *
+	 * @return void
+	 */
+	public function test_the_renderer_gets_the_internal_address(): void {
+		$calls     = array();
+		$scheduled = array();
+		$jobs      = new PdfJobs(
+			new RendererSettings(),
+			new PageFormat(),
+			$this->store(),
+			new JobState(),
+			static fn() => array(
+				'status'   => 'publish',
+				'modified' => 'm',
+				'slug'     => 's',
+				'url'      => 'https://testing.vli.st/livre/',
+			),
+			static fn() => true,
+			static fn( $url, $mode ) => $url . '?mode=' . $mode,
+			function () use ( &$calls ) {
+				return $this->renderer( array( '%PDF-1' ), 2, $calls );
+			},
+			static function ( $post_id, $mode, $key ) use ( &$scheduled ) {
+				$scheduled[] = array( $post_id, $mode, $key );
+			},
+			fn() => $this->time,
+			static fn( $address ) => str_replace( 'https://testing.vli.st', 'http://wordpress', $address )
+		);
+		$this->configure();
+
+		$jobs->request( 5, 'print' );
+		$jobs->run( ...$scheduled[0] );
+
+		$this->assertSame( 'http://wordpress/livre/?mode=print', $calls[0][0] );
+	}
+
+	/**
 	 * Without a page count from the server the pages are unknown; the daily cleanup uses the days of the settings.
 	 *
 	 * @return void

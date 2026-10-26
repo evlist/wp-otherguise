@@ -151,6 +151,9 @@ final class RendererCommand {
 	 * [--keep-days=<n>]
 	 * : How many days the PDF files are kept, from 1 to 90.
 	 *
+	 * [--site-address=<address>]
+	 * : The address by which the PDF server reaches this site, an http or https address of a host only, such as `http://wordpress` (empty to use the public address).
+	 *
 	 * [--dry-run]
 	 * : Say what would change, write nothing.
 	 *
@@ -173,6 +176,7 @@ final class RendererCommand {
 			'wait-selector'   => RendererSettings::WAIT_SELECTOR,
 			'media'           => RendererSettings::MEDIA,
 			'keep-days'       => RendererSettings::KEEP_DAYS,
+			'site-address'    => RendererSettings::SITE,
 		);
 		$changes = array();
 
@@ -183,7 +187,7 @@ final class RendererCommand {
 		}
 
 		if ( array() === $changes ) {
-			( $this->fail )( 'Give at least one option: --address, --wait-delay, --wait-expression, --wait-selector, --media or --keep-days.' );
+			( $this->fail )( 'Give at least one option: --address, --wait-delay, --wait-expression, --wait-selector, --media, --keep-days or --site-address.' );
 			return;
 		}
 

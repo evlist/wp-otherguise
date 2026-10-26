@@ -105,6 +105,13 @@ final class PdfJobs {
 	private $now;
 
 	/**
+	 * Replaces the beginning of the address to convert by the one by which the server reaches the site (slice 225): receives the address.
+	 *
+	 * @var callable
+	 */
+	private $reach;
+
+	/**
 	 * Builds the jobs.
 	 *
 	 * @param RendererSettings $settings      Settings of the server.
@@ -117,8 +124,9 @@ final class PdfJobs {
 	 * @param callable         $make_renderer Receives the address of the server; returns a `Renderer`.
 	 * @param callable         $schedule      Receives the post id, the mode and the key; schedules the event.
 	 * @param callable|null    $now           Defaults to `time`.
+	 * @param callable|null    $reach         Receives the address to convert; returns the address by which the server reaches it (the same by default).
 	 */
-	public function __construct( RendererSettings $settings, PageFormat $format, PdfStore $store, JobState $state, $post_info, $mode_exists, $url_for, $make_renderer, $schedule, $now = null ) {
+	public function __construct( RendererSettings $settings, PageFormat $format, PdfStore $store, JobState $state, $post_info, $mode_exists, $url_for, $make_renderer, $schedule, $now = null, $reach = null ) {
 		$this->settings      = $settings;
 		$this->format        = $format;
 		$this->store         = $store;
@@ -129,6 +137,9 @@ final class PdfJobs {
 		$this->make_renderer = $make_renderer;
 		$this->schedule      = $schedule;
 		$this->now           = $now ?? 'time';
+		$this->reach         = $reach ?? static function ( $address ) {
+			return $address;
+		};
 	}
 
 	/**
@@ -241,7 +252,7 @@ final class PdfJobs {
 
 		$started = microtime( true );
 		$pdf     = $renderer->convert_url(
-			( $this->url_for )( $info['url'], $mode ),
+			( $this->reach )( ( $this->url_for )( $info['url'], $mode ) ),
 			$this->format->get(),
 			array(
 				'media'           => $settings[ RendererSettings::MEDIA ],

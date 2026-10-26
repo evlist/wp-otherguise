@@ -25,6 +25,8 @@ use Otherguise\Books\Pdf\PdfJobs;
 use Otherguise\Books\Pdf\PdfStore;
 use Otherguise\Books\Pdf\WordPressPosts;
 use Otherguise\Books\Render\GotenbergClient;
+use Otherguise\Books\Render\InternalHost;
+use Otherguise\Books\Render\SiteAddress;
 use Otherguise\Books\Rest\PdfRoutes;
 use Otherguise\Books\Rest\SectionRoutes;
 use Otherguise\Books\Section\SectionEditor;
@@ -152,6 +154,7 @@ final class Module implements ModuleInterface {
 		( $this->add_action )( 'wp_head', array( $ratio, 'print_script' ), 0, 0 );
 		// Test branch merge-all-html: the print page of a section is the concatenation of its units.
 		( $this->add_action )( 'wp_footer', array( new MergedPrint( $sections ), 'footer' ), 1, 0 );
+		( $this->add_action )( 'redirect_canonical', array( new InternalHost( $renderer ), 'filter' ), 5, 1 );
 	}
 
 	/**
@@ -267,6 +270,10 @@ final class Module implements ModuleInterface {
 			static function ( $post_id, $mode, $key ) {
 				wp_schedule_single_event( time(), PdfJobs::EVENT, array( (int) $post_id, (string) $mode, (string) $key ) );
 				spawn_cron();
+			},
+			null,
+			static function ( $address ) use ( $renderer ) {
+				return SiteAddress::rewrite( (string) $address, home_url(), (string) $renderer->get()[ RendererSettings::SITE ] );
 			}
 		);
 	}

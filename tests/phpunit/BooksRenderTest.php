@@ -106,6 +106,7 @@ class BooksRenderTest extends TestCase {
 				'wait_selector'   => '',
 				'media'           => 'print',
 				'keep_days'       => 7,
+				'site_address'    => '',
 			),
 			$settings->get()
 		);
@@ -147,6 +148,7 @@ class BooksRenderTest extends TestCase {
 				'wait_selector'   => '.leaflet-container',
 				'media'           => 'screen',
 				'keep_days'       => 30,
+				'site_address'    => '',
 			),
 			$result
 		);
