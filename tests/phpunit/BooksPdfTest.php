@@ -385,11 +385,12 @@ class BooksPdfTest extends TestCase {
 	/**
 	 * Builds the jobs with doubles. The post 12 is published, 13 is a draft, others do not exist.
 	 *
-	 * @param array $calls     Calls of the renderer.
-	 * @param array $scheduled Events scheduled.
-	 * @param array $answers   Answers of the renderer.
-	 * @param int   $pages     Pages.
-	 * @param array $info      Overrides of the info of the post 12.
+	 * @param array         $calls     Calls of the renderer.
+	 * @param array         $scheduled Events scheduled.
+	 * @param array         $answers   Answers of the renderer.
+	 * @param int           $pages     Pages.
+	 * @param array         $info      Overrides of the info of the post 12.
+	 * @param callable|null $rules Receives a post id; returns the rules of its book project, or null (slice 230).
 	 * @return PdfJobs
 	 */
 	private function jobs( array &$calls, array &$scheduled, array $answers = array(), $pages = 2, array $info = array(), $rules = null ) {
