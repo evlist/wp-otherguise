@@ -356,3 +356,41 @@ The same 214 units rendered **one by one** (a page each, one at a time): 17 s in
 
 **Conclusion (Claude; noted by Eric on 2026-10-25 as the conclusion to keep for now, to be checked on the real pages)**: the argument against merging all the HTML is **not the volume** (a first book fits on a normal machine), it is the **robustness and the cost of a correction**: no cache per unit, one request to WordPress for the whole book, and all the JavaScript of the blog in one page. The founding decision stays: **one PDF per post, then merged**; option 4 is not retained. That is not proven either, since the real pages were not tried. If it ever has to be checked, the test is: the real section of 20 then 100 days, on the real site, through Gotenberg, watching the memory of PHP and of Chromium.
 
+#### Series of 2026-10-26 on testing, with the real pages of the first book (option 4: merge all the HTML before the pagination)
+
+Eric ran the branch `merge-all-html` on testing (the pages "journée" of last year's book, as a section; Gotenberg in the same Docker network, its `--api-timeout` at 300 s, the site asked by its internal address, slice 225; the PDF written to disk and sent as a file, slice 226). Times in seconds, from `merge.log` (`merge_done`, `pdf_convert`).
+
+| Units | PHP renders the page | Whole conversion | PDF | Note |
+|---|---|---|---|---|
+| 1 | 0.4 | 1.7 | 2 MB | |
+| 10 | 5.4 | 9.1 | 17.6 MB | |
+| 20 | 8.0 | 18.0 | 34.6 MB | |
+| 50 | 29.6 | 45.3 | 85.8 MB | first pass: the images of the print sizes were being made |
+| 100 | 37.7 | 70.3 | 166.6 MB | PHP of the job 34 MB |
+| **184** | **71.8** | **174.4** | **292 MB** | PHP of the page 108 MB, of the job 8 MB; 2982 queries |
+
+**What it shows**
+- **The cost is linear on the PHP side**: about 0.39 s and 16 SQL queries per unit, 0.58 MB of PHP memory per unit (108 MB for 184 units). The units that were slow (5 to 6 s, from the 87th on) were **the first rendering of units whose print-size images had not been made yet** (55 queries instead of 15, and a jump of the resident memory): once made, they cost 0.4 s. Not the proxy and not a plugin.
+- **The print server is not linear**: Chromium and Gotenberg need 3.7 s for 10 units, 33 s for 100 and **103 s for 184** (0.33 s per unit, then 0.56). A book of 214 units would be about 85 s of PHP and about 130 s of Chromium, **about 215 s** in all, which is under the 300 s of `--api-timeout` but not by a wide margin; a book of 300 pages would have to raise it.
+- **The weight is 1.6 MB per unit** (292 MB for 184), the same as the PDFs made unit by unit (the images are the same). Not tried: the files of the units together, to compare the sum.
+- **Time went where it should not**: the first versions failed on the proxy (a limit of 60 s on a page that PHP needed 98 s to make, a `504`), on the memory of the job (496 MB of PHP for a PDF of 167 MB, because it was held in memory and sent as base64) and on the display (a JSON of 222 MB). Slices 225 and 226 removed those three; what remains is the time of PHP and of Chromium.
+- **Not measured on these pages**: the memory of Gotenberg during the 184 units (about 720 MiB for 10 units), JavaScript heavier than the daily pages (the two summary pages of the book have whoBIRD thumbnails that do not all load, and a template that was never tried in the print mode), and a section of units that are sections.
+
+**Conclusion, revised (Claude; to confirm by Eric)**: the argument of 2026-10-25 against merging all the HTML ("the volume") is **not confirmed for a book of daily pages**: 184 units take 3 minutes and a normal machine, once the three obstacles above are removed. What remains of the objection is not volume: **no cache per unit** (a correction in one day renders the whole book again, about 3 minutes, where the per-unit way renders one unit and merges), **all or nothing** (one failing unit, one page that does not load, and the whole conversion fails), **the pages that are not daily pages** (JavaScript, the templates that do not exist yet), and **the margin on the time of the print server** for a longer book. So the founding decision (one PDF per post, merged) is not overturned by a measure; option 4 becomes a **possible alternative for the book of daily pages**, to compare with the per-unit way **on the same pages** (time of the whole, time of a correction, failures) before deciding.
+
+
+**Condition added by Eric (2026-10-26, to keep)**: merging the HTML is a possible alternative **provided the weight of every page is optimised as early as possible**, as was done for the daily pages (print-size images made once, light templates). The measure above holds only because of that work.
+
+#### Page numbers, table of contents and index with a merged HTML, and markers in the PDF (Proposed; checked only in Chromium, 2026-10-26)
+
+**What Chromium puts in a PDF** (checked with Playwright Chromium and `pypdf` on a document of 4 units, one of them over 3 pages; **not yet tried through Gotenberg**, nor after `gs`):
+- an internal link (`<a href="#u-3">`) and an external marker link (`https://marker.invalid/unit/3`), even of one pixel and transparent, become `/Link` annotations carried by the page where they sit; the page of the annotation is the page where the unit starts;
+- every `id` targeted by an internal link becomes a named destination (`/u-3` gives its page);
+- `outline: true` also gives bookmarks (Gotenberg option to check);
+- the number of pages of a unit is the difference between two consecutive starts; blank pages are counted for free.
+
+**Proposed**: a marker link per unit and an `id` per passage to index, then a small reader of the page tree and of the annotations (the PDFs of Chromium have no object streams, which is what `PdfPages` already relies on; no `shell_exec`), which gives the page of each unit and of each passage. Markers are safer in the merged flow, because merging per-unit PDFs may rewrite the destinations; with per-unit PDFs the cumulative sum of `PdfPages::count()` is enough for the starts, and only the passages of the index need markers.
+
+**Page numbers** (Proposed): a merged body is one document, so the physical pages are exact. The ToC and the index are small separate PDFs placed in front and at the end; their length does not depend on the digits, so the body is **not** rendered again. The folios are stamped on the final PDF (pdfcpu), which is the last pass, cheap because nothing is rendered.
+
+**Open**: ToC and index as **posts with a role** ("ToC", "Index"), generated from the content, placed where wanted and styled by templates of the theme like the category pages. Their numbers come from the pagination map of the first pass, so in print they need one more small render (see the answer of the session); in web mode they carry links only.
