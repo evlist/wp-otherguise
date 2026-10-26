@@ -55,6 +55,13 @@ final class ProjectCommand {
 	private $fail;
 
 	/**
+	 * The relations of the projects (`ProjectLinks`).
+	 *
+	 * @var object
+	 */
+	private $links;
+
+	/**
 	 * Tells whether a post is a section: receives its id.
 	 *
 	 * @var callable
@@ -66,14 +73,16 @@ final class ProjectCommand {
 	 *
 	 * @param Projects      $projects   Projects.
 	 * @param object        $store      The posts (`WordPressProjects`).
+	 * @param object        $links      The relations of the projects (`ProjectLinks`).
 	 * @param callable      $is_section Receives a post id; tells whether it is a section.
 	 * @param callable|null $log        Default `WP_CLI::log`.
 	 * @param callable|null $success    Default `WP_CLI::success`.
 	 * @param callable|null $fail       Default `WP_CLI::error`.
 	 */
-	public function __construct( Projects $projects, $store, $is_section, $log = null, $success = null, $fail = null ) {
+	public function __construct( Projects $projects, $store, $links, $is_section, $log = null, $success = null, $fail = null ) {
 		$this->projects   = $projects;
 		$this->store      = $store;
+		$this->links      = $links;
 		$this->is_section = $is_section;
 		$this->log        = $log ?? array( 'WP_CLI', 'log' );
 		$this->success    = $success ?? array( 'WP_CLI', 'success' );
@@ -196,18 +205,9 @@ final class ProjectCommand {
 			return;
 		}
 
-		$id = $this->store->create(
-			PostTypes::PROJECT,
-			$title,
-			Projects::normalize(
-				array(
-					'root' => $root,
-					'profile' => $profile,
-				)
-			)
-		);
+		$id = $this->store->create( PostTypes::PROJECT, $title, Projects::normalize( array() ) );
 
-		if ( $id <= 0 ) {
+		if ( $id <= 0 || ! $this->links->set_root( $id, $root ) || ! $this->links->set_profile( $id, $profile ) ) {
 			( $this->fail )( 'The project could not be created.' );
 			return;
 		}
@@ -259,7 +259,54 @@ final class ProjectCommand {
 			return;
 		}
 
-		$this->store->update_project( $project['id'], Projects::normalize( array_merge( $project, array( 'profile' => $profile ) ) ) );
+		$this->links->set_profile( $project['id'], $profile );
 		( $this->success )( sprintf( 'The project %d has now the profile %d.', $project['id'], $profile ) );
+	}
+
+	/**
+	 * Moves the root section and the profile of the projects made before the relations (slice 230) from their meta to relations.
+	 *
+	 * A project that has its relations already is left as it is, so the command can be run again; `--dry-run` writes nothing.
+	 *
+	 * ## OPTIONS
+	 *
+	 * [--dry-run]
+	 * : Say what would be done.
+	 *
+	 * @param array $args       Positional arguments (none).
+	 * @param array $assoc_args Options.
+	 * @return void
+	 */
+	public function migrate( $args, $assoc_args ) {
+		unset( $args );
+
+		$done = 0;
+
+		foreach ( $this->store->projects() as $row ) {
+			$meta = is_array( $row['meta'] ) ? $row['meta'] : array();
+
+			if ( ! isset( $meta['root'] ) && ! isset( $meta['profile'] ) ) {
+				continue;
+			}
+
+			if ( isset( $assoc_args['dry-run'] ) ) {
+				( $this->log )( sprintf( 'Would move the root and the profile of the project %d to relations.', $row['id'] ) );
+				++$done;
+				continue;
+			}
+
+			if ( (int) ( $meta['root'] ?? 0 ) > 0 && 0 === (int) $this->links->root( $row['id'] ) ) {
+				$this->links->set_root( $row['id'], (int) $meta['root'] );
+			}
+
+			if ( (int) ( $meta['profile'] ?? 0 ) > 0 && 0 === (int) $this->links->profile( $row['id'] ) ) {
+				$this->links->set_profile( $row['id'], (int) $meta['profile'] );
+			}
+
+			$this->store->update_project( $row['id'], Projects::normalize( $meta ) );
+			++$done;
+		}
+
+		( $this->success )( sprintf( '%d project(s) %s.', $done, isset( $assoc_args['dry-run'] ) ? 'to migrate' : 'migrated' ) );
 	}
 }

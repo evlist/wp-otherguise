@@ -53,6 +53,13 @@ final class MetaBoxes {
 	private $set_meta;
 
 	/**
+	 * The relations of the projects (`ProjectLinks`): `root()`, `profile()`, `set_root()` and `set_profile()`.
+	 *
+	 * @var object
+	 */
+	private $links;
+
+	/**
 	 * Returns the sections (id => title) a project can be rooted in.
 	 *
 	 * @var callable
@@ -92,15 +99,17 @@ final class MetaBoxes {
 	 *
 	 * @param callable      $sections    Returns the sections: id => title.
 	 * @param callable      $profiles    Returns the profiles: id => title.
+	 * @param object        $links       The relations of the projects (`ProjectLinks`).
 	 * @param callable|null $get_meta    Defaults to `get_post_meta` (single value).
 	 * @param callable|null $set_meta    Defaults to `update_post_meta`.
 	 * @param callable|null $can         Defaults to `current_user_can`.
 	 * @param callable|null $posted      Defaults to a read of the form with `filter_input()`.
 	 * @param callable|null $nonce_valid Defaults to `wp_verify_nonce`.
 	 */
-	public function __construct( $sections, $profiles, $get_meta = null, $set_meta = null, $can = null, $posted = null, $nonce_valid = null ) {
+	public function __construct( $sections, $profiles, $links, $get_meta = null, $set_meta = null, $can = null, $posted = null, $nonce_valid = null ) {
 		$this->sections    = $sections;
 		$this->profiles    = $profiles;
+		$this->links       = $links;
 		$this->get_meta    = $get_meta ?? static function ( $id, $key ) {
 			return get_post_meta( (int) $id, (string) $key, true );
 		};
@@ -165,8 +174,8 @@ final class MetaBoxes {
 		wp_nonce_field( self::ACTION, self::NONCE );
 		echo '<table class="form-table" role="presentation"><tbody>';
 
-		$this->select_row( 'root', __( 'Root section', 'otherguise' ), (array) ( $this->sections )(), $values['root'], __( 'A top-level section: the cover and title pages are units of this section, before the sections of the book.', 'otherguise' ) );
-		$this->select_row( 'profile', __( 'Printer profile', 'otherguise' ), (array) ( $this->profiles )(), $values['profile'], __( 'The rules of the printer for this book. The same section can have several projects, one for each printer.', 'otherguise' ) );
+		$this->select_row( 'root', __( 'Root section', 'otherguise' ), (array) ( $this->sections )(), (int) $this->links->root( (int) $post->ID ), __( 'A top-level section: the cover and title pages are units of this section, before the sections of the book.', 'otherguise' ) );
+		$this->select_row( 'profile', __( 'Printer profile', 'otherguise' ), (array) ( $this->profiles )(), (int) $this->links->profile( (int) $post->ID ), __( 'The rules of the printer for this book. The same section can have several projects, one for each printer.', 'otherguise' ) );
 
 		echo '<tr><th scope="row"><label for="books-project-author">' . esc_html__( 'Author', 'otherguise' ) . '</label></th><td><input type="text" id="books-project-author" class="regular-text" maxlength="200" name="' . esc_attr( self::PROJECT_FIELD . '[author]' ) . '" value="' . esc_attr( $values['author'] ) . '" /></td></tr>';
 		echo '<tr><th scope="row">' . esc_html__( 'Folios', 'otherguise' ) . '</th><td><input type="hidden" name="' . esc_attr( self::PROJECT_FIELD . '[folios]' ) . '" value="0" /><label><input type="checkbox" name="' . esc_attr( self::PROJECT_FIELD . '[folios]' ) . '" value="1"' . ( $values['folios'] ? ' checked="checked"' : '' ) . ' /> ' . esc_html__( 'Print the page numbers, where the profile puts them', 'otherguise' ) . '</label></td></tr>';
@@ -184,13 +193,23 @@ final class MetaBoxes {
 	}
 
 	/**
-	 * Stores the form of a project. Action `save_post_books_project`, with the id of the post.
+	 * Stores the form of a project: the author and the folios in its meta, the root section and the profile as relations. Action
+	 * `save_post_books_project`, with the id of the post.
 	 *
 	 * @param int $post_id Id of the post.
 	 * @return void
 	 */
 	public function save_project( $post_id ) {
-		$this->store( (int) $post_id, self::PROJECT_FIELD, PostTypes::PROJECT_META, array( Projects::class, 'normalize' ) );
+		$post_id = (int) $post_id;
+		$posted  = $this->posted_form( $post_id, self::PROJECT_FIELD );
+
+		if ( null === $posted ) {
+			return;
+		}
+
+		( $this->set_meta )( $post_id, PostTypes::PROJECT_META, Projects::normalize( $posted ) );
+		$this->links->set_root( $post_id, isset( $posted['root'] ) && is_numeric( $posted['root'] ) ? max( 0, (int) $posted['root'] ) : 0 );
+		$this->links->set_profile( $post_id, isset( $posted['profile'] ) && is_numeric( $posted['profile'] ) ? max( 0, (int) $posted['profile'] ) : 0 );
 	}
 
 	/**
@@ -204,18 +223,35 @@ final class MetaBoxes {
 	 * @return void
 	 */
 	private function store( $post_id, $field, $meta, $normalize ) {
+		$posted = $this->posted_form( $post_id, $field );
+
+		if ( null !== $posted ) {
+			( $this->set_meta )( $post_id, $meta, $normalize( $posted ) );
+		}
+	}
+
+	/**
+	 * The form that was posted for a post, or null when it must not be stored: an autosave, a user who may not edit the post, no form, a
+	 * nonce that is not valid.
+	 *
+	 * @param int    $post_id Id of the post.
+	 * @param string $field   Name of the form array.
+	 * @return array<string, mixed>|null
+	 */
+	private function posted_form( $post_id, $field ) {
 		if ( ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) || ! ( $this->can )( 'edit_post', $post_id ) ) {
-			return;
+			return null;
 		}
 
 		$posted = ( $this->posted )( $field );
 
 		if ( null === $posted || ! ( $this->nonce_valid )( $posted['__nonce'] ?? '', self::ACTION ) ) {
-			return;
+			return null;
 		}
 
 		unset( $posted['__nonce'] );
-		( $this->set_meta )( $post_id, $meta, $normalize( $posted ) );
+
+		return $posted;
 	}
 
 	/**

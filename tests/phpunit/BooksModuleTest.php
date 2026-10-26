@@ -87,7 +87,7 @@ class BooksModuleTest extends TestCase {
 				'rest_api_init'                      => array( array( 'register', 10, 0 ), array( 'register', 10, 0 ) ),
 				'triples_register_predicates'        => array( array( 'register_predicates', 10, 1 ) ),
 				'before_delete_post'                 => array( array( 'forget_post', 9, 1 ) ),
-				'books_render_pdf'                   => array( array( 'run', 10, 3 ) ),
+				'books_render_pdf'                   => array( array( 'run', 10, 4 ) ),
 				'books_pdf_cleanup'                  => array( array( 'cleanup', 10, 0 ) ),
 				'cli_init'                           => array( array( 'register_command', 10, 0 ) ),
 				'init'                               => array( array( 'register', 20, 0 ), array( 'register', 10, 0 ) ),

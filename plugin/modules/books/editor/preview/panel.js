@@ -59,6 +59,7 @@
 		var state = {
 			open: false,
 			mode: settings.defaultMode,
+			project: ( settings.projects && settings.projects.length ) ? settings.projects[ 0 ].id : 0,
 			stale: false,
 			measured: undefined,
 			measuring: false,
@@ -106,6 +107,25 @@
 			select.appendChild( option );
 		} );
 		select.value = state.mode;
+
+		// The book projects that cover the post (slice 230): chosen here when there are several, the format of the page is the project's.
+		var projectSelect = el( 'select', 'books-preview__project' );
+		projectSelect.setAttribute( 'aria-label', __( 'Book project', 'otherguise' ) );
+		( settings.projects || [] ).forEach( function ( project ) {
+			var option = el( 'option', '', project.title );
+			option.value = String( project.id );
+			projectSelect.appendChild( option );
+		} );
+		projectSelect.value = String( state.project );
+		projectSelect.hidden = ( settings.projects || [] ).length < 2;
+
+		function currentPage() {
+			var found = ( settings.projects || [] ).filter( function ( project ) {
+				return project.id === state.project;
+			} )[ 0 ];
+
+			return found && found.page ? found.page : settings.page;
+		}
 		var refreshButton = el( 'button', 'books-preview__refresh button button-small', __( 'Refresh', 'otherguise' ) );
 		refreshButton.type = 'button';
 		var closeButton = el( 'button', 'books-preview__close', '×' );
@@ -113,6 +133,7 @@
 		closeButton.setAttribute( 'aria-label', __( 'Close', 'otherguise' ) );
 		bar.appendChild( title );
 		bar.appendChild( select );
+		bar.appendChild( projectSelect );
 		bar.appendChild( refreshButton );
 		bar.appendChild( closeButton );
 
@@ -213,7 +234,7 @@
 			var shape;
 
 			if ( framed() ) {
-				shape = geo.layout( settings.page, box );
+				shape = geo.layout( currentPage(), box );
 			} else {
 				var scale = Math.min( 1, box.width / UNFRAMED.width, box.height / UNFRAMED.height );
 				shape = {
@@ -255,7 +276,7 @@
 
 			var text;
 			var post = options.getPost();
-			var url = geo.previewUrl( post, state.mode, settings.argument );
+			var url = geo.previewUrl( post, state.mode, settings.argument, state.project );
 			var parts = [];
 
 			if ( '' === url ) {
@@ -307,7 +328,7 @@
 				}
 
 				state.measuring = false;
-				state.measured = geo.verdict( height, settings.page );
+				state.measured = geo.verdict( height, currentPage() );
 				say();
 			}
 
@@ -356,7 +377,7 @@
 
 			generation++;
 			var id = generation;
-			var url = geo.previewUrl( options.getPost(), state.mode, settings.argument );
+			var url = geo.previewUrl( options.getPost(), state.mode, settings.argument, state.project );
 
 			if ( null !== timer ) {
 				cancel( timer );
@@ -485,7 +506,7 @@
 					return;
 				}
 				if ( 'done' === answer.status ) {
-					pdfOptions.api.file( state.mode ).then( function ( file ) {
+					pdfOptions.api.file( state.mode, state.project ).then( function ( file ) {
 						showPdf( id, file );
 					}, function ( error ) {
 						pdfFailed( id, error && error.message ? error.message : '' );
@@ -500,7 +521,7 @@
 					timer = later( function () {
 						timer = null;
 						if ( id === generation ) {
-							pdfOptions.api.status( state.mode ).then( handle, fail );
+							pdfOptions.api.status( state.mode, state.project ).then( handle, fail );
 						}
 					}, pdfOptions.pollMs || POLL_MS );
 				}
@@ -509,7 +530,7 @@
 				pdfFailed( id, error && error.message ? error.message : '' );
 			};
 
-			pdfOptions.api.start( state.mode, !! force ).then( handle, fail );
+			pdfOptions.api.start( state.mode, !! force, state.project ).then( handle, fail );
 		}
 
 		function setView( view ) {
@@ -550,6 +571,12 @@
 
 		select.addEventListener( 'change', function () {
 			state.mode = select.value;
+			if ( state.open ) {
+				load();
+			}
+		} );
+		projectSelect.addEventListener( 'change', function () {
+			state.project = parseInt( projectSelect.value, 10 ) || 0;
 			if ( state.open ) {
 				load();
 			}
@@ -684,6 +711,16 @@
 			},
 			mode: function () {
 				return state.mode;
+			},
+			project: function () {
+				return state.project;
+			},
+			setProject: function ( id ) {
+				state.project = id;
+				projectSelect.value = String( id );
+				if ( state.open ) {
+					load();
+				}
 			},
 			setMode: function ( slug ) {
 				state.mode = slug;

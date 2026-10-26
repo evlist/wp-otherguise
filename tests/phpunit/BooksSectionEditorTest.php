@@ -163,7 +163,10 @@ class BooksSectionEditorTest extends TestCase {
 
 		( new Module() )->register_predicates( $registry );
 
-		$this->assertSame( array( 'books/contains', 'books/is-section' ), array_keys( $registry->definitions ) );
+		$this->assertSame( array( 'books/contains', 'books/is-section', 'books/root', 'books/profile' ), array_keys( $registry->definitions ) );
+		$this->assertSame( 1, $registry->definitions['books/root']->max_objects_per_subject(), 'A project has one root section.' );
+		$this->assertSame( 1, $registry->definitions['books/profile']->max_objects_per_subject(), 'A project has one profile.' );
+		$this->assertSame( array( 'post' ), $registry->definitions['books/root']->object_types() );
 		$this->assertSame( array( 'post' ), $registry->definitions['books/contains']->subject_types() );
 		$this->assertSame( array( 'post' ), $registry->definitions['books/contains']->object_types() );
 		$this->assertSame( array( 'boolean' ), $registry->definitions['books/is-section']->object_types() );

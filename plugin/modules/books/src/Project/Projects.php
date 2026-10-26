@@ -14,11 +14,11 @@ defined( 'ABSPATH' ) || exit;
 
 /**
  * Ties a book project (a top-level section and a printer profile) to the posts it covers (slice 230). It knows nothing of WordPress: the
- * projects, the profiles and the sections come from three callables, so that it is tested without a site.
+ * projects, their relations and the profiles come from callables and from `ProjectLinks`, so that it is tested without a site.
  */
 final class Projects {
 	/**
-	 * Returns the stored projects: a list of `id`, `title` and `meta` (what the post meta holds).
+	 * Returns the stored projects: a list of `id`, `title` and `meta` (what the post meta holds: the author and the folios).
 	 *
 	 * @var callable
 	 */
@@ -32,39 +32,38 @@ final class Projects {
 	private $profile_meta;
 
 	/**
-	 * Receives a section and a post; tells whether the post can be reached from the section.
+	 * The relations of the projects.
 	 *
-	 * @var callable
+	 * @var object
 	 */
-	private $reaches;
+	private $links;
 
 	/**
 	 * Builds the service.
 	 *
 	 * @param callable $list         Returns the stored projects.
 	 * @param callable $profile_meta Receives a profile id; returns its meta or null.
-	 * @param callable $reaches      Receives a section id and a post id; tells whether the section reaches the post.
+	 * @param object   $links        The relations (`ProjectLinks`): `root()`, `profile()` and `covering()`.
 	 */
-	public function __construct( $list, $profile_meta, $reaches ) {
+	public function __construct( $list, $profile_meta, $links ) {
 		$this->list         = $list;
 		$this->profile_meta = $profile_meta;
-		$this->reaches      = $reaches;
+		$this->links        = $links;
 	}
 
 	/**
-	 * Keeps the valid values of a project: the root section, the profile, the author and the switch of the folios (on by default).
+	 * Keeps the valid values of what a project holds in its meta: the author and the switch of the folios (on by default). The root section
+	 * and the profile are relations, not meta.
 	 *
 	 * @param mixed $input What the post meta holds.
-	 * @return array{root:int, profile:int, author:string, folios:bool}
+	 * @return array{author:string, folios:bool}
 	 */
 	public static function normalize( $input ) {
 		$in = is_array( $input ) ? $input : array();
 
 		return array(
-			'root'    => isset( $in['root'] ) && is_numeric( $in['root'] ) ? max( 0, (int) $in['root'] ) : 0,
-			'profile' => isset( $in['profile'] ) && is_numeric( $in['profile'] ) ? max( 0, (int) $in['profile'] ) : 0,
-			'author'  => isset( $in['author'] ) && is_string( $in['author'] ) ? mb_substr( trim( $in['author'] ), 0, 200 ) : '',
-			'folios'  => ! array_key_exists( 'folios', $in ) || ! in_array( $in['folios'], array( false, 0, '0', '', 'off' ), true ),
+			'author' => isset( $in['author'] ) && is_string( $in['author'] ) ? mb_substr( trim( $in['author'] ), 0, 200 ) : '',
+			'folios' => ! array_key_exists( 'folios', $in ) || ! in_array( $in['folios'], array( false, 0, '0', '', 'off' ), true ),
 		);
 	}
 
@@ -92,8 +91,10 @@ final class Projects {
 			$id              = (int) ( $row['id'] ?? 0 );
 			$projects[ $id ] = array_merge(
 				array(
-					'id'    => $id,
-					'title' => (string) ( $row['title'] ?? '' ),
+					'id'      => $id,
+					'title'   => (string) ( $row['title'] ?? '' ),
+					'root'    => (int) $this->links->root( $id ),
+					'profile' => (int) $this->links->profile( $id ),
 				),
 				self::normalize( $row['meta'] ?? array() )
 			);
@@ -117,44 +118,55 @@ final class Projects {
 	}
 
 	/**
-	 * The project that applies to a post and its profile: the one asked for when it covers the post, else the first one (the lowest id) whose
-	 * root is the post or reaches it. The filter `books_project_for_post` can choose another one.
+	 * The projects that cover a post, with their profile and the CSS they give to the page, lowest id first: those whose root is the post or
+	 * a section that contains it, directly or not. A project whose profile is missing gives no rules and is left out.
+	 *
+	 * @param int $post_id The post.
+	 * @return array<int, array{project:array, profile:array<string,mixed>, css:string}> By project id.
+	 */
+	public function covering( $post_id ) {
+		$all    = $this->all();
+		$covers = array();
+
+		foreach ( (array) $this->links->covering( (int) $post_id ) as $id ) {
+			if ( ! isset( $all[ $id ] ) || $all[ $id ]['profile'] <= 0 ) {
+				continue;
+			}
+
+			$profile = $this->profile( $all[ $id ]['profile'] );
+
+			if ( null !== $profile ) {
+				$covers[ (int) $id ] = array(
+					'project' => $all[ $id ],
+					'profile' => $profile,
+					'css'     => PageRules::css( $profile, $all[ $id ]['folios'] ),
+				);
+			}
+		}
+
+		ksort( $covers );
+
+		return $covers;
+	}
+
+	/**
+	 * The project that applies to a post and its profile: the one asked for when it covers the post, else the first one (the lowest id).
+	 * The filter `books_project_for_post` can choose another one among those that cover it.
 	 *
 	 * @param int $post_id   The post.
 	 * @param int $requested Id of a project asked for (0 for none).
-	 * @return array{project:array, profile:array<string,mixed>, css:string}|null Null when no project covers the post, or when its profile is missing.
+	 * @return array{project:array, profile:array<string,mixed>, css:string}|null Null when no project covers the post.
 	 */
 	public function for_post( $post_id, $requested = 0 ) {
-		$post_id  = (int) $post_id;
-		$projects = $this->all();
-		$covers   = array();
-
-		foreach ( $projects as $id => $project ) {
-			if ( $project['root'] > 0 && $project['profile'] > 0 && ( $project['root'] === $post_id || ( $this->reaches )( $project['root'], $post_id ) ) ) {
-				$profile = $this->profile( $project['profile'] );
-
-				// A project whose profile is missing gives no rules: another project that covers the post is used.
-				if ( null !== $profile ) {
-					$covers[ $id ] = array(
-						'project' => $project,
-						'profile' => $profile,
-					);
-				}
-			}
-		}
+		$covers = $this->covering( (int) $post_id );
 
 		if ( array() === $covers ) {
 			return null;
 		}
 
 		$chosen = isset( $covers[ (int) $requested ] ) ? (int) $requested : (int) array_key_first( $covers );
-		$chosen = (int) apply_filters( 'books_project_for_post', $chosen, $post_id, array_keys( $covers ) );
-		$chosen = isset( $covers[ $chosen ] ) ? $chosen : (int) array_key_first( $covers );
+		$chosen = (int) apply_filters( 'books_project_for_post', $chosen, (int) $post_id, array_keys( $covers ) );
 
-		return array(
-			'project' => $covers[ $chosen ]['project'],
-			'profile' => $covers[ $chosen ]['profile'],
-			'css'     => PageRules::css( $covers[ $chosen ]['profile'], $covers[ $chosen ]['project']['folios'] ),
-		);
+		return $covers[ isset( $covers[ $chosen ] ) ? $chosen : (int) array_key_first( $covers ) ];
 	}
 }

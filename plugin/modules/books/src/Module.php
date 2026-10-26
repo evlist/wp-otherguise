@@ -29,6 +29,7 @@ use Otherguise\Books\Project\MetaBoxes;
 use Otherguise\Books\Project\PostTypes;
 use Otherguise\Books\Project\PrinterProfile;
 use Otherguise\Books\Project\PrintStyles;
+use Otherguise\Books\Project\ProjectLinks;
 use Otherguise\Books\Project\Projects;
 use Otherguise\Books\Project\WordPressProjects;
 use Otherguise\Books\Render\GotenbergClient;
@@ -130,7 +131,7 @@ final class Module implements ModuleInterface {
 		$format         = new PageFormat();
 		$renderer       = new RendererSettings();
 		$settings       = new SettingsScreen( $format, $renderer );
-		$preview        = new EditorPreview( $format, array( $this, 'preview_modes' ), $this->editor_url, null, null, null, array( $renderer, 'is_configured' ), array( $this, 'project_format' ) );
+		$preview        = new EditorPreview( $format, array( $this, 'preview_modes' ), $this->editor_url, null, null, null, array( $renderer, 'is_configured' ), array( $this, 'project_choices' ) );
 		$jobs           = $this->jobs( $format, $renderer );
 		$sizes          = new PrintSizes( $format );
 		$srcset         = new PrintSrcset();
@@ -141,7 +142,7 @@ final class Module implements ModuleInterface {
 		$section_routes = new SectionRoutes( $sections );
 		$section_editor = new SectionEditor( $this->section_url, array( new WordPressPostStore(), 'types' ) );
 		$types          = new PostTypes();
-		$boxes          = new MetaBoxes( array( $this, 'section_titles' ), array( new WordPressProjects(), 'profiles' ) );
+		$boxes          = new MetaBoxes( array( $this, 'section_titles' ), array( new WordPressProjects(), 'profiles' ), $this->links() );
 		$styles         = new PrintStyles( $this->projects(), array( $this, 'is_print_request' ) );
 
 		( $this->add_action )( 'admin_init', array( $settings, 'register' ), 10, 0 );
@@ -154,7 +155,7 @@ final class Module implements ModuleInterface {
 		( $this->add_action )( 'triples_register_predicates', array( $this, 'register_predicates' ), 10, 1 );
 		( $this->add_action )( 'before_delete_post', array( $sections, 'forget_post' ), 9, 1 );
 		( $this->add_action )( 'enqueue_block_editor_assets', array( $section_editor, 'enqueue' ), 10, 0 );
-		( $this->add_action )( PdfJobs::EVENT, array( $jobs, 'run' ), 10, 3 );
+		( $this->add_action )( PdfJobs::EVENT, array( $jobs, 'run' ), 10, 4 );
 		( $this->add_action )( self::CLEANUP_EVENT, array( $jobs, 'cleanup' ), 10, 0 );
 		( $this->add_action )( 'admin_init', array( $this, 'schedule_cleanup' ), 10, 0 );
 		( $this->add_action )( 'cli_init', array( $this, 'register_command' ), 10, 0 );
@@ -198,6 +199,30 @@ final class Module implements ModuleInterface {
 					'label'                   => __( 'Is a section', 'otherguise' ),
 					'subject_types'           => array( 'post' ),
 					'object_types'            => array( 'boolean' ),
+					'max_objects_per_subject' => 1,
+				)
+			)
+		);
+		$predicates->register(
+			PredicateDefinition::from_array(
+				array(
+					'slug'                    => ProjectLinks::ROOT,
+					'label'                   => __( 'Root section', 'otherguise' ),
+					'inverse_label'           => __( 'Root of', 'otherguise' ),
+					'subject_types'           => array( 'post' ),
+					'object_types'            => array( 'post' ),
+					'max_objects_per_subject' => 1,
+				)
+			)
+		);
+		$predicates->register(
+			PredicateDefinition::from_array(
+				array(
+					'slug'                    => ProjectLinks::PROFILE,
+					'label'                   => __( 'Printer profile', 'otherguise' ),
+					'inverse_label'           => __( 'Profile of', 'otherguise' ),
+					'subject_types'           => array( 'post' ),
+					'object_types'            => array( 'post' ),
 					'max_objects_per_subject' => 1,
 				)
 			)
@@ -254,6 +279,7 @@ final class Module implements ModuleInterface {
 			new ProjectCommand(
 				$this->projects(),
 				new WordPressProjects(),
+				$this->links(),
 				function ( $id ) {
 					return $this->sections( true )->is_section( (int) $id );
 				}
@@ -291,16 +317,16 @@ final class Module implements ModuleInterface {
 			static function ( $address ) {
 				return new GotenbergClient( $address );
 			},
-			static function ( $post_id, $mode, $key ) {
-				wp_schedule_single_event( time(), PdfJobs::EVENT, array( (int) $post_id, (string) $mode, (string) $key ) );
+			static function ( $post_id, $mode, $key, $project = 0 ) {
+				wp_schedule_single_event( time(), PdfJobs::EVENT, array( (int) $post_id, (string) $mode, (string) $key, (int) $project ) );
 				spawn_cron();
 			},
 			null,
 			static function ( $address ) use ( $renderer ) {
 				return SiteAddress::rewrite( (string) $address, home_url(), (string) $renderer->get()[ RendererSettings::SITE ] );
 			},
-			function ( $post_id ) {
-				$found = $this->projects()->for_post( (int) $post_id );
+			function ( $post_id, $project = 0 ) {
+				$found = $this->projects()->for_post( (int) $post_id, (int) $project );
 
 				return null === $found ? null : array(
 					'project' => $found['project']['id'],
@@ -312,32 +338,52 @@ final class Module implements ModuleInterface {
 	}
 
 	/**
-	 * The book projects (slice 230): the posts of WordPress, the sections of Books.
+	 * The book projects (slice 230): the posts of WordPress, their relations in the statements, the sections of Books.
 	 *
 	 * @return Projects
 	 */
 	public function projects() {
 		$posts = new WordPressProjects();
 
-		return new Projects(
-			array( $posts, 'projects' ),
-			array( $posts, 'profile_meta' ),
-			function ( $root, $post ) {
-				return $this->sections( true )->reaches( (int) $root, (int) $post );
+		return new Projects( array( $posts, 'projects' ), array( $posts, 'profile_meta' ), $this->links() );
+	}
+
+	/**
+	 * The relations of the book projects (slice 230): their root section and their profile, and the projects of a section.
+	 *
+	 * @return ProjectLinks
+	 */
+	public function links() {
+		return new ProjectLinks(
+			static function () {
+				$triples = Modules::get( 'triples' );
+
+				return $triples->statements();
+			},
+			function ( $post_id ) {
+				return $this->sections( true )->ancestors( (int) $post_id );
 			}
 		);
 	}
 
 	/**
-	 * The format of the page of the book project that covers a post, for the preview panel; null without one.
+	 * The book projects that cover a post, for the choice of the preview panel: `id`, `title` and `page` (the format of the profile).
 	 *
 	 * @param int $post_id The post.
-	 * @return array<string, float>|null
+	 * @return array<int, array{id:int, title:string, page:array<string,float>}>
 	 */
-	public function project_format( $post_id ) {
-		$found = $this->projects()->for_post( (int) $post_id );
+	public function project_choices( $post_id ) {
+		$choices = array();
 
-		return null === $found ? null : PrinterProfile::format( $found['profile'] );
+		foreach ( $this->projects()->covering( (int) $post_id ) as $id => $found ) {
+			$choices[] = array(
+				'id'    => (int) $id,
+				'title' => '' !== $found['project']['title'] ? $found['project']['title'] : '#' . $id,
+				'page'  => PrinterProfile::format( $found['profile'] ),
+			);
+		}
+
+		return $choices;
 	}
 
 	/**

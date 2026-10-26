@@ -24,12 +24,13 @@ defined( 'ABSPATH' ) || exit;
  * overrides it. Every change checks the capabilities and the rules here, not in the callers: the browser is never trusted.
  */
 final class Sections {
-	public const PREDICATE  = 'books/contains';
-	public const MARK       = 'books/is-section';
-	public const POSITION   = 'triples/position';
-	public const MAX_SEARCH = 1000;
-	public const MAX_BATCH  = 200;
-	public const MAX_THUMBS = SectionQueries::MAX_THUMBS;
+	public const PREDICATE     = 'books/contains';
+	public const MARK          = 'books/is-section';
+	public const POSITION      = 'triples/position';
+	public const MAX_SEARCH    = 1000;
+	public const MAX_BATCH     = 200;
+	public const MAX_ANCESTORS = 200;
+	public const MAX_THUMBS    = SectionQueries::MAX_THUMBS;
 
 	/**
 	 * Gives the service of the statements.
@@ -178,6 +179,33 @@ final class Sections {
 		}
 
 		return $ids;
+	}
+
+	/**
+	 * Every section that contains a post, directly or through other sections (the sections above it, nearest first). At most `MAX_ANCESTORS`.
+	 *
+	 * @param int $id Id of the post.
+	 * @return int[]
+	 */
+	public function ancestors( $id ) {
+		$seen  = array( (int) $id => true );
+		$queue = array( (int) $id );
+		$found = array();
+
+		$visited = 0;
+
+		while ( array() !== $queue && $visited < self::MAX_ANCESTORS ) {
+			foreach ( $this->containing( array_shift( $queue ) ) as $parent ) {
+				if ( ! isset( $seen[ $parent ] ) ) {
+					$seen[ $parent ] = true;
+					$found[]         = $parent;
+					$queue[]         = $parent;
+					++$visited;
+				}
+			}
+		}
+
+		return array_slice( $found, 0, self::MAX_ANCESTORS );
 	}
 
 	/**
