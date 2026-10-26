@@ -10,6 +10,9 @@
 
 namespace Otherguise\Books;
 
+// Before the imports: the check of Plugin Check looks for this guard in the first fifty lines of a file only.
+defined( 'ABSPATH' ) || exit;
+
 use Otherguise\Books\Admin\SettingsScreen;
 use Otherguise\Books\Preview\EditorPreview;
 use Otherguise\Books\Cli\MergeLogCommand;
@@ -50,7 +53,6 @@ use Otherguise\Core\ModuleInterface;
 use Otherguise\Core\Modules;
 use Otherguise\Triples\Predicate\PredicateDefinition;
 
-defined( 'ABSPATH' ) || exit;
 
 /**
  * Entry point of the books module.
