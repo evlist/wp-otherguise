@@ -47,18 +47,25 @@ Books **injects the rules into the page in the print mode**; the theme is asked 
 
 **Consequence for the blank pages** (to check): an odd number of pages inserted after the render would swap recto and verso for everything after it, and with it the gutter. The blank pages must therefore be **in the HTML**, counted from a first render (the map of slice 227) and the body rendered again. That is two renders of the body for a book with blank pages; they give the same pagination **if the sum of the inner and outer margin is the same on both sides** (the text then wraps the same on a recto and on a verso), which is what a gutter does, to check. A book with no blank page needs one render.
 
-## What the theme has to do (proposed; read in `wp-twenty-twenty-five-printable` on 2026-10-26, nothing changed there yet)
+## The contract with the theme (proposed; read in `wp-twenty-twenty-five-printable` on 2026-10-26, nothing changed there yet)
 
-Books cannot do all of it alone. What exists today in the child theme: the print templates (for example `journee-print.html`) are a `main` group with a **constrained** layout, a full-width group `#post-content` with a vertical padding (`spacing|60`), and the content in a constrained layout; `modes/print.css` clears `padding` and `margin` of `html`, `main` and `#post-content` (it depends on those names); there is **no `@page` rule, no page break per unit, no folio** in the theme.
+**One direction: Books injects, the theme consumes.** A theme depending on a plugin is not a problem in itself here (the child theme is Eric's, for his site, and already uses `[modes_url]`, `[kaya_qrcode_dynamic]`, `wp-media-helper/gallery`, `wp-whobird` and `wp-attached-gpx`, and its `modes/print.css` is loaded by the Modes module); it becomes one when the theme breaks without the plugin, or the plugin without the theme. Hence:
+
+1. **Books works without the theme.** It writes `@page` (format, margins, gutter, bleed) and the margin boxes of the folios itself, and gives a default template for each role (`toc`, `index`, `blank`); a site with another theme gets a correct, plain result.
+2. **The theme works without Books.** It uses CSS variables **with a fallback** (`var(--books-margin, 10mm)`), so nothing changes when the plugin is inactive; **no call to a function of the plugin** in its PHP (`functions.php`), only shortcodes, blocks and variables, which WordPress ignores or shows as plain text when the plugin is missing.
+3. **The contract is documented in the README of the theme**: the variables (`--books-margin`, `--books-gutter`, `--books-safe`), the file `modes/print.css`, the names of the roles and of the classes. A theme that respects it works with Books. WordPress has no declaration of a theme's dependency on a plugin (`Requires Plugins` is for plugins), so it is documentation and a check (see "Not decided").
+4. **The templates of the roles are the one real dependency**: they need the data of Books (the manifest, the pagination map) and mean nothing without it, which is acceptable; the theme only overrides the default template of Books, as it overrides a category template.
+
+What exists in the child theme today: the print templates (for example `journee-print.html`) are a `main` group with a **constrained** layout, a full-width group `#post-content` with a vertical padding (`spacing|60`), and the content in a constrained layout; `modes/print.css` clears `padding` and `margin` of `html`, `main` and `#post-content` (it depends on those names); there is **no `@page` rule, no page break per unit, no folio** in the theme.
 
 To do in the theme, once Books gives the rules:
 
 1. **Width.** The constrained layouts are limited by `contentSize` of `theme.json`, a width of the screen. In the print mode the groups must take the width of the page: `max-width: none` in `modes/print.css` for those groups, the width being given by `@page`.
-2. **Vertical padding.** The groups with `spacing|60` add empty space above and below each page on top of the margin of the page, which makes the real margins differ from the profile (and the checks of slice 229 report it). Replace it with the variables of Books, or remove it in the print mode.
-3. **Variables.** Where the theme fixes a spacing for the print, use `--books-margin`, `--books-gutter` and `--books-safe` (defined on the root by Books), not its own numbers.
+2. **Vertical padding.** The groups with `spacing|60` add empty space above and below each page on top of the margin of the page, which makes the real margins differ from the profile (and the checks of slice 229 report it). Replace it with the variables of Books (with a fallback), or remove it in the print mode.
+3. **Variables.** Where the theme fixes a spacing for the print, use the variables of Books with their fallback, not its own numbers.
 4. **Page breaks.** In the merged HTML Books adds its own wrapper (`.books-merge-unit`); unit by unit nothing is needed. To check: `page-break-inside: avoid` of `print.css` (galleries, GPX maps) must not leave a large image alone on a page or push it over the bottom margin.
 5. **Folios.** Books writes the `@page` margin boxes. If the theme wants to style them (font, size), it provides the rule; otherwise the default of Books applies.
-6. **Roles.** `toc`, `index` and `blank` each need a template of the theme (like the category templates) and classes for the lines of the toc and of the index. This is new work; none of it exists.
+6. **Roles.** The overrides of the default templates of Books for `toc`, `index` and `blank`, and the classes of the lines of the toc and of the index. New work; none of it exists.
 
 **To check before relying on it**: whether the full-width groups stop at the margin of the page or overflow, and whether `contentSize` reduces the render under Gotenberg. Both can be measured with the checks of slice 229. A first try on testing: set `@page` by hand with the child theme, then measure the margins in the PDF.
 
@@ -66,6 +73,7 @@ To do in the theme, once Books gives the rules:
 
 - Whether `preferCssPageSize` is always sent (a project) or only when the project has a profile (a section without a project keeps the options of the settings).
 - Where the blank pages are made for a PDF made unit by unit (the parity of each unit starts at a recto).
+- A check "the active theme follows the contract" on the settings screen of Books (the variables used, `modes/print.css` present), as an indication.
 
 - The names of the post types and of the fields; a table of settings or post meta (meta, to be exported with the posts).
 - The presets: shipped as JSON files read to create the first posts, or only documentation.
