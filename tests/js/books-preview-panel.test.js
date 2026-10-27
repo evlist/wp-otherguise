@@ -234,6 +234,7 @@ function pointer( dom, target, type, x, y ) {
 	event.clientY = y;
 	event.button = 0;
 	target.dispatchEvent( event );
+	return event;
 }
 
 test( 'the panel moves by its title bar, and the position is remembered', () => {
@@ -265,6 +266,25 @@ test( 'the controls of the title bar do not start a move', () => {
 	pointer( dom, dom.window.document, 'pointermove', 10, 10 );
 
 	assert.strictEqual( q( '.books-preview' ).style.left, left );
+} );
+
+test( 'the menus of the title bar keep their click: the pointer-down on them is not a move (the mode and the book project)', () => {
+	const projects = [
+		{ id: 5, title: 'CoolLibri', page: { width_mm: 148, height_mm: 210, margin_mm: 10 } },
+		{ id: 6, title: 'Flexilivre', page: { width_mm: 210, height_mm: 210, margin_mm: 5 } },
+	];
+	const { dom, panel, q } = make( { settings: { projects } } );
+
+	panel.open();
+
+	for ( const selector of [ '.books-preview__mode', '.books-preview__project' ] ) {
+		const left = q( '.books-preview' ).style.left;
+		const event = pointer( dom, q( selector ), 'pointerdown', 100, 100 );
+		pointer( dom, dom.window.document, 'pointermove', 10, 10 );
+
+		assert.strictEqual( event.defaultPrevented, false, selector + ': the browser opens the menu (a prevented pointer-down would swallow the click)' );
+		assert.strictEqual( q( '.books-preview' ).style.left, left, selector + ': the panel does not move' );
+	}
 } );
 
 test( 'the panel is kept inside the window', () => {

@@ -644,7 +644,8 @@
 		bar.addEventListener(
 			'pointerdown',
 			function ( event ) {
-				if ( event.target === select || event.target === refreshButton || event.target === closeButton ) {
+				// Every control of the bar keeps its own click: the menus (the mode and, slice 230, the book project) and the buttons.
+				if ( event.target === select || event.target === projectSelect || event.target === refreshButton || event.target === closeButton ) {
 					return;
 				}
 				drag(
