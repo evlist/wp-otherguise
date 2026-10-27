@@ -359,7 +359,16 @@ final class Module implements ModuleInterface {
 	public function projects() {
 		$posts = new WordPressProjects();
 
-		return new Projects( array( $posts, 'projects' ), array( $posts, 'profile_meta' ), $this->links() );
+		return new Projects(
+			array( $posts, 'projects' ),
+			array( $posts, 'profile_meta' ),
+			$this->links(),
+			static function () {
+				$page = ( new PageFormat() )->get();
+
+				return (float) $page[ PageFormat::WIDTH ] - 2 * (float) $page[ PageFormat::MARGIN ];
+			}
+		);
 	}
 
 	/**

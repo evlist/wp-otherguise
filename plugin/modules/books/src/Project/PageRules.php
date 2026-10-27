@@ -14,7 +14,7 @@ defined( 'ABSPATH' ) || exit;
 
 /**
  * Writes the CSS of a printer profile for the print mode (slice 230): `@page` (size, margins, gutter on the binding side, bleed), the folios in
- * the margin boxes and the variables `--books-margin`, `--books-gutter` and `--books-safe` that a theme can use. Nothing here needs a class of
+ * the margin boxes and the variables `--books-margin`, `--books-gutter`, `--books-safe` and `--books-k` (the factor of the page) that a theme can use. Nothing here needs a class of
  * the theme. Checked in Chromium 141 (`@page :left` and `:right`, margin boxes); not through Gotenberg.
  */
 final class PageRules {
@@ -26,15 +26,17 @@ final class PageRules {
 	 *
 	 * @param array<string, mixed> $profile A normalized profile.
 	 * @param bool                 $folios  Whether the folios are printed (a switch of the project).
+	 * @param float                $design  The usable width, in millimetres, of the page the templates were composed for (the global format of
+	 *                                      the settings); 0 when it is not known.
 	 * @return string
 	 */
-	public static function css( array $profile, $folios = true ) {
+	public static function css( array $profile, $folios = true, $design = 0.0 ) {
 		$bleed  = (float) $profile['bleed_mm'];
 		$margin = (float) $profile['margin_mm'] + $bleed;
 		$gutter = (float) $profile['gutter_mm'] + $bleed;
 		$width  = (float) $profile['width_mm'] + 2 * $bleed;
 		$height = (float) $profile['height_mm'] + 2 * $bleed;
-		$css    = ':root{--books-margin:' . self::mm( (float) $profile['margin_mm'] ) . ';--books-gutter:' . self::mm( (float) $profile['gutter_mm'] ) . ';--books-safe:' . self::mm( (float) $profile['safe_mm'] ) . ';}';
+		$css    = ':root{--books-margin:' . self::mm( (float) $profile['margin_mm'] ) . ';--books-gutter:' . self::mm( (float) $profile['gutter_mm'] ) . ';--books-safe:' . self::mm( (float) $profile['safe_mm'] ) . ';--books-k:' . self::factor( (float) $profile['width_mm'] - (float) $profile['margin_mm'] - (float) $profile['gutter_mm'], (float) $design ) . ';}';
 		$css   .= '@page{size:' . self::mm( $width ) . ' ' . self::mm( $height ) . ';margin:' . self::mm( $margin ) . ';}';
 
 		// The same outer margin and gutter on both sides gives one rule; otherwise the inner margin is on the binding side.
@@ -48,6 +50,23 @@ final class PageRules {
 		}
 
 		return $css;
+	}
+
+	/**
+	 * The factor of the page: its usable width over the usable width the templates were composed for, between a quarter and four, three
+	 * decimals; 1 when the second is not known. A theme multiplies the sizes that do not follow the width of the page by it:
+	 * `calc( 200px * var( --books-k, 1 ) )`.
+	 *
+	 * @param float $usable Usable width of the page, in millimetres.
+	 * @param float $design Usable width of the page the templates were composed for, 0 when it is not known.
+	 * @return string
+	 */
+	private static function factor( $usable, $design ) {
+		if ( $design <= 0 || $usable <= 0 ) {
+			return '1';
+		}
+
+		return rtrim( rtrim( number_format( min( 4.0, max( 0.25, $usable / $design ) ), 3, '.', '' ), '0' ), '.' );
 	}
 
 	/**

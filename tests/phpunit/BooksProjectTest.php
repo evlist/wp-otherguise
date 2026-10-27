@@ -123,7 +123,7 @@ class BooksProjectTest extends TestCase {
 	public function test_the_page_rules(): void {
 		$plain = PageRules::css( PrinterProfile::defaults() );
 
-		$this->assertSame( ':root{--books-margin:10mm;--books-gutter:10mm;--books-safe:10mm;}@page{size:148mm 210mm;margin:10mm;}', $plain );
+		$this->assertSame( ':root{--books-margin:10mm;--books-gutter:10mm;--books-safe:10mm;--books-k:1;}@page{size:148mm 210mm;margin:10mm;}', $plain );
 
 		$gutter = PageRules::css(
 			PrinterProfile::normalize(
@@ -143,6 +143,30 @@ class BooksProjectTest extends TestCase {
 
 		$this->assertStringContainsString( '@page{@bottom-center{content:counter(page);', PageRules::css( PrinterProfile::normalize( array( 'folio' => 'center' ) ) ) );
 		$this->assertStringNotContainsString( 'counter(page)', PageRules::css( PrinterProfile::normalize( array( 'folio' => 'outside' ) ), false ), 'The project can turn the folios off.' );
+
+		// The factor of the page: the usable width over the one the templates were composed for (190 mm, an A4 with margins of 10 mm).
+		$a5 = PrinterProfile::defaults();
+
+		$this->assertStringContainsString( '--books-k:0.674;', PageRules::css( $a5, true, 190.0 ), 'An A5 with margins of 10 mm: 128 / 190.' );
+		$this->assertStringContainsString( '--books-k:1;', PageRules::css( $a5, true, 128.0 ), 'The same page: 1.' );
+		$this->assertStringContainsString( '--books-k:1;', PageRules::css( $a5, true, 0.0 ), 'Unknown design width: 1, nothing changes in a theme that has a fallback.' );
+		$this->assertStringContainsString( '--books-k:1.5;', PageRules::css( $a5, true, 85.333 ), 'Three decimals at most, no trailing zero.' );
+		$this->assertStringContainsString( '--books-k:4;', PageRules::css( $a5, true, 1.0 ), 'Never more than 4.' );
+		$this->assertStringContainsString( '--books-k:0.25;', PageRules::css( $a5, true, 10000.0 ), 'Never less than a quarter.' );
+		$this->assertStringContainsString(
+			'--books-k:0.632;',
+			PageRules::css(
+				PrinterProfile::normalize(
+					array(
+						'margin_mm' => 8,
+						'gutter_mm' => 20,
+					)
+				),
+				true,
+				190.0
+			),
+			'The usable width counts the margin and the gutter: (148 - 8 - 20) / 190.'
+		);
 
 		$bleed = PageRules::css( PrinterProfile::normalize( array( 'bleed_mm' => 3 ) ) );
 

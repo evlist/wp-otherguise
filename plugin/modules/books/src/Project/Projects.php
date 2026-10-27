@@ -39,16 +39,27 @@ final class Projects {
 	private $links;
 
 	/**
+	 * Returns the usable width, in millimetres, of the page the templates were composed for (the global format).
+	 *
+	 * @var callable
+	 */
+	private $design;
+
+	/**
 	 * Builds the service.
 	 *
-	 * @param callable $list         Returns the stored projects.
-	 * @param callable $profile_meta Receives a profile id; returns its meta or null.
-	 * @param object   $links        The relations (`ProjectLinks`): `root()`, `profile()` and `covering()`.
+	 * @param callable      $list         Returns the stored projects.
+	 * @param callable      $profile_meta Receives a profile id; returns its meta or null.
+	 * @param object        $links        The relations (`ProjectLinks`): `root()`, `profile()` and `covering()`.
+	 * @param callable|null $design       Returns the usable width of the page the templates were composed for; unknown (factor 1) by default.
 	 */
-	public function __construct( $list, $profile_meta, $links ) {
+	public function __construct( $list, $profile_meta, $links, $design = null ) {
 		$this->list         = $list;
 		$this->profile_meta = $profile_meta;
 		$this->links        = $links;
+		$this->design       = $design ?? static function () {
+			return 0.0;
+		};
 	}
 
 	/**
@@ -139,7 +150,7 @@ final class Projects {
 				$covers[ (int) $id ] = array(
 					'project' => $all[ $id ],
 					'profile' => $profile,
-					'css'     => PageRules::css( $profile, $all[ $id ]['folios'] ),
+					'css'     => PageRules::css( $profile, $all[ $id ]['folios'], (float) ( $this->design )() ),
 				);
 			}
 		}
