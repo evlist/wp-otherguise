@@ -16,7 +16,7 @@ Only **published units without a password** are merged; the others are logged as
 A merge costs the rendering of every unit, so **a visitor cannot ask for it** (`Merge\\MergeAccess`):
 - a user who **can edit the section** (`edit_post`) gets it on the print page of the section;
 - the **PDF job**, which has no user, adds `books_merge_token=<expiry>.<HMAC-SHA256>` to the address it asks the print server for: the token is signed with `wp_salt( 'auth' )` for **that section** and lasts **an hour**;
-- **the preview of the editor** (`books_preview` in the address) **does not merge**: the HTML view of a section shows the section only (merging it took longer than the PDF); the PDF view has the units.
+- **the preview of the editor** (`books_preview` in the address) **merges the first units only** (`PREVIEW_UNITS`, 10; the filter `books_merge_preview_limit`): the panel can be scrolled through the first pages in a few seconds (merging 184 units took over a minute), and a note at the end says "Preview: the first N units. The PDF has all of them." when some were left out. The PDF view has all the units. (A first version of the hardening did not merge in the preview at all: the HTML view of a section then showed its own page only and could not be scrolled to the pages that follow, which Eric found the same day.)
 - anybody else gets the page of the section as it was.
 
 ## Limits
@@ -31,7 +31,7 @@ Off by default: `wp option update books_merge_log 1` turns it on (and a site in 
 
 - **No `shell_exec`** was ever in the code (it had been allowed for the test; only `/proc/self/status` is read).
 - A visitor could ask for the merge of any section by its address, with `set_time_limit( 0 )`: now an editor or the job's **token**, ten minutes at most, 1000 units.
-- `?books_merge=0` (switch off) is gone; the preview of the editor does not merge instead.
+- `?books_merge=0` (switch off) is gone; the preview of the editor merges the first ten units instead of all of them.
 - The log was `uploads/books-merge/merge.log` (readable by address, unlimited): now off by default, protected, limited.
 - The units were echoed in `wp_footer`: nothing is echoed any more, an output buffer puts them in front of the footer (`wp_kses_post` would have stripped the scripts and the SVG of the maps and the charts).
 - The global query was replaced (`$GLOBALS['wp_query'] = …`): the main query is now asked again and **restored** (`WP_Query::query()` on the main object, then its properties put back and `wp_reset_postdata()`), so no global is assigned and `phpcs` has no exclusion for this code.
@@ -41,14 +41,14 @@ Off by default: `wp option update books_merge_log 1` turns it on (and a site in 
 
 - **Unpublished units** (a draft section previewed with its drafts): the units are asked as a visitor would; a later slice can use the private links of the Access module for them.
 - A cache per unit, a failure of one unit that does not stop the whole (all or nothing, as measured), the pages that are not daily pages (maps, charts, templates never tried in the print mode).
-- A **menu to ask for the merge in the panel**: any section is merged by the PDF view; the **HTML view never is**.
+- A control in the panel for the number of units of the preview (today: the filter `books_merge_preview_limit`).
 
 ## Tests
 
-`BooksMergeTest` (the token: valid, expired, another section, another key, malformed; who is allowed; the log off, on, past a megabyte, without a path; the command; the name of the file and the protection of the directory), `BooksMergedPrintDbTest` (with the real statements: the order, the depth, a draft and a password left out, no merge for a visitor, for a page that is not a print page, for the preview, for an empty section, the three ways to limit the number, a post in two sections, the units put in front once), `BooksPdfTest` (the token and the project in the address that the print server asks for; the conversion in the log). 
+`BooksMergeTest` (the token: valid, expired, another section, another key, malformed; who is allowed; the log off, on, past a megabyte, without a path; the command; the name of the file and the protection of the directory), `BooksMergedPrintDbTest` (with the real statements: the order, the depth, a draft and a password left out, no merge for a visitor, for a page that is not a print page, for an empty section, the preview bounded with its note and not bounded without a truncation, the three ways to limit the number, a post in two sections, the units put in front once), `BooksPdfTest` (the token and the project in the address that the print server asks for; the conversion in the log). 
 
 ## Verified
 
-Chromium and a scratch WordPress 7.1.3 (the child theme of the blog, 20 units of text): a visitor with no token, a bad token or the token of another section gets **no unit**; the right token gets them (4 units with a limit of 4, each with its own title); an editor logged in gets them, and **not** with `books_preview=1`; the units are in front of the footer scripts and the page ends once; the log is off, then on in a file with an unguessable name, read, emptied and refused by name when it is not of that form; a PDF of the page of the section in Chromium (A5 of the book project) has **22 pages for 20 units**. Before that, on the real pages of the blog on testing, with the test branch: 1 to 184 units (see `docs/design/books.md`).
+Chromium and a scratch WordPress 7.1.3 (the child theme of the blog, 20 units of text): a visitor with no token, a bad token or the token of another section gets **no unit**; the right token gets them (4 units with a limit of 4, each with its own title); an editor logged in gets them, and with `books_preview=1` (the preview) the first ten with the note, the panel in the editor then scrolls (a document of 7975 px in a window of 733, a wheel scroll moves it); the units are in front of the footer scripts and the page ends once; the log is off, then on in a file with an unguessable name, read, emptied and refused by name when it is not of that form; a PDF of the page of the section in Chromium (A5 of the book project) has **22 pages for 20 units**. Before that, on the real pages of the blog on testing, with the test branch: 1 to 184 units (see `docs/design/books.md`).
 
 **Never tried**: the token with a real Gotenberg (the address with its token goes through the internal address of slice 225), the hardened version on testing, a section of several hundred units after the change, an nginx that ignores `.htaccess`.

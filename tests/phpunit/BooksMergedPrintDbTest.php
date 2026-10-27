@@ -144,8 +144,7 @@ class BooksMergedPrintDbTest extends Otherguise_Test_Database_Case {
 	}
 
 	/**
-	 * Nothing is merged for a visitor, for a page that is not a print page of a section, for the preview of the editor, or for a section that
-	 * holds nothing.
+	 * Nothing is merged for a visitor, for a page that is not a print page of a section, or for a section that holds nothing.
 	 *
 	 * @return void
 	 */
@@ -155,7 +154,6 @@ class BooksMergedPrintDbTest extends Otherguise_Test_Database_Case {
 
 		foreach ( array(
 			array( 'print' => false ),
-			array( 'preview' => true ),
 			array( 'section' => 0 ),
 			array( 'section' => 5 ),
 		) as $change ) {
@@ -170,6 +168,36 @@ class BooksMergedPrintDbTest extends Otherguise_Test_Database_Case {
 		}
 
 		$this->assertSame( array(), $this->rendered );
+	}
+
+	/**
+	 * The preview of the editor merges the first units only, with a note that says so; when all of them fit there is no note.
+	 *
+	 * @return void
+	 */
+	public function test_the_preview_is_bounded(): void {
+		$this->request['preview']                               = true;
+		$GLOBALS['otherguise_test_filters']['books_merge_preview_limit'] = 2;
+
+		$html = $this->merge()->merge();
+
+		$this->assertSame( array( 101, 3 ), $this->rendered, 'The first two units.' );
+		$this->assertStringContainsString( '<p class="books-merge-note"', $html );
+		$this->assertStringContainsString( 'Preview: the first 2 units. The PDF has all of them.', $html );
+
+		$this->rendered = array();
+		unset( $GLOBALS['otherguise_test_filters']['books_merge_preview_limit'] );
+		$html = $this->merge()->merge();
+
+		$this->assertSame( array( 101, 3, 1, 5 ), $this->rendered, 'Few units: all of them, as many as the preview allows by default.' );
+		$this->assertStringNotContainsString( 'books-merge-note', $html, 'Nothing was left out: no note.' );
+
+		$this->rendered         = array();
+		$this->request['preview'] = false;
+		$GLOBALS['otherguise_test_filters']['books_merge_preview_limit'] = 1;
+		$this->merge()->merge();
+		$this->assertSame( array( 101, 3, 1, 5 ), $this->rendered, 'The PDF is not bounded by the preview.' );
+		unset( $GLOBALS['otherguise_test_filters']['books_merge_preview_limit'] );
 	}
 
 	/**

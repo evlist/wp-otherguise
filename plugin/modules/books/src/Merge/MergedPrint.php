@@ -21,8 +21,9 @@ defined( 'ABSPATH' ) || exit;
  * In a print mode, the page of a section shows its own content and then, **after the whole page**, one after the other, the page of each
  * unit in that mode (the template that the Modes module would give that unit, rendered for it), each in a `div` that starts a new page;
  * a unit that is a section is followed by its own units. Only published units that have no password. It is **asked for**, never given to
- * a visitor: see `MergeAccess` (a user who can edit the section, or the PDF job with its token), and the preview of the editor does not
- * merge (the PDF does). At most `MAX_UNITS` units and, by default, ten minutes of PHP.
+ * a visitor: see `MergeAccess` (a user who can edit the section, or the PDF job with its token). The preview of the editor merges only the first
+ * `PREVIEW_UNITS` units (the filter `books_merge_preview_limit`), with a note; the PDF has them all. At most `MAX_UNITS` units and, by default,
+ * ten minutes of PHP.
  */
 final class MergedPrint {
 	/**
@@ -39,6 +40,11 @@ final class MergedPrint {
 	 * Deepest level of sections followed.
 	 */
 	public const DEPTH = 6;
+
+	/**
+	 * The number of units that the preview of the editor merges: enough to scroll through the first pages, few enough to be quick.
+	 */
+	public const PREVIEW_UNITS = 10;
 
 	/**
 	 * The most units of a merge.
@@ -131,6 +137,13 @@ final class MergedPrint {
 	private $busy = false;
 
 	/**
+	 * Whether the merge stopped at its limit with units left.
+	 *
+	 * @var bool
+	 */
+	private $truncated = false;
+
+	/**
 	 * Start of the merge, for the log of an aborted one.
 	 *
 	 * @var float
@@ -143,7 +156,7 @@ final class MergedPrint {
 	 * @param Sections      $sections The sections.
 	 * @param MergeAccess   $access   Who may have a section merged.
 	 * @param MergeLog      $log      The log.
-	 * @param callable|null $request  Describes the request; defaults to a read of WordPress.
+	 * @param callable|null $request  Describes the request; defaults to `MergeRequest`.
 	 * @param callable|null $render   Renders a unit; defaults to `UnitRenderer`.
 	 * @param callable|null $post_of  Reads a post; defaults to `get_post()`.
 	 */
@@ -151,7 +164,7 @@ final class MergedPrint {
 		$this->sections = $sections;
 		$this->access   = $access;
 		$this->log      = $log;
-		$this->request  = $request ?? array( $this, 'read_request' );
+		$this->request  = $request ?? array( new MergeRequest(), 'read' );
 		$this->render   = $render ?? array( new UnitRenderer(), 'render' );
 		$this->post_of  = $post_of ?? static function ( $id ) {
 			$post = get_post( (int) $id );
@@ -212,11 +225,14 @@ final class MergedPrint {
 		$request = (array) ( $this->request )();
 		$section = (int) ( $request['section'] ?? 0 );
 
-		if ( empty( $request['print'] ) || ! empty( $request['preview'] ) || $section <= 0 || ! $this->access->allowed( $section ) || array() === $this->sections->order( $section ) ) {
+		if ( empty( $request['print'] ) || $section <= 0 || ! $this->access->allowed( $section ) || array() === $this->sections->order( $section ) ) {
 			return '';
 		}
 
+		$preview       = ! empty( $request['preview'] );
 		$this->limit   = $this->limit_for( $section, (int) ( $request['limit'] ?? 0 ) );
+		$this->limit   = $preview ? min( $this->limit, max( 1, (int) apply_filters( 'books_merge_preview_limit', self::PREVIEW_UNITS ) ) ) : $this->limit;
+		$this->truncated = false;
 		$this->count   = 0;
 		$this->busy    = true;
 		$this->started = microtime( true );
@@ -258,7 +274,7 @@ final class MergedPrint {
 
 		$this->log->write( 'merge_done', $summary );
 
-		return '<style>.books-merge-unit{break-before:page;}</style>' . $units . '<!-- books-merge ' . wp_json_encode( $summary ) . ' -->';
+		return '<style>.books-merge-unit{break-before:page;}</style>' . $units . $this->note( $preview ) . '<!-- books-merge ' . wp_json_encode( $summary ) . ' -->';
 	}
 
 	/**
@@ -285,21 +301,20 @@ final class MergedPrint {
 	}
 
 	/**
-	 * Reads the request: a print mode, the single post shown, the preview of the editor, the number of units asked for.
+	 * The note at the end of a preview that stopped before the last unit: the PDF has them all.
 	 *
-	 * @return array{print:bool, section:int, preview:bool, limit:int}
+	 * @param bool $preview Whether the request is the preview of the editor.
+	 * @return string
 	 */
-	public function read_request() {
-		$modes = apply_filters( 'books_preview_frame_modes', array( 'print' ) );
-		$mode  = function_exists( 'modes_active_mode' ) ? modes_active_mode() : null;
-		$limit = filter_input( INPUT_GET, self::LIMIT, FILTER_VALIDATE_INT );
+	private function note( $preview ) {
+		if ( ! $preview || ! $this->truncated ) {
+			return '';
+		}
 
-		return array(
-			'print'   => null !== $mode && is_array( $modes ) && in_array( $mode->slug(), $modes, true ),
-			'section' => is_singular() ? (int) get_queried_object_id() : 0,
-			'preview' => null !== filter_input( INPUT_GET, self::PREVIEW, FILTER_UNSAFE_RAW ),
-			'limit'   => is_int( $limit ) ? $limit : 0,
-		);
+		/* translators: %d: number of units shown in the preview. */
+		$text = sprintf( __( 'Preview: the first %d units. The PDF has all of them.', 'otherguise' ), $this->count );
+
+		return '<p class="books-merge-note" style="break-before:page;font:italic 11pt sans-serif;text-align:center;">' . esc_html( $text ) . '</p>';
 	}
 
 	/**
@@ -331,6 +346,7 @@ final class MergedPrint {
 
 		foreach ( $this->sections->order( $section ) as $id ) {
 			if ( $this->count >= $this->limit ) {
+				$this->truncated = true;
 				break;
 			}
 
