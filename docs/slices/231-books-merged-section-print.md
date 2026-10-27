@@ -41,7 +41,7 @@ Off by default: `wp option update books_merge_log 1` turns it on (and a site in 
 
 - **Unpublished units** (a draft section previewed with its drafts): the units are asked as a visitor would; a later slice can use the private links of the Access module for them.
 - A cache per unit, a failure of one unit that does not stop the whole (all or nothing, as measured), the pages that are not daily pages (maps, charts, templates never tried in the print mode).
-- A control in the panel for the number of units of the preview (today: the filter `books_merge_preview_limit`).
+- **A setting for the number of units** (Eric, 2026-10-27, to do later): two values, one for the **web view** (the preview, 10 today, the filter `books_merge_preview_limit`) and one for the **PDF** (all today, the custom field `books_merge_limit` of the section, the option of the same name). It would replace the custom field, or only fill it in; where it lives (the screen of the settings, the section panel, the book project) is open.
 
 ## Tests
 
