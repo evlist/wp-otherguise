@@ -500,6 +500,59 @@ class BooksProjectTest extends TestCase {
 	}
 
 	/**
+	 * Chromium zooms the margins of `@page` and the folios with the page, so `zoom` divides them by the factor to get the profile's margins and
+	 * the folios at their size; `adapt` and `scale` leave them as the profile says (measured on the PDF of an A5 book: a margin of 10 mm came
+	 * out as 6.7 mm with a zoom of 0.674).
+	 *
+	 * @return void
+	 */
+	public function test_zoom_undoes_its_effect_on_the_margins_and_the_folios(): void {
+		$design = array(
+			'width'  => 190.0,
+			'height' => 277.0,
+		);
+		$a5     = PrinterProfile::normalize( array( 'folio' => 'outside' ) );
+
+		$zoom = PageRules::css( $a5, true, $design, 'zoom' );
+		$this->assertStringContainsString( '@page{size:148mm 210mm;margin:14.84mm;}', $zoom, '10 / 0.674: the size of the page is not divided.' );
+		$this->assertStringContainsString( 'font:13.35pt sans-serif', $zoom, '9 / 0.674.' );
+		$this->assertStringContainsString( '--books-margin:10mm;', $zoom, 'The variable keeps what the profile says.' );
+
+		foreach ( array( 'adapt', 'scale' ) as $scaling ) {
+			$plain = PageRules::css( $a5, true, $design, $scaling );
+			$this->assertStringContainsString( '@page{size:148mm 210mm;margin:10mm;}', $plain, $scaling );
+			$this->assertStringContainsString( 'font:9pt sans-serif', $plain, $scaling );
+		}
+
+		$gutter = PageRules::css(
+			PrinterProfile::normalize(
+				array(
+					'margin_mm' => 8,
+					'gutter_mm' => 20,
+				)
+			),
+			false,
+			$design,
+			'zoom'
+		);
+		$this->assertStringContainsString( 'html{zoom:0.632;}', $gutter );
+		$this->assertStringContainsString( '@page :right{margin-left:31.65mm;margin-right:12.66mm;}', $gutter, 'The gutter is divided too.' );
+		$this->assertStringContainsString( '@page :left{margin-left:12.66mm;margin-right:31.65mm;}', $gutter );
+
+		$same = PageRules::css(
+			$a5,
+			true,
+			array(
+				'width' => 128.0,
+				'height' => 190.0,
+			),
+			'zoom'
+		);
+		$this->assertStringContainsString( '@page{size:148mm 210mm;margin:10mm;}', $same, 'A factor of 1: nothing to undo.' );
+		$this->assertStringContainsString( 'font:9pt sans-serif', $same );
+	}
+
+	/**
 	 * A project asks for a scaling; the print server is given a scale only for `scale` and a factor other than 1; the choice is validated.
 	 *
 	 * @return void

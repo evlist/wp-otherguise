@@ -29,8 +29,9 @@ final class PageRules {
 	 * @param float|array          $design  The usable area, in millimetres, of the page the templates were composed for (`Reference::usable()`:
 	 *                                      `width` and `height`); a number is a width alone; 0 or nothing when it is not known.
 	 * @param string               $scaling How the factor is applied: `adapt` (the variable `--books-k`, which the theme uses), `zoom` (a
-	 *                                      `zoom` of the page, the variable stays 1) or `scale` (the factor is given to the print server,
-	 *                                      the variable stays 1; see `factor()`).
+	 *                                      `zoom` of the page, the variable stays 1, the margins and the folios are divided by the factor
+	 *                                      because Chromium zooms them too) or `scale` (the factor is given to the print server, the
+	 *                                      variable stays 1; see `factor()`).
 	 * @return string
 	 */
 	public static function css( array $profile, $folios = true, $design = 0.0, $scaling = 'adapt' ) {
@@ -46,16 +47,22 @@ final class PageRules {
 			$css .= 'html{zoom:' . self::number( $factor ) . ';}';
 		}
 
-		$css   .= '@page{size:' . self::mm( $width ) . ' ' . self::mm( $height ) . ';margin:' . self::mm( $margin ) . ';}';
+		// Chromium applies a zoom to the margins of `@page` and to its margin boxes too (a margin of 10 mm at 0.674 is 6.7 mm, the folios shrink
+		// with it): `zoom` asks for the margins and the folios divided by the factor so that they come out as the profile says.
+		$zoomed = 'zoom' === $scaling && abs( $factor - 1.0 ) > 0.0005 ? $factor : 1.0;
+		$places = 1.0 === $zoomed ? 1 : 2;
+		$margin = $margin / $zoomed;
+		$gutter = $gutter / $zoomed;
+		$css   .= '@page{size:' . self::mm( $width ) . ' ' . self::mm( $height ) . ';margin:' . self::mm( $margin, $places ) . ';}';
 
 		// The same outer margin and gutter on both sides gives one rule; otherwise the inner margin is on the binding side.
 		if ( abs( $gutter - $margin ) > 0.05 ) {
-			$css .= '@page :right{margin-left:' . self::mm( $gutter ) . ';margin-right:' . self::mm( $margin ) . ';}';
-			$css .= '@page :left{margin-left:' . self::mm( $margin ) . ';margin-right:' . self::mm( $gutter ) . ';}';
+			$css .= '@page :right{margin-left:' . self::mm( $gutter, $places ) . ';margin-right:' . self::mm( $margin, $places ) . ';}';
+			$css .= '@page :left{margin-left:' . self::mm( $margin, $places ) . ';margin-right:' . self::mm( $gutter, $places ) . ';}';
 		}
 
 		if ( $folios ) {
-			$css .= self::folios( (string) $profile['folio'] );
+			$css .= self::folios( (string) $profile['folio'], $zoomed );
 		}
 
 		return $css;
@@ -89,23 +96,25 @@ final class PageRules {
 	}
 
 	/**
-	 * A number with three decimals at most and no trailing zero.
+	 * A number with three decimals at most (or the given number) and no trailing zero.
 	 *
-	 * @param float $value Value.
+	 * @param float $value  Value.
+	 * @param int   $places Decimals.
 	 * @return string
 	 */
-	private static function number( $value ) {
-		return rtrim( rtrim( number_format( $value, 3, '.', '' ), '0' ), '.' );
+	private static function number( $value, $places = 3 ) {
+		return rtrim( rtrim( number_format( $value, $places, '.', '' ), '0' ), '.' );
 	}
 
 	/**
 	 * The margin boxes of the folios.
 	 *
 	 * @param string $position One of `PrinterProfile::FOLIOS`.
+	 * @param float  $zoom     The zoom of the page that the folios must undo (1 for none).
 	 * @return string
 	 */
-	private static function folios( $position ) {
-		$box = '{content:counter(page);font:9pt sans-serif;}';
+	private static function folios( $position, $zoom = 1.0 ) {
+		$box = '{content:counter(page);font:' . self::number( 9.0 / $zoom, 2 ) . 'pt sans-serif;}';
 
 		if ( 'center' === $position ) {
 			return '@page{@bottom-center' . $box . '}';
@@ -119,12 +128,13 @@ final class PageRules {
 	}
 
 	/**
-	 * A length in millimetres, with at most one decimal.
+	 * A length in millimetres, with at most one decimal (two for the margins that a zoom divides).
 	 *
-	 * @param float $value Value.
+	 * @param float $value  Value.
+	 * @param int   $places Decimals.
 	 * @return string
 	 */
-	private static function mm( $value ) {
-		return rtrim( rtrim( number_format( $value, 1, '.', '' ), '0' ), '.' ) . 'mm';
+	private static function mm( $value, $places = 1 ) {
+		return rtrim( rtrim( number_format( $value, $places, '.', '' ), '0' ), '.' ) . 'mm';
 	}
 }
