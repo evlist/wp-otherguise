@@ -136,7 +136,8 @@ final class Visit {
 	}
 
 	/**
-	 * Gives the post to the main query, so that WordPress does not look at its status. Filter `posts_pre_query`.
+	 * Gives the post to the main query, so that WordPress does not look at its status. Filter `posts_pre_query`. Only for the main query that
+	 * asks for that post (or for none in particular).
 	 *
 	 * @param mixed  $posts Posts given by another filter, or null.
 	 * @param object $query The query.
@@ -144,6 +145,16 @@ final class Visit {
 	 */
 	public function posts_pre_query( $posts, $query ) {
 		if ( $this->post_id <= 0 || ! is_object( $query ) || ! method_exists( $query, 'is_main_query' ) || ! $query->is_main_query() ) {
+			return $posts;
+		}
+
+		// A main query that asks for another post (the merge of a section re-queries the main query once for each of its units) is not the
+		// visit of the shared post: it is left to WordPress, which looks at the status of that post.
+		$vars  = isset( $query->query_vars ) && is_array( $query->query_vars ) ? $query->query_vars : array();
+		$asked = (int) ( $vars['p'] ?? 0 );
+		$asked = $asked > 0 ? $asked : (int) ( $vars['page_id'] ?? 0 );
+
+		if ( $asked > 0 && $asked !== $this->post_id ) {
 			return $posts;
 		}
 

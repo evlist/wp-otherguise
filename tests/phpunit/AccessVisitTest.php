@@ -106,11 +106,12 @@ class AccessVisitTest extends TestCase {
 	/**
 	 * Builds a query double.
 	 *
-	 * @param bool $main Whether it is the main query.
+	 * @param bool  $main Whether it is the main query.
+	 * @param array $vars The query variables.
 	 * @return object
 	 */
-	private function query( $main = true ) {
-		return new class( $main ) {
+	private function query( $main = true, $vars = array() ) {
+		return new class( $main, $vars ) {
 			/**
 			 * Whether it is the main query.
 			 *
@@ -133,12 +134,21 @@ class AccessVisitTest extends TestCase {
 			public $max_num_pages = 0;
 
 			/**
+			 * The query variables.
+			 *
+			 * @var array
+			 */
+			public $query_vars;
+
+			/**
 			 * Builds the query.
 			 *
-			 * @param bool $main Whether it is the main query.
+			 * @param bool  $main Whether it is the main query.
+			 * @param array $vars The query variables.
 			 */
-			public function __construct( $main ) {
-				$this->main = $main;
+			public function __construct( $main, $vars = array() ) {
+				$this->main       = $main;
+				$this->query_vars = $vars;
 			}
 
 			/**
@@ -310,6 +320,27 @@ class AccessVisitTest extends TestCase {
 		unset( $this->posts[12] );
 
 		$this->assertNull( $visit->posts_pre_query( null, $this->query() ), 'A post that is gone meanwhile: nothing is given.' );
+	}
+
+	/**
+	 * A main query that asks for another post is left alone: the merge of a section re-queries the main query for each of its units, and
+	 * the shared post must not be given to them (the units came out empty in the PDF of a section that is not published).
+	 *
+	 * @return void
+	 */
+	public function test_a_main_query_for_another_post_is_left_alone(): void {
+		$visit = $this->visit();
+
+		$visit->parse_request( $this->wp( array( 'shared' => $this->links->create( 12 ) ) ) );
+
+		$unit = $this->query( true, array( 'p' => 13 ) );
+
+		$this->assertNull( $visit->posts_pre_query( null, $unit ), 'Another post: nothing is given.' );
+		$this->assertSame( 0, $unit->found_posts );
+		$this->assertNull( $visit->posts_pre_query( null, $this->query( true, array( 'page_id' => 13 ) ) ), 'Another page too.' );
+		$this->assertSame( array( $this->posts[12] ), $visit->posts_pre_query( null, $this->query( true, array( 'p' => 12 ) ) ), 'The shared post itself.' );
+		$this->assertSame( array( $this->posts[12] ), $visit->posts_pre_query( null, $this->query( true, array( 'page_id' => 12 ) ) ), 'The shared page itself.' );
+		$this->assertSame( array( $this->posts[12] ), $visit->posts_pre_query( null, $this->query( true, array( 'p' => 0 ) ) ), 'No post in particular: the shared post.' );
 	}
 
 	/**
