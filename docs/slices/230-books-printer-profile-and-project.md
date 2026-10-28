@@ -117,7 +117,20 @@ To do in the theme, once Books gives the rules:
 - **Margins alone change the factor**: an A4 with margins of 20 mm against a reference of A4 with 5 mm gives 170/200 = 0.85 on the width (257/287 = 0.895 on the height) although the paper is the same. The current code already does this for the width.
 - **The limiting dimension**: the factor is today the **width** ratio only. Proposed, not coded: `min( usable width ratio, usable height ratio )` when a unit must fit one page (the height then matters), the width alone for text that flows over pages. The square root of the area ratio is not proposed: it is right only when the two usable areas have the same proportions.
 - **Enlarging** (factor above 1, smaller margins than the reference): allowed by the clamp (a quarter to four) but never tried; open whether to enlarge or only to leave more room.
-- **The text floor** (85 % today, `--books-t` in the theme) is a point of a spectrum: at 85 % the layout reflows to the page, at 0 % the page is the reference composition reduced as a whole (what Eric did last year by reducing an A4 to A5, text near 70 %). Open: make the floor a field of the project, and compare `zoom` of the content with `scale` of Gotenberg (how Leaflet and Chart.js measure their container, whether `@page` margins stay in mm with `scale`): **not tried**. Formats with another proportion than the reference (square, A6) would still need adaptation.
+- **Three ways to apply the factor** (Eric, 2026-10-28: named `adapt`, `zoom`, `scale`; the aim is to **test and compare the three and drop later the ones that cause problems**). The reference and the factor (above) are common to the three; only the application of `k` differs:
+
+  | | `adapt` (coded) | `zoom` | `scale` |
+  |---|---|---|---|
+  | Where `k` applies | the variable `--books-k` in the page | `zoom` in the CSS that Books generates | the option `scale` sent to Gotenberg |
+  | What the theme must do | multiply its fixed dimensions by `k` (rules in `modes/print.css`) | nothing | nothing |
+  | The text | floor of 85 % (`--books-t`), driven by the theme | reduced with the rest | reduced with the rest |
+  | Preview of the panel | faithful (CSS in the page) | faithful (CSS in the page) | to imitate (the web page does not see it) |
+  | Key of the PDF cache | already tied to the CSS of the project | same | to add |
+  | State | measured on the mirror (see above) | not tried | tried once on one A5 day (0.705); the rest not verified |
+
+  - **At 0 % floor the page is the reference composition reduced as a whole** (what Eric did last year, reducing an A4 to A5, text near 70 %); `adapt` reflows the layout to the page and keeps the text at 85 % at least. With `zoom` or `scale` the floor does not exist: keeping it would mean compensating the text size, which changes the composition again.
+  - **Open: the mode as a field of the project** (`adapt`, `zoom`, `scale`), so that a dense book can use `zoom` and an airy one `adapt` with the same reference. Not decided, not coded.
+  - **Open, not tried**: how `zoom` behaves with Leaflet and Chart.js (they measure their container when they load); whether the `@page` margins stay in millimetres with `scale`; the real Gotenberg for both. A format with other proportions than the reference (square, A6) stays badly served by all three: the minimum of the two ratios avoids an overflow but leaves room.
 
 ## Tests
 
