@@ -26,17 +26,26 @@ final class PageRules {
 	 *
 	 * @param array<string, mixed> $profile A normalized profile.
 	 * @param bool                 $folios  Whether the folios are printed (a switch of the project).
-	 * @param float                $design  The usable width, in millimetres, of the page the templates were composed for (the global format of
-	 *                                      the settings); 0 when it is not known.
+	 * @param float|array          $design  The usable area, in millimetres, of the page the templates were composed for (`Reference::usable()`:
+	 *                                      `width` and `height`); a number is a width alone; 0 or nothing when it is not known.
+	 * @param string               $scaling How the factor is applied: `adapt` (the variable `--books-k`, which the theme uses), `zoom` (a
+	 *                                      `zoom` of the page, the variable stays 1) or `scale` (the factor is given to the print server,
+	 *                                      the variable stays 1; see `factor()`).
 	 * @return string
 	 */
-	public static function css( array $profile, $folios = true, $design = 0.0 ) {
+	public static function css( array $profile, $folios = true, $design = 0.0, $scaling = 'adapt' ) {
 		$bleed  = (float) $profile['bleed_mm'];
 		$margin = (float) $profile['margin_mm'] + $bleed;
 		$gutter = (float) $profile['gutter_mm'] + $bleed;
 		$width  = (float) $profile['width_mm'] + 2 * $bleed;
 		$height = (float) $profile['height_mm'] + 2 * $bleed;
-		$css    = ':root{--books-margin:' . self::mm( (float) $profile['margin_mm'] ) . ';--books-gutter:' . self::mm( (float) $profile['gutter_mm'] ) . ';--books-safe:' . self::mm( (float) $profile['safe_mm'] ) . ';--books-k:' . self::factor( (float) $profile['width_mm'] - (float) $profile['margin_mm'] - (float) $profile['gutter_mm'], (float) $design ) . ';}';
+		$factor = self::factor( $profile, $design );
+		$css    = ':root{--books-margin:' . self::mm( (float) $profile['margin_mm'] ) . ';--books-gutter:' . self::mm( (float) $profile['gutter_mm'] ) . ';--books-safe:' . self::mm( (float) $profile['safe_mm'] ) . ';--books-k:' . self::number( 'adapt' === $scaling ? $factor : 1.0 ) . ';}';
+
+		if ( 'zoom' === $scaling && abs( $factor - 1.0 ) > 0.0005 ) {
+			$css .= 'html{zoom:' . self::number( $factor ) . ';}';
+		}
+
 		$css   .= '@page{size:' . self::mm( $width ) . ' ' . self::mm( $height ) . ';margin:' . self::mm( $margin ) . ';}';
 
 		// The same outer margin and gutter on both sides gives one rule; otherwise the inner margin is on the binding side.
@@ -53,20 +62,40 @@ final class PageRules {
 	}
 
 	/**
-	 * The factor of the page: its usable width over the usable width the templates were composed for, between a quarter and four, three
-	 * decimals; 1 when the second is not known. A theme multiplies the sizes that do not follow the width of the page by it:
-	 * `calc( 200px * var( --books-k, 1 ) )`.
+	 * The factor of the page: the usable area of the profile compared with the usable area the templates were composed for, as the smaller of
+	 * the width ratio and the height ratio (the dimension that limits), between a quarter and four, three decimals; 1 when the reference is
+	 * not known. With `adapt` a theme multiplies by it the sizes that do not follow the width of the page: `calc( 200px * var( --books-k, 1 ) )`.
 	 *
-	 * @param float $usable Usable width of the page, in millimetres.
-	 * @param float $design Usable width of the page the templates were composed for, 0 when it is not known.
-	 * @return string
+	 * @param array<string, mixed> $profile A normalized profile.
+	 * @param float|array          $design  The usable area of the reference (see `css()`); a number is a width alone.
+	 * @return float
 	 */
-	private static function factor( $usable, $design ) {
-		if ( $design <= 0 || $usable <= 0 ) {
-			return '1';
+	public static function factor( array $profile, $design ) {
+		$design = is_array( $design ) ? $design : array( 'width' => (float) $design );
+		$ratios = array();
+
+		foreach ( array(
+			'width'  => (float) $profile['width_mm'] - (float) $profile['margin_mm'] - (float) $profile['gutter_mm'],
+			'height' => (float) $profile['height_mm'] - 2 * (float) $profile['margin_mm'],
+		) as $side => $usable ) {
+			$reference = (float) ( $design[ $side ] ?? 0 );
+
+			if ( $reference > 0 && $usable > 0 ) {
+				$ratios[] = $usable / $reference;
+			}
 		}
 
-		return rtrim( rtrim( number_format( min( 4.0, max( 0.25, $usable / $design ) ), 3, '.', '' ), '0' ), '.' );
+		return array() === $ratios ? 1.0 : round( min( 4.0, max( 0.25, min( $ratios ) ) ), 3 );
+	}
+
+	/**
+	 * A number with three decimals at most and no trailing zero.
+	 *
+	 * @param float $value Value.
+	 * @return string
+	 */
+	private static function number( $value ) {
+		return rtrim( rtrim( number_format( $value, 3, '.', '' ), '0' ), '.' );
 	}
 
 	/**

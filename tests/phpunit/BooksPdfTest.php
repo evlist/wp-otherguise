@@ -591,6 +591,7 @@ class BooksPdfTest extends TestCase {
 		$scheduled = array();
 		$ruled     = $this->jobs( $calls, $scheduled, array( '%PDF-1.7 b' ), 2, array(), static fn( $post_id ) => 12 === $post_id ? $rules : null );
 		$ruled->request( 12, 'print' );
+		$ruled_key = $scheduled[0][2];
 
 		$this->assertNotSame( $plain_key, $scheduled[0][2], 'The project is part of what the PDF depends on.' );
 		$ruled->run( ...$scheduled[0] );
@@ -598,6 +599,18 @@ class BooksPdfTest extends TestCase {
 		$this->assertSame( 150.0, $calls[0][1]['width_mm'], 'The format of the profile.' );
 		$this->assertTrue( $calls[0][2]['prefer_css_page_size'] );
 		$this->assertStringContainsString( 'books_project=77', $calls[0][0], 'The page is asked for the project.' );
+
+		$this->assertNull( $calls[0][2]['scale'], 'No scale unless the project scales.' );
+
+		$scaled          = $rules;
+		$scaled['scale'] = 0.674;
+		$calls           = array();
+		$scheduled       = array();
+		$scaling         = $this->jobs( $calls, $scheduled, array( '%PDF-1.7 c' ), 2, array(), static fn( $post_id ) => $scaled );
+		$scaling->request( 12, 'print' );
+		$this->assertNotSame( $ruled_key, $scheduled[0][2], 'The scale is part of what the PDF depends on.' );
+		$scaling->run( ...$scheduled[0] );
+		$this->assertSame( 0.674, $calls[0][2]['scale'], 'The scale goes to the server.' );
 
 		$other = $rules;
 

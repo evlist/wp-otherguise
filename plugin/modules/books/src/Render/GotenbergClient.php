@@ -140,6 +140,11 @@ final class GotenbergClient implements Renderer {
 			$fields['preferCssPageSize'] = 'true';
 		}
 
+		// Gotenberg accepts a scale between 0.1 and 2; the layout is made at the width of the page over the scale.
+		if ( isset( $options['scale'] ) && is_numeric( $options['scale'] ) && (float) $options['scale'] > 0 ) {
+			$fields['scale'] = rtrim( rtrim( number_format( min( 2.0, max( 0.1, (float) $options['scale'] ) ), 3, '.', '' ), '0' ), '.' );
+		}
+
 		if ( isset( $options['wait_delay'] ) && (float) $options['wait_delay'] > 0 ) {
 			$fields['waitDelay'] = rtrim( rtrim( number_format( (float) $options['wait_delay'], 1, '.', '' ), '0' ), '.' ) . 's';
 		}

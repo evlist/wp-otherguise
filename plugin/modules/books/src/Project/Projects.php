@@ -39,7 +39,13 @@ final class Projects {
 	private $links;
 
 	/**
-	 * Returns the usable width, in millimetres, of the page the templates were composed for (the global format).
+	 * How the factor of the page is applied: `adapt` (the variable `--books-k`, used by the theme), `zoom` (a `zoom` of the page) or `scale`
+	 * (the factor is given to the print server).
+	 */
+	public const SCALINGS = array( 'adapt', 'zoom', 'scale' );
+
+	/**
+	 * Returns the usable area, in millimetres, of the page the templates were composed for (`Reference::usable()`).
 	 *
 	 * @var callable
 	 */
@@ -51,30 +57,31 @@ final class Projects {
 	 * @param callable      $list         Returns the stored projects.
 	 * @param callable      $profile_meta Receives a profile id; returns its meta or null.
 	 * @param object        $links        The relations (`ProjectLinks`): `root()`, `profile()` and `covering()`.
-	 * @param callable|null $design       Returns the usable width of the page the templates were composed for; unknown (factor 1) by default.
+	 * @param callable|null $design       Returns the usable area of the page the templates were composed for (`width` and `height`); unknown (factor 1) by default.
 	 */
 	public function __construct( $list, $profile_meta, $links, $design = null ) {
 		$this->list         = $list;
 		$this->profile_meta = $profile_meta;
 		$this->links        = $links;
 		$this->design       = $design ?? static function () {
-			return 0.0;
+			return array();
 		};
 	}
 
 	/**
-	 * Keeps the valid values of what a project holds in its meta: the author and the switch of the folios (on by default). The root section
-	 * and the profile are relations, not meta.
+	 * Keeps the valid values of what a project holds in its meta: the author, the switch of the folios (on by default) and how the factor of
+	 * the page is applied (`adapt` by default). The root section and the profile are relations, not meta.
 	 *
 	 * @param mixed $input What the post meta holds.
-	 * @return array{author:string, folios:bool}
+	 * @return array{author:string, folios:bool, scaling:string}
 	 */
 	public static function normalize( $input ) {
 		$in = is_array( $input ) ? $input : array();
 
 		return array(
 			'author' => isset( $in['author'] ) && is_string( $in['author'] ) ? mb_substr( trim( $in['author'] ), 0, 200 ) : '',
-			'folios' => ! array_key_exists( 'folios', $in ) || ! in_array( $in['folios'], array( false, 0, '0', '', 'off' ), true ),
+			'folios'  => ! array_key_exists( 'folios', $in ) || ! in_array( $in['folios'], array( false, 0, '0', '', 'off' ), true ),
+			'scaling' => isset( $in['scaling'] ) && in_array( $in['scaling'], self::SCALINGS, true ) ? $in['scaling'] : 'adapt',
 		);
 	}
 
@@ -93,7 +100,7 @@ final class Projects {
 	/**
 	 * Every project, by id.
 	 *
-	 * @return array<int, array{id:int, title:string, root:int, profile:int, author:string, folios:bool}>
+	 * @return array<int, array{id:int, title:string, root:int, profile:int, author:string, folios:bool, scaling:string}>
 	 */
 	public function all() {
 		$projects = array();
@@ -133,7 +140,9 @@ final class Projects {
 	 * a section that contains it, directly or not. A project whose profile is missing gives no rules and is left out.
 	 *
 	 * @param int $post_id The post.
-	 * @return array<int, array{project:array, profile:array<string,mixed>, css:string}> By project id.
+	 * @return array<int, array{project:array, profile:array<string,mixed>, css:string, factor:float, scale:float|null}> By project id: `factor` is
+	 *                                                  the factor of the page, `scale` the one the print server applies (null unless the project
+	 *                                                  scales and the factor is not 1).
 	 */
 	public function covering( $post_id ) {
 		$all    = $this->all();
@@ -147,10 +156,16 @@ final class Projects {
 			$profile = $this->profile( $all[ $id ]['profile'] );
 
 			if ( null !== $profile ) {
+				$design  = ( $this->design )();
+				$factor  = PageRules::factor( $profile, $design );
+				$scaling = $all[ $id ]['scaling'];
+
 				$covers[ (int) $id ] = array(
 					'project' => $all[ $id ],
 					'profile' => $profile,
-					'css'     => PageRules::css( $profile, $all[ $id ]['folios'], (float) ( $this->design )() ),
+					'css'     => PageRules::css( $profile, $all[ $id ]['folios'], $design, $scaling ),
+					'factor'  => $factor,
+					'scale'   => 'scale' === $scaling && abs( $factor - 1.0 ) > 0.0005 ? $factor : null,
 				);
 			}
 		}
@@ -166,7 +181,7 @@ final class Projects {
 	 *
 	 * @param int $post_id   The post.
 	 * @param int $requested Id of a project asked for (0 for none).
-	 * @return array{project:array, profile:array<string,mixed>, css:string}|null Null when no project covers the post.
+	 * @return array{project:array, profile:array<string,mixed>, css:string, factor:float, scale:float|null}|null Null when no project covers the post.
 	 */
 	public function for_post( $post_id, $requested = 0 ) {
 		$covers = $this->covering( (int) $post_id );

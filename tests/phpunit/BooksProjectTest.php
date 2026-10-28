@@ -17,6 +17,7 @@ use Otherguise\Books\Project\PrinterProfile;
 use Otherguise\Books\Project\PrintStyles;
 use Otherguise\Books\Project\Presets;
 use Otherguise\Books\Project\Projects;
+use Otherguise\Books\Project\Reference;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -26,6 +27,7 @@ use PHPUnit\Framework\TestCase;
  * @covers \Otherguise\Books\Project\PageRules
  * @covers \Otherguise\Books\Project\Presets
  * @covers \Otherguise\Books\Project\Projects
+ * @covers \Otherguise\Books\Project\Reference
  * @covers \Otherguise\Books\Project\PrintStyles
  * @covers \Otherguise\Books\Project\MetaBoxes
  * @covers \Otherguise\Books\Project\PostTypes
@@ -319,6 +321,258 @@ class BooksProjectTest extends TestCase {
 	}
 
 	/**
+	 * The reference of the factor: what the theme declares when it is valid, else the global format; the usable area counts the margin and the
+	 * gutter on the width and the margin above and below on the height.
+	 *
+	 * @return void
+	 */
+	public function test_the_reference_of_the_theme(): void {
+		$global    = static fn() => array(
+			'width_mm'  => 210.0,
+			'height_mm' => 297.0,
+			'margin_mm' => 10.0,
+		);
+		$declared  = array(
+			'width'  => 210,
+			'height' => 297,
+			'margin' => 10,
+			'safety' => 5,
+		);
+		$reference = new Reference( static fn() => $declared, $global );
+
+		$this->assertSame(
+			array(
+				'width'  => 190.0,
+				'height' => 277.0,
+			),
+			$reference->usable(),
+			'A4 with margins of 1 cm.'
+		);
+		$this->assertSame( 'theme', $reference->source() );
+
+		$gutter = Reference::normalize( $declared + array( 'gutter' => 20 ) );
+		$this->assertSame( 20.0, $gutter['gutter'] );
+		$this->assertSame( 10.0, Reference::normalize( $declared )['gutter'], 'A missing gutter is the margin.' );
+		$this->assertSame( 5.0, $gutter['safety'] );
+
+		foreach ( array(
+			'nothing'        => null,
+			'a string'       => 'A4',
+			'no margin'      => array(
+				'width'  => 210,
+				'height' => 297,
+			),
+			'too small'      => array(
+				'width'  => 20,
+				'height' => 297,
+				'margin' => 10,
+			),
+			'no room'        => array(
+				'width'  => 210,
+				'height' => 297,
+				'margin' => 120,
+			),
+			'not a number'   => array(
+				'width'  => 'wide',
+				'height' => 297,
+				'margin' => 10,
+			),
+			'negative'       => array(
+				'width'  => 210,
+				'height' => 297,
+				'margin' => -1,
+			),
+		) as $case => $input ) {
+			$this->assertNull( Reference::normalize( $input ), $case );
+
+			$fallback = new Reference( static fn() => $input, $global );
+			$this->assertSame( 'global', $fallback->source(), $case );
+			$this->assertSame(
+				array(
+					'width'  => 190.0,
+					'height' => 277.0,
+				),
+				$fallback->usable(),
+				$case . ': the global format of the settings is the reference.'
+			);
+		}
+	}
+
+	/**
+	 * The factor is the smaller of the width ratio and the height ratio, and the margins change it as the paper does.
+	 *
+	 * @return void
+	 */
+	public function test_the_factor_follows_the_limiting_dimension(): void {
+		$design = array(
+			'width'  => 190.0,
+			'height' => 277.0,
+		);
+		$a5     = PrinterProfile::defaults();
+
+		$this->assertSame( 0.674, PageRules::factor( $a5, $design ), 'A5: the width (128 / 190) is smaller than the height (190 / 277 = 0.686).' );
+		$this->assertSame(
+			0.85,
+			PageRules::factor(
+				PrinterProfile::normalize(
+					array(
+						'width_mm' => 210,
+						'height_mm' => 297,
+						'margin_mm' => 20,
+					)
+				),
+				array(
+					'width' => 200.0,
+					'height' => 287.0,
+				)
+			),
+			'The same paper with larger margins: 170 / 200.'
+		);
+		$this->assertSame(
+			0.628,
+			PageRules::factor(
+				PrinterProfile::normalize(
+					array(
+						'width_mm' => 210,
+						'height_mm' => 194,
+						'margin_mm' => 10,
+					)
+				),
+				$design
+			),
+			'The height limits: 174 / 277, the width gives 1.'
+		);
+		$this->assertSame( 1.0, PageRules::factor( $a5, array() ), 'No reference: 1.' );
+		$this->assertSame( 0.674, PageRules::factor( $a5, 190.0 ), 'A number is a width alone.' );
+		$this->assertSame( 0.686, PageRules::factor( $a5, array( 'height' => 277.0 ) ), 'A height alone.' );
+		$this->assertSame(
+			1.0,
+			PageRules::factor(
+				$a5,
+				array(
+					'width' => 128.0,
+					'height' => 190.0,
+				)
+			),
+			'The same area: 1.'
+		);
+	}
+
+	/**
+	 * `zoom` writes a zoom of the page and leaves the variable at 1; `scale` leaves both to the print server; `adapt` writes the variable.
+	 *
+	 * @return void
+	 */
+	public function test_the_three_scalings(): void {
+		$a5     = PrinterProfile::defaults();
+		$design = array(
+			'width'  => 190.0,
+			'height' => 277.0,
+		);
+
+		$adapt = PageRules::css( $a5, true, $design );
+		$this->assertStringContainsString( '--books-k:0.674;', $adapt );
+		$this->assertStringNotContainsString( 'zoom', $adapt );
+		$this->assertSame( $adapt, PageRules::css( $a5, true, $design, 'adapt' ) );
+
+		$zoom = PageRules::css( $a5, true, $design, 'zoom' );
+		$this->assertStringContainsString( '--books-k:1;', $zoom, 'The theme must not adapt a page that is zoomed.' );
+		$this->assertStringContainsString( 'html{zoom:0.674;}', $zoom );
+
+		$scale = PageRules::css( $a5, true, $design, 'scale' );
+		$this->assertStringContainsString( '--books-k:1;', $scale );
+		$this->assertStringNotContainsString( 'zoom', $scale );
+
+		$this->assertStringNotContainsString(
+			'zoom',
+			PageRules::css(
+				$a5,
+				true,
+				array(
+					'width' => 128.0,
+					'height' => 190.0,
+				),
+				'zoom'
+			),
+			'A factor of 1 writes no zoom.'
+		);
+		$this->assertStringNotContainsString( 'zoom', PageRules::css( $a5, true, array(), 'zoom' ), 'No reference: no zoom.' );
+	}
+
+	/**
+	 * A project asks for a scaling; the print server is given a scale only for `scale` and a factor other than 1; the choice is validated.
+	 *
+	 * @return void
+	 */
+	public function test_a_project_gives_its_scale(): void {
+		$rows     = array(
+			array(
+				'id'    => 5,
+				'title' => 'Adapted',
+				'meta'  => array( 'scaling' => 'adapt' ),
+			),
+			array(
+				'id'    => 6,
+				'title' => 'Scaled',
+				'meta'  => array( 'scaling' => 'scale' ),
+			),
+			array(
+				'id'    => 7,
+				'title' => 'Wrong',
+				'meta'  => array( 'scaling' => 'shrink' ),
+			),
+		);
+		$projects = new Projects(
+			static fn() => $rows,
+			static fn( $id ) => 1 === $id ? array() : null,
+			new class() {
+				/**
+				 * Root.
+				 *
+				 * @param int $id Project.
+				 * @return int
+				 */
+				public function root( $id ) {
+					return 10;
+				}
+
+				/**
+				 * Profile.
+				 *
+				 * @param int $id Project.
+				 * @return int
+				 */
+				public function profile( $id ) {
+					return 1;
+				}
+
+				/**
+				 * Projects that cover a post.
+				 *
+				 * @param int $post Post.
+				 * @return int[]
+				 */
+				public function covering( $post ) {
+					return array( 5, 6, 7 );
+				}
+			},
+			static fn() => array(
+				'width'  => 190.0,
+				'height' => 277.0,
+			)
+		);
+
+		$covers = $projects->covering( 1 );
+
+		$this->assertSame( 'adapt', $covers[7]['project']['scaling'], 'A value that is not offered is replaced.' );
+		$this->assertNull( $covers[5]['scale'] );
+		$this->assertSame( 0.674, $covers[5]['factor'] );
+		$this->assertSame( 0.674, $covers[6]['scale'], 'The print server scales.' );
+		$this->assertStringContainsString( '--books-k:1;', $covers[6]['css'] );
+		$this->assertStringContainsString( '--books-k:0.674;', $covers[5]['css'] );
+	}
+
+	/**
 	 * The projects are read as valid values, by id.
 	 *
 	 * @return void
@@ -335,6 +589,7 @@ class BooksProjectTest extends TestCase {
 				'profile' => 21,
 				'author'  => 'Eric',
 				'folios'  => false,
+				'scaling' => 'adapt',
 			),
 			$projects->get( 6 )
 		);
@@ -342,8 +597,9 @@ class BooksProjectTest extends TestCase {
 		$this->assertSame( 0, $projects->get( 8 )['root'], 'No relation: no root.' );
 		$this->assertSame(
 			array(
-				'author' => '',
-				'folios' => true,
+				'author'  => '',
+				'folios'  => true,
+				'scaling' => 'adapt',
 			),
 			Projects::normalize( 'broken' )
 		);
@@ -621,6 +877,7 @@ class BooksProjectTest extends TestCase {
 				'root'    => '10',
 				'profile' => '20',
 				'folios'  => '0',
+				'scaling' => 'zoom',
 				'extra'   => 'x',
 			),
 			true,
@@ -631,11 +888,12 @@ class BooksProjectTest extends TestCase {
 
 		$this->assertSame(
 			array(
-				'author' => '',
-				'folios' => false,
+				'author'  => '',
+				'folios'  => false,
+				'scaling' => 'zoom',
 			),
 			$stored[0][2],
-			'The meta holds the author and the folios only.'
+			'The meta holds the author, the folios and the scaling only.'
 		);
 		$this->assertSame( '_books_project', $stored[0][1] );
 		$this->assertSame(
@@ -873,6 +1131,8 @@ class BooksProjectTest extends TestCase {
 		$command->show( array( '5' ), array() );
 		$this->assertContains( 'root: 10', $out );
 		$this->assertStringContainsString( '@page{size:148mm 210mm', end( $out ) );
+		$this->assertContains( 'factor: 1', $out, 'The factor of the project is shown (1 when the reference is not known).' );
+		$this->assertContains( 'scaling: adapt', $out );
 
 		$out = array();
 		$command->show( array( '7' ), array() );
@@ -897,8 +1157,9 @@ class BooksProjectTest extends TestCase {
 		);
 		$this->assertSame(
 			array(
-				'author' => '',
-				'folios' => true,
+				'author'  => '',
+				'folios'  => true,
+				'scaling' => 'adapt',
 			),
 			$created[0][2],
 			'The meta of a new project.'
@@ -919,6 +1180,17 @@ class BooksProjectTest extends TestCase {
 			)
 		);
 		$this->assertCount( 1, $created, 'A project with that title exists: left as it is.' );
+		$command->create(
+			array( 'Zoomed' ),
+			array(
+				'root'    => '12',
+				'profile' => '20',
+				'scaling' => 'zoom',
+			)
+		);
+		$this->assertSame( 'zoom', $created[1][2]['scaling'], 'The scaling of a new project.' );
+		$created = array_slice( $created, 0, 1 );
+		$linked  = array_slice( $linked, 0, 2 );
 
 		$command->set_profile( array( '5', '20' ), array() );
 		$this->assertCount( 1, $created, 'Already that profile: nothing changes.' );
@@ -953,6 +1225,15 @@ class BooksProjectTest extends TestCase {
 				array(
 					'root' => '12',
 					'profile' => '20',
+				),
+			),
+			array(
+				'create',
+				array( 'T' ),
+				array(
+					'root'    => '12',
+					'profile' => '20',
+					'scaling' => 'shrink',
 				),
 			),
 			array( 'set_profile', array( '99', '20' ), array() ),
@@ -1001,8 +1282,9 @@ class BooksProjectTest extends TestCase {
 				'update',
 				5,
 				array(
-					'author' => 'Eric',
-					'folios' => true,
+					'author'  => 'Eric',
+					'folios'  => true,
+					'scaling' => 'adapt',
 				),
 			),
 			$created[0],

@@ -178,6 +178,19 @@ final class MetaBoxes {
 		$this->select_row( 'profile', __( 'Printer profile', 'otherguise' ), (array) ( $this->profiles )(), (int) $this->links->profile( (int) $post->ID ), __( 'The rules of the printer for this book. The same section can have several projects, one for each printer.', 'otherguise' ) );
 
 		echo '<tr><th scope="row"><label for="books-project-author">' . esc_html__( 'Author', 'otherguise' ) . '</label></th><td><input type="text" id="books-project-author" class="regular-text" maxlength="200" name="' . esc_attr( self::PROJECT_FIELD . '[author]' ) . '" value="' . esc_attr( $values['author'] ) . '" /></td></tr>';
+		$labels = array(
+			'adapt' => __( 'Adapt: the theme follows the size of the page (the variable --books-k)', 'otherguise' ),
+			'zoom'  => __( 'Zoom: the page of the theme is reduced or enlarged as a whole', 'otherguise' ),
+			'scale' => __( 'Scale: the print server reduces or enlarges the page (not shown in the preview)', 'otherguise' ),
+		);
+
+		echo '<tr><th scope="row"><label for="books-project-scaling">' . esc_html__( 'Scaling', 'otherguise' ) . '</label></th><td><select id="books-project-scaling" name="' . esc_attr( self::PROJECT_FIELD . '[scaling]' ) . '">';
+
+		foreach ( Projects::SCALINGS as $scaling ) {
+			echo '<option value="' . esc_attr( $scaling ) . '"' . ( $values['scaling'] === $scaling ? ' selected="selected"' : '' ) . '>' . esc_html( $labels[ $scaling ] ) . '</option>';
+		}
+
+		echo '</select><p class="description">' . esc_html__( 'How a page smaller or larger than the one the theme is composed for is obtained. The factor compares the usable area of the printer profile with the one the theme declares.', 'otherguise' ) . '</p></td></tr>';
 		echo '<tr><th scope="row">' . esc_html__( 'Folios', 'otherguise' ) . '</th><td><input type="hidden" name="' . esc_attr( self::PROJECT_FIELD . '[folios]' ) . '" value="0" /><label><input type="checkbox" name="' . esc_attr( self::PROJECT_FIELD . '[folios]' ) . '" value="1"' . ( $values['folios'] ? ' checked="checked"' : '' ) . ' /> ' . esc_html__( 'Print the page numbers, where the profile puts them', 'otherguise' ) . '</label></td></tr>';
 		echo '</tbody></table>';
 	}

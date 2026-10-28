@@ -307,6 +307,7 @@ final class PdfJobs {
 			$this->format_for( $rules ),
 			array(
 				'prefer_css_page_size' => is_array( $rules ),
+				'scale'           => is_array( $rules ) ? $rules['scale'] ?? null : null,
 				'media'           => $settings[ RendererSettings::MEDIA ],
 				'wait_delay'      => $settings[ RendererSettings::WAIT_DELAY ],
 				'wait_expression' => $settings[ RendererSettings::WAIT_EXPRESSION ],
@@ -478,6 +479,10 @@ final class PdfJobs {
 		// Added only for a book project, so that the PDF files of the posts that have none keep their key.
 		if ( is_array( $rules ) ) {
 			$parts['rules'] = array( (int) $rules['project'], md5( (string) $rules['css'] ) );
+
+			if ( ! empty( $rules['scale'] ) ) {
+				$parts['rules'][] = (float) $rules['scale'];
+			}
 		}
 
 		return md5( (string) wp_json_encode( $parts ) );

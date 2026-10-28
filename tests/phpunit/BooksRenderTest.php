@@ -371,6 +371,37 @@ class BooksRenderTest extends TestCase {
 	}
 
 	/**
+	 * A project that scales gives the server a scale (slice 230): kept between 0.1 and 2, written without trailing zeros, left out when it is
+	 * not a positive number.
+	 *
+	 * @return void
+	 */
+	public function test_scale(): void {
+		$requests = array();
+		$format   = array(
+			'width_mm'  => 148.0,
+			'height_mm' => 210.0,
+			'margin_mm' => 10.0,
+		);
+		$cases    = array( 0.674, 5, 0.01, null, 0, 'wide' );
+
+		foreach ( $cases as $scale ) {
+			$path = tempnam( sys_get_temp_dir(), 'books-pdf' );
+
+			$this->streaming_client( array( $this->answer( 200, "%PDF-1.7\nbytes" ) ), $requests )->convert_url_to_file( 'https://x.test/', $format, array( 'scale' => $scale ), $path );
+			wp_delete_file( $path );
+		}
+
+		$this->assertMatchesRegularExpression( '/name="scale"\r\n\r\n0\.674\r\n/', $requests[0][1]['body'] );
+		$this->assertMatchesRegularExpression( '/name="scale"\r\n\r\n2\r\n/', $requests[1][1]['body'], 'Never more than 2.' );
+		$this->assertMatchesRegularExpression( '/name="scale"\r\n\r\n0\.1\r\n/', $requests[2][1]['body'], 'Never less than 0.1.' );
+
+		foreach ( array( 3, 4, 5 ) as $index ) {
+			$this->assertStringNotContainsString( 'name="scale"', $requests[ $index ][1]['body'] );
+		}
+	}
+
+	/**
 	 * A refusal of the server, a file that is not a PDF, a transport error: an error, and no file left behind.
 	 *
 	 * @return void

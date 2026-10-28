@@ -38,6 +38,7 @@ use Otherguise\Books\Project\PrinterProfile;
 use Otherguise\Books\Project\PrintStyles;
 use Otherguise\Books\Project\ProjectLinks;
 use Otherguise\Books\Project\Projects;
+use Otherguise\Books\Project\Reference;
 use Otherguise\Books\Project\WordPressProjects;
 use Otherguise\Books\Render\GotenbergClient;
 use Otherguise\Books\Render\InternalHost;
@@ -340,6 +341,7 @@ final class Module implements ModuleInterface {
 					'project' => $found['project']['id'],
 					'format'  => PrinterProfile::format( $found['profile'] ),
 					'css'     => $found['css'],
+					'scale'   => $found['scale'],
 				);
 			},
 			static function ( $post_id ) {
@@ -363,10 +365,23 @@ final class Module implements ModuleInterface {
 			array( $posts, 'projects' ),
 			array( $posts, 'profile_meta' ),
 			$this->links(),
-			static function () {
-				$page = ( new PageFormat() )->get();
+			array( $this->reference(), 'usable' )
+		);
+	}
 
-				return (float) $page[ PageFormat::WIDTH ] - 2 * (float) $page[ PageFormat::MARGIN ];
+	/**
+	 * The page the templates of the theme are composed for (slice 230): what the theme declares in `settings.custom.otherguise.reference` of
+	 * its `theme.json`, else the global page format of the settings.
+	 *
+	 * @return Reference
+	 */
+	public function reference() {
+		return new Reference(
+			static function () {
+				return function_exists( 'wp_get_global_settings' ) ? wp_get_global_settings( array( 'custom', 'otherguise', 'reference' ) ) : null;
+			},
+			static function () {
+				return ( new PageFormat() )->get();
 			}
 		);
 	}

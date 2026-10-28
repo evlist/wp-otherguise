@@ -149,12 +149,12 @@ wp otherguise books profile show   <id> [--format=<text|json>]
 wp otherguise books profile create <title> [--preset=<coollibri|flexilivre>] [--dry-run]
 wp otherguise books project list   [--format=<text|json>]
 wp otherguise books project show   <id>
-wp otherguise books project create <title> --root=<section> --profile=<id> [--dry-run]
+wp otherguise books project create <title> --root=<section> --profile=<id> [--scaling=<adapt|zoom|scale>] [--dry-run]
 wp otherguise books project set-profile <project> <profile> [--dry-run]
 wp otherguise books project migrate [--dry-run]
 ```
 
-The rules of a printer (a profile) and a book (a project: a top-level section and a profile), slice 230. `list` prints tab-separated lines (`id`, `title`, …) or JSON. `show` prints the fields of a profile, or of a project with the CSS that its profile gives to the page (or says there is none). The root section and the profile of a project are relations of the Triples module (`books/root`, `books/profile`); `migrate` moves them from the meta of the projects made before the relations (it can be run twice). `create` and `set-profile` can be run twice: a profile or a project with that title is left as it is, a project that has the profile already says so; `--dry-run` writes nothing. The presets are starting points to check against the printers' sites.
+The rules of a printer (a profile) and a book (a project: a top-level section and a profile), slice 230. `list` prints tab-separated lines (`id`, `title`, …) or JSON. `show` prints the fields of a profile, or of a project with its scaling, its factor and the CSS that its profile gives to the page (or says there is none). `--scaling` of `create` is how the factor of the page is applied (`adapt` by default, `zoom`, `scale`). The root section and the profile of a project are relations of the Triples module (`books/root`, `books/profile`); `migrate` moves them from the meta of the projects made before the relations (it can be run twice). `create` and `set-profile` can be run twice: a profile or a project with that title is left as it is, a project that has the profile already says so; `--dry-run` writes nothing. The presets are starting points to check against the printers' sites.
 
 ## wp otherguise books section
 

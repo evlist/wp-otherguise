@@ -147,6 +147,7 @@ final class ProjectCommand {
 
 		$found = $project['root'] > 0 ? $this->projects->for_post( $project['root'], $project['id'] ) : null;
 
+		( $this->log )( 'factor: ' . ( null === $found ? '(none)' : $found['factor'] ) );
 		( $this->log )( 'css: ' . ( null === $found ? '(none: the profile or the root section is missing)' : $found['css'] ) );
 	}
 
@@ -165,6 +166,16 @@ final class ProjectCommand {
 	 *
 	 * --profile=<profile>
 	 * : Id of the printer profile.
+	 *
+	 * [--scaling=<scaling>]
+	 * : How the factor of the page is applied: adapt, zoom or scale.
+	 * ---
+	 * default: adapt
+	 * options:
+	 *   - adapt
+	 *   - zoom
+	 *   - scale
+	 * ---
 	 *
 	 * [--dry-run]
 	 * : Say what would be done.
@@ -193,6 +204,13 @@ final class ProjectCommand {
 			return;
 		}
 
+		$scaling = (string) ( $assoc_args['scaling'] ?? 'adapt' );
+
+		if ( ! in_array( $scaling, Projects::SCALINGS, true ) ) {
+			( $this->fail )( '--scaling: adapt, zoom or scale.' );
+			return;
+		}
+
 		foreach ( $this->projects->all() as $project ) {
 			if ( $project['title'] === $title ) {
 				( $this->log )( sprintf( 'The project "%s" exists already (%d): left as it is.', $title, $project['id'] ) );
@@ -205,7 +223,7 @@ final class ProjectCommand {
 			return;
 		}
 
-		$id = $this->store->create( PostTypes::PROJECT, $title, Projects::normalize( array() ) );
+		$id = $this->store->create( PostTypes::PROJECT, $title, Projects::normalize( array( 'scaling' => $scaling ) ) );
 
 		if ( $id <= 0 || ! $this->links->set_root( $id, $root ) || ! $this->links->set_profile( $id, $profile ) ) {
 			( $this->fail )( 'The project could not be created.' );
