@@ -538,6 +538,7 @@ final class Module implements ModuleInterface {
 	public function uninstall() {
 		delete_option( PageFormat::OPTION );
 		delete_option( RendererSettings::OPTION );
+		delete_option( MergeLog::OPTION );
 		( new WordPressProjects() )->delete_all();
 		wp_clear_scheduled_hook( self::CLEANUP_EVENT );
 		wp_clear_scheduled_hook( PdfJobs::EVENT );

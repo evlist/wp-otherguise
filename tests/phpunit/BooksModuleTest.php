@@ -11,6 +11,7 @@
 use Otherguise\Books\Admin\SettingsScreen;
 use Otherguise\Books\Module;
 use Otherguise\Books\Preview\EditorPreview;
+use Otherguise\Books\Merge\MergeLog;
 use Otherguise\Books\Settings\PageFormat;
 use Otherguise\Books\Settings\RendererSettings;
 use PHPUnit\Framework\TestCase;
@@ -108,9 +109,11 @@ class BooksModuleTest extends TestCase {
 
 		update_option( PageFormat::OPTION, array( 'width_mm' => 100 ) );
 		update_option( RendererSettings::OPTION, array( 'gotenberg_url' => 'http://x' ) );
+		update_option( MergeLog::OPTION, 1 );
 		$module->uninstall();
 		$this->assertFalse( get_option( PageFormat::OPTION ), 'The option is removed.' );
 		$this->assertFalse( get_option( RendererSettings::OPTION ), 'The settings of the server too.' );
+		$this->assertFalse( get_option( MergeLog::OPTION ), 'The switch of the log of the merge too.' );
 		$this->assertCount( 2, $this->calls( 'wp_clear_scheduled_hook' ), 'The cron events are cleared.' );
 	}
 
