@@ -101,9 +101,17 @@ To do in the theme, once Books gives the rules:
 - What a project of a section **without** a top-level section means (a book that is a single section).
 - Whether a project can override a field of its profile.
 
-### The reference of the factor `--books-k` (open, discussed with Eric on 2026-10-27; nothing here is decided)
+### The reference of the factor `--books-k` (proposed with Eric on 2026-10-28; not coded; the points marked open are not decided)
 
-- **The reference is a usable area, not a paper size.** What the templates assume is the width (190 mm today) and height of the content area, not "A4". It is computed from the global format of the settings and its margin, so a change of the global margin moves the factor of every project while the templates did not change. **Open: declare the reference separately** (the usable width and height the theme is composed for, in a setting of Books or of the theme), so that the global settings stay free to change.
+- **Proposed: the theme declares the reference** (Eric, 2026-10-28: a printer profile associated with a theme, meaning that the theme is optimised and tested for these values). The factor is then computed by comparing that reference with the profile of the project; when they are equal the factor is 1.
+  - **Values, not a link to a profile post.** A printer profile is a post of the site and does not travel with a theme. The theme declares plain values: page width and height, margin and gutter. Books builds a virtual profile from them, without the printer fields (ppi, colours, multiple of pages), which have nothing to do with how the templates are composed.
+  - **Data, not code**, so that the theme does not depend on the plugin (see "The contract with the theme"): the candidate is the `custom` section of the child theme's `theme.json`. **Open, not tried**: whether Books can read it reliably (parent and child merge, caching) and its exact keys.
+  - **A theme without a declaration keeps today's behaviour**: the global format of the settings is the reference. Nothing breaks.
+  - **The limiting dimension** applies to this comparison: `min( usable width ratio, usable height ratio )` (see below).
+  - **A claim to check**: "tested for these values" is stated by the theme's author. The overflow check of slice 229 (the measurement made in Chromium) could verify it on a few units; not designed yet.
+  - **Open: the image sizes of slice 221** follow the global format of the settings today. Whether they follow the theme's reference instead is not decided.
+
+- **The reference is a usable area, not a paper size.** What the templates assume is the width (190 mm today) and height of the content area, not "A4". It is computed from the global format of the settings and its margin, so a change of the global margin moves the factor of every project while the templates did not change. The proposal above (a reference declared by the theme) keeps the global settings free to change.
 - **Margins alone change the factor**: an A4 with margins of 20 mm against a reference of A4 with 5 mm gives 170/200 = 0.85 on the width (257/287 = 0.895 on the height) although the paper is the same. The current code already does this for the width.
 - **The limiting dimension**: the factor is today the **width** ratio only. Proposed, not coded: `min( usable width ratio, usable height ratio )` when a unit must fit one page (the height then matters), the width alone for text that flows over pages. The square root of the area ratio is not proposed: it is right only when the two usable areas have the same proportions.
 - **Enlarging** (factor above 1, smaller margins than the reference): allowed by the clamp (a quarter to four) but never tried; open whether to enlarge or only to leave more room.
