@@ -10,13 +10,11 @@
 
 namespace Otherguise\Books\Project;
 
-use Otherguise\Core\AdminMenu;
-
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Registers `books_printer` (a printer profile) and `books_project` (a book project) (slice 230). Both are edited under **Settings** by users
- * who can `edit_others_posts`, have no page on the site (not public, no rewrite, not in the search, the sitemaps or the REST API) and are
+ * Registers `books_printer` (a printer profile) and `books_project` (a book project) (slice 230). Both are reached from the hub **Settings →
+ * Otherguise** (they are not in the menu) by users who can `edit_others_posts`, have no page on the site (not public, no rewrite, not in the search, the sitemaps or the REST API) and are
  * exported with the site. They are edited with a meta box, so the block editor is not used.
  */
 final class PostTypes {
@@ -51,6 +49,32 @@ final class PostTypes {
 	}
 
 	/**
+	 * Declares the two lists of contents to the hub "Otherguise" of the Settings menu. Filter `otherguise_admin_screens`.
+	 *
+	 * @param mixed $screens The screens declared so far.
+	 * @return array<int|string, mixed>
+	 */
+	public function declare_screens( $screens ) {
+		$screens   = is_array( $screens ) ? $screens : array();
+		$screens[] = array(
+			'title'       => __( 'Printer profiles', 'otherguise' ),
+			'description' => __( 'The rules of a printer: format, margins, pages, images.', 'otherguise' ),
+			'capability'  => 'edit_others_posts',
+			'post_type'   => self::PROFILE,
+			'order'       => 40,
+		);
+		$screens[] = array(
+			'title'       => __( 'Book projects', 'otherguise' ),
+			'description' => __( 'A book: a section, a printer profile and how the page is scaled.', 'otherguise' ),
+			'capability'  => 'edit_others_posts',
+			'post_type'   => self::PROJECT,
+			'order'       => 50,
+		);
+
+		return $screens;
+	}
+
+	/**
 	 * The arguments of a type.
 	 *
 	 * @param string $plural   Plural name.
@@ -75,7 +99,7 @@ final class PostTypes {
 			'publicly_queryable'  => false,
 			'exclude_from_search' => true,
 			'show_ui'             => true,
-			'show_in_menu'        => AdminMenu::SLUG,
+			'show_in_menu'        => false,
 			'show_in_nav_menus'   => false,
 			'show_in_admin_bar'   => false,
 			'show_in_rest'        => false,

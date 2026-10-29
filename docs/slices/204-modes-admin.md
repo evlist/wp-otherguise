@@ -7,7 +7,7 @@ Status: **done**, planned and coded in one go at Eric's request; the choices bel
 
 ## Goal
 
-Declare, see and withdraw the variants of templates and template parts without writing code: **Otherguise → Modes**. After this slice `?print` can be set up entirely from the administration.
+Declare, see and withdraw the variants of templates and template parts without writing code: **Settings → Otherguise → Modes**. After this slice `?print` can be set up entirely from the administration.
 
 ## The screen
 
@@ -59,12 +59,12 @@ Other browsers, narrow screens, keyboard use and contrast; multisite; child them
 ## To confirm
 
 0. The setting that enables the modes: ~~on by default~~ **off by default** (changed after Eric's tests on a copy of his site: the modes do nothing until something is declared), one checkbox on the screen, the data kept while it is off.
-1. The screen is **Otherguise → Modes**, one page with the modes, two tables and two forms, no JavaScript.
+1. The screen is **Settings → Otherguise → Modes**, one page with the modes, two tables and two forms, no JavaScript.
 2. Capability `edit_theme_options` with the filter `modes_admin_capability`.
 3. No confirmation page for withdrawing a mode or removing a relation.
 4. The lists of templates offer every template of the active theme for both ends.
 5. A relation to a missing template is shown and removable, not hidden.
 
-> **Later change (menus):** the entries are named after the plugin so that an administrator who has just installed it can find them: **Tools → Otherguise relations** and, since the modes screen is mostly a setting, **Otherguise → Modes** (`options-general.php?page=modes`). The page slugs are unchanged. The screenshots above show the earlier titles.
+> **Later change (menus):** the entries are named after the plugin so that an administrator who has just installed it can find them: **Tools → Otherguise relations** and, since the modes screen is mostly a setting, **Settings → Otherguise → Modes** (`options-general.php?page=modes`). The page slugs are unchanged. The screenshots above show the earlier titles.
 
 > **Later change (disabled by default):** the modes are **off** until an administrator ticks the box. An absent or unreadable setting means disabled. The screen says so at the top, with the box, and adds that the variants and stylesheets declared below have no effect until the modes are enabled (which is also the warning after declaring a variant while they are off). The real-site scripts enable them first.

@@ -3,14 +3,12 @@
  * SPDX-FileCopyrightText: 2026 Eric van der Vlist <vdv@dyomedea.com>
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * The page under the Otherguise menu.
+ * The page reached from the hub "Otherguise" of the Settings menu.
  *
  * @package Otherguise
  */
 
 namespace Otherguise\Modes\Admin;
-
-use Otherguise\Core\AdminMenu;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -44,19 +42,38 @@ final class AdminPage {
 	}
 
 	/**
-	 * Adds the entry to the Otherguise menu. Called on `admin_menu`.
+	 * Adds the page to the Settings menu, which the hub "Otherguise" then takes out of the menu (it leads to it). Called on `admin_menu`.
 	 *
 	 * @return void
 	 */
 	public function register_menu() {
 		add_submenu_page(
-			AdminMenu::SLUG,
+			'options-general.php',
 			__( 'Otherguise modes', 'otherguise' ),
-			__( 'Modes', 'otherguise' ),
+			__( 'Otherguise modes', 'otherguise' ),
 			$this->environment->capability(),
 			Environment::PAGE,
 			array( $this, 'render' )
 		);
+	}
+
+	/**
+	 * Declares the screen to the hub "Otherguise" of the Settings menu. Filter `otherguise_admin_screens`.
+	 *
+	 * @param mixed $screens The screens declared so far.
+	 * @return array<int|string, mixed>
+	 */
+	public function declare_screen( $screens ) {
+		$screens   = is_array( $screens ) ? $screens : array();
+		$screens[] = array(
+			'title'       => __( 'Modes', 'otherguise' ),
+			'description' => __( 'The modes of the site (web, print…), the variants of the templates and the stylesheet of each mode.', 'otherguise' ),
+			'capability'  => $this->environment->capability(),
+			'page'        => Environment::PAGE,
+			'order'       => 10,
+		);
+
+		return $screens;
 	}
 
 	/**

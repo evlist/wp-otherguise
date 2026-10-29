@@ -38,7 +38,7 @@ WordPress accepts `.css` in the Media Library on a single site (`text/css`; scri
 
 ## The screen
 
-A section **Stylesheets** under the tables of variants, on **Otherguise → Modes**:
+A section **Stylesheets** under the tables of variants, on **Settings → Otherguise → Modes**:
 
 - for each mode: its stylesheets (name, size, link to the file, **Remove from this mode**);
 - a form **Add a stylesheet**: a mode and either a **file to upload** (`.css` only, size limit, stored in the Media Library through the standard upload functions) or an **existing CSS file** chosen in a list of the attachments of type `text/css`.
@@ -48,7 +48,7 @@ Handlers `admin_post_`: capability **`edit_theme_options` and `upload_files`**, 
 ## What was built
 
 - The predicate **`modes/stylesheet`** (subject `mode`, object `attachment`), registered with the module; `Stylesheet\Stylesheets` (add, remove, list in the order of the ids), `Stylesheet\StylesheetFiles` (the only class that asks WordPress about attachments: describes a CSS file, lists them, receives an upload), `Stylesheet\StylesheetLoader` (enqueues on `wp_enqueue_scripts`, priority 100 by default, registered on `init` priority 20 so that the filter `modes_stylesheet_priority` can be added by a theme; handle `modes-{mode}-{id}`, version = modification time of the file).
-- The section **Stylesheets** of **Otherguise → Modes** (`Admin\StylesheetsScreen`) and the handlers `modes_add_stylesheet` and `modes_remove_stylesheet` (`Admin\StylesheetActions`). Capability `edit_theme_options` and, to add, `upload_files`; own nonces; the form is read before anything is written; refusals are notices (`invalid_request`, `not_a_stylesheet`, `upload_failed`, `too_large`).
+- The section **Stylesheets** of **Settings → Otherguise → Modes** (`Admin\StylesheetsScreen`) and the handlers `modes_add_stylesheet` and `modes_remove_stylesheet` (`Admin\StylesheetActions`). Capability `edit_theme_options` and, to add, `upload_files`; own nonces; the form is read before anything is written; refusals are notices (`invalid_request`, `not_a_stylesheet`, `upload_failed`, `too_large`).
 - **Uploads accept `.css` only**, whatever the site allows (the filter `upload_mimes` is narrowed to `css` during the upload), the check of the type by content (which may call a stylesheet `text/plain`) is overridden for the extension `css`, and the size limit is 512 KB (filter `modes_stylesheet_max_bytes`); a file over the limit is deleted from the Media Library.
 - The file stays in the Media Library when it is taken away from a mode; when the file is deleted, Triples removes the statement.
 

@@ -63,7 +63,7 @@ First version: the **Refresh** button plus the "out of date" mark on a dirty pos
 
 ## Prerequisites
 
-- **The format of the page** (width, height, margins) is a configuration of the plugin (decision 3). Open: where (a section of **Otherguise → Modes**, a filter, or `theme.json`), the unit (millimetres), and whether the same values should feed the `@page` of the theme so that the preview and the printing agree.
+- **The format of the page** (width, height, margins) is a configuration of the plugin (decision 3). Open: where (a section of **Settings → Otherguise → Modes**, a filter, or `theme.json`), the unit (millimetres), and whether the same values should feed the `@page` of the theme so that the preview and the printing agree.
 - `?mode=print` on the permalink is the mode that the plugin already serves; nothing to add.
 
 ## Open questions (do not assume)
@@ -85,7 +85,7 @@ Scope = decisions 1, 2, 3, 4, 6–9, 11, 12 and 13 of **Decided**. Default forma
 ### Server side (module `Books`, namespace `Otherguise\Books\`)
 
 - **`Settings\PageFormat`**: reads and sanitises the option `books_page_format` (an array `width_mm`, `height_mm`, `margin_mm`). Defaults 148, 210, 10. Bounds: width and height between 50 and 1000 mm, margin from 0 up to less than half of the smaller side; a value out of bounds, or not a number, falls back to the default of that field. Pure PHP, no WordPress call but `get_option`/`apply_filters` passed in, so it is tested without WordPress.
-- **Settings screen** **Otherguise → Books** (Settings API, so the nonce is checked by WordPress): three number fields in millimetres. Capability `manage_options`, changed by the filter `books_admin_capability`. The label says that the numbers are used by the preview only, until the `@page` of the theme reads them (open question 1).
+- **Settings screen** **Settings → Otherguise → Books** (Settings API, so the nonce is checked by WordPress): three number fields in millimetres. Capability `manage_options`, changed by the filter `books_admin_capability`. The label says that the numbers are used by the preview only, until the `@page` of the theme reads them (open question 1).
 - **`Module::boot()`** registers the screen and the editor script; **`Module::uninstall()`** deletes the option. Hooks are prefixed `books_`, the option too (module rules of `docs/IA.md`).
 - **Editor assets** on `enqueue_block_editor_assets`, only for a user who can edit the post being edited: the script `plugin/modules/books/editor/preview/preview.js` (+ `panel.js`, `geometry.js`, `preview.css`; the dependencies are declared in `EditorPreview`, so there is no `preview.asset.php`), and an inline `window.booksPreview = { page: {...}, modes: [...], defaultMode: 'print', frameModes: ['print'] }` (the modes come from `Modes`, the frame is drawn for the modes of the filter `books_preview_frame_modes`, `print` by default).
 - **Admin bar in the iframe**: the iframe is loaded with the argument `books_preview=1`; on the front end the filter `show_admin_bar` answers false for it (cosmetic only, nothing is shown that a logged-in user would not see). Priority 10, documented as shared with other plugins.
@@ -113,7 +113,7 @@ An admin screen (capability and nonce), no REST route, no WP-CLI command. String
 
 ### Built (what exists)
 
-`Books\Settings\PageFormat`, `Books\Admin\SettingsScreen` (**Otherguise → Books**), `Books\Preview\EditorPreview`, `Books\Module` (hooks: `admin_init`, `admin_menu`, `option_page_capability_books_settings_group`, `enqueue_block_editor_assets`, `show_admin_bar`; `uninstall` removes `books_page_format`), and `plugin/modules/books/editor/preview/` (`geometry.js`, `panel.js`, `preview.js`, `preview.css`). Tests: `BooksPageFormatTest`, `BooksModuleTest` (PHPUnit), `books-preview-geometry`, `books-preview-panel`, `books-preview-editor` (jsdom). The height is read from `documentElement.getBoundingClientRect()` of the page in the iframe (rounded up to a pixel).
+`Books\Settings\PageFormat`, `Books\Admin\SettingsScreen` (**Settings → Otherguise → Books**), `Books\Preview\EditorPreview`, `Books\Module` (hooks: `admin_init`, `admin_menu`, `option_page_capability_books_settings_group`, `enqueue_block_editor_assets`, `show_admin_bar`; `uninstall` removes `books_page_format`), and `plugin/modules/books/editor/preview/` (`geometry.js`, `panel.js`, `preview.js`, `preview.css`). Tests: `BooksPageFormatTest`, `BooksModuleTest` (PHPUnit), `books-preview-geometry`, `books-preview-panel`, `books-preview-editor` (jsdom). The height is read from `documentElement.getBoundingClientRect()` of the page in the iframe (rounded up to a pixel).
 
 ### Honest verification
 

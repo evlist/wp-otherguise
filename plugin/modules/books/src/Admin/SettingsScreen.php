@@ -13,17 +13,16 @@ namespace Otherguise\Books\Admin;
 use Otherguise\Books\Render\GotenbergClient;
 use Otherguise\Books\Settings\PageFormat;
 use Otherguise\Books\Settings\RendererSettings;
-use Otherguise\Core\AdminMenu;
 
 defined( 'ABSPATH' ) || exit;
 
 /**
- * **Otherguise → Books**: the format of the page (width, height, margins, in millimetres). The form is posted to `options.php`,
+ * **Settings → Otherguise → Books**: the format of the page (width, height, margins, in millimetres). The form is posted to `options.php`,
  * so the Settings API checks the nonce and the capability (`manage_options`, changed by the filter `books_admin_capability`).
  */
 final class SettingsScreen {
 	/**
-	 * Slug of the page, under the Otherguise menu.
+	 * Slug of the page, under Settings, reached from the hub.
 	 */
 	public const PAGE = 'books';
 
@@ -116,19 +115,37 @@ final class SettingsScreen {
 	}
 
 	/**
-	 * Adds the page to the Otherguise menu. Action `admin_menu`.
+	 * Adds the page to the Settings menu, which the hub "Otherguise" then takes out of the menu (it leads to it). Action `admin_menu`.
 	 *
 	 * @return void
 	 */
 	public function add_menu() {
-		add_submenu_page(
-			AdminMenu::SLUG,
+		add_options_page(
 			__( 'Otherguise books', 'otherguise' ),
-			__( 'Books', 'otherguise' ),
+			__( 'Otherguise books', 'otherguise' ),
 			$this->capability(),
 			self::PAGE,
 			array( $this, 'render' )
 		);
+	}
+
+	/**
+	 * Declares the screen to the hub "Otherguise" of the Settings menu. Filter `otherguise_admin_screens`.
+	 *
+	 * @param mixed $screens The screens declared so far.
+	 * @return array<int|string, mixed>
+	 */
+	public function declare_screen( $screens ) {
+		$screens   = is_array( $screens ) ? $screens : array();
+		$screens[] = array(
+			'title'       => __( 'Books', 'otherguise' ),
+			'description' => __( 'The format of the page of a book and the PDF server.', 'otherguise' ),
+			'capability'  => $this->capability(),
+			'page'        => self::PAGE,
+			'order'       => 20,
+		);
+
+		return $screens;
 	}
 
 	/**
@@ -153,8 +170,6 @@ final class SettingsScreen {
 		$values = $this->format->get();
 
 		echo '<div class="wrap"><h1>' . esc_html__( 'Otherguise books', 'otherguise' ) . '</h1>';
-		// The screens of the Settings menu print the notices of the Settings API by themselves; this one is under the Otherguise menu.
-		settings_errors();
 		echo '<p>' . esc_html__( 'The format of the page of a book, in millimetres. For now the preview of the editor uses it; the print stylesheet of the theme does not read it yet.', 'otherguise' ) . '</p>';
 		echo '<form method="post" action="options.php">';
 		settings_fields( self::GROUP );

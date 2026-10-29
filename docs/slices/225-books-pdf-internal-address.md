@@ -11,7 +11,7 @@ The PDF server asks for the page of a post by its **public address**, which goes
 
 ## What it does
 
-- A setting **"Address of this site for the server"** (`books_renderer[site_address]`, Otherguise, Books, and `wp otherguise books renderer set --site-address=<address>`), **empty by default** (nothing changes). An http or https address of a **host only**: no path, user, password, query or fragment (`http://wordpress`, `http://wordpress:8080`).
+- A setting **"Address of this site for the server"** (`books_renderer[site_address]`, Settings, Otherguise, Books, and `wp otherguise books renderer set --site-address=<address>`), **empty by default** (nothing changes). An http or https address of a **host only**: no path, user, password, query or fragment (`http://wordpress`, `http://wordpress:8080`).
 - When it is set, the **beginning** of the address sent to the server (scheme, host and port of the home page of the site) is replaced by it: `https://testing.vli.st/livre/?mode=print` becomes `http://wordpress-testing-vli-st/livre/?mode=print`. An address of another site, or with another scheme or port, is left alone. Only the **page asked for** is concerned: the images, styles and scripts it holds keep the addresses that WordPress gives them (the public ones).
 - `redirect_canonical` is cancelled (priority 5) for a request whose host is the one of this address, so that WordPress does not send the server back to the public address and the proxy. In the scratch test WordPress did not redirect a page asked by another host name anyway, so this is a **precaution** that was not shown to be needed; it can be removed if it never matters.
 - The cache key of the PDF does not include this setting (the PDF is the same).

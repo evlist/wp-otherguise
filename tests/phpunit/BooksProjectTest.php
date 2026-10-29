@@ -974,7 +974,21 @@ class BooksProjectTest extends TestCase {
 	}
 
 	/**
-	 * The two types are not public, are edited by those who can edit others' posts, and are exported.
+	 * The two lists of contents are declared to the hub "Otherguise" of the Settings menu, for those who can edit others' posts.
+	 *
+	 * @return void
+	 */
+	public function test_the_post_types_declare_their_lists_to_the_hub(): void {
+		$screens = ( new PostTypes() )->declare_screens( array( 'kept' ) );
+
+		$this->assertSame( 'kept', $screens[0] );
+		$this->assertSame( array( 'Printer profiles', 'books_printer', 'edit_others_posts', 40 ), array( $screens[1]['title'], $screens[1]['post_type'], $screens[1]['capability'], $screens[1]['order'] ) );
+		$this->assertSame( array( 'Book projects', 'books_project', 'edit_others_posts', 50 ), array( $screens[2]['title'], $screens[2]['post_type'], $screens[2]['capability'], $screens[2]['order'] ) );
+		$this->assertCount( 2, ( new PostTypes() )->declare_screens( 'not an array' ) );
+	}
+
+	/**
+	 * The two types are not public, not in the menu, are edited by those who can edit others' posts, and are exported.
 	 *
 	 * @return void
 	 */
@@ -994,7 +1008,7 @@ class BooksProjectTest extends TestCase {
 			$this->assertFalse( $arguments['rewrite'] );
 			$this->assertTrue( $arguments['exclude_from_search'] );
 			$this->assertTrue( $arguments['can_export'] );
-			$this->assertSame( 'otherguise', $arguments['show_in_menu'], 'Under the Otherguise menu.' );
+			$this->assertFalse( $arguments['show_in_menu'], 'Not in the menu: the hub of the Settings menu leads to the list.' );
 			$this->assertSame( array( 'title' ), $arguments['supports'] );
 			$this->assertSame( array( 'edit_others_posts' ), array_values( array_unique( $arguments['capabilities'] ) ) );
 		}

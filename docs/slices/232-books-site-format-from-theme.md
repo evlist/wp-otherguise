@@ -3,7 +3,7 @@
 
 # Slice 232 — Books: the format of the site follows the theme
 
-Status: **proposed (2026-10-28)**, not coded. Dependencies: slice 230 (the reference declared by the theme in `theme.json`, the book projects), slices 219 and 220 (the preview panel and the PDF job), slice 221 (the sizes of the images). Context: Eric's questions of 2026-10-28 about the setting "The format of the page of a book" (Otherguise → Books).
+Status: **proposed (2026-10-28)**, not coded. Dependencies: slice 230 (the reference declared by the theme in `theme.json`, the book projects), slices 219 and 220 (the preview panel and the PDF job), slice 221 (the sizes of the images). Context: Eric's questions of 2026-10-28 about the setting "The format of the page of a book" (Settings → Otherguise → Books).
 
 ## Why
 

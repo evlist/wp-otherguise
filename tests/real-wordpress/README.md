@@ -9,7 +9,7 @@ What the PHPUnit suite cannot show, because it runs on stubs: how WordPress core
 |---|---|---|
 | [`admin-screen/`](admin-screen/README.md) | [105](../../docs/slices/105-triples-admin.md) | The administration screen of Triples in Chromium. |
 | [`variants/`](variants/run.php) | [202](../../docs/slices/202-modes-variants.md) | Variants of templates and parts with real `WP_Block_Template` objects (`wp eval-file`). |
-| [`modes-screen/`](modes-screen/flow.js) | [204](../../docs/slices/204-modes-admin.md) | The screen Otherguise → Modes in Chromium (Playwright), with the front end and users without the capability. |
+| [`modes-screen/`](modes-screen/flow.js) | [204](../../docs/slices/204-modes-admin.md) | The screen Settings → Otherguise modes in Chromium (Playwright), with the front end and users without the capability. |
 | [`link-block/`](link-block/flow.js) | [205](../../docs/slices/205-modes-link-block.md) | The block `modes/link` on the front end (a `single` template that uses it) and in the block editor, in Chromium. |
 | [`stylesheets/`](stylesheets/flow.js) | [207](../../docs/slices/207-modes-stylesheets.md) | The stylesheets of the modes in Chromium: upload from the screen, the front end in each mode, the refusals, removal, disabled modes. |
 | [`default-template/`](default-template/flow.js) | [209](../../docs/slices/209-modes-default-template.md) | The template new posts start with, in Chromium, with the modes disabled: the setting on the screen, a new post, the author's choice, a page, WP-CLI. |

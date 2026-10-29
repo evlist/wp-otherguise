@@ -244,6 +244,7 @@ class AccessSettingsTest extends TestCase {
 		$this->assertSame(
 			array(
 				'admin_menu'                               => array( 'add_menu', 10, 0 ),
+				'otherguise_admin_screens'                 => array( 'declare_screen', 10, 1 ),
 				'admin_init'                               => array( 'register_setting', 10, 0 ),
 				'option_page_capability_access_settings_group' => array( 'capability', 10, 0 ),
 			),
@@ -253,12 +254,26 @@ class AccessSettingsTest extends TestCase {
 		$screen->add_menu();
 		$screen->register_setting();
 
-		$menu = array_values( array_filter( $GLOBALS['otherguise_test_calls'], static fn( $call ) => 'add_submenu_page' === $call[0] ) );
+		$menu = array_values( array_filter( $GLOBALS['otherguise_test_calls'], static fn( $call ) => 'add_options_page' === $call[0] ) );
 
-		$this->assertSame( 'otherguise', $menu[0][1], 'Under the Otherguise menu.' );
-		$this->assertSame( 'Access', $menu[0][3] );
-		$this->assertSame( 'manage_options', $menu[0][4] );
-		$this->assertSame( 'access', $menu[0][5] );
+		$this->assertSame( 'manage_options', $menu[0][3] );
+		$this->assertSame( 'access', $menu[0][4] );
+
+		$screens = $screen->declare_screen( array( 'kept' ) );
+
+		$this->assertSame( 'kept', $screens[0] );
+		$this->assertSame(
+			array(
+				'title'       => 'Access',
+				'description' => 'Private links to posts that are not published, and posts that are published but unlisted.',
+				'capability'  => 'manage_options',
+				'page'        => 'access',
+				'order'       => 30,
+			),
+			$screens[1],
+			'The screen declared to the hub.'
+		);
+		$this->assertCount( 1, $screen->declare_screen( 'not an array' ) );
 
 		$registered = array_values( array_filter( $GLOBALS['otherguise_test_calls'], static fn( $call ) => 'register_setting' === $call[0] ) );
 

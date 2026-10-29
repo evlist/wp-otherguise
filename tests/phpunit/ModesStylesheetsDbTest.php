@@ -341,7 +341,7 @@ class ModesStylesheetsDbTest extends Otherguise_Test_Database_Case {
 			)
 		);
 
-		$this->assertStringContainsString( 'admin.php?page=modes&modes_notice=stylesheet_added', $this->handle( 'add_stylesheet' ) );
+		$this->assertStringContainsString( 'options-general.php?page=modes&modes_notice=stylesheet_added', $this->handle( 'add_stylesheet' ) );
 		$this->assertSame( array( 31 ), $this->of( 'print' ) );
 		$this->assertSame( array(), $this->files->uploaded );
 

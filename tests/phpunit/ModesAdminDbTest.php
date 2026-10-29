@@ -195,7 +195,7 @@ class ModesAdminDbTest extends Otherguise_Test_Database_Case {
 	public function test_declare(): void {
 		$this->environment->post_with_nonce( 'modes_declare', $this->fields() );
 
-		$this->assertStringContainsString( 'admin.php?page=modes&modes_notice=declared', $this->redirect_of( 'declare_variant' ) );
+		$this->assertStringContainsString( 'options-general.php?page=modes&modes_notice=declared', $this->redirect_of( 'declare_variant' ) );
 		$this->assertSame( 2, $this->total() );
 
 		$this->assertStringContainsString( 'modes_notice=declared', $this->redirect_of( 'declare_variant' ) );
@@ -441,7 +441,7 @@ class ModesAdminDbTest extends Otherguise_Test_Database_Case {
 	public function test_hooks(): void {
 		$this->page->register_menu();
 
-		$this->assertSame( array( 'add_submenu_page', 'otherguise', 'Otherguise modes', 'Modes', 'edit_theme_options', 'modes', array( $this->page, 'render' ) ), $GLOBALS['otherguise_test_calls'][0] );
+		$this->assertSame( array( 'add_submenu_page', 'options-general.php', 'Otherguise modes', 'Otherguise modes', 'edit_theme_options', 'modes', array( $this->page, 'render' ) ), $GLOBALS['otherguise_test_calls'][0] );
 
 		$added = array();
 		$admin = new Admin( $this->environment, $this->site->modes->modes(), $this->site->modes->variants(), $this->site->lookup, $this->site->modes->settings(), $this->site->modes->stylesheets(), new Otherguise_Test_Stylesheet_Files(), new \Otherguise\Modes\Settings\DefaultTemplates( $this->site->lookup ) );
@@ -452,7 +452,22 @@ class ModesAdminDbTest extends Otherguise_Test_Database_Case {
 			}
 		);
 
-		$this->assertSame( array( 'admin_menu', 'admin_init', 'admin_init', 'option_page_capability_modes_settings_group', 'option_page_capability_modes_default_templates_group', 'admin_post_modes_declare', 'admin_post_modes_withdraw', 'admin_post_modes_remove', 'admin_post_modes_add_stylesheet', 'admin_post_modes_remove_stylesheet' ), $added );
+		$this->assertSame( array( 'admin_menu', 'otherguise_admin_screens', 'admin_init', 'admin_init', 'option_page_capability_modes_settings_group', 'option_page_capability_modes_default_templates_group', 'admin_post_modes_declare', 'admin_post_modes_withdraw', 'admin_post_modes_remove', 'admin_post_modes_add_stylesheet', 'admin_post_modes_remove_stylesheet' ), $added );
+
+		$screens = $this->page->declare_screen( array( 'kept' ) );
+
+		$this->assertSame( 'kept', $screens[0] );
+		$this->assertSame(
+			array(
+				'title'       => 'Modes',
+				'description' => 'The modes of the site (web, print…), the variants of the templates and the stylesheet of each mode.',
+				'capability'  => 'edit_theme_options',
+				'page'        => 'modes',
+				'order'       => 10,
+			),
+			$screens[1],
+			'The screen declared to the hub.'
+		);
 
 		foreach ( array( false, true ) as $in_admin ) {
 			$recorded = array();

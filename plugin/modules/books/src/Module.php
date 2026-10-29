@@ -51,6 +51,7 @@ use Otherguise\Books\Section\WordPressPostStore;
 use Otherguise\Books\Settings\PageFormat;
 use Otherguise\Books\Settings\RendererSettings;
 use Otherguise\Core\ModuleInterface;
+use Otherguise\Core\AdminHub;
 use Otherguise\Core\Modules;
 use Otherguise\Triples\Predicate\PredicateDefinition;
 
@@ -154,6 +155,8 @@ final class Module implements ModuleInterface {
 
 		( $this->add_action )( 'admin_init', array( $settings, 'register' ), 10, 0 );
 		( $this->add_action )( 'admin_menu', array( $settings, 'add_menu' ), 10, 0 );
+		( $this->add_action )( AdminHub::FILTER, array( $settings, 'declare_screen' ), 10, 1 );
+		( $this->add_action )( AdminHub::FILTER, array( $types, 'declare_screens' ), 10, 1 );
 		( $this->add_action )( 'option_page_capability_' . SettingsScreen::GROUP, array( $settings, 'save_capability' ), 10, 0 );
 		( $this->add_action )( 'enqueue_block_editor_assets', array( $preview, 'enqueue' ), 10, 0 );
 		( $this->add_action )( 'show_admin_bar', array( $preview, 'admin_bar' ), 10, 1 );

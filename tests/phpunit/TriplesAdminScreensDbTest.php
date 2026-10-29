@@ -135,6 +135,13 @@ class TriplesAdminScreensDbTest extends Otherguise_Test_Database_Case {
 		$this->assertSame( array( 'add_submenu_page', 'tools.php', 'Otherguise relations', 'Otherguise relations', 'manage_options', 'triples', array( $this->page, 'render' ) ), $GLOBALS['otherguise_test_calls'][0] );
 		$this->assertSame( array( $this->page, 'load' ), $this->added['load-tools_page_triples'] );
 
+		$screens = $this->page->declare_screen( array( 'kept' ) );
+
+		$this->assertSame( 'kept', $screens[0] );
+		$this->assertSame( 'see-also', $screens[1]['group'], 'A tool, not a setting: under See also of the hub.' );
+		$this->assertSame( 'tools.php?page=triples', $screens[1]['url'] );
+		$this->assertSame( 'manage_options', $screens[1]['capability'] );
+
 		$this->page->load();
 
 		$this->assertSame( 'add_screen_option', $GLOBALS['otherguise_test_calls'][1][0] );
@@ -465,6 +472,7 @@ class TriplesAdminScreensDbTest extends Otherguise_Test_Database_Case {
 				'deleted_term',
 				'deleted_user',
 				'admin_menu',
+				'otherguise_admin_screens',
 				'admin_init',
 				'option_page_capability_triples_settings_group',
 				'set_screen_option_triples_per_page',

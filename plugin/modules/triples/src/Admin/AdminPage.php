@@ -89,6 +89,27 @@ final class AdminPage {
 	}
 
 	/**
+	 * Declares the screen to the hub "Otherguise" of the Settings menu, in "See also": the relations are a tool, under Tools, not a setting.
+	 * Filter `otherguise_admin_screens`.
+	 *
+	 * @param mixed $screens The screens declared so far.
+	 * @return array<int|string, mixed>
+	 */
+	public function declare_screen( $screens ) {
+		$screens   = is_array( $screens ) ? $screens : array();
+		$screens[] = array(
+			'title'       => __( 'Otherguise relations', 'otherguise' ),
+			'description' => __( 'The statements that relate posts to each other (a tool, under Tools).', 'otherguise' ),
+			'capability'  => $this->environment->capability(),
+			'url'         => 'tools.php?page=' . Environment::PAGE,
+			'group'       => 'see-also',
+			'order'       => 10,
+		);
+
+		return $screens;
+	}
+
+	/**
 	 * Adds the screen option "number of statements per page". Called when the page loads.
 	 *
 	 * @return void
