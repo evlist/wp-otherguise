@@ -40,7 +40,7 @@ const check = (label, ok, detail = '') => { (ok ? pass++ : fail++); console.log(
   await Promise.all([page.waitForNavigation(), page.click('#wp-submit')]);
 
   // 1. The screen
-  const r = await page.goto(BASE + '/wp-admin/options-general.php?page=modes');
+  const r = await page.goto(BASE + '/wp-admin/admin.php?page=modes');
   check('the screen opens under Settings (HTTP ' + r.status() + ')', r.status() === 200 && (await body()).includes('Modes'));
   await phpErrors('screen'); await shot('20-modes');
   const t = await body();
@@ -84,7 +84,7 @@ const check = (label, ok, detail = '') => { (ok ? pass++ : fail++); console.log(
 
   // 5b. Disable and enable the modes
   const settingsForm = page.locator('form:has(input[name="modes_settings[enabled]"])');
-  await page.goto(BASE + '/wp-admin/options-general.php?page=modes');
+  await page.goto(BASE + '/wp-admin/admin.php?page=modes');
   check('the setting is on the page, checked once enabled', (await settingsForm.locator('input[name="modes_settings[enabled]"]').isChecked()));
   await settingsForm.locator('input[name="modes_settings[enabled]"]').uncheck();
   await Promise.all([page.waitForNavigation(), settingsForm.locator('input[type=submit]').click()]);
@@ -103,7 +103,7 @@ const check = (label, ok, detail = '') => { (ok ? pass++ : fail++); console.log(
 
   // 6. A template that disappears
   wp('eval \'foreach ( get_posts( array( "post_type" => "wp_template", "name" => "og204-single-print", "numberposts" => 1 ) ) as $p ) { wp_delete_post( $p->ID, true ); }\'');
-  await page.goto(BASE + '/wp-admin/options-general.php?page=modes');
+  await page.goto(BASE + '/wp-admin/admin.php?page=modes');
   check('a template that was deleted is marked missing', (await body()).includes('(missing)'));
   await shot('23-missing');
   const code = sh(`curl -sS -o /dev/null -w "%{http_code}" "${BASE}/?p=${post}&print"`);
@@ -127,7 +127,7 @@ const check = (label, ok, detail = '') => { (ok ? pass++ : fail++); console.log(
   for (const [user, pass_] of [['og204editor', 'ed'], ['og204sub', 'sub']]) {
     const c = await browser.newContext(); const p = await c.newPage();
     await p.goto(BASE + '/wp-login.php'); await p.fill('#user_login', user); await p.fill('#user_pass', pass_); await Promise.all([p.waitForNavigation(), p.click('#wp-submit')]);
-    await p.goto(BASE + '/wp-admin/options-general.php?page=modes');
+    await p.goto(BASE + '/wp-admin/admin.php?page=modes');
     check(user + ': the page is refused', /not allowed to access this page|Sorry/.test(await p.locator('body').innerText()) && !(await p.locator('body').innerText()).includes('Add a variant'));
     await p.goto(BASE + '/wp-admin/profile.php');
     const nonce = (await p.locator('#_wpnonce').first().getAttribute('value')) || '';

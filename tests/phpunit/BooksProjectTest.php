@@ -994,7 +994,7 @@ class BooksProjectTest extends TestCase {
 			$this->assertFalse( $arguments['rewrite'] );
 			$this->assertTrue( $arguments['exclude_from_search'] );
 			$this->assertTrue( $arguments['can_export'] );
-			$this->assertSame( 'options-general.php', $arguments['show_in_menu'] );
+			$this->assertSame( 'otherguise', $arguments['show_in_menu'], 'Under the Otherguise menu.' );
 			$this->assertSame( array( 'title' ), $arguments['supports'] );
 			$this->assertSame( array( 'edit_others_posts' ), array_values( array_unique( $arguments['capabilities'] ) ) );
 		}

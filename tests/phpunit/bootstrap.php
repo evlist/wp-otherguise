@@ -792,6 +792,46 @@ function settings_fields( $group ) {
 }
 
 /**
+ * Stub of settings_errors(): records the call (the notices of the Settings API are not simulated).
+ *
+ * @return void
+ */
+function settings_errors() {
+    otherguise_test_record( 'settings_errors', func_get_args() );
+}
+
+/**
+ * Stub of admin_url(): an address of the administration.
+ *
+ * @param string $path Path.
+ * @return string
+ */
+function admin_url( $path = '' ) {
+    return 'https://example.test/wp-admin/' . $path;
+}
+
+/**
+ * Stub of wp_strip_all_tags().
+ *
+ * @param string $text Text.
+ * @return string
+ */
+function wp_strip_all_tags( $text ) {
+    return trim( strip_tags( (string) $text ) );
+}
+
+/**
+ * Stub of add_menu_page(): records the call and returns a hook suffix.
+ *
+ * @return string
+ */
+function add_menu_page() {
+    otherguise_test_record( 'add_menu_page', func_get_args() );
+
+    return 'toplevel_page_otherguise';
+}
+
+/**
  * Stub of WP_List_Table: the part of the API the statements table uses, with a plain display().
  */
 class WP_List_Table {

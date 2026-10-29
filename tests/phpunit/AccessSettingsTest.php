@@ -253,10 +253,12 @@ class AccessSettingsTest extends TestCase {
 		$screen->add_menu();
 		$screen->register_setting();
 
-		$menu = array_values( array_filter( $GLOBALS['otherguise_test_calls'], static fn( $call ) => 'add_options_page' === $call[0] ) );
+		$menu = array_values( array_filter( $GLOBALS['otherguise_test_calls'], static fn( $call ) => 'add_submenu_page' === $call[0] ) );
 
-		$this->assertSame( 'manage_options', $menu[0][3] );
-		$this->assertSame( 'access', $menu[0][4] );
+		$this->assertSame( 'otherguise', $menu[0][1], 'Under the Otherguise menu.' );
+		$this->assertSame( 'Access', $menu[0][3] );
+		$this->assertSame( 'manage_options', $menu[0][4] );
+		$this->assertSame( 'access', $menu[0][5] );
 
 		$registered = array_values( array_filter( $GLOBALS['otherguise_test_calls'], static fn( $call ) => 'register_setting' === $call[0] ) );
 

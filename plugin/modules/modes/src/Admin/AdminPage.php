@@ -3,12 +3,14 @@
  * SPDX-FileCopyrightText: 2026 Eric van der Vlist <vdv@dyomedea.com>
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * The page under Settings.
+ * The page under the Otherguise menu.
  *
  * @package Otherguise
  */
 
 namespace Otherguise\Modes\Admin;
+
+use Otherguise\Core\AdminMenu;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -42,15 +44,15 @@ final class AdminPage {
 	}
 
 	/**
-	 * Adds the entry to the Settings menu. Called on `admin_menu`.
+	 * Adds the entry to the Otherguise menu. Called on `admin_menu`.
 	 *
 	 * @return void
 	 */
 	public function register_menu() {
 		add_submenu_page(
-			'options-general.php',
+			AdminMenu::SLUG,
 			__( 'Otherguise modes', 'otherguise' ),
-			__( 'Otherguise modes', 'otherguise' ),
+			__( 'Modes', 'otherguise' ),
 			$this->environment->capability(),
 			Environment::PAGE,
 			array( $this, 'render' )

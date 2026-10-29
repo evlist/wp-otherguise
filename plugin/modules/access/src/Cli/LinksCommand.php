@@ -162,7 +162,7 @@ final class LinksCommand {
 	 */
 	public function create( $args, $assoc_args ) {
 		if ( ! (bool) ( $this->enabled )() ) {
-			( $this->fail )( 'The private links are switched off (Settings, Otherguise access): no link is made.' );
+			( $this->fail )( 'The private links are switched off (Otherguise, Access): no link is made.' );
 			return;
 		}
 

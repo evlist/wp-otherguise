@@ -42,7 +42,7 @@ const check = (label, ok, detail = '') => { (ok ? pass++ : fail++); console.log(
     check('before any setting: a new post has no template', np.template === '', JSON.stringify(np));
 
     // The setting on the screen.
-    await page.goto(BASE + '/wp-admin/options-general.php?page=modes');
+    await page.goto(BASE + '/wp-admin/admin.php?page=modes');
     check('the section is on the screen, with one list per type', (await body()).includes('Template of new posts') && (await form().locator('select').count()) >= 2);
     check('the lists start on the default template', (await form().locator('select[name="modes_default_templates[post]"]').inputValue()) === '');
     await form().locator('select[name="modes_default_templates[post]"]').selectOption('og209-rando');
@@ -73,7 +73,7 @@ const check = (label, ok, detail = '') => { (ok ? pass++ : fail++); console.log(
     check('a template that is gone is ignored', np.template === '', JSON.stringify(np));
 
     // Removing the setting from the screen.
-    await page.goto(BASE + '/wp-admin/options-general.php?page=modes');
+    await page.goto(BASE + '/wp-admin/admin.php?page=modes');
     await form().locator('select[name="modes_default_templates[post]"]').selectOption('');
     await Promise.all([page.waitForNavigation(), form().locator('input[type=submit]').click()]);
     check('choosing the default template removes the setting', opt('modes_default_templates') === '[]');

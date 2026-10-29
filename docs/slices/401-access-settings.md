@@ -20,7 +20,7 @@ The settings are read on `init`, priority 1 (not at boot), so that a plugin that
 
 ## Shape
 
-- **Settings → Otherguise access**, like the screen of Books: a form posted to `options.php` (the Settings API checks the nonce and the capability), translatable strings, the option `access_settings` removed by `uninstall`. Classes `Settings\Settings` and `Admin\SettingsScreen`; `Module::boot()` now registers only the screen (in the administration), `init`, the export and the command, and `Module::enable_links()` registers the rest.
+- **Otherguise → Access**, like the screen of Books: a form posted to `options.php` (the Settings API checks the nonce and the capability), translatable strings, the option `access_settings` removed by `uninstall`. Classes `Settings\Settings` and `Admin\SettingsScreen`; `Module::boot()` now registers only the screen (in the administration), `init`, the export and the command, and `Module::enable_links()` registers the rest.
 - A filter lets another plugin force a value; they run at the default priority and no other plugin is known to answer them.
 
 ## Tests

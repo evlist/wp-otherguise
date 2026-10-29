@@ -116,4 +116,4 @@ PHPUnit (unit and integration), phpcs and `reuse lint` pass; the architecture te
 
 > **Later change:** the modules no longer have a text domain of their own: every string uses `otherguise` (the slug of the plugin, which Plugin Check and WordPress.org require), and the modules no longer load a domain. See [IA.md](../IA.md), rule 4. What is written above about `triples` and `modes` as text domains is history.
 
-> **Later change (menus):** the entries are named after the plugin so that an administrator who has just installed it can find them: **Tools → Otherguise relations** and, since the modes screen is mostly a setting, **Settings → Otherguise modes** (`options-general.php?page=modes`). The page slugs are unchanged. The screenshots above show the earlier titles.
+> **Later change (menus):** the entries are named after the plugin so that an administrator who has just installed it can find them: **Tools → Otherguise relations** and, since the modes screen is mostly a setting, **Otherguise → Modes** (`options-general.php?page=modes`). The page slugs are unchanged. The screenshots above show the earlier titles.

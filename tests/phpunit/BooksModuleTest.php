@@ -163,11 +163,13 @@ class BooksModuleTest extends TestCase {
 		);
 
 		$screen->add_menu();
-		$menu = $this->calls( 'add_options_page' );
+		$menu = $this->calls( 'add_submenu_page' );
 
 		$this->assertCount( 1, $menu );
-		$this->assertSame( 'manage_options', $menu[0][3] );
-		$this->assertSame( 'books', $menu[0][4] );
+		$this->assertSame( 'otherguise', $menu[0][1], 'Under the Otherguise menu.' );
+		$this->assertSame( 'Books', $menu[0][3] );
+		$this->assertSame( 'manage_options', $menu[0][4] );
+		$this->assertSame( 'books', $menu[0][5] );
 
 		update_option( PageFormat::OPTION, array( 'width_mm' => 120.5 ) );
 		ob_start();

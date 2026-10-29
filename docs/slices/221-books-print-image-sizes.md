@@ -36,7 +36,7 @@ The theme uses the names in its print templates: `size` in the block `wp-media-h
 
 - Media Helper schedules the generation after an import whatever `DISABLE_WP_CRON` says, makes the missing sizes on demand, detects a size whose definition changed (fingerprint of the registered sizes, catch-up in batches) and offers `wp media-helper thumbnails generate [--size=<names>] [--stale] [--post-ids=<ids>] …`.
 - **The first time Media Helper sees the fingerprint it only records it**: when the sizes are first declared, run once for the existing photos `wp media-helper thumbnails generate --size="$(wp otherguise books sizes --format=names)"` (with `--dry-run` first, then perhaps `--post-ids=<the posts of the book>`).
-- Changing the page format (**Settings → Otherguise books**) changes the dimensions: Media Helper sees it at the next request and catches up in the background; the PDF cache of slice 220 is keyed on the page format, so the PDF files are made again.
+- Changing the page format (**Otherguise → Books**) changes the dimensions: Media Helper sees it at the next request and catches up in the background; the PDF cache of slice 220 is keyed on the page format, so the PDF files are made again.
 
 ## Verified
 

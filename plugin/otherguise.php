@@ -82,6 +82,7 @@ function otherguise_bootstrap() {
 	$loader = new \Otherguise\Core\ModuleLoader( $modules, is_array( $enabled ) ? $enabled : null );
 
 	\Otherguise\Core\Modules::set( $loader );
+	( new \Otherguise\Core\AdminMenu() )->register();
 	$loader->boot();
 }
 add_action( 'plugins_loaded', 'otherguise_bootstrap' );

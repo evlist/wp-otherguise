@@ -7,7 +7,7 @@ Status: **planned, not a priority** (Eric: these parameters are rarely changed);
 
 ## Goal
 
-Two remarks of Eric on the screen **Settings → Otherguise modes**:
+Two remarks of Eric on the screen **Otherguise → Modes**:
 
 1. To change the variant of a row, or the modes it serves, one has to delete the row and create it again.
 2. Each addition or removal is saved at once, which is surprising: the habit of WordPress settings screens is to change things, then press **Save**.

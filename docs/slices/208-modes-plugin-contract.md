@@ -42,7 +42,7 @@ add_action( 'modes_register_options', function ( $options ) {
 
 Types: `string` (at most 191 bytes), `integer`, `boolean`, `choice` (with `choices`). The key is namespaced by the plugin (`vendor/name`), like the predicates of Triples. The value of a mode is validated against the declaration before it is stored.
 
-**The screen**: a section **Options** under the stylesheets of **Settings → Otherguise modes**: one table per plugin (the part of the key before the slash), a row per option, a column per mode, one **Save** button for the section (the habit of WordPress, as asked for the variants in slice 206). Nothing is shown when no plugin declares an option.
+**The screen**: a section **Options** under the stylesheets of **Otherguise → Modes**: one table per plugin (the part of the key before the slash), a row per option, a column per mode, one **Save** button for the section (the habit of WordPress, as asked for the variants in slice 206). Nothing is shown when no plugin declares an option.
 
 **Storage**: the WordPress option `modes_options` (`{ mode: { key: value } }`). These are settings, not relations, and nobody queries them by value; Triples is not needed. A value that is not set falls back to the default of the declaration, then to the one the caller passed.
 

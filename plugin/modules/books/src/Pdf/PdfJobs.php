@@ -440,7 +440,7 @@ final class PdfJobs {
 		}
 
 		if ( 'publish' !== ( $info['status'] ?? '' ) && empty( $info['allowed'] ?? true ) ) {
-			return new \WP_Error( 'books_pdf_link_forbidden', __( 'You may not make the private link that the PDF of a post that is not published needs (Settings, Otherguise access).', 'otherguise' ), array( 'status' => 403 ) );
+			return new \WP_Error( 'books_pdf_link_forbidden', __( 'You may not make the private link that the PDF of a post that is not published needs (Otherguise, Access).', 'otherguise' ), array( 'status' => 403 ) );
 		}
 
 		if ( $create && '' === (string) ( $info['url'] ?? '' ) ) {

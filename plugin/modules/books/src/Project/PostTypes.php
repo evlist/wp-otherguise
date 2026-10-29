@@ -10,6 +10,8 @@
 
 namespace Otherguise\Books\Project;
 
+use Otherguise\Core\AdminMenu;
+
 defined( 'ABSPATH' ) || exit;
 
 /**
@@ -73,7 +75,7 @@ final class PostTypes {
 			'publicly_queryable'  => false,
 			'exclude_from_search' => true,
 			'show_ui'             => true,
-			'show_in_menu'        => 'options-general.php',
+			'show_in_menu'        => AdminMenu::SLUG,
 			'show_in_nav_menus'   => false,
 			'show_in_admin_bar'   => false,
 			'show_in_rest'        => false,

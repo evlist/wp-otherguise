@@ -9,7 +9,7 @@ Status: **coded (2026-10-20), tried against a stand-in of Gotenberg, never again
 
 Eric converts one post to PDF with a Gotenberg container (Chromium behind an HTTP API) and gets a correct file (962 KB, about 21 s, map and photos). Two things are wanted in the plugin:
 
-1. **Decided.** In the settings screen **Settings → Otherguise books**, a section to enter **the address of the Gotenberg server**.
+1. **Decided.** In the settings screen **Otherguise → Books**, a section to enter **the address of the Gotenberg server**.
 2. **Decided.** In the preview panel, a **second mode, available only when the server is configured**, that shows the **PDF page** instead of the HTML rendering. The switch is made with **"Web" / "PDF" buttons in the bar of the panel**, and the PDF has a **download** button and/or an **open in a new tab** button.
 
 ## Why the plugin has to be in the middle (Proposed)
@@ -78,7 +78,7 @@ The key of the cache (post, its last change, mode, format, settings) **does not 
 
 ## Built, and what differs from the plan
 
-What exists: `Render\ServerAddress`, `Render\Multipart`, `Render\Renderer` and `Render\GotenbergClient`; `Settings\RendererSettings` (option `books_renderer`); `Pdf\PdfStore`, `Pdf\JobState`, `Pdf\PdfJobs`, `Pdf\WordPressPosts`; `Rest\PdfRoutes` (`books/v1`); the section **PDF server** of **Settings → Otherguise books**; the "Web / PDF" views, download and open buttons in `panel.js`; the cron events `books_render_pdf` and the daily `books_pdf_cleanup`. Differences from the proposal above:
+What exists: `Render\ServerAddress`, `Render\Multipart`, `Render\Renderer` and `Render\GotenbergClient`; `Settings\RendererSettings` (option `books_renderer`); `Pdf\PdfStore`, `Pdf\JobState`, `Pdf\PdfJobs`, `Pdf\WordPressPosts`; `Rest\PdfRoutes` (`books/v1`); the section **PDF server** of **Otherguise → Books**; the "Web / PDF" views, download and open buttons in `panel.js`; the cron events `books_render_pdf` and the daily `books_pdf_cleanup`. Differences from the proposal above:
 
 - **The file route answers JSON, not `application/pdf`**: `{ filename, base64, pages }`. The editor decodes it into a `Blob`. Simpler than streaming through the REST server, and fine for a PDF of a post (a few MB); to revisit for large books.
 - **The waits are settings, with no wait by default.** Gotenberg's documentation (read on 2026-10-20) says it waits for nothing by default: `waitDelay` (a duration), `waitForExpression` (a JavaScript expression, awaited), `waitForSelector` (an element that appears), and `skipNetworkIdleEvent` which is **already `true` by default** (so the advice given in the chat to set it was a no-op). The screen has "Wait (seconds)" (default 0), "Wait until (JavaScript)" and "Wait for (CSS selector)", all optional; Eric thought the fixed delay might be superfluous in the 21 s of the trial.
