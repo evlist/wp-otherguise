@@ -20,4 +20,6 @@ Status: **coded (2026-10-31)**. Dependencies: slice 230 (the two types of conten
 
 On a scratch WordPress 7.1.3, logged in as admin in Chromium, with a box and a column added to every type by a test plugin: the menu "Book projects" between "Pages" and "Comments", the Otherguise submenu without it; the lists without quick edit, with the new columns and labels, without the column of the other plugin; the edit screen with the box of the type and the box Save only; a save shows "Book project saved."; a new project saved from "Add a book project" is published.
 
+**Rights**: the two types have one capability for everything (`edit_others_posts`: editors and administrators); an overall reflection on the rights of Otherguise is to be made, see [`../design/capabilities.md`](../design/capabilities.md) (open).
+
 **Not verified**: testing and the production site (with the real boxes of OSM and Kaya), a user other than the administrator, the translations of the new strings (no `.pot` update).

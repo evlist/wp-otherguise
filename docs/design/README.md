@@ -12,6 +12,7 @@ The reasoning behind the decisions of Otherguise: what was considered, what was 
 | [books.md](books.md) | The `Books` module: composing a book, the manual finishing chain, table of contents, index, PDF output |
 | [media-helper.md](media-helper.md) | Integration with Media Helper |
 | [usage-examples.md](usage-examples.md) | Usage examples of the planned API: templates, photos, modes, books |
+| [capabilities.md](capabilities.md) | Rights of access of the screens, the types of content and the tokens: the state of the code and the questions of an overall reflection (**open**) |
 | [packaging.md](packaging.md) | One plugin with three modules: reasons and the rules that keep a later split cheap |
 | [rollout.md](https://github.com/evlist/shared-room/blob/main/docs/design/rollout.md) | Moved to `shared-room`: rolling out to the production blog (the loop production, staging, testing; the order of the steps) |
 
