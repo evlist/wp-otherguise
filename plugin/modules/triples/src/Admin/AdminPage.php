@@ -10,6 +10,8 @@
 
 namespace Otherguise\Triples\Admin;
 
+use Otherguise\Core\AdminMenu;
+
 defined( 'ABSPATH' ) || exit;
 
 /**
@@ -69,13 +71,14 @@ final class AdminPage {
 	}
 
 	/**
-	 * Adds the entry to the Tools menu. Called on `admin_menu`.
+	 * Adds the entry to the Otherguise menu, after the settings pages (priority 20), set apart from them by a line: it is a tool. Called on
+	 * `admin_menu`.
 	 *
 	 * @return void
 	 */
 	public function register_menu() {
 		$hook = add_submenu_page(
-			'tools.php',
+			AdminMenu::SLUG,
 			__( 'Otherguise relations', 'otherguise' ),
 			__( 'Otherguise relations', 'otherguise' ),
 			$this->environment->capability(),
@@ -89,8 +92,8 @@ final class AdminPage {
 	}
 
 	/**
-	 * Declares the screen to the hub "Otherguise" of the Settings menu, in "See also": the relations are a tool, under Tools, not a setting.
-	 * Filter `otherguise_admin_screens`.
+	 * Declares the screen to the overview of the Otherguise menu, with the tools: the relations are a tool, not a setting. Filter
+	 * `otherguise_admin_screens`.
 	 *
 	 * @param mixed $screens The screens declared so far.
 	 * @return array<int|string, mixed>
@@ -99,10 +102,10 @@ final class AdminPage {
 		$screens   = is_array( $screens ) ? $screens : array();
 		$screens[] = array(
 			'title'       => __( 'Otherguise relations', 'otherguise' ),
-			'description' => __( 'The statements that relate posts to each other (a tool, under Tools).', 'otherguise' ),
+			'description' => __( 'The statements that relate posts to each other (a tool).', 'otherguise' ),
 			'capability'  => $this->environment->capability(),
-			'url'         => 'tools.php?page=' . Environment::PAGE,
-			'group'       => 'see-also',
+			'page'        => Environment::PAGE,
+			'group'       => 'tools',
 			'order'       => 10,
 		);
 

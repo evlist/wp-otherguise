@@ -10,7 +10,7 @@
 
 namespace Otherguise\Triples\Admin;
 
-use Otherguise\Core\AdminHub;
+use Otherguise\Core\AdminMenu;
 
 use Otherguise\Triples\Datatype\DatatypeRegistry;
 use Otherguise\Triples\Entity\EntityTypeRegistry;
@@ -77,8 +77,8 @@ final class Admin {
 	 * @return void
 	 */
 	public function register( $add_action ) {
-		$add_action( 'admin_menu', array( $this->page, 'register_menu' ) );
-		$add_action( AdminHub::FILTER, array( $this->page, 'declare_screen' ), 10, 1 );
+		$add_action( 'admin_menu', array( $this->page, 'register_menu' ), 20, 0 );
+		$add_action( AdminMenu::FILTER, array( $this->page, 'declare_screen' ), 10, 1 );
 		$add_action( 'admin_init', array( $this->settings, 'register' ) );
 		$add_action( 'option_page_capability_' . SettingsPage::GROUP, array( $this->settings, 'capability' ) );
 		$add_action( 'set_screen_option_' . Environment::PER_PAGE_OPTION, array( $this->page, 'save_screen_option' ), 10, 3 );

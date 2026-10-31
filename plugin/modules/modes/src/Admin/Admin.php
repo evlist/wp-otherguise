@@ -10,7 +10,7 @@
 
 namespace Otherguise\Modes\Admin;
 
-use Otherguise\Core\AdminHub;
+use Otherguise\Core\AdminMenu;
 
 use Otherguise\Modes\Mode\ModeRegistry;
 use Otherguise\Modes\Settings\DefaultTemplates;
@@ -89,7 +89,7 @@ final class Admin {
 	 */
 	public function register( $add_action ) {
 		$add_action( 'admin_menu', array( $this->page, 'register_menu' ) );
-		$add_action( AdminHub::FILTER, array( $this->page, 'declare_screen' ), 10, 1 );
+		$add_action( AdminMenu::FILTER, array( $this->page, 'declare_screen' ), 10, 1 );
 		$add_action( 'admin_init', array( $this->panel, 'register' ) );
 		$add_action( 'admin_init', array( $this->defaults, 'register' ) );
 		$add_action( 'option_page_capability_' . SettingsPanel::GROUP, array( $this->panel, 'capability' ) );

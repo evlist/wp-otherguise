@@ -11,17 +11,17 @@
 namespace Otherguise\Access\Admin;
 
 use Otherguise\Access\Settings\Settings;
-use Otherguise\Core\AdminHub;
+use Otherguise\Core\AdminMenu;
 
 defined( 'ABSPATH' ) || exit;
 
 /**
- * **Settings → Otherguise → Access** (slice 401). The form is posted to `options.php`, so the Settings API checks the nonce and the
+ * **Otherguise → Access** (slice 401). The form is posted to `options.php`, so the Settings API checks the nonce and the
  * capability (`manage_options`, changed by the filter `access_admin_capability`).
  */
 final class SettingsScreen {
 	/**
-	 * Slug of the page, under Settings, reached from the hub.
+	 * Slug of the page, under the Otherguise menu.
 	 */
 	public const PAGE = 'access';
 
@@ -63,13 +63,13 @@ final class SettingsScreen {
 	 */
 	public function register( $add_action ) {
 		$add_action( 'admin_menu', array( $this, 'add_menu' ), 10, 0 );
-		$add_action( AdminHub::FILTER, array( $this, 'declare_screen' ), 10, 1 );
+		$add_action( AdminMenu::FILTER, array( $this, 'declare_screen' ), 10, 1 );
 		$add_action( 'admin_init', array( $this, 'register_setting' ), 10, 0 );
 		$add_action( 'option_page_capability_' . self::GROUP, array( $this, 'capability' ), 10, 0 );
 	}
 
 	/**
-	 * Declares the screen to the hub "Otherguise" of the Settings menu. Filter `otherguise_admin_screens`.
+	 * Declares the screen to the overview of the Otherguise menu. Filter `otherguise_admin_screens`.
 	 *
 	 * @param mixed $screens The screens declared so far.
 	 * @return array<int|string, mixed>
@@ -116,14 +116,15 @@ final class SettingsScreen {
 	}
 
 	/**
-	 * Adds the page to the Settings menu, which the hub "Otherguise" then takes out of the menu (it leads to it). Action `admin_menu`.
+	 * Adds the page to the Otherguise menu. Action `admin_menu`.
 	 *
 	 * @return void
 	 */
 	public function add_menu() {
-		add_options_page(
+		add_submenu_page(
+			AdminMenu::SLUG,
 			__( 'Otherguise access', 'otherguise' ),
-			__( 'Otherguise access', 'otherguise' ),
+			__( 'Access', 'otherguise' ),
 			$this->capability(),
 			self::PAGE,
 			array( $this, 'render' )
@@ -146,6 +147,8 @@ final class SettingsScreen {
 		};
 
 		echo '<div class="wrap"><h1>' . esc_html__( 'Otherguise access', 'otherguise' ) . '</h1>';
+		// The screens of the Settings menu print the notices of the Settings API by themselves; this one is under the Otherguise menu.
+		settings_errors();
 		echo '<form method="post" action="options.php">';
 		settings_fields( self::GROUP );
 		echo '<table class="form-table" role="presentation"><tbody>';

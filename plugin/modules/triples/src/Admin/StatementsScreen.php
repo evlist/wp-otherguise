@@ -94,7 +94,7 @@ final class StatementsScreen {
 		$table->set_page( $page, $filters->per_page );
 		$this->filters_form( $filters );
 
-		echo '<form method="get" action="' . esc_url( $this->environment->admin_url( 'tools.php' ) ) . '">';
+		echo '<form method="get" action="' . esc_url( $this->environment->admin_url( 'admin.php' ) ) . '">';
 		echo '<input type="hidden" name="page" value="' . esc_attr( Environment::PAGE ) . '" /><input type="hidden" name="tab" value="statements" />';
 
 		foreach ( $filters->to_args() as $name => $value ) {
@@ -120,7 +120,7 @@ final class StatementsScreen {
 	 * @return void
 	 */
 	private function filters_form( StatementsFilters $filters ) {
-		echo '<form method="get" action="' . esc_url( $this->environment->admin_url( 'tools.php' ) ) . '" class="triples-filters" style="margin:1em 0">';
+		echo '<form method="get" action="' . esc_url( $this->environment->admin_url( 'admin.php' ) ) . '" class="triples-filters" style="margin:1em 0">';
 		echo '<input type="hidden" name="page" value="' . esc_attr( Environment::PAGE ) . '" /><input type="hidden" name="tab" value="statements" />';
 
 		echo '<label style="display:inline-block;margin:0 1em .5em 0">' . esc_html__( 'Predicate', 'otherguise' ) . ' <select name="predicate"><option value="">' . esc_html__( 'All', 'otherguise' ) . '</option>';

@@ -87,7 +87,7 @@ class Environment {
 	 * @return string
 	 */
 	public function page_url( array $args = array() ) {
-		return $this->admin_url( 'tools.php?' . http_build_query( array( 'page' => self::PAGE ) + $args ) );
+		return $this->admin_url( 'admin.php?' . http_build_query( array( 'page' => self::PAGE ) + $args ) );
 	}
 
 	/**

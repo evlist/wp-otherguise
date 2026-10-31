@@ -198,7 +198,7 @@ class TriplesAdminActionsDbTest extends Otherguise_Test_Database_Case {
 
 		$url = $this->redirect_of( 'delete' );
 
-		$this->assertStringContainsString( 'tools.php?page=triples&tab=statements&triples_notice=deleted&n=3', $url );
+		$this->assertStringContainsString( 'admin.php?page=triples&tab=statements&triples_notice=deleted&n=3', $url );
 		$this->assertSame( array( $kept->id() ), array_map( static fn( Statement $statement ) => $statement->id(), $this->statements->match() ) );
 		$this->assertSame(
 			array( 'deleted:' . $link->id(), 'deleted:' . $mode->id(), 'deleted:' . $other->id() ),

@@ -974,11 +974,19 @@ class BooksProjectTest extends TestCase {
 	}
 
 	/**
-	 * The two lists of contents are declared to the hub "Otherguise" of the Settings menu, for those who can edit others' posts.
+	 * The two lists of contents are added to the Otherguise menu, and declared to its overview, for those who can edit others' posts.
 	 *
 	 * @return void
 	 */
-	public function test_the_post_types_declare_their_lists_to_the_hub(): void {
+	public function test_the_post_types_are_added_to_the_menu_and_declared(): void {
+		( new PostTypes() )->add_menu();
+
+		$menu = array_values( array_filter( $GLOBALS['otherguise_test_calls'], static fn( $call ) => 'add_submenu_page' === $call[0] ) );
+
+		$this->assertCount( 2, $menu );
+		$this->assertSame( array( 'otherguise', 'Printer profiles', 'Printer profiles', 'edit_others_posts', 'edit.php?post_type=books_printer' ), array_slice( $menu[0], 1, 5 ) );
+		$this->assertSame( array( 'otherguise', 'Book projects', 'Book projects', 'edit_others_posts', 'edit.php?post_type=books_project' ), array_slice( $menu[1], 1, 5 ) );
+
 		$screens = ( new PostTypes() )->declare_screens( array( 'kept' ) );
 
 		$this->assertSame( 'kept', $screens[0] );
@@ -1008,7 +1016,7 @@ class BooksProjectTest extends TestCase {
 			$this->assertFalse( $arguments['rewrite'] );
 			$this->assertTrue( $arguments['exclude_from_search'] );
 			$this->assertTrue( $arguments['can_export'] );
-			$this->assertFalse( $arguments['show_in_menu'], 'Not in the menu: the hub of the Settings menu leads to the list.' );
+			$this->assertFalse( $arguments['show_in_menu'], 'Not in the menu by the type: add_menu() adds the entries after the settings pages.' );
 			$this->assertSame( array( 'title' ), $arguments['supports'] );
 			$this->assertSame( array( 'edit_others_posts' ), array_values( array_unique( $arguments['capabilities'] ) ) );
 		}

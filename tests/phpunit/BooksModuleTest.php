@@ -81,7 +81,7 @@ class BooksModuleTest extends TestCase {
 		$this->assertSame(
 			array(
 				'admin_init'                         => array( array( 'register', 10, 0 ), array( 'schedule_cleanup', 10, 0 ) ),
-				'admin_menu'                         => array( array( 'add_menu', 10, 0 ) ),
+				'admin_menu'                         => array( array( 'add_menu', 10, 0 ), array( 'add_menu', 11, 0 ) ),
 				'otherguise_admin_screens'           => array( array( 'declare_screen', 10, 1 ), array( 'declare_screens', 10, 1 ) ),
 				'option_page_capability_books_settings_group' => array( array( 'save_capability', 10, 0 ) ),
 				'enqueue_block_editor_assets'        => array( array( 'enqueue', 10, 0 ), array( 'enqueue', 10, 0 ) ),
@@ -164,11 +164,13 @@ class BooksModuleTest extends TestCase {
 		);
 
 		$screen->add_menu();
-		$menu = $this->calls( 'add_options_page' );
+		$menu = $this->calls( 'add_submenu_page' );
 
 		$this->assertCount( 1, $menu );
-		$this->assertSame( 'manage_options', $menu[0][3] );
-		$this->assertSame( 'books', $menu[0][4] );
+		$this->assertSame( 'otherguise', $menu[0][1], 'Under the Otherguise menu.' );
+		$this->assertSame( 'Books', $menu[0][3] );
+		$this->assertSame( 'manage_options', $menu[0][4] );
+		$this->assertSame( 'books', $menu[0][5] );
 
 		$declared = $screen->declare_screen( array() );
 

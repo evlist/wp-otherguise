@@ -571,7 +571,7 @@ function delete_metadata() {
 function add_submenu_page() {
     otherguise_test_record( 'add_submenu_page', func_get_args() );
 
-    return 'tools_page_triples';
+    return 'otherguise_page_triples';
 }
 
 /**

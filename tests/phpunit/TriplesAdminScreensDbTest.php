@@ -132,14 +132,14 @@ class TriplesAdminScreensDbTest extends Otherguise_Test_Database_Case {
 	public function test_the_menu_entry(): void {
 		$this->page->register_menu();
 
-		$this->assertSame( array( 'add_submenu_page', 'tools.php', 'Otherguise relations', 'Otherguise relations', 'manage_options', 'triples', array( $this->page, 'render' ) ), $GLOBALS['otherguise_test_calls'][0] );
-		$this->assertSame( array( $this->page, 'load' ), $this->added['load-tools_page_triples'] );
+		$this->assertSame( array( 'add_submenu_page', 'otherguise', 'Otherguise relations', 'Otherguise relations', 'manage_options', 'triples', array( $this->page, 'render' ) ), $GLOBALS['otherguise_test_calls'][0] );
+		$this->assertSame( array( $this->page, 'load' ), $this->added['load-otherguise_page_triples'] );
 
 		$screens = $this->page->declare_screen( array( 'kept' ) );
 
 		$this->assertSame( 'kept', $screens[0] );
-		$this->assertSame( 'see-also', $screens[1]['group'], 'A tool, not a setting: under See also of the hub.' );
-		$this->assertSame( 'tools.php?page=triples', $screens[1]['url'] );
+		$this->assertSame( 'tools', $screens[1]['group'], 'A tool, not a setting: with the tools of the Otherguise menu.' );
+		$this->assertSame( 'triples', $screens[1]['page'] );
 		$this->assertSame( 'manage_options', $screens[1]['capability'] );
 
 		$this->page->load();

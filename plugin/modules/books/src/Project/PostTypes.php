@@ -10,11 +10,13 @@
 
 namespace Otherguise\Books\Project;
 
+use Otherguise\Core\AdminMenu;
+
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Registers `books_printer` (a printer profile) and `books_project` (a book project) (slice 230). Both are reached from the hub **Settings →
- * Otherguise** (they are not in the menu) by users who can `edit_others_posts`, have no page on the site (not public, no rewrite, not in the search, the sitemaps or the REST API) and are
+ * Registers `books_printer` (a printer profile) and `books_project` (a book project) (slice 230). Both are in the **Otherguise** menu (their
+ * entries are added after the settings pages, `add_menu()`) for users who can `edit_others_posts`, have no page on the site (not public, no rewrite, not in the search, the sitemaps or the REST API) and are
  * exported with the site. They are edited with a meta box, so the block editor is not used.
  */
 final class PostTypes {
@@ -49,7 +51,22 @@ final class PostTypes {
 	}
 
 	/**
-	 * Declares the two lists of contents to the hub "Otherguise" of the Settings menu. Filter `otherguise_admin_screens`.
+	 * Adds the two lists of contents to the Otherguise menu, after the settings pages (priority 11 of `admin_menu`): `show_in_menu` would add them
+	 * before. Action `admin_menu`.
+	 *
+	 * @return void
+	 */
+	public function add_menu() {
+		foreach ( array(
+			self::PROFILE => __( 'Printer profiles', 'otherguise' ),
+			self::PROJECT => __( 'Book projects', 'otherguise' ),
+		) as $type => $title ) {
+			add_submenu_page( AdminMenu::SLUG, $title, $title, 'edit_others_posts', 'edit.php?post_type=' . $type );
+		}
+	}
+
+	/**
+	 * Declares the two lists of contents to the overview of the Otherguise menu. Filter `otherguise_admin_screens`.
 	 *
 	 * @param mixed $screens The screens declared so far.
 	 * @return array<int|string, mixed>
@@ -99,7 +116,7 @@ final class PostTypes {
 			'publicly_queryable'  => false,
 			'exclude_from_search' => true,
 			'show_ui'             => true,
-			'show_in_menu'        => false,
+			'show_in_menu'        => false, // `add_menu()` adds them to the Otherguise menu.
 			'show_in_nav_menus'   => false,
 			'show_in_admin_bar'   => false,
 			'show_in_rest'        => false,

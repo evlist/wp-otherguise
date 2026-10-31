@@ -39,7 +39,7 @@ const statements = () => parseInt(wp('eval \'echo count(triples_statements()->ma
   page.on('response', r => { if (r.status() >= 400 && !r.url().includes('favicon')) problems.push(r.status() + ' ' + r.url()); });
   const body = () => page.locator('body').innerText();
   const addForm = () => page.locator('form:has(input[value=modes_add_stylesheet])');
-  const open = () => page.goto(BASE + '/wp-admin/options-general.php?page=modes');
+  const open = () => page.goto(BASE + '/wp-admin/admin.php?page=modes');
   try {
     await page.goto(BASE + '/wp-login.php'); await page.fill('#user_login', 'admin'); await page.fill('#user_pass', 'admin');
     await Promise.all([page.waitForNavigation(), page.click('#wp-submit')]);
