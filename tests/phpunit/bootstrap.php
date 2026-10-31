@@ -654,6 +654,25 @@ function register_post_type() {
 }
 
 /**
+ * Stub of remove_meta_box(): records the call.
+ *
+ * @return void
+ */
+function remove_meta_box() {
+    otherguise_test_record( 'remove_meta_box', func_get_args() );
+}
+
+/**
+ * Stub of get_delete_post_link(): the address that moves a post to the trash.
+ *
+ * @param int $id Post.
+ * @return string
+ */
+function get_delete_post_link( $id = 0 ) {
+    return 'https://example.test/wp-admin/post.php?post=' . (int) $id . '&action=trash';
+}
+
+/**
  * Stub of add_meta_box(): records the call.
  *
  * @return void

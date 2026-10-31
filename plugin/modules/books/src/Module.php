@@ -32,6 +32,7 @@ use Otherguise\Books\Pdf\JobState;
 use Otherguise\Books\Pdf\PdfJobs;
 use Otherguise\Books\Pdf\PdfStore;
 use Otherguise\Books\Pdf\WordPressPosts;
+use Otherguise\Books\Project\EditScreens;
 use Otherguise\Books\Project\MetaBoxes;
 use Otherguise\Books\Project\PostTypes;
 use Otherguise\Books\Project\PrinterProfile;
@@ -151,6 +152,7 @@ final class Module implements ModuleInterface {
 		$section_editor = new SectionEditor( $this->section_url, array( new WordPressPostStore(), 'types' ) );
 		$types          = new PostTypes();
 		$boxes          = new MetaBoxes( array( $this, 'section_titles' ), array( new WordPressProjects(), 'profiles' ), $this->links() );
+		$screens        = new EditScreens( array( $this, 'section_titles' ), array( new WordPressProjects(), 'profiles' ), $this->links() );
 		$styles         = new PrintStyles( $this->projects(), array( $this, 'is_print_request' ) );
 
 		( $this->add_action )( 'admin_init', array( $settings, 'register' ), 10, 0 );
@@ -179,6 +181,7 @@ final class Module implements ModuleInterface {
 		( $this->add_action )( 'init', array( $types, 'register' ), 10, 0 );
 		( $this->add_action )( 'add_meta_boxes', array( $boxes, 'add' ), 10, 0 );
 		( $this->add_action )( 'save_post_' . PostTypes::PROFILE, array( $boxes, 'save_profile' ), 10, 1 );
+		$this->hook_screens( $screens );
 		( $this->add_action )( 'save_post_' . PostTypes::PROJECT, array( $boxes, 'save_project' ), 10, 1 );
 		( $this->add_action )( 'wp_enqueue_scripts', array( $styles, 'enqueue' ), 20, 0 );
 	}
@@ -355,6 +358,30 @@ final class Module implements ModuleInterface {
 				( new MergeLog() )->write( $event, $fields );
 			}
 		);
+	}
+
+	/**
+	 * Hooks the lists and the edit screens of the two types (slice 234): no quick edit, no status, the columns of what they are, no box of the
+	 * other plugins, a box "Save" and no draft.
+	 *
+	 * @param EditScreens $screens The screens.
+	 * @return void
+	 */
+	private function hook_screens( EditScreens $screens ) {
+		( $this->add_action )( 'post_row_actions', array( $screens, 'row_actions' ), 10, 2 );
+		( $this->add_action )( 'wp_insert_post_data', array( $screens, 'publish' ), 10, 1 );
+		( $this->add_action )( 'post_updated_messages', array( $screens, 'messages' ), 10, 1 );
+
+		foreach ( array( PostTypes::PROFILE, PostTypes::PROJECT ) as $type ) {
+			( $this->add_action )( 'bulk_actions-edit-' . $type, array( $screens, 'bulk_actions' ), 10, 1 );
+			( $this->add_action )( 'views_edit-' . $type, array( $screens, 'views' ), 10, 1 );
+			( $this->add_action )( 'add_meta_boxes_' . $type, array( $screens, 'boxes' ), 999, 1 );
+		}
+
+		( $this->add_action )( 'manage_' . PostTypes::PROFILE . '_posts_columns', array( $screens, 'profile_columns' ), 999, 1 );
+		( $this->add_action )( 'manage_' . PostTypes::PROJECT . '_posts_columns', array( $screens, 'project_columns' ), 999, 1 );
+		( $this->add_action )( 'manage_' . PostTypes::PROFILE . '_posts_custom_column', array( $screens, 'profile_column' ), 10, 2 );
+		( $this->add_action )( 'manage_' . PostTypes::PROJECT . '_posts_custom_column', array( $screens, 'project_column' ), 10, 2 );
 	}
 
 	/**

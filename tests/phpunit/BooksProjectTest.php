@@ -974,25 +974,24 @@ class BooksProjectTest extends TestCase {
 	}
 
 	/**
-	 * The two lists of contents are added to the Otherguise menu, and declared to its overview, for those who can edit others' posts.
+	 * The list of the printer profiles is added to the Otherguise menu and declared to its overview, for those who can edit others' posts.
 	 *
 	 * @return void
 	 */
-	public function test_the_post_types_are_added_to_the_menu_and_declared(): void {
+	public function test_the_profiles_are_added_to_the_menu_and_declared(): void {
 		( new PostTypes() )->add_menu();
 
 		$menu = array_values( array_filter( $GLOBALS['otherguise_test_calls'], static fn( $call ) => 'add_submenu_page' === $call[0] ) );
 
-		$this->assertCount( 2, $menu );
+		$this->assertCount( 1, $menu, 'Only the profiles: a book project has a menu of its own.' );
 		$this->assertSame( array( 'otherguise', 'Printer profiles', 'Printer profiles', 'edit_others_posts', 'edit.php?post_type=books_printer' ), array_slice( $menu[0], 1, 5 ) );
-		$this->assertSame( array( 'otherguise', 'Book projects', 'Book projects', 'edit_others_posts', 'edit.php?post_type=books_project' ), array_slice( $menu[1], 1, 5 ) );
 
 		$screens = ( new PostTypes() )->declare_screens( array( 'kept' ) );
 
 		$this->assertSame( 'kept', $screens[0] );
 		$this->assertSame( array( 'Printer profiles', 'books_printer', 'edit_others_posts', 40 ), array( $screens[1]['title'], $screens[1]['post_type'], $screens[1]['capability'], $screens[1]['order'] ) );
-		$this->assertSame( array( 'Book projects', 'books_project', 'edit_others_posts', 50 ), array( $screens[2]['title'], $screens[2]['post_type'], $screens[2]['capability'], $screens[2]['order'] ) );
-		$this->assertCount( 2, ( new PostTypes() )->declare_screens( 'not an array' ) );
+		$this->assertCount( 2, $screens, 'The overview of the Otherguise menu lists the profiles only.' );
+		$this->assertCount( 1, ( new PostTypes() )->declare_screens( 'not an array' ) );
 	}
 
 	/**
@@ -1016,10 +1015,19 @@ class BooksProjectTest extends TestCase {
 			$this->assertFalse( $arguments['rewrite'] );
 			$this->assertTrue( $arguments['exclude_from_search'] );
 			$this->assertTrue( $arguments['can_export'] );
-			$this->assertFalse( $arguments['show_in_menu'], 'Not in the menu by the type: add_menu() adds the entries after the settings pages.' );
 			$this->assertSame( array( 'title' ), $arguments['supports'] );
 			$this->assertSame( array( 'edit_others_posts' ), array_values( array_unique( $arguments['capabilities'] ) ) );
+			$this->assertSame( $arguments['labels']['name'], $arguments['labels']['menu_name'] );
+			$this->assertArrayHasKey( 'search_items', $arguments['labels'], 'The labels are those of the type, not of the posts.' );
+			$this->assertArrayHasKey( 'not_found', $arguments['labels'] );
 		}
+
+		$this->assertFalse( $calls[0][2]['show_in_menu'], 'A printer profile is a setting: add_menu() adds it to the Otherguise menu, after the settings pages.' );
+		$this->assertTrue( $calls[1][2]['show_in_menu'], 'A book project has a menu of its own, as the posts and the pages.' );
+		$this->assertSame( 21, $calls[1][2]['menu_position'], 'After the pages.' );
+		$this->assertSame( 'dashicons-book', $calls[1][2]['menu_icon'] );
+		$this->assertSame( 'Search printer profiles', $calls[0][2]['labels']['search_items'] );
+		$this->assertSame( 'Search book projects', $calls[1][2]['labels']['search_items'] );
 	}
 
 	/**
