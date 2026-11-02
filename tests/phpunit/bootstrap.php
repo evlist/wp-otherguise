@@ -253,6 +253,18 @@ class WP_User {
 }
 
 /**
+ * Stub of WP_Block: the context a block receives.
+ */
+class WP_Block {
+    /**
+     * Context.
+     *
+     * @var array
+     */
+    public $context = array();
+}
+
+/**
  * Stub of WP_Block_Template.
  */
 class WP_Block_Template {

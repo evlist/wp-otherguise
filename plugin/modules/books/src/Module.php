@@ -27,6 +27,7 @@ use Otherguise\Books\Images\PrintPixelRatio;
 use Otherguise\Books\Images\PrintSrcset;
 use Otherguise\Books\Merge\MergeAccess;
 use Otherguise\Books\Block\SectionUnitsBlock;
+use Otherguise\Books\Block\UnitsQuery;
 use Otherguise\Books\Merge\MergedPrint;
 use Otherguise\Books\Merge\MergeLog;
 use Otherguise\Books\Pdf\JobState;
@@ -185,11 +186,13 @@ final class Module implements ModuleInterface {
 		( $this->add_action )( 'image_downsize', array( $fallback, 'filter' ), 100, 3 );
 		( $this->add_action )( 'wp_head', array( $ratio, 'print_script' ), 0, 0 );
 		$merged = new MergedPrint( $sections, new MergeAccess(), new MergeLog() );
-		$units  = new SectionUnitsBlock( $sections, $merged );
+		$units  = new SectionUnitsBlock( $merged );
+		$query  = new UnitsQuery( $sections );
 
 		( $this->add_action )( 'wp_head', array( $merged, 'head' ), 999, 0 );
 		( $this->add_action )( 'wp_footer', array( $merged, 'footer' ), 1, 0 );
 		( $this->add_action )( 'init', array( $this, 'register_units_block' ), 10, 0 );
+		( $this->add_action )( 'query_loop_block_query_vars', array( $query, 'filter' ), 10, 2 );
 		$this->units_block = $units;
 		( $this->add_action )( 'redirect_canonical', array( new InternalHost( $renderer ), 'filter' ), 5, 1 );
 		( $this->add_action )( 'init', array( $types, 'register' ), 10, 0 );

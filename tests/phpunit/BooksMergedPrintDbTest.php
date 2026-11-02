@@ -9,6 +9,7 @@
  */
 
 use Otherguise\Books\Block\SectionUnitsBlock;
+use Otherguise\Books\Block\UnitsQuery;
 use Otherguise\Books\Merge\MergeAccess;
 use Otherguise\Books\Merge\MergedPrint;
 use Otherguise\Books\Merge\MergeLog;
@@ -26,6 +27,7 @@ require_once __DIR__ . '/support/class-otherguise-test-section-posts.php';
  *
  * @covers \Otherguise\Books\Merge\MergedPrint
  * @covers \Otherguise\Books\Block\SectionUnitsBlock
+ * @covers \Otherguise\Books\Block\UnitsQuery
  */
 class BooksMergedPrintDbTest extends Otherguise_Test_Database_Case {
 
@@ -268,19 +270,7 @@ class BooksMergedPrintDbTest extends Otherguise_Test_Database_Case {
 	 * @return SectionUnitsBlock
 	 */
 	private function block( MergedPrint $merge ) {
-		return new SectionUnitsBlock(
-			$this->sections,
-			$merge,
-			static function ( $id ) {
-				return array(
-					'status'   => 2 === $id ? 'draft' : 'publish',
-					'password' => 4 === $id ? 'secret' : '',
-				);
-			},
-			static fn( $id ) => 'item ' . $id,
-			static fn() => 'class="wrap"',
-			static fn() => 100
-		);
+		return new SectionUnitsBlock( $merge );
 	}
 
 	/**
@@ -312,24 +302,78 @@ class BooksMergedPrintDbTest extends Otherguise_Test_Database_Case {
 	}
 
 	/**
-	 * Where the block is not allowed to merge, or the page is not a print page, it shows the list of the units: the published ones that
-	 * have no password, in order, each with its item.
+	 * Where the block is not allowed to merge, or the page is not a print page, it shows nothing: the list on the web is the Query Loop.
 	 *
 	 * @return void
 	 */
-	public function test_the_block_lists_the_units_elsewhere(): void {
-		$expected = '<ul class="wrap"><li class="books-section-units__item">item 101</li><li class="books-section-units__item">item 1</li><li class="books-section-units__item">item 5</li></ul>';
-
-		$this->assertSame( $expected, $this->block( $this->merge( false ) )->render( array(), '', null ), 'A visitor who may not merge.' );
+	public function test_the_block_shows_nothing_elsewhere(): void {
+		$this->assertSame( '', $this->block( $this->merge( false ) )->render( array(), '', null ), 'A visitor who may not merge.' );
 
 		$this->request['print'] = false;
-		$this->assertSame( $expected, $this->block( $this->merge() )->render( array(), '', null ), 'The web mode.' );
+		$this->assertSame( '', $this->block( $this->merge() )->render( array(), '', null ), 'The web mode.' );
+	}
 
-		$this->assertSame(
-			'<ul class="wrap"><li class="books-section-units__item">item 101</li></ul>',
-			$this->block( $this->merge() )->render( array( 'limit' => 1 ), '', null ),
-			'The limit applies to the list.'
+	/**
+	 * Builds the template of a loop, as the filter receives it.
+	 *
+	 * @param array $query   The `query` attribute of the loop.
+	 * @param int   $post_id The post of the context, 0 for none.
+	 * @return object
+	 */
+	private function loop( array $query, $post_id = 100 ) {
+		return new class( $query, $post_id ) extends WP_Block {
+			/**
+			 * Builds the double.
+			 *
+			 * @param array $query   Attribute.
+			 * @param int   $post_id Post.
+			 */
+			public function __construct( $query, $post_id ) {
+				$this->context = array(
+					'query'  => $query,
+					'postId' => $post_id,
+				);
+			}
+		};
+	}
+
+	/**
+	 * A loop that carries the key lists the published units of the section in its order, whatever its settings say; another loop is left alone.
+	 *
+	 * @return void
+	 */
+	public function test_the_query_loop_lists_the_units(): void {
+		$filter = new UnitsQuery( $this->sections, static fn() => 100 );
+		$asked  = array(
+			'post_type'      => 'post',
+			'posts_per_page' => 7,
+			'tax_query'      => array( 'x' ),
+			'author'         => 3,
+			's'              => 'abc',
+			'orderby'        => 'date',
 		);
+
+		$this->assertSame( $asked, $filter->filter( $asked, $this->loop( array( 'perPage' => 7 ) ) ), 'No key: untouched.' );
+		$this->assertSame( $asked, $filter->filter( $asked, null ), 'Not a loop block.' );
+
+		$out = $filter->filter( $asked, $this->loop( array( UnitsQuery::KEY => true ) ) );
+
+		$this->assertSame( array( 101, 1, 2, 5 ), array_map( 'intval', $out['post__in'] ), 'The ids of the section, in its order (the query leaves out what is not published).' );
+		$this->assertSame( 'post__in', $out['orderby'] );
+		$this->assertSame( 'any', $out['post_type'] );
+		$this->assertSame( 'publish', $out['post_status'] );
+		$this->assertFalse( $out['has_password'] );
+		$this->assertSame( 7, $out['posts_per_page'], 'The size of a page stays the loop\'s.' );
+
+		foreach ( array( 'tax_query', 'author', 's' ) as $key ) {
+			$this->assertArrayNotHasKey( $key, $out );
+		}
+
+		$empty = $filter->filter( $asked, $this->loop( array( UnitsQuery::KEY => true ), 5 ) );
+		$this->assertSame( array( 0 ), $empty['post__in'], 'A post that is not a section lists nothing.' );
+
+		$queried = ( new UnitsQuery( $this->sections, static fn() => 100 ) )->filter( $asked, $this->loop( array( UnitsQuery::KEY => true ), 0 ) );
+		$this->assertSame( array( 101, 1, 2, 5 ), array_map( 'intval', $queried['post__in'] ), 'Without a post in the context: the page.' );
 	}
 
 	/**

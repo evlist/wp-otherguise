@@ -97,6 +97,7 @@ class BooksModuleTest extends TestCase {
 				'image_downsize'                     => array( array( 'filter', 100, 3 ) ),
 				'wp_head'                            => array( array( 'print_script', 0, 0 ), array( 'head', 999, 0 ) ),
 				'wp_footer'                          => array( array( 'footer', 1, 0 ) ),
+				'query_loop_block_query_vars'        => array( array( 'filter', 10, 2 ) ),
 				'redirect_canonical'                 => array( array( 'filter', 5, 1 ) ),
 				'add_meta_boxes'                     => array( array( 'add', 10, 0 ) ),
 				'save_post_books_printer'            => array( array( 'save_profile', 10, 1 ) ),

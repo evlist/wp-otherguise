@@ -2,20 +2,14 @@
 	"$schema": "https://schemas.wp.org/trunk/block.json",
 	"apiVersion": 3,
 	"name": "books/section-units",
-	"title": "Units of the section",
+	"title": "Pages of the units (print)",
 	"category": "widgets",
-	"description": "The units (posts and sub-sections) of the section. In print, the pages of the units are put here, when the page may be merged (put the block at the root of the template); elsewhere, the list of the units, each shown with the blocks you put inside.",
+	"description": "In print, for a page that may be merged, the pages of the units of the section are put here: place the block at the root of the print template. It shows nothing elsewhere. For a list of the units on the web, use the variation \"Units of the section\" of the Query Loop.",
 	"textdomain": "otherguise",
-	"attributes": {
-		"limit": {
-			"type": "integer",
-			"default": 0
-		}
-	},
+	"attributes": {},
 	"usesContext": [ "postId" ],
 	"supports": {
-		"html": false,
-		"spacing": { "margin": true, "padding": true }
+		"html": false
 	},
 	"editorScript": "file:./edit.js"
 }
