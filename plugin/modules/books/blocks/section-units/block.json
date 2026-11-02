@@ -1,0 +1,21 @@
+{
+	"$schema": "https://schemas.wp.org/trunk/block.json",
+	"apiVersion": 3,
+	"name": "books/section-units",
+	"title": "Units of the section",
+	"category": "widgets",
+	"description": "The units (posts and sub-sections) of the section. In print, the pages of the units are put here, when the page may be merged (put the block at the root of the template); elsewhere, the list of the units, each shown with the blocks you put inside.",
+	"textdomain": "otherguise",
+	"attributes": {
+		"limit": {
+			"type": "integer",
+			"default": 0
+		}
+	},
+	"usesContext": [ "postId" ],
+	"supports": {
+		"html": false,
+		"spacing": { "margin": true, "padding": true }
+	},
+	"editorScript": "file:./edit.js"
+}

@@ -26,6 +26,7 @@ use Otherguise\Books\Images\PrintSizes;
 use Otherguise\Books\Images\PrintPixelRatio;
 use Otherguise\Books\Images\PrintSrcset;
 use Otherguise\Books\Merge\MergeAccess;
+use Otherguise\Books\Block\SectionUnitsBlock;
 use Otherguise\Books\Merge\MergedPrint;
 use Otherguise\Books\Merge\MergeLog;
 use Otherguise\Books\Pdf\JobState;
@@ -86,6 +87,13 @@ final class Module implements ModuleInterface {
 	 * @var callable
 	 */
 	private $section_url;
+
+	/**
+	 * The block `books/section-units`, once `boot()` has made it.
+	 *
+	 * @var SectionUnitsBlock|null
+	 */
+	private $units_block = null;
 
 	/**
 	 * Builds the module.
@@ -176,7 +184,13 @@ final class Module implements ModuleInterface {
 		( $this->add_action )( 'wp_calculate_image_srcset', array( $srcset, 'filter' ), 20, 1 );
 		( $this->add_action )( 'image_downsize', array( $fallback, 'filter' ), 100, 3 );
 		( $this->add_action )( 'wp_head', array( $ratio, 'print_script' ), 0, 0 );
-		( $this->add_action )( 'wp_footer', array( new MergedPrint( $sections, new MergeAccess(), new MergeLog() ), 'footer' ), 1, 0 );
+		$merged = new MergedPrint( $sections, new MergeAccess(), new MergeLog() );
+		$units  = new SectionUnitsBlock( $sections, $merged );
+
+		( $this->add_action )( 'wp_head', array( $merged, 'head' ), 999, 0 );
+		( $this->add_action )( 'wp_footer', array( $merged, 'footer' ), 1, 0 );
+		( $this->add_action )( 'init', array( $this, 'register_units_block' ), 10, 0 );
+		$this->units_block = $units;
 		( $this->add_action )( 'redirect_canonical', array( new InternalHost( $renderer ), 'filter' ), 5, 1 );
 		( $this->add_action )( 'init', array( $types, 'register' ), 10, 0 );
 		( $this->add_action )( 'add_meta_boxes', array( $boxes, 'add' ), 10, 0 );
@@ -184,6 +198,17 @@ final class Module implements ModuleInterface {
 		$this->hook_screens( $screens );
 		( $this->add_action )( 'save_post_' . PostTypes::PROJECT, array( $boxes, 'save_project' ), 10, 1 );
 		( $this->add_action )( 'wp_enqueue_scripts', array( $styles, 'enqueue' ), 20, 0 );
+	}
+
+	/**
+	 * Registers the block `books/section-units` (slice 235). Action `init`, priority 10.
+	 *
+	 * @return void
+	 */
+	public function register_units_block() {
+		if ( null !== $this->units_block ) {
+			$this->units_block->register( __DIR__ . '/../blocks/section-units' );
+		}
 	}
 
 	/**

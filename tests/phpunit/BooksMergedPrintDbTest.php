@@ -8,6 +8,7 @@
  * @package Otherguise
  */
 
+use Otherguise\Books\Block\SectionUnitsBlock;
 use Otherguise\Books\Merge\MergeAccess;
 use Otherguise\Books\Merge\MergedPrint;
 use Otherguise\Books\Merge\MergeLog;
@@ -24,6 +25,7 @@ require_once __DIR__ . '/support/class-otherguise-test-section-posts.php';
  * has a password. The order is the date: the part first. The statements are real, the posts, the request and the rendering are doubles.
  *
  * @covers \Otherguise\Books\Merge\MergedPrint
+ * @covers \Otherguise\Books\Block\SectionUnitsBlock
  */
 class BooksMergedPrintDbTest extends Otherguise_Test_Database_Case {
 
@@ -257,5 +259,145 @@ class BooksMergedPrintDbTest extends Otherguise_Test_Database_Case {
 
 		$this->assertSame( '<div>units</div>FOOTER', $merge->prepend( 'FOOTER' ) );
 		$this->assertSame( 'MORE', $merge->prepend( 'MORE' ), 'Once: another call of the callback does not put them again.' );
+	}
+
+	/**
+	 * Builds the block around a merge.
+	 *
+	 * @param MergedPrint $merge The merge.
+	 * @return SectionUnitsBlock
+	 */
+	private function block( MergedPrint $merge ) {
+		return new SectionUnitsBlock(
+			$this->sections,
+			$merge,
+			static function ( $id ) {
+				return array(
+					'status'   => 2 === $id ? 'draft' : 'publish',
+					'password' => 4 === $id ? 'secret' : '',
+				);
+			},
+			static fn( $id ) => 'item ' . $id,
+			static fn() => 'class="wrap"',
+			static fn() => 100
+		);
+	}
+
+	/**
+	 * In print, for who may merge, the block leaves the marker; the buffer started in the head puts the units there, once the footer has
+	 * rendered them.
+	 *
+	 * @return void
+	 */
+	public function test_the_block_leaves_the_marker_and_the_units_go_there(): void {
+		$merge = $this->merge();
+		$block = $this->block( $merge );
+
+		$this->assertSame( MergedPrint::MARKER, $block->render( array(), '', null ) );
+
+		ob_start();
+		$merge->head();
+		$source = '<body><header>cover</header>' . MergedPrint::MARKER . '<footer>end</footer>';
+		echo $source; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+		$merge->footer();
+		echo '<script>s</script></body>';
+		ob_end_flush();
+		$page = (string) ob_get_clean();
+
+		$this->assertStringContainsString( '<header>cover</header><style>.books-merge-unit', $page, 'The units replace the marker.' );
+		$this->assertStringContainsString( '<p>unit 5</p></div><!-- books-merge ', $page );
+		$this->assertStringContainsString( '<footer>end</footer><script>s</script></body>', $page, 'What follows is left alone.' );
+		$this->assertSame( 1, substr_count( $page, 'data-post="5"' ), 'Once.' );
+		$this->assertStringNotContainsString( MergedPrint::MARKER, $page );
+	}
+
+	/**
+	 * Where the block is not allowed to merge, or the page is not a print page, it shows the list of the units: the published ones that
+	 * have no password, in order, each with its item.
+	 *
+	 * @return void
+	 */
+	public function test_the_block_lists_the_units_elsewhere(): void {
+		$expected = '<ul class="wrap"><li class="books-section-units__item">item 101</li><li class="books-section-units__item">item 1</li><li class="books-section-units__item">item 5</li></ul>';
+
+		$this->assertSame( $expected, $this->block( $this->merge( false ) )->render( array(), '', null ), 'A visitor who may not merge.' );
+
+		$this->request['print'] = false;
+		$this->assertSame( $expected, $this->block( $this->merge() )->render( array(), '', null ), 'The web mode.' );
+
+		$this->assertSame(
+			'<ul class="wrap"><li class="books-section-units__item">item 101</li></ul>',
+			$this->block( $this->merge() )->render( array( 'limit' => 1 ), '', null ),
+			'The limit applies to the list.'
+		);
+	}
+
+	/**
+	 * A merge that is going on, or a page that is not the section, gives no marker; a section without units gives nothing.
+	 *
+	 * @return void
+	 */
+	public function test_no_marker_when_there_is_nothing_to_merge(): void {
+		$merge = $this->merge();
+
+		$this->assertSame( '', $merge->slot( 5 ), 'The post of the block is not the section of the page.' );
+		$this->assertSame( MergedPrint::MARKER, $merge->slot( 100 ) );
+
+		$this->request['section'] = 5;
+		$this->assertSame( '', $this->merge()->slot( 5 ), 'A post that is not a section.' );
+	}
+
+	/**
+	 * A unit that is a section renders the same template while the merge is going on: its block shows nothing, the merge follows its units.
+	 *
+	 * @return void
+	 */
+	public function test_the_block_is_silent_during_a_merge(): void {
+		$merge = $this->merge();
+		$block = $this->block( $merge );
+		$seen  = array();
+
+		$busy = new MergedPrint(
+			$this->sections,
+			new MergeAccess( null, static fn() => 'key', static fn() => true, static fn() => '' ),
+			new MergeLog( static fn() => false, static fn() => '' ),
+			fn() => $this->request,
+			static function ( $id ) use ( &$seen, &$busy_block ) {
+				$seen[ $id ] = $busy_block->render( array(), '', null );
+
+				return '<p>unit ' . $id . '</p>';
+			},
+			static fn() => array(
+				'status'   => 'publish',
+				'password' => '',
+			)
+		);
+		$busy_block = $this->block( $busy );
+		$busy->merge();
+
+		$this->assertNotEmpty( $seen );
+		$this->assertSame( array( '' ), array_values( array_unique( $seen ) ) );
+		$this->assertInstanceOf( SectionUnitsBlock::class, $block );
+	}
+
+	/**
+	 * Without a marker in the page the units go before the end of the body; without units the marker disappears.
+	 *
+	 * @return void
+	 */
+	public function test_place_without_marker_or_without_units(): void {
+		$merge = $this->merge();
+		$merge->slot( 100 );
+		$merge->head();
+		$merge->footer();
+
+		$this->assertStringContainsString( '<p>unit 1</p></div>', $merge->place( '<body>x</body>' ) );
+		$this->assertStringEndsWith( '</body>', $merge->place( '<body>x</body>' ) );
+
+		$this->assertSame( '<body>a</body>', ( $this->merge() )->place( '<body>a' . MergedPrint::MARKER . '</body>' ), 'No units: the marker is removed.' );
+
+		while ( ob_get_level() > 1 ) {
+			ob_end_clean();
+		}
 	}
 }

@@ -109,6 +109,25 @@ final class MergedPrint {
 	private $inserted = false;
 
 	/**
+	 * The marker that the block `books/section-units` leaves in the page where the units go (slice 235).
+	 */
+	public const MARKER = '<!-- books-section-units -->';
+
+	/**
+	 * Whether the block left the marker in the page.
+	 *
+	 * @var bool
+	 */
+	private $slot = false;
+
+	/**
+	 * Whether an output buffer waits to put the units at the marker.
+	 *
+	 * @var bool
+	 */
+	private $placing = false;
+
+	/**
 	 * Largest number of units.
 	 *
 	 * @var int
@@ -177,6 +196,83 @@ final class MergedPrint {
 	}
 
 	/**
+	 * Tells whether a merge is going on: a unit that renders a section does not merge its units again.
+	 *
+	 * @return bool
+	 */
+	public function is_busy() {
+		return $this->busy;
+	}
+
+	/**
+	 * Asks for the units to be put where the block `books/section-units` is (slice 235): returns the marker to leave there, or an empty string
+	 * when the page is not a print page of that section, is not allowed to merge, holds nothing, or when a merge is going on.
+	 *
+	 * @param int $post_id Id of the post of the block, 0 when unknown.
+	 * @return string
+	 */
+	public function slot( $post_id = 0 ) {
+		$request = (array) ( $this->request )();
+		$section = (int) ( $request['section'] ?? 0 );
+
+		if ( $this->busy || empty( $request['print'] ) || $section <= 0 || ( $post_id > 0 && (int) $post_id !== $section ) ) {
+			return '';
+		}
+
+		if ( ! $this->access->allowed( $section ) || array() === $this->sections->order( $section ) ) {
+			return '';
+		}
+
+		$this->slot = true;
+
+		return self::MARKER;
+	}
+
+	/**
+	 * Starts the output buffer that puts the units at the marker, when the template had a block that left one: the template is rendered
+	 * before `wp_head`, so the marker is known, and what follows is buffered until the footer has rendered the units. Action `wp_head`, last.
+	 *
+	 * @return void
+	 */
+	public function head() {
+		if ( ! $this->slot || $this->placing ) {
+			return;
+		}
+
+		$this->placing = true;
+
+		ob_start( array( $this, 'place' ) );
+	}
+
+	/**
+	 * Output callback: replaces the marker by the units; without a marker (it was not in the page) the units go in front of the end of the
+	 * body, and without units the marker is removed.
+	 *
+	 * @param string $buffer The page.
+	 * @return string
+	 */
+	public function place( $buffer ) {
+		$html     = null === $this->html ? '' : $this->html;
+		$position = strpos( $buffer, self::MARKER );
+
+		if ( false !== $position ) {
+			$this->inserted = true;
+
+			return substr_replace( $buffer, $html, $position, strlen( self::MARKER ) );
+		}
+
+		$end = '' === $html ? false : strrpos( $buffer, '</body>' );
+
+		if ( false === $end ) {
+			return $buffer . $html;
+		}
+
+		$this->inserted = true;
+
+		return substr_replace( $buffer, $html, $end, 0 );
+	}
+
+	/**
 	 * Renders the units at the start of the footer and puts them in front of what follows: after the whole page of the section, outside its
 	 * template (a template may put the content in a column: the units would be squeezed in it), and before the scripts of the footer, which
 	 * find the units in the page. No HTML is printed here: the output buffer hands the units to the page. Action `wp_footer`, priority 1.
@@ -195,6 +291,11 @@ final class MergedPrint {
 		}
 
 		$this->html = $html;
+
+		if ( $this->placing ) {
+			// The units go where the block put its marker.
+			return;
+		}
 
 		ob_start( array( $this, 'prepend' ) );
 	}
