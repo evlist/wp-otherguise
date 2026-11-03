@@ -17,7 +17,7 @@ defined( 'ABSPATH' ) || exit;
 /**
  * A Query Loop (`core/query`) whose `query` attribute holds `books_units` lists the units of the section of the page, in the order of the
  * section, instead of what its other settings say (slice 235). The variation "Units of the section" of the editor (`edit.js` of the block
- * `books/section-units`) makes such a loop; the theme puts what it wants inside (title, image, excerpt, pagination...).
+ * `books/section-list`) makes such a loop; the theme puts what it wants inside (title, image, excerpt, pagination...).
  *
  * The filter changes the query of the template of the loop (`core/post-template`), which receives the `query` attribute in its context: the
  * name of a variation does not reach it, a key inside the attribute does (tried on 2026-10-25, `docs/design/books.md`).

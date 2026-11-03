@@ -26,7 +26,9 @@ use Otherguise\Books\Images\PrintSizes;
 use Otherguise\Books\Images\PrintPixelRatio;
 use Otherguise\Books\Images\PrintSrcset;
 use Otherguise\Books\Merge\MergeAccess;
-use Otherguise\Books\Block\SectionUnitsBlock;
+use Otherguise\Books\Block\ModeFilter;
+use Otherguise\Books\Block\SectionListBlock;
+use Otherguise\Books\Block\SectionMergeBlock;
 use Otherguise\Books\Block\UnitsQuery;
 use Otherguise\Books\Merge\MergedPrint;
 use Otherguise\Books\Merge\MergeLog;
@@ -90,11 +92,11 @@ final class Module implements ModuleInterface {
 	private $section_url;
 
 	/**
-	 * The block `books/section-units`, once `boot()` has made it.
+	 * The blocks of the sections (`books/section-merge`, `books/section-list`), once `boot()` has made them.
 	 *
-	 * @var SectionUnitsBlock|null
+	 * @var array<string, SectionMergeBlock|SectionListBlock>
 	 */
-	private $units_block = null;
+	private $section_blocks = array();
 
 	/**
 	 * Builds the module.
@@ -186,14 +188,17 @@ final class Module implements ModuleInterface {
 		( $this->add_action )( 'image_downsize', array( $fallback, 'filter' ), 100, 3 );
 		( $this->add_action )( 'wp_head', array( $ratio, 'print_script' ), 0, 0 );
 		$merged = new MergedPrint( $sections, new MergeAccess(), new MergeLog() );
-		$units  = new SectionUnitsBlock( $merged );
+		$choices = array( $this, 'mode_choices' );
 		$query  = new UnitsQuery( $sections );
 
 		( $this->add_action )( 'wp_head', array( $merged, 'head' ), 999, 0 );
 		( $this->add_action )( 'wp_footer', array( $merged, 'footer' ), 1, 0 );
-		( $this->add_action )( 'init', array( $this, 'register_units_block' ), 10, 0 );
+		( $this->add_action )( 'init', array( $this, 'register_section_blocks' ), 10, 0 );
 		( $this->add_action )( 'query_loop_block_query_vars', array( $query, 'filter' ), 10, 2 );
-		$this->units_block = $units;
+		$this->section_blocks = array(
+			'section-merge' => new SectionMergeBlock( $merged, null, $choices ),
+			'section-list'  => new SectionListBlock( null, null, $choices ),
+		);
 		( $this->add_action )( 'redirect_canonical', array( new InternalHost( $renderer ), 'filter' ), 5, 1 );
 		( $this->add_action )( 'init', array( $types, 'register' ), 10, 0 );
 		( $this->add_action )( 'add_meta_boxes', array( $boxes, 'add' ), 10, 0 );
@@ -204,14 +209,25 @@ final class Module implements ModuleInterface {
 	}
 
 	/**
-	 * Registers the block `books/section-units` (slice 235). Action `init`, priority 10.
+	 * Registers the blocks `books/section-merge` and `books/section-list` (slice 235). Action `init`, priority 10.
 	 *
 	 * @return void
 	 */
-	public function register_units_block() {
-		if ( null !== $this->units_block ) {
-			$this->units_block->register( __DIR__ . '/../blocks/section-units' );
+	public function register_section_blocks() {
+		foreach ( $this->section_blocks as $directory => $block ) {
+			$block->register( __DIR__ . '/../blocks/' . $directory );
 		}
+	}
+
+	/**
+	 * The modes the editor of the blocks of the sections offers: their slug and their label.
+	 *
+	 * @return array<int, array{value:string,label:string}>
+	 */
+	public function mode_choices() {
+		$modes = Modules::get( 'modes' );
+
+		return $modes instanceof \Otherguise\Modes\Module ? ModeFilter::choices( $modes->modes()->all() ) : array();
 	}
 
 	/**

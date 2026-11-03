@@ -8,7 +8,9 @@
  * @package Otherguise
  */
 
-use Otherguise\Books\Block\SectionUnitsBlock;
+use Otherguise\Books\Block\ModeFilter;
+use Otherguise\Books\Block\SectionListBlock;
+use Otherguise\Books\Block\SectionMergeBlock;
 use Otherguise\Books\Block\UnitsQuery;
 use Otherguise\Books\Merge\MergeAccess;
 use Otherguise\Books\Merge\MergedPrint;
@@ -26,7 +28,9 @@ require_once __DIR__ . '/support/class-otherguise-test-section-posts.php';
  * has a password. The order is the date: the part first. The statements are real, the posts, the request and the rendering are doubles.
  *
  * @covers \Otherguise\Books\Merge\MergedPrint
- * @covers \Otherguise\Books\Block\SectionUnitsBlock
+ * @covers \Otherguise\Books\Block\SectionMergeBlock
+ * @covers \Otherguise\Books\Block\SectionListBlock
+ * @covers \Otherguise\Books\Block\ModeFilter
  * @covers \Otherguise\Books\Block\UnitsQuery
  */
 class BooksMergedPrintDbTest extends Otherguise_Test_Database_Case {
@@ -44,6 +48,13 @@ class BooksMergedPrintDbTest extends Otherguise_Test_Database_Case {
 	 * @var array
 	 */
 	private $request;
+
+	/**
+	 * Slug of the mode of the request.
+	 *
+	 * @var string
+	 */
+	private $mode = 'print';
 
 	/**
 	 * The rendered units.
@@ -93,12 +104,12 @@ class BooksMergedPrintDbTest extends Otherguise_Test_Database_Case {
 		$this->sections->add( 101, array( 3, 4 ) );
 
 		$this->request  = array(
-			'print'   => true,
 			'section' => 100,
 			'preview' => false,
 			'limit'   => 0,
 		);
 		$this->rendered = array();
+		$this->mode     = 'print';
 
 		$GLOBALS['otherguise_test_meta'] = array();
 	}
@@ -148,7 +159,7 @@ class BooksMergedPrintDbTest extends Otherguise_Test_Database_Case {
 	}
 
 	/**
-	 * Nothing is merged for a visitor, for a page that is not a print page of a section, or for a section that holds nothing.
+	 * Nothing is merged for a visitor, for a page that is not the page of a section, or for a section that holds nothing.
 	 *
 	 * @return void
 	 */
@@ -157,14 +168,12 @@ class BooksMergedPrintDbTest extends Otherguise_Test_Database_Case {
 		$this->assertSame( array(), $this->rendered );
 
 		foreach ( array(
-			array( 'print' => false ),
 			array( 'section' => 0 ),
 			array( 'section' => 5 ),
 		) as $change ) {
 			$this->request = $change + $this->request;
 			$this->assertSame( '', $this->merge()->merge(), json_encode( $change ) );
 			$this->request = array(
-				'print'   => true,
 				'section' => 100,
 				'preview' => false,
 				'limit'   => 0,
@@ -267,10 +276,10 @@ class BooksMergedPrintDbTest extends Otherguise_Test_Database_Case {
 	 * Builds the block around a merge.
 	 *
 	 * @param MergedPrint $merge The merge.
-	 * @return SectionUnitsBlock
+	 * @return SectionMergeBlock
 	 */
 	private function block( MergedPrint $merge ) {
-		return new SectionUnitsBlock( $merge );
+		return new SectionMergeBlock( $merge, fn() => $this->mode );
 	}
 
 	/**
@@ -302,15 +311,88 @@ class BooksMergedPrintDbTest extends Otherguise_Test_Database_Case {
 	}
 
 	/**
-	 * Where the block is not allowed to merge, or the page is not a print page, it shows nothing: the list on the web is the Query Loop.
+	 * A visitor who may not merge gets nothing from the block, whatever the mode.
 	 *
 	 * @return void
 	 */
-	public function test_the_block_shows_nothing_elsewhere(): void {
-		$this->assertSame( '', $this->block( $this->merge( false ) )->render( array(), '', null ), 'A visitor who may not merge.' );
+	public function test_the_block_shows_nothing_to_a_visitor(): void {
+		$this->assertSame( '', $this->block( $this->merge( false ) )->render( array(), '', null ) );
 
-		$this->request['print'] = false;
-		$this->assertSame( '', $this->block( $this->merge() )->render( array(), '', null ), 'The web mode.' );
+		$this->mode = 'web';
+		$this->assertSame( '', $this->block( $this->merge( false ) )->render( array(), '', null ) );
+	}
+
+	/**
+	 * The attribute `modes` of the block: none means every mode (the web too, for who may merge), else only the modes named.
+	 *
+	 * @return void
+	 */
+	public function test_the_modes_of_the_merge_block(): void {
+		$this->mode = 'web';
+		$this->assertSame( MergedPrint::MARKER, $this->block( $this->merge() )->render( array(), '', null ), 'Every mode by default.' );
+		$this->assertSame( MergedPrint::MARKER, $this->block( $this->merge() )->render( array( 'modes' => array( 'web', 'print' ) ), '', null ) );
+		$this->assertSame( '', $this->block( $this->merge() )->render( array( 'modes' => array( 'print' ) ), '', null ), 'Not in this mode.' );
+
+		$this->mode = 'print';
+		$this->assertSame( MergedPrint::MARKER, $this->block( $this->merge() )->render( array( 'modes' => array( 'print' ) ), '', null ) );
+	}
+
+	/**
+	 * Nothing is merged unless a block asked for it; the first block asks, the others do not (the units are the same).
+	 *
+	 * @return void
+	 */
+	public function test_only_a_block_causes_a_merge(): void {
+		$merge = $this->merge();
+
+		ob_start();
+		$merge->footer();
+		$printed = (string) ob_get_clean();
+		$this->assertSame( '', $printed );
+		$this->assertSame( array(), $this->rendered, 'No block, no merge.' );
+
+		$block = $this->block( $merge );
+		$this->assertSame( MergedPrint::MARKER, $block->render( array(), '', null ) );
+		$this->assertSame( '', $block->render( array(), '', null ), 'The second block of the page asks for nothing more.' );
+	}
+
+	/**
+	 * The block that lists: its inner blocks in a wrapper, in the modes it names, nothing when empty.
+	 *
+	 * @return void
+	 */
+	public function test_the_list_block(): void {
+		$web   = new SectionListBlock( fn() => 'web', static fn() => 'class="w"' );
+		$print = new SectionListBlock( fn() => 'print', static fn() => 'class="w"' );
+
+		$this->assertSame( '<div class="w"><ul>x</ul></div>', $web->render( array(), '<ul>x</ul>' ), 'Every mode by default.' );
+		$this->assertSame( '<div class="w"><ul>x</ul></div>', $web->render( array( 'modes' => array( 'web' ) ), '<ul>x</ul>' ) );
+		$this->assertSame( '', $print->render( array( 'modes' => array( 'web' ) ), '<ul>x</ul>' ), 'Not in print.' );
+		$this->assertSame( '', $web->render( array(), "  \n" ), 'Nothing to show.' );
+		$this->assertSame( '<div class="w">y</div>', $print->render( array( 'modes' => array( 'print', 'web' ) ), 'y' ) );
+	}
+
+	/**
+	 * The modes of a block: a list of slugs, empty for all; the slug of the request is empty without the Modes module.
+	 *
+	 * @return void
+	 */
+	public function test_the_mode_filter(): void {
+		$this->assertTrue( ModeFilter::allows( array(), 'web' ) );
+		$this->assertTrue( ModeFilter::allows( array( 'modes' => 'broken' ), 'web' ), 'Not a list: every mode.' );
+		$this->assertTrue( ModeFilter::allows( array( 'modes' => array( 'print' ) ), 'print' ) );
+		$this->assertFalse( ModeFilter::allows( array( 'modes' => array( 'print' ) ), 'web' ) );
+		$this->assertFalse( ModeFilter::allows( array( 'modes' => array( 'print' ) ), '' ), 'Without Modes a restricted block shows nothing.' );
+		$this->assertSame( '', ModeFilter::active() );
+		$this->assertSame(
+			array(
+				array(
+					'value' => 'web',
+					'label' => 'Web',
+				),
+			),
+			ModeFilter::choices( array( new Otherguise\Modes\Mode\ModeDefinition( 'web', 'Web' ) ) )
+		);
 	}
 
 	/**
@@ -421,7 +503,7 @@ class BooksMergedPrintDbTest extends Otherguise_Test_Database_Case {
 
 		$this->assertNotEmpty( $seen );
 		$this->assertSame( array( '' ), array_values( array_unique( $seen ) ) );
-		$this->assertInstanceOf( SectionUnitsBlock::class, $block );
+		$this->assertInstanceOf( SectionMergeBlock::class, $block );
 	}
 
 	/**

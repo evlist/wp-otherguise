@@ -3,7 +3,7 @@
 
 # Slice 231 — Books: the print page of a section with all its units
 
-Status: **coded (2026-10-26)** from the test branch `merge-all-html`, **hardened for `main`** (see "What changed from the test"). Dependencies: slices 223 (sections), 220 and 226 (the PDF job), 225 (the address of the site for the server). Context: [`../design/books.md`](../design/books.md), "Query Loop experiment" and "Series of 2026-10-26" (option 4: merge the HTML of the units before the pagination; **a possible alternative provided that the weight of every page is optimised early**, Eric 2026-10-26).
+Status: **coded (2026-10-26)**; **since 2026-11-03 the merge is caused by the block `books/section-merge` only** (slice 235: a section without that block is not merged, whatever the mode; the text below describes the automatic merge that this slice first had) from the test branch `merge-all-html`, **hardened for `main`** (see "What changed from the test"). Dependencies: slices 223 (sections), 220 and 226 (the PDF job), 225 (the address of the site for the server). Context: [`../design/books.md`](../design/books.md), "Query Loop experiment" and "Series of 2026-10-26" (option 4: merge the HTML of the units before the pagination; **a possible alternative provided that the weight of every page is optimised early**, Eric 2026-10-26).
 
 ## What it does
 

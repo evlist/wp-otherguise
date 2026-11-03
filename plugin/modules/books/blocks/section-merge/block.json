@@ -1,0 +1,21 @@
+{
+	"$schema": "https://schemas.wp.org/trunk/block.json",
+	"apiVersion": 3,
+	"name": "books/section-merge",
+	"title": "Merge the units of the section",
+	"category": "widgets",
+	"description": "The pages of the units (posts and sub-sections) of the section are put here, in the modes you choose (every mode when none is chosen). Only an editor, or the PDF job, gets them. Without this block, nothing is merged.",
+	"textdomain": "otherguise",
+	"attributes": {
+		"modes": {
+			"type": "array",
+			"items": { "type": "string" },
+			"default": []
+		}
+	},
+	"usesContext": [ "postId" ],
+	"supports": {
+		"html": false
+	},
+	"editorScript": "file:./edit.js"
+}

@@ -1,0 +1,21 @@
+{
+	"$schema": "https://schemas.wp.org/trunk/block.json",
+	"apiVersion": 3,
+	"name": "books/section-list",
+	"title": "List of the units of the section",
+	"category": "widgets",
+	"description": "A list of the units (posts and sub-sections) of the section, with links: a Query Loop \"Units of the section\" that you can change. Shown in the modes you choose (every mode when none is chosen); it can serve as a table of contents in print.",
+	"textdomain": "otherguise",
+	"attributes": {
+		"modes": {
+			"type": "array",
+			"items": { "type": "string" },
+			"default": []
+		}
+	},
+	"supports": {
+		"html": false,
+		"spacing": { "margin": true, "padding": true }
+	},
+	"editorScript": "file:./edit.js"
+}

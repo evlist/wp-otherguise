@@ -18,9 +18,10 @@ defined( 'ABSPATH' ) || exit;
  * Option 4 of `docs/design/books.md` (slice 231): merge the HTML of the units before the pagination, so that one PDF of a section has the pages
  * of all its units.
  *
- * In a print mode, the page of a section shows its own content and then, **after the whole page**, one after the other, the page of each
- * unit in that mode (the template that the Modes module would give that unit, rendered for it), each in a `div` that starts a new page;
- * a unit that is a section is followed by its own units. Only published units that have no password. It is **asked for**, never given to
+ * **Only the block `books/section-merge` causes a merge** (slice 235), in the modes it names (all of them by default): the page of a section
+ * then shows, **where the block is** (in front of the footer when the block's marker is not seen in time), one after the other, the page of each
+ * unit in the mode of the request (the template that the Modes module would give that unit, rendered for it), each in a `div` that starts a
+ * new page; a unit that is a section is followed by its own units. Only published units that have no password. It is **asked for**, never given to
  * a visitor: see `MergeAccess` (a user who can edit the section, or the PDF job with its token). The preview of the editor merges only the first
  * `PREVIEW_UNITS` units (the filter `books_merge_preview_limit`), with a note; the PDF has them all. At most `MAX_UNITS` units and, by default,
  * ten minutes of PHP.
@@ -73,7 +74,7 @@ final class MergedPrint {
 	private $log;
 
 	/**
-	 * Describes the request: `print` (a print mode), `section` (the id of the single post shown, 0 for none), `preview` (the preview of
+	 * Describes the request: `section` (the id of the single post shown, 0 for none), `preview` (the preview of
 	 * the editor) and `limit` (the number of units asked for in the address).
 	 *
 	 * @var callable
@@ -109,9 +110,9 @@ final class MergedPrint {
 	private $inserted = false;
 
 	/**
-	 * The marker that the block `books/section-units` leaves in the page where the units go (slice 235).
+	 * The marker that the block `books/section-merge` leaves in the page where the units go (slice 235).
 	 */
-	public const MARKER = '<!-- books-section-units -->';
+	public const MARKER = '<!-- books-section-merge -->';
 
 	/**
 	 * Whether the block left the marker in the page.
@@ -205,8 +206,10 @@ final class MergedPrint {
 	}
 
 	/**
-	 * Asks for the units to be put where the block `books/section-units` is (slice 235): returns the marker to leave there, or an empty string
-	 * when the page is not a print page of that section, is not allowed to merge, holds nothing, or when a merge is going on.
+	 * Asks for the units to be put where the block `books/section-merge` is (slice 235): returns the marker to leave there, or an empty
+	 * string when the page is not the single page of that section, is not allowed to merge, holds nothing, a merge is going on, or an earlier
+	 * block of the page already asked (the first block merges; the units are the same for all of them). **Only a block that asks causes a
+	 * merge** (the footer does nothing otherwise).
 	 *
 	 * @param int $post_id Id of the post of the block, 0 when unknown.
 	 * @return string
@@ -215,7 +218,7 @@ final class MergedPrint {
 		$request = (array) ( $this->request )();
 		$section = (int) ( $request['section'] ?? 0 );
 
-		if ( $this->busy || empty( $request['print'] ) || $section <= 0 || ( $post_id > 0 && (int) $post_id !== $section ) ) {
+		if ( $this->busy || $this->slot || $section <= 0 || ( $post_id > 0 && (int) $post_id !== $section ) ) {
 			return '';
 		}
 
@@ -280,7 +283,7 @@ final class MergedPrint {
 	 * @return void
 	 */
 	public function footer() {
-		if ( null !== $this->html || $this->busy ) {
+		if ( null !== $this->html || $this->busy || ! $this->slot ) {
 			return;
 		}
 
@@ -317,7 +320,7 @@ final class MergedPrint {
 	}
 
 	/**
-	 * The HTML of the units of the section of the request: empty when the request is not a print page of a section, is the preview of the
+	 * The HTML of the units of the section of the request: empty when the request is not the page of a section, is the preview of the
 	 * editor, is not allowed to merge, or the section holds nothing.
 	 *
 	 * @return string
@@ -326,7 +329,7 @@ final class MergedPrint {
 		$request = (array) ( $this->request )();
 		$section = (int) ( $request['section'] ?? 0 );
 
-		if ( empty( $request['print'] ) || $section <= 0 || ! $this->access->allowed( $section ) || array() === $this->sections->order( $section ) ) {
+		if ( $section <= 0 || ! $this->access->allowed( $section ) || array() === $this->sections->order( $section ) ) {
 			return '';
 		}
 
