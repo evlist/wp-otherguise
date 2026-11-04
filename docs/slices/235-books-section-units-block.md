@@ -48,6 +48,7 @@ The web template of a section shows the section and, where it wants a list, `boo
 
 ## Not done
 
+- **A common base for the two blocks** (possible improvement, Eric 2026-11-04: not now): the registration of a block with its inline data for the editor and the filter by mode are written twice in PHP (`SectionMergeBlock`, `SectionListBlock`); a base class or a trait would share them. Worth doing when a third block comes. The check boxes of the modes are also written twice in JavaScript (`blocks/section-merge/edit.js`, `blocks/section-list/edit.js`), with no build step to share them.
 - **Restricting the field of a merge or of a list** (a tag, a category, a date range...), which is what would make several merge blocks on one page useful. To do it: a marker per block, the units of a block computed from its own filter, a unit merged only once per page, the limits (1000 units, ten minutes) common to the page, and the same filter on the list so that the table of contents and the pages agree (the Query Loop already filters by taxonomy: which of the two governs is to decide).
 - A table of contents **with page numbers** (Chromium has no `target-counter`, to our knowledge; the markers of slice 227 give the pages after the fact); links of the list that lead to the pages of the book, not to the web pages.
 - Taking the folio off the cover (`@page :first`): the page rules of slice 230 put the folio on every page. Left aside by Eric on 2026-11-02.
