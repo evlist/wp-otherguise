@@ -20,8 +20,8 @@ defined( 'ABSPATH' ) || exit;
  *
  * **Only the block `books/section-merge` causes a merge** (slice 235), in the modes it names (all of them by default): the page of a section
  * then shows, **where the block is** (in front of the footer when the block's marker is not seen in time), one after the other, the page of each
- * unit in the mode of the request (the template that the Modes module would give that unit, rendered for it), each in a `div` that starts a
- * new page; a unit that is a section is followed by its own units. Only published units that have no password. It is **asked for**, never given to
+ * unit in the mode of the request (the template that the Modes module would give that unit, rendered for it), each in a `div` (`books-merge-unit`) that adds **no page break**: the templates of the theme
+ * decide where a unit starts a page, so that a book of texts can run chapters on; a unit that is a section is followed by its own units. Only published units that have no password. It is **asked for**, never given to
  * a visitor: see `MergeAccess` (a user who can edit the section, or the PDF job with its token). The preview of the editor merges only the first
  * `PREVIEW_UNITS` units (the filter `books_merge_preview_limit`), with a note; the PDF has them all. At most `MAX_UNITS` units and, by default,
  * ten minutes of PHP.
@@ -378,7 +378,7 @@ final class MergedPrint {
 
 		$this->log->write( 'merge_done', $summary );
 
-		return '<style>.books-merge-unit{break-before:page;}</style>' . $units . $this->note( $preview ) . '<!-- books-merge ' . wp_json_encode( $summary ) . ' -->';
+		return $units . $this->note( $preview ) . '<!-- books-merge ' . wp_json_encode( $summary ) . ' -->';
 	}
 
 	/**

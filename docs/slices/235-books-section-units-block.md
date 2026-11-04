@@ -40,6 +40,10 @@ What is shared today: `ModeFilter` (the modes of a block, the mode of the reques
 
 The web template of a section shows the section and, where it wants a list, `books/section-list`; its print variant shows what print needs and, where the pages go, `books/section-merge`. The variants are relations declared with `wp otherguise modes variant`, not a naming convention. The units keep their own templates (for instance "publication randonnée print").
 
+## No page break between the units (2026-11-04)
+
+The merge no longer adds `break-before: page` to each unit (it was one rule written by the plugin in the merged HTML). The wrapper `div.books-merge-unit` stays (`data-post`, `data-depth`). **The templates of the theme add the page breaks** where a unit should start a page, so that a book of texts can run its chapters on, and a book of days keep one day per page. Until the templates do, the units follow one another without a page break (the note of a preview that stopped before the last unit still starts a page). The slice 230 note that a break cannot make a blank page (`left` / `right` do not insert one in Chromium) still holds.
+
 ## What changed from the first versions of this slice (2026-11-02)
 
 - A first block `books/section-units` placed the marker and, on the web, listed the units itself; then it only placed the marker and a Query Loop listed the units. It is now **renamed `books/section-merge`** (nothing was in production) and the list is the wrapper `books/section-list`.

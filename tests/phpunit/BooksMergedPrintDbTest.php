@@ -148,7 +148,8 @@ class BooksMergedPrintDbTest extends Otherguise_Test_Database_Case {
 		$html = $this->merge()->merge();
 
 		$this->assertSame( array( 101, 3, 1, 5 ), $this->rendered, 'In date order; the part is followed by its own units; the draft and the password are skipped.' );
-		$this->assertStringStartsWith( '<style>.books-merge-unit{break-before:page;}</style><div class="books-merge-unit" data-post="101" data-depth="1"><p>unit 101</p></div>', $html );
+		$this->assertStringStartsWith( '<div class="books-merge-unit" data-post="101" data-depth="1"><p>unit 101</p></div>', $html );
+		$this->assertStringNotContainsString( 'break-before', $html, 'The plugin adds no page break: the templates of the theme decide.' );
 		$this->assertStringContainsString( '<div class="books-merge-unit" data-post="3" data-depth="2"><p>unit 3</p></div>', $html, 'A level deeper.' );
 		$this->assertLessThan( strpos( $html, 'data-post="3"' ), strpos( $html, 'data-post="101"' ) );
 		$this->assertLessThan( strpos( $html, 'data-post="1"' ), strpos( $html, 'data-post="3"' ) );
@@ -301,7 +302,7 @@ class BooksMergedPrintDbTest extends Otherguise_Test_Database_Case {
 		ob_end_flush();
 		$page = (string) ob_get_clean();
 
-		$this->assertStringContainsString( '<header>cover</header><style>.books-merge-unit', $page, 'The units replace the marker.' );
+		$this->assertStringContainsString( '<header>cover</header><div class="books-merge-unit"', $page, 'The units replace the marker.' );
 		$this->assertStringContainsString( '<p>unit 5</p></div><!-- books-merge ', $page );
 		$this->assertStringContainsString( '<footer>end</footer><script>s</script></body>', $page, 'What follows is left alone.' );
 		$this->assertSame( 1, substr_count( $page, 'data-post="5"' ), 'Once.' );
