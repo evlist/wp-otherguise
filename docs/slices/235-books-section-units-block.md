@@ -23,6 +23,15 @@ The editor puts them where he wants: a cover, a list (table of contents) in prin
 
 How the units reach the marker: the template (and the content) are rendered **before `wp_head`**, so the marker is known when `wp_head` ends (priority 999): an output buffer starts there; the units are rendered by the footer as before (priority 1) and the callback of the buffer replaces the marker when the page is sent. A marker not seen before `wp_head` keeps the behaviour of slice 231: the units go in front of the footer. A marker not found in the page: the units go before `</body>`; no units: the marker is removed.
 
+## Why two blocks (decided by Eric, 2026-11-04)
+
+The list and the merge are both "the units of the section, each shown in some way, in some modes", and a merge is a list whose item is the **whole page of the unit**. They stay **two blocks** with a **common vocabulary** (the attribute `modes`, the notion of an item, the order of the section) and, where it helps, common code:
+
+- the item of the list is a template part of the theme with the unit as the current post; the item of the merge is the template that WordPress finds for the unit, rendered with the unit asked from the main query (slice 231), so that the blocks and shortcodes that read the main query (QR codes, maps) see the unit;
+- the list is light and open to everybody, paginated by the loop, and shows the direct units; the merge costs the rendering of all the units, is reserved to an editor or the PDF job, has its limits and its log, follows the sub-sections, and is placed after the fact. A block that anybody sees must not become, from a menu, a block that costs a minute of rendering and shows for some people only.
+
+What is shared today: `ModeFilter` (the modes of a block, the mode of the request, the choices of the editor), the registration of the block with its inline data. Not done: a common base for the two blocks and for the editor scripts (the check boxes of the modes are written twice).
+
 ## Detecting the mode
 
 `modes_active_mode()` of the Modes module; Books already depends on Modes. Without Modes the slug is empty: a block with no `modes` acts, a block that names modes shows nothing. The editor offers the modes of the registry (`window.booksModes`, an inline script), as check boxes: none checked is every mode.
