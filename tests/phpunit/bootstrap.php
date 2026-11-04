@@ -40,7 +40,7 @@ $GLOBALS['otherguise_test_site_options'] = array();
  * @return void
  */
 function otherguise_test_reset() {
-    unset( $GLOBALS['otherguise_test_filters'] );
+    unset( $GLOBALS['otherguise_test_filters'], $GLOBALS['otherguise_test_parts'] );
     $GLOBALS['otherguise_test_options']      = array();
     $GLOBALS['otherguise_test_dbdelta']      = array();
     $GLOBALS['otherguise_test_site']         = 1;
@@ -595,6 +595,38 @@ function add_options_page() {
     otherguise_test_record( 'add_options_page', func_get_args() );
 
     return 'settings_page_books';
+}
+
+/**
+ * Stub of sanitize_title(): lower case, dashes.
+ *
+ * @param string $title Title.
+ * @return string
+ */
+function sanitize_title( $title ) {
+    return trim( (string) preg_replace( '/[^a-z0-9_-]+/', '-', strtolower( (string) $title ) ), '-' );
+}
+
+/**
+ * Stub of get_block_templates(): the theme has no template part, unless a test sets `otherguise_test_parts` (slug => title).
+ *
+ * @param array  $query         Query.
+ * @param string $template_type Type.
+ * @return array
+ */
+function get_block_templates( $query = array(), $template_type = 'wp_template' ) {
+    unset( $query, $template_type );
+
+    $found = array();
+
+    foreach ( (array) ( $GLOBALS['otherguise_test_parts'] ?? array() ) as $slug => $title ) {
+        $found[] = (object) array(
+            'slug'  => $slug,
+            'title' => $title,
+        );
+    }
+
+    return $found;
 }
 
 /**

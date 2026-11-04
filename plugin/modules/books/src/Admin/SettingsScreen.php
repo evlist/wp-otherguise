@@ -11,6 +11,7 @@
 namespace Otherguise\Books\Admin;
 
 use Otherguise\Books\Render\GotenbergClient;
+use Otherguise\Books\Settings\ListItems;
 use Otherguise\Books\Settings\PageFormat;
 use Otherguise\Books\Settings\RendererSettings;
 use Otherguise\Core\AdminMenu;
@@ -47,6 +48,13 @@ final class SettingsScreen {
 	private $renderer;
 
 	/**
+	 * The template parts that the list of the units of a section may use for its items.
+	 *
+	 * @var ListItems
+	 */
+	private $items;
+
+	/**
 	 * Tells whether the current user may use the screen: receives the capability.
 	 *
 	 * @var callable
@@ -67,10 +75,12 @@ final class SettingsScreen {
 	 * @param RendererSettings $renderer Settings of the rendering server.
 	 * @param callable|null    $can      Receives a capability and tells whether the current user has it; defaults to `current_user_can`.
 	 * @param callable|null    $health   Receives the address of the server and returns `up` and `message`; defaults to a check of Gotenberg.
+	 * @param ListItems|null   $items    The template parts of the items of a list (slice 235); defaults to those of the active theme.
 	 */
-	public function __construct( PageFormat $format, RendererSettings $renderer, $can = null, $health = null ) {
+	public function __construct( PageFormat $format, RendererSettings $renderer, $can = null, $health = null, $items = null ) {
 		$this->format   = $format;
 		$this->renderer = $renderer;
+		$this->items    = $items ?? new ListItems();
 		$this->can      = $can ?? 'current_user_can';
 		$this->health   = $health ?? static function ( $address ) {
 			return ( new GotenbergClient( $address ) )->health();
@@ -101,6 +111,16 @@ final class SettingsScreen {
 				'type'              => 'array',
 				'sanitize_callback' => array( $this->format, 'sanitize' ),
 				'default'           => PageFormat::defaults(),
+			)
+		);
+
+		register_setting(
+			self::GROUP,
+			ListItems::OPTION,
+			array(
+				'type'              => 'array',
+				'sanitize_callback' => array( $this->items, 'sanitize' ),
+				'default'           => array(),
 			)
 		);
 
@@ -194,8 +214,36 @@ final class SettingsScreen {
 		}
 
 		echo '</tbody></table>';
+		$this->render_items_section();
 		$this->render_renderer_section();
 		echo '<input type="submit" class="button button-primary" value="' . esc_attr__( 'Save', 'otherguise' ) . '" /></form></div>';
+	}
+
+	/**
+	 * Prints the section of the items of the lists: the template parts of the theme, with a box each (slice 235).
+	 *
+	 * @return void
+	 */
+	private function render_items_section() {
+		$parts  = $this->items->parts();
+		$stored = $this->items->stored();
+
+		echo '<h2>' . esc_html__( 'Items of the lists of units', 'otherguise' ) . '</h2>';
+		echo '<p>' . esc_html__( 'The template parts of the theme that the block "List of the units of the section" may use for each unit, chosen in the block. A part can have a variant in a mode (print) like any template part. Without a choice in the block, the list shows the title and the excerpt.', 'otherguise' ) . '</p>';
+
+		if ( array() === $parts ) {
+			echo '<p>' . esc_html__( 'The active theme has no template part.', 'otherguise' ) . '</p>';
+
+			return;
+		}
+
+		echo '<fieldset><legend class="screen-reader-text">' . esc_html__( 'Template parts for the items', 'otherguise' ) . '</legend>';
+
+		foreach ( $parts as $slug => $title ) {
+			echo '<label style="display:block;margin:.25em 0;"><input type="checkbox" name="' . esc_attr( ListItems::OPTION . '[]' ) . '" value="' . esc_attr( (string) $slug ) . '"' . ( in_array( (string) $slug, $stored, true ) ? ' checked="checked"' : '' ) . ' /> ' . esc_html( $title ) . ' <code>' . esc_html( (string) $slug ) . '</code></label>';
+		}
+
+		echo '</fieldset>';
 	}
 
 	/**

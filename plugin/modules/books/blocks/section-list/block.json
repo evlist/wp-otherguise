@@ -4,15 +4,20 @@
 	"name": "books/section-list",
 	"title": "List of the units of the section",
 	"category": "widgets",
-	"description": "A list of the units (posts and sub-sections) of the section, with links: a Query Loop \"Units of the section\" that you can change. Shown in the modes you choose (every mode when none is chosen); it can serve as a table of contents in print.",
+	"description": "A list of the units (posts and sub-sections) of the section, with links. Each unit is shown with the template part you choose (those allowed in Otherguise > Books), or with its title and excerpt. Shown in the modes you choose (every mode when none is chosen); in print it can serve as a table of contents.",
 	"textdomain": "otherguise",
 	"attributes": {
 		"modes": {
 			"type": "array",
 			"items": { "type": "string" },
 			"default": []
+		},
+		"item": {
+			"type": "string",
+			"default": ""
 		}
 	},
+	"usesContext": [ "postId", "postType" ],
 	"supports": {
 		"html": false,
 		"spacing": { "margin": true, "padding": true }

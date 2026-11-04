@@ -9,7 +9,6 @@
  */
 
 use Otherguise\Books\Block\ModeFilter;
-use Otherguise\Books\Block\SectionListBlock;
 use Otherguise\Books\Block\SectionMergeBlock;
 use Otherguise\Books\Block\UnitsQuery;
 use Otherguise\Books\Merge\MergeAccess;
@@ -29,7 +28,6 @@ require_once __DIR__ . '/support/class-otherguise-test-section-posts.php';
  *
  * @covers \Otherguise\Books\Merge\MergedPrint
  * @covers \Otherguise\Books\Block\SectionMergeBlock
- * @covers \Otherguise\Books\Block\SectionListBlock
  * @covers \Otherguise\Books\Block\ModeFilter
  * @covers \Otherguise\Books\Block\UnitsQuery
  */
@@ -354,22 +352,6 @@ class BooksMergedPrintDbTest extends Otherguise_Test_Database_Case {
 		$block = $this->block( $merge );
 		$this->assertSame( MergedPrint::MARKER, $block->render( array(), '', null ) );
 		$this->assertSame( '', $block->render( array(), '', null ), 'The second block of the page asks for nothing more.' );
-	}
-
-	/**
-	 * The block that lists: its inner blocks in a wrapper, in the modes it names, nothing when empty.
-	 *
-	 * @return void
-	 */
-	public function test_the_list_block(): void {
-		$web   = new SectionListBlock( fn() => 'web', static fn() => 'class="w"' );
-		$print = new SectionListBlock( fn() => 'print', static fn() => 'class="w"' );
-
-		$this->assertSame( '<div class="w"><ul>x</ul></div>', $web->render( array(), '<ul>x</ul>' ), 'Every mode by default.' );
-		$this->assertSame( '<div class="w"><ul>x</ul></div>', $web->render( array( 'modes' => array( 'web' ) ), '<ul>x</ul>' ) );
-		$this->assertSame( '', $print->render( array( 'modes' => array( 'web' ) ), '<ul>x</ul>' ), 'Not in print.' );
-		$this->assertSame( '', $web->render( array(), "  \n" ), 'Nothing to show.' );
-		$this->assertSame( '<div class="w">y</div>', $print->render( array( 'modes' => array( 'print', 'web' ) ), 'y' ) );
 	}
 
 	/**

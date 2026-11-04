@@ -125,10 +125,12 @@ class BooksModuleTest extends TestCase {
 		update_option( PageFormat::OPTION, array( 'width_mm' => 100 ) );
 		update_option( RendererSettings::OPTION, array( 'gotenberg_url' => 'http://x' ) );
 		update_option( MergeLog::OPTION, 1 );
+		update_option( 'books_list_items', array( 'section-item' ) );
 		$module->uninstall();
 		$this->assertFalse( get_option( PageFormat::OPTION ), 'The option is removed.' );
 		$this->assertFalse( get_option( RendererSettings::OPTION ), 'The settings of the server too.' );
 		$this->assertFalse( get_option( MergeLog::OPTION ), 'The switch of the log of the merge too.' );
+		$this->assertFalse( get_option( 'books_list_items' ), 'The template parts of the lists too.' );
 		$this->assertCount( 2, $this->calls( 'wp_clear_scheduled_hook' ), 'The cron events are cleared.' );
 	}
 
@@ -161,8 +163,9 @@ class BooksModuleTest extends TestCase {
 		$screen->register();
 		$register = $this->calls( 'register_setting' );
 
-		$this->assertCount( 2, $register, 'The page format and the rendering server.' );
-		$this->assertSame( 'books_renderer', $register[1][2] );
+		$this->assertCount( 3, $register, 'The page format, the items of the lists and the rendering server.' );
+		$this->assertSame( 'books_list_items', $register[1][2] );
+		$this->assertSame( 'books_renderer', $register[2][2] );
 		$this->assertSame( 'books_settings_group', $register[0][1] );
 		$this->assertSame( 'books_page_format', $register[0][2] );
 		$this->assertSame( 'array', $register[0][3]['type'] );

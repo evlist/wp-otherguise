@@ -53,6 +53,7 @@ use Otherguise\Books\Rest\SectionRoutes;
 use Otherguise\Books\Section\SectionEditor;
 use Otherguise\Books\Section\Sections;
 use Otherguise\Books\Section\WordPressPostStore;
+use Otherguise\Books\Settings\ListItems;
 use Otherguise\Books\Settings\PageFormat;
 use Otherguise\Books\Settings\RendererSettings;
 use Otherguise\Core\ModuleInterface;
@@ -197,7 +198,7 @@ final class Module implements ModuleInterface {
 		( $this->add_action )( 'query_loop_block_query_vars', array( $query, 'filter' ), 10, 2 );
 		$this->section_blocks = array(
 			'section-merge' => new SectionMergeBlock( $merged, null, $choices ),
-			'section-list'  => new SectionListBlock( null, null, $choices ),
+			'section-list'  => new SectionListBlock( null, null, $choices, new ListItems() ),
 		);
 		( $this->add_action )( 'redirect_canonical', array( new InternalHost( $renderer ), 'filter' ), 5, 1 );
 		( $this->add_action )( 'init', array( $types, 'register' ), 10, 0 );
@@ -614,6 +615,7 @@ final class Module implements ModuleInterface {
 		delete_option( PageFormat::OPTION );
 		delete_option( RendererSettings::OPTION );
 		delete_option( MergeLog::OPTION );
+		delete_option( ListItems::OPTION );
 		( new WordPressProjects() )->delete_all();
 		wp_clear_scheduled_hook( self::CLEANUP_EVENT );
 		wp_clear_scheduled_hook( PdfJobs::EVENT );
