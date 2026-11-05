@@ -139,6 +139,20 @@ final class PdfJobs {
 	private $log;
 
 	/**
+	 * Returns the map of the pages that the last numbered PDF of a book had (slice 228).
+	 *
+	 * @var callable
+	 */
+	private $recall;
+
+	/**
+	 * Keeps the map of the pages of a numbered PDF, as the seed of the next one.
+	 *
+	 * @var callable
+	 */
+	private $remember;
+
+	/**
 	 * Builds the jobs.
 	 *
 	 * @param RendererSettings $settings      Settings of the server.
@@ -155,8 +169,10 @@ final class PdfJobs {
 	 * @param callable|null    $rules         Receives a post id and the project asked for; returns the rules of the book project (`project`, `format`, `css`) or null (none by default).
 	 * @param callable|null    $merge_token   Receives a post id; returns the token that lets a section be printed with its units (none by default).
 	 * @param callable|null    $log           Receives an event and its fields; writes the log of the merge (nothing by default).
+	 * @param callable|null    $recall        Receives a post id, a mode and a project; returns the map of the pages of the last numbered PDF of that book, or an empty array (none by default).
+	 * @param callable|null    $remember      Receives a post id, a mode, a project and a map of the pages; keeps it for the next numbered PDF of that book (nothing by default).
 	 */
-	public function __construct( RendererSettings $settings, PageFormat $format, PdfStore $store, JobState $state, $post_info, $mode_exists, $url_for, $make_renderer, $schedule, $now = null, $reach = null, $rules = null, $merge_token = null, $log = null ) {
+	public function __construct( RendererSettings $settings, PageFormat $format, PdfStore $store, JobState $state, $post_info, $mode_exists, $url_for, $make_renderer, $schedule, $now = null, $reach = null, $rules = null, $merge_token = null, $log = null, $recall = null, $remember = null ) {
 		$this->settings      = $settings;
 		$this->format        = $format;
 		$this->store         = $store;
@@ -177,6 +193,12 @@ final class PdfJobs {
 			return '';
 		};
 		$this->log           = $log ?? static function () {
+			return null;
+		};
+		$this->recall        = $recall ?? static function () {
+			return array();
+		};
+		$this->remember      = $remember ?? static function () {
 			return null;
 		};
 	}
@@ -317,7 +339,8 @@ final class PdfJobs {
 		$convert  = function ( $pages ) use ( $renderer, $url, $post_id, $rules, $options, $part ) {
 			return $renderer->convert_url_to_file( ( $this->reach )( $this->address_of( $url, $post_id, $rules, (string) $pages ) ), $this->format_for( $rules ), $options, $part );
 		};
-		$made     = ( new Passes( $this->store ) )->run( $convert, $part, (bool) $numbered );
+		$seed     = $numbered ? ( $this->recall )( $post_id, $mode, (int) $project ) : array();
+		$made     = ( new Passes( $this->store ) )->run( $convert, $part, (bool) $numbered, Passes::MAX, is_array( $seed ) ? $seed : array() );
 		$failed   = ! $made['ok'];
 
 		( $this->log )(
@@ -329,6 +352,7 @@ final class PdfJobs {
 				'ok'      => $made['ok'],
 				'passes'  => $made['passes'],
 				'stable'  => $made['stable'],
+				'seeded'  => is_array( $seed ) && array() !== $seed,
 				'error'   => $made['error'],
 				'pdf_kb'  => $failed ? 0 : (int) round( (int) filesize( $part ) / 1024 ),
 			)
@@ -343,6 +367,10 @@ final class PdfJobs {
 		if ( ! $this->store->commit( $key ) ) {
 			$this->fail( $post_id, $mode, $state, __( 'The PDF could not be written in the uploads directory.', 'otherguise' ) );
 			return;
+		}
+
+		if ( is_array( $made['map'] ) && array() !== $made['map'] && $made['map'] !== $seed ) {
+			( $this->remember )( $post_id, $mode, (int) $project, $made['map'] );
 		}
 
 		$state['status']      = 'done';

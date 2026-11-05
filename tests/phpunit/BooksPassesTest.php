@@ -89,13 +89,14 @@ class BooksPassesTest extends TestCase {
 	/**
 	 * Runs the passes with a converter that makes the PDFs given, one per pass.
 	 *
-	 * @param string[] $pdfs     What each pass makes.
-	 * @param bool     $numbered Whether the tables are numbered.
-	 * @param string[] $given    Receives the keys of the maps that the passes were given.
-	 * @param int      $max      The most passes.
+	 * @param string[]   $pdfs     What each pass makes.
+	 * @param bool       $numbered Whether the tables are numbered.
+	 * @param string[]   $given    Receives the keys of the maps that the passes were given.
+	 * @param int        $max      The most passes.
+	 * @param array|null $seed The map of an earlier PDF.
 	 * @return array
 	 */
-	private function passes( array $pdfs, $numbered, array &$given, $max = Passes::MAX ) {
+	private function passes( array $pdfs, $numbered, array &$given, $max = Passes::MAX, $seed = null ) {
 		$store = new PdfStore( $this->directory );
 		$path  = $this->directory . '.pdf';
 		$made  = ( new Passes( $store ) )->run(
@@ -113,7 +114,8 @@ class BooksPassesTest extends TestCase {
 			},
 			$path,
 			$numbered,
-			$max
+			$max,
+			$seed
 		);
 
 		if ( is_file( $path ) ) {
@@ -152,6 +154,7 @@ class BooksPassesTest extends TestCase {
 				'error'  => '',
 				'passes' => 1,
 				'stable' => true,
+				'map'    => null,
 			),
 			$this->passes( array( $this->pdf( array( $this->manifest(), 'heading/1/1' ) ) ), false, $given ),
 			'Not numbered.'
@@ -254,5 +257,49 @@ class BooksPassesTest extends TestCase {
 
 		$this->assertSame( 'error: no server', $made['error'] );
 		$this->assertSame( 1, $made['passes'] );
+	}
+
+	/**
+	 * A seed is printed by the first pass; when the pagination did not move that pass is the last, else the passes go on from it; a seed does not
+	 * change a PDF with no table to number, nor a PDF that is not numbered. The answer has the map to keep.
+	 *
+	 * @return void
+	 */
+	public function test_a_seed_saves_a_pass(): void {
+		$page = $this->pdf( array( $this->manifest(), 'heading/1/1' ), array( 'heading/1/2' ) );
+		$seed = array(
+			'1#1' => 1,
+			'1#2' => 2,
+		);
+		$given = array();
+		$made  = $this->passes( array( $page ), true, $given, Passes::MAX, $seed );
+
+		$this->assertSame( 1, $made['passes'], 'The seed was right.' );
+		$this->assertTrue( $made['stable'] );
+		$this->assertSame( $seed, $made['map'] );
+		$this->assertSame( md5( json_encode( $seed ) ), $given[0], 'The first pass is given the seed.' );
+
+		$given = array();
+		$wrong = array(
+			'1#1' => 1,
+			'1#2' => 1,
+		);
+		$made  = $this->passes( array( $page, $page ), true, $given, Passes::MAX, $wrong );
+
+		$this->assertSame( 2, $made['passes'], 'A seed that was wrong costs the pass that was needed anyway.' );
+		$this->assertTrue( $made['stable'] );
+		$this->assertSame( $seed, $made['map'] );
+
+		$given = array();
+		$made  = $this->passes( array( $this->pdf( array( 'heading/1/1' ) ) ), true, $given, Passes::MAX, $seed );
+
+		$this->assertSame( 1, $made['passes'], 'No table to number: one pass.' );
+		$this->assertNull( $made['map'], 'Nothing to keep.' );
+
+		$given = array();
+		$made  = $this->passes( array( $page ), false, $given, Passes::MAX, $seed );
+
+		$this->assertSame( array( '' ), $given, 'Not numbered: no seed.' );
+		$this->assertNull( $made['map'] );
 	}
 }

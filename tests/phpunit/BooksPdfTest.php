@@ -10,6 +10,7 @@
 
 use Otherguise\Books\Admin\SettingsScreen;
 use Otherguise\Books\Module;
+use Otherguise\Books\Module as BooksModule;
 use Otherguise\Books\Pdf\JobState;
 use Otherguise\Books\Pdf\PdfJobs;
 use Otherguise\Books\Pdf\PdfPages;
@@ -423,9 +424,11 @@ class BooksPdfTest extends TestCase {
 	 * @param callable|null $rules Receives a post id; returns the rules of its book project, or null (slice 230).
 	 * @param callable|null $merge_token Receives a post id; returns the token that lets a section be merged (slice 231).
 	 * @param callable|null $log Receives an event and its fields (slice 231).
+	 * @param callable|null $recall Receives a post, a mode and a project; returns the map of the pages of the last numbered PDF (slice 228).
+	 * @param callable|null $remember Receives a post, a mode, a project and a map; keeps it (slice 228).
 	 * @return PdfJobs
 	 */
-	private function jobs( array &$calls, array &$scheduled, array $answers = array(), $pages = 2, array $info = array(), $rules = null, $merge_token = null, $log = null ) {
+	private function jobs( array &$calls, array &$scheduled, array $answers = array(), $pages = 2, array $info = array(), $rules = null, $merge_token = null, $log = null, $recall = null, $remember = null ) {
 		$renderer = $this->renderer( $answers, $pages, $calls );
 		$posts    = array(
 			12 => $info + array(
@@ -458,7 +461,9 @@ class BooksPdfTest extends TestCase {
 			null,
 			$rules,
 			$merge_token,
-			$log
+			$log,
+			$recall,
+			$remember
 		);
 	}
 
@@ -572,6 +577,141 @@ class BooksPdfTest extends TestCase {
 		$this->assertTrue( $logged['pdf_convert']['stable'] );
 		$this->assertSame( 'done', $jobs->status( 12, 'print', 0, true )['status'] );
 		$this->assertSame( '', $jobs->status( 12, 'print', 0, true )['message'] );
+	}
+
+	/**
+	 * The map of the pages of the last numbered PDF of the book is the seed of the next: the first pass prints it, and when the pagination did not
+	 * move that pass is the only one; a book that changed makes the passes it needed anyway, and the new map is kept.
+	 *
+	 * @return void
+	 */
+	public function test_the_map_of_the_last_numbered_pdf_is_the_seed(): void {
+		$this->configure();
+
+		$pdf = $this->numbered_pdf( array( 'heading/1/1' ), array( 'heading/1/2' ) );
+		$map = array(
+			'1#1' => 1,
+			'1#2' => 2,
+		);
+
+		// A book that did not move: one pass, nothing new to keep.
+		$calls     = array();
+		$scheduled = array();
+		$logged    = array();
+		$kept      = array();
+		$jobs      = $this->jobs(
+			$calls,
+			$scheduled,
+			array( $pdf ),
+			2,
+			array(),
+			null,
+			null,
+			static function ( $event, array $fields ) use ( &$logged ) {
+				$logged[ $event ] = $fields;
+			},
+			static fn() => $map,
+			static function ( $post, $mode, $project, array $new ) use ( &$kept ) {
+				$kept[] = array( $post, $mode, $project, $new );
+			}
+		);
+
+		$jobs->request( 12, 'print', false, 0, true );
+		$jobs->run( ...$scheduled[0] );
+
+		$this->assertCount( 1, $calls, 'The seed was right.' );
+		$this->assertMatchesRegularExpression( '/books_pages=[0-9a-f]{32}/', $calls[0][0], 'The first pass is given the seed.' );
+		$this->assertTrue( $logged['pdf_convert']['seeded'] );
+		$this->assertSame( 1, $logged['pdf_convert']['passes'] );
+		$this->assertSame( array(), $kept );
+
+		// A book that moved: the passes it needed anyway, and the new map is kept.
+		$moved     = $this->numbered_pdf( array( 'heading/1/1', 'heading/1/2' ) );
+		$calls     = array();
+		$scheduled = array();
+		$kept      = array();
+		$jobs      = $this->jobs(
+			$calls,
+			$scheduled,
+			array( $moved, $moved ),
+			2,
+			array(),
+			null,
+			null,
+			null,
+			static fn() => $map,
+			static function ( $post, $mode, $project, array $new ) use ( &$kept ) {
+				$kept[] = array( $post, $mode, $project, $new );
+			}
+		);
+
+		$jobs->request( 12, 'print', true, 0, true );
+		$jobs->run( ...$scheduled[0] );
+
+		$this->assertCount( 2, $calls, 'The first pass printed the old map: the pagination moved, so the second is the one that was needed anyway.' );
+		$this->assertSame(
+			array(
+				array(
+					12,
+					'print',
+					0,
+					array(
+						'1#1' => 1,
+						'1#2' => 1,
+					),
+				),
+			),
+			$kept,
+			'The map of the PDF that settled.'
+		);
+
+		// A first numbered PDF: no seed, and its map is kept.
+		$calls     = array();
+		$scheduled = array();
+		$kept      = array();
+		$jobs      = $this->jobs(
+			$calls,
+			$scheduled,
+			array( $pdf, $pdf ),
+			2,
+			array(),
+			null,
+			null,
+			null,
+			null,
+			static function ( $post, $mode, $project, array $new ) use ( &$kept ) {
+				$kept[] = $new;
+			}
+		);
+
+		$jobs->request( 12, 'print', true, 0, true );
+		$jobs->run( ...$scheduled[0] );
+
+		$this->assertStringNotContainsString( 'books_pages', $calls[0][0] );
+		$this->assertSame( array( $map ), $kept );
+	}
+
+	/**
+	 * The map is kept with the section by mode and project, and a section that has none gives an empty map; the uninstall removes it.
+	 *
+	 * @return void
+	 */
+	public function test_the_map_of_the_pages_is_kept_with_the_section(): void {
+		$GLOBALS['otherguise_test_meta'] = array();
+
+		$this->assertSame( array(), BooksModule::page_map( 12, 'print', 0 ) );
+
+		BooksModule::keep_page_map( 12, 'print', 0, array( '1#1' => 3 ) );
+		BooksModule::keep_page_map( 12, 'print', 77, array( '1#1' => 4 ) );
+		BooksModule::keep_page_map( 12, 'web', 0, array( '1#1' => 5 ) );
+
+		$this->assertSame( array( '1#1' => 3 ), BooksModule::page_map( 12, 'print', 0 ) );
+		$this->assertSame( array( '1#1' => 4 ), BooksModule::page_map( 12, 'print', 77 ) );
+		$this->assertSame( array( '1#1' => 5 ), BooksModule::page_map( 12, 'web', 0 ) );
+		$this->assertSame( array(), BooksModule::page_map( 13, 'print', 0 ) );
+
+		$GLOBALS['otherguise_test_meta'][14]['_books_page_map'] = 'broken';
+		$this->assertSame( array(), BooksModule::page_map( 14, 'print', 0 ) );
 	}
 
 	/**

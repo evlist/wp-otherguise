@@ -767,6 +767,20 @@ function get_post_meta( $post_id, $key = '' ) {
 }
 
 /**
+ * Stub of update_post_meta().
+ *
+ * @param int    $post_id Post.
+ * @param string $key     Key.
+ * @param mixed  $value   Value.
+ * @return bool
+ */
+function update_post_meta( $post_id, $key, $value ) {
+    $GLOBALS['otherguise_test_meta'][ $post_id ][ $key ] = $value;
+
+    return true;
+}
+
+/**
  * Stub of get_num_queries().
  *
  * @return int

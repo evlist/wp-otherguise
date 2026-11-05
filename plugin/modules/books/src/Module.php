@@ -405,6 +405,10 @@ final class Module implements ModuleInterface {
 			},
 			static function ( $event, array $fields ) {
 				( new MergeLog() )->write( $event, $fields );
+			},
+			static fn( $post_id, $mode, $project ) => self::page_map( (int) $post_id, (string) $mode, (int) $project ),
+			static function ( $post_id, $mode, $project, array $map ) {
+				self::keep_page_map( (int) $post_id, (string) $mode, (int) $project, $map );
 			}
 		);
 	}
@@ -537,6 +541,45 @@ final class Module implements ModuleInterface {
 	}
 
 	/**
+	 * Name of the custom field of a section that keeps the map of the pages of its last numbered PDF, by mode and project (slice 228).
+	 */
+	public const PAGE_MAP = '_books_page_map';
+
+	/**
+	 * The map of the pages that the last numbered PDF of a book had (the seed of the next one: a small change of the book then costs one pass). It
+	 * is kept with the section, without end, since it saves a pass each time.
+	 *
+	 * @param int    $post_id Section.
+	 * @param string $mode    Slug of the mode.
+	 * @param int    $project Book project.
+	 * @return array<string, int> Empty when there is none.
+	 */
+	public static function page_map( $post_id, $mode, $project ) {
+		$all = get_post_meta( $post_id, self::PAGE_MAP, true );
+		$map = is_array( $all ) ? ( $all[ $mode . '|' . $project ] ?? array() ) : array();
+
+		return is_array( $map ) ? array_map( 'intval', $map ) : array();
+	}
+
+	/**
+	 * Keeps the map of the pages of a numbered PDF.
+	 *
+	 * @param int                $post_id Section.
+	 * @param string             $mode    Slug of the mode.
+	 * @param int                $project Book project.
+	 * @param array<string, int> $map     The pages.
+	 * @return void
+	 */
+	public static function keep_page_map( $post_id, $mode, $project, array $map ) {
+		$all = get_post_meta( $post_id, self::PAGE_MAP, true );
+		$all = is_array( $all ) ? $all : array();
+
+		$all[ $mode . '|' . $project ] = $map;
+
+		update_post_meta( $post_id, self::PAGE_MAP, $all );
+	}
+
+	/**
 	 * The store of the PDF files: the directory `books-pdf` of the uploads.
 	 *
 	 * @return PdfStore
@@ -620,6 +663,7 @@ final class Module implements ModuleInterface {
 		delete_option( RendererSettings::OPTION );
 		delete_option( MergeLog::OPTION );
 		delete_option( ListItems::OPTION );
+		delete_post_meta_by_key( self::PAGE_MAP );
 		( new WordPressProjects() )->delete_all();
 		wp_clear_scheduled_hook( self::CLEANUP_EVENT );
 		wp_clear_scheduled_hook( PdfJobs::EVENT );

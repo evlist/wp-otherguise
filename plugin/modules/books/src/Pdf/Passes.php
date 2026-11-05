@@ -45,15 +45,25 @@ final class Passes {
 	/**
 	 * Makes the PDF.
 	 *
-	 * @param callable $convert  Receives the key of the map of the pages ('' for none) and makes the PDF in `$path`; returns true or an error (a `WP_Error`, a string).
-	 * @param string   $path     Path where the PDF is made (each pass writes over the one before).
-	 * @param bool     $numbered Whether the tables of contents are numbered (else one pass).
-	 * @param int      $max      The most passes.
-	 * @return array{ok:bool, error:string, passes:int, stable:bool} `ok`: the PDF is made; `stable`: its numbers are the pages (true when there are none to settle).
+	 * @param callable                $convert  Receives the key of the map of the pages ('' for none) and makes the PDF in `$path`; returns true or an error (a `WP_Error`, a string).
+	 * @param string                  $path     Path where the PDF is made (each pass writes over the one before).
+	 * @param bool                    $numbered Whether the tables of contents are numbered (else one pass).
+	 * @param int                     $max      The most passes.
+	 * @param array<string, int>|null $seed The map of the pages of an earlier PDF of the same book: the first pass prints it instead of placeholders, and if the pagination did not move that pass is the last (a small change costs one pass, not two; a large one costs the pass that would have been needed anyway).
+	 * @return array{ok:bool, error:string, passes:int, stable:bool, map:array<string, int>|null} `ok`: the PDF is made; `stable`: its numbers are the pages (true when there are none to settle); `map`: the pages of its headings when it has a table with numbers, to keep as the seed of the next.
 	 */
-	public function run( $convert, $path, $numbered, $max = self::MAX ) {
+	public function run( $convert, $path, $numbered, $max = self::MAX, $seed = null ) {
 		$key      = '';
 		$previous = null;
+
+		if ( $numbered && is_array( $seed ) && array() !== $seed ) {
+			$json = wp_json_encode( $seed );
+
+			if ( is_string( $json ) && $this->store->write_manifest( md5( $json ), $json ) ) {
+				$key      = md5( $json );
+				$previous = $seed;
+			}
+		}
 
 		for ( $pass = 1; $pass <= max( 1, (int) $max ); ++$pass ) {
 			$result = $convert( $key );
@@ -64,35 +74,36 @@ final class Passes {
 					'error'  => $result instanceof \WP_Error ? $result->get_error_message() : (string) $result,
 					'passes' => $pass,
 					'stable' => false,
+					'map'    => null,
 				);
 			}
 
 			if ( ! $numbered ) {
-				return $this->done( $pass, true );
+				return $this->done( $pass, true, null );
 			}
 
 			$map = $this->map( $path );
 
 			if ( null === $map ) {
 				// No table of contents with numbers in this PDF: nothing to settle.
-				return $this->done( $pass, true );
+				return $this->done( $pass, true, null );
 			}
 
 			if ( $map === $previous ) {
-				return $this->done( $pass, true );
+				return $this->done( $pass, true, $map );
 			}
 
 			$json = wp_json_encode( $map );
 
 			if ( $pass >= $max || ! is_string( $json ) || ! $this->store->write_manifest( md5( $json ), $json ) ) {
-				return $this->done( $pass, false );
+				return $this->done( $pass, false, $map );
 			}
 
 			$key      = md5( $json );
 			$previous = $map;
 		}
 
-		return $this->done( (int) $max, false );
+		return $this->done( (int) $max, false, $previous );
 	}
 
 	/**
@@ -133,16 +144,18 @@ final class Passes {
 	/**
 	 * The answer of a PDF that is made.
 	 *
-	 * @param int  $passes The passes that were made.
-	 * @param bool $stable Whether the numbers are the pages.
-	 * @return array{ok:bool, error:string, passes:int, stable:bool}
+	 * @param int                     $passes The passes that were made.
+	 * @param bool                    $stable Whether the numbers are the pages.
+	 * @param array<string, int>|null $map    The pages of the headings, null when there is no table with numbers.
+	 * @return array{ok:bool, error:string, passes:int, stable:bool, map:array<string, int>|null}
 	 */
-	private function done( $passes, $stable ) {
+	private function done( $passes, $stable, $map ) {
 		return array(
 			'ok'     => true,
 			'error'  => '',
 			'passes' => $passes,
 			'stable' => $stable,
+			'map'    => $map,
 		);
 	}
 }
