@@ -148,9 +148,10 @@ class BooksMergedPrintDbTest extends Otherguise_Test_Database_Case {
 		$html = $this->merge()->merge();
 
 		$this->assertSame( array( 101, 3, 1, 5 ), $this->rendered, 'In date order; the part is followed by its own units; the draft and the password are skipped.' );
-		$this->assertStringStartsWith( '<div class="books-merge-unit" data-post="101" data-depth="1"><p>unit 101</p></div>', $html );
+		$this->assertStringStartsWith( '<div class="books-merge-unit" data-post="101" data-depth="1">' . MergedPrint::marker( 101 ) . '<p>unit 101</p></div>', $html );
+		$this->assertStringContainsString( 'href="https://marker.invalid/unit/3"', $html, 'Every unit starts with its marker (slice 227).' );
 		$this->assertStringNotContainsString( 'break-before', $html, 'The plugin adds no page break: the templates of the theme decide.' );
-		$this->assertStringContainsString( '<div class="books-merge-unit" data-post="3" data-depth="2"><p>unit 3</p></div>', $html, 'A level deeper.' );
+		$this->assertStringContainsString( '<div class="books-merge-unit" data-post="3" data-depth="2">' . MergedPrint::marker( 3 ) . '<p>unit 3</p></div>', $html, 'A level deeper.' );
 		$this->assertLessThan( strpos( $html, 'data-post="3"' ), strpos( $html, 'data-post="101"' ) );
 		$this->assertLessThan( strpos( $html, 'data-post="1"' ), strpos( $html, 'data-post="3"' ) );
 		$this->assertLessThan( strpos( $html, 'data-post="5"' ), strpos( $html, 'data-post="1"' ) );

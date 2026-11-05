@@ -10,6 +10,7 @@
 
 namespace Otherguise\Books\Merge;
 
+use Otherguise\Books\Pdf\PdfMarkers;
 use Otherguise\Books\Section\Sections;
 
 defined( 'ABSPATH' ) || exit;
@@ -194,6 +195,18 @@ final class MergedPrint {
 				'password' => (string) $post->post_password,
 			) : null;
 		};
+	}
+
+	/**
+	 * The marker that starts a unit (slice 227): an invisible link of one pixel that Chromium writes as a link annotation on the page of the PDF
+	 * where the unit starts, read back by `PdfMarkers`. It leads nowhere (a name reserved for that), is out of the tab order and of the reading of a
+	 * screen, and takes no room.
+	 *
+	 * @param int $id Id of the unit.
+	 * @return string
+	 */
+	public static function marker( $id ) {
+		return '<a class="books-merge-marker" href="' . esc_url( PdfMarkers::address( 'unit/' . (int) $id ) ) . '" tabindex="-1" aria-hidden="true" style="display:block;width:1px;height:1px;margin:0 0 -1px;overflow:hidden;break-after:avoid;"></a>';
 	}
 
 	/**
@@ -477,7 +490,7 @@ final class MergedPrint {
 			$this->current = 0;
 
 			++$this->count;
-			$out .= '<div class="books-merge-unit" data-post="' . (int) $id . '" data-depth="' . (int) $depth . '">' . $html . '</div>';
+			$out .= '<div class="books-merge-unit" data-post="' . (int) $id . '" data-depth="' . (int) $depth . '">' . self::marker( (int) $id ) . $html . '</div>';
 
 			$this->log->write(
 				'unit',

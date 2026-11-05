@@ -16,6 +16,7 @@ defined( 'ABSPATH' ) || exit;
 use Otherguise\Books\Admin\SettingsScreen;
 use Otherguise\Books\Preview\EditorPreview;
 use Otherguise\Books\Cli\MergeLogCommand;
+use Otherguise\Books\Cli\PaginationCommand;
 use Otherguise\Books\Cli\ProfileCommand;
 use Otherguise\Books\Cli\ProjectCommand;
 use Otherguise\Books\Cli\RendererCommand;
@@ -334,6 +335,7 @@ final class Module implements ModuleInterface {
 		\WP_CLI::add_command( 'otherguise books sizes', new SizesCommand( new PrintSizes( new PageFormat() ) ) );
 		\WP_CLI::add_command( 'otherguise books section', new SectionCommand( $this->sections( true ) ) );
 		\WP_CLI::add_command( 'otherguise books merge-log', new MergeLogCommand( new MergeLog() ) );
+		\WP_CLI::add_command( 'otherguise books pagination', new PaginationCommand( $this->sections( true ) ) );
 		\WP_CLI::add_command( 'otherguise books profile', new ProfileCommand( $this->projects(), new WordPressProjects() ) );
 		\WP_CLI::add_command(
 			'otherguise books project',
