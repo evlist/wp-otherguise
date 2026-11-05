@@ -163,6 +163,36 @@ class BooksPdfTest extends TestCase {
 	}
 
 	/**
+	 * The manifests of the merges (slice 227) are files of the store: written and read by their key, cleaned like the PDF files, removed with
+	 * the directory.
+	 *
+	 * @return void
+	 */
+	public function test_the_manifests(): void {
+		$store = $this->store();
+		$key   = $this->key( 'manifest' );
+
+		$this->assertNull( $store->read_manifest( $key ), 'None yet.' );
+		$this->assertFalse( $store->write_manifest( 'bad', '{}' ) );
+		$this->assertFalse( $store->write_manifest( $key, '' ) );
+		$this->assertNull( $store->read_manifest( 'bad' ) );
+		$this->assertTrue( $store->write_manifest( $key, '{"headings":[]}' ) );
+		$this->assertSame( '{"headings":[]}', $store->read_manifest( $key ) );
+		$this->assertFalse( $store->has( $key ), 'It is not a PDF.' );
+		$this->assertFileExists( $this->directory . '/' . $key . '.json' );
+
+		touch( $this->directory . '/' . $key . '.json', $this->time - 10 * 86400 );
+		clearstatcache(); // PHP keeps the time that is_file() and file_get_contents() saw.
+
+		$this->assertSame( 1, $store->cleanup( 7 ), 'A manifest goes with the old files.' );
+		$this->assertNull( $store->read_manifest( $key ) );
+
+		$store->write_manifest( $key, '{}' );
+		$store->remove_all();
+		$this->assertDirectoryDoesNotExist( $this->directory );
+	}
+
+	/**
 	 * The directory is removed with the WordPress file system API; when that API is not usable, the directory stays.
 	 *
 	 * @return void

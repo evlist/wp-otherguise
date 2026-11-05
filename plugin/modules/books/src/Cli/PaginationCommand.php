@@ -68,6 +68,13 @@ final class PaginationCommand {
 	private $title;
 
 	/**
+	 * Reads a manifest: receives its key, returns the JSON or null.
+	 *
+	 * @var callable
+	 */
+	private $manifest;
+
+	/**
 	 * Builds the command.
 	 *
 	 * @param Sections      $sections The sections (with a store that trusts the command line).
@@ -76,8 +83,10 @@ final class PaginationCommand {
 	 * @param callable|null $fail     Default `WP_CLI::error`.
 	 * @param callable|null $warning  Default `WP_CLI::warning`.
 	 * @param callable|null $title    Receives a post id; default `get_the_title`.
+	 * @param callable|null $manifest Receives the key of a manifest, returns its JSON or null; default: none are found.
 	 */
-	public function __construct( Sections $sections, $log = null, $success = null, $fail = null, $warning = null, $title = null ) {
+	public function __construct( Sections $sections, $log = null, $success = null, $fail = null, $warning = null, $title = null, $manifest = null ) {
+		$this->manifest = $manifest ?? static fn() => null;
 		$this->sections = $sections;
 		$this->log      = $log ?? array( 'WP_CLI', 'log' );
 		$this->success  = $success ?? array( 'WP_CLI', 'success' );
@@ -155,6 +164,7 @@ final class PaginationCommand {
 		$unit_pages = array();
 		$headings   = array();
 		$repeats    = array();
+		$manifest   = null;
 
 		foreach ( $read['markers'] as $name => $pages ) {
 			if ( 1 === preg_match( '#^unit/(\d+)$#', $name, $found ) ) {
@@ -165,6 +175,8 @@ final class PaginationCommand {
 				}
 			} elseif ( 1 === preg_match( '#^heading/(\d+)/(\d+)$#', $name, $found ) ) {
 				$headings[ (int) $found[1] ][ (int) $found[2] ] = $pages[0];
+			} elseif ( 1 === preg_match( '#^manifest/([0-9a-f]{32})$#', $name, $found ) ) {
+				$manifest = $this->manifest( $found[1] );
 			}
 		}
 
@@ -192,7 +204,7 @@ final class PaginationCommand {
 
 		if ( isset( $assoc_args['headings'] ) ) {
 			foreach ( $rows as $index => $row ) {
-				$rows[ $index ]['headings'] = $headings[ $row['id'] ] ?? array();
+				$rows[ $index ]['headings'] = $this->described( $headings[ $row['id'] ] ?? array(), $row['id'], $manifest );
 			}
 		}
 
@@ -209,10 +221,15 @@ final class PaginationCommand {
 			foreach ( $rows as $row ) {
 				( $this->log )( $row['id'] . "\t" . $row['page'] . "\t" . $row['title'] );
 
-				foreach ( $row['headings'] ?? array() as $number => $page ) {
-					( $this->log )( $row['id'] . '#' . $number . "\t" . $page );
+				foreach ( $row['headings'] ?? array() as $number => $heading ) {
+					$line = $row['id'] . '#' . $number . "\t" . ( is_array( $heading ) ? $heading['page'] . "\th" . $heading['level'] . "\t" . $heading['text'] . ( $heading['toc'] ? '' : "\t(no-toc)" ) : $heading );
+					( $this->log )( $line );
 				}
 			}
+		}
+
+		if ( isset( $assoc_args['headings'] ) && null === $manifest && array() !== $headings ) {
+			( $this->warning )( 'No manifest for this PDF (made before the manifests, or removed): the level and the text of the headings are not shown.' );
 		}
 
 		// The headings of the page of the section itself are listed with its id; it is not one of its units.
@@ -245,12 +262,124 @@ final class PaginationCommand {
 			( $this->warning )( 'The marker of the post ' . $id . ', which is not in the section.' );
 		}
 
+		foreach ( $this->level_problems( $manifest ) as $problem ) {
+			++$problems;
+			( $this->warning )( $problem );
+		}
+
 		if ( 0 === $problems ) {
 			( $this->success )( 'All ' . count( $expected ) . ' units of the section have a marker, found once.' );
 			return;
 		}
 
 		( $this->success )( $units . ' units in ' . $read['pages'] . ' pages, ' . $problems . ' to look at.' );
+	}
+
+	/**
+	 * Reads the manifest of a PDF: the headings by unit and by number, with their level, their text and whether a table of contents lists them.
+	 *
+	 * @param string $key Key of the manifest.
+	 * @return array<int, array<int, array>>|null The headings by unit, by number; null when there is none or it is not readable.
+	 */
+	private function manifest( $key ) {
+		$json = ( $this->manifest )( $key );
+		$data = is_string( $json ) ? json_decode( $json, true ) : null;
+
+		if ( ! is_array( $data ) || ! isset( $data['headings'] ) || ! is_array( $data['headings'] ) ) {
+			return null;
+		}
+
+		$by_unit = array();
+
+		foreach ( $data['headings'] as $row ) {
+			if ( is_array( $row ) && isset( $row['unit'], $row['n'], $row['level'] ) ) {
+				$by_unit[ (int) $row['unit'] ][ (int) $row['n'] ] = array(
+					'level' => (int) $row['level'],
+					'text'  => (string) ( $row['text'] ?? '' ),
+					'toc'   => ! isset( $row['toc'] ) || (bool) $row['toc'],
+					'depth' => (int) ( $row['depth'] ?? 0 ),
+				);
+			}
+		}
+
+		return $by_unit;
+	}
+
+	/**
+	 * The pages of the headings of a unit, with their level and their text when the manifest has them.
+	 *
+	 * @param array<int, int>                    $pages    The page of each heading, by number.
+	 * @param int                                $unit     Id of the unit.
+	 * @param array<int, array<int, array>>|null $manifest The manifest.
+	 * @return array<int, int|array>
+	 */
+	private function described( array $pages, $unit, $manifest ) {
+		if ( null === $manifest ) {
+			return $pages;
+		}
+
+		$out = array();
+
+		foreach ( $pages as $number => $page ) {
+			$known = $manifest[ $unit ][ $number ] ?? null;
+
+			$out[ $number ] = null === $known ? $page : array(
+				'page'  => $page,
+				'level' => $known['level'],
+				'text'  => $known['text'],
+				'toc'   => $known['toc'],
+			);
+		}
+
+		return $out;
+	}
+
+	/**
+	 * What is wrong with the levels of the headings, unit by unit, in the order of the document: a level that is skipped (an `h4` right after an
+	 * `h2`), a heading above the first one of its unit (its title), a heading with no text. The headings that a table of contents leaves out (`no-toc`)
+	 * are not looked at.
+	 *
+	 * @param array<int, array<int, array>>|null $manifest The manifest.
+	 * @return string[]
+	 */
+	private function level_problems( $manifest ) {
+		if ( null === $manifest ) {
+			return array();
+		}
+
+		$problems = array();
+
+		foreach ( $manifest as $unit => $list ) {
+			ksort( $list );
+
+			$first = null;
+			$last  = null;
+
+			foreach ( $list as $number => $heading ) {
+				if ( ! $heading['toc'] ) {
+					continue;
+				}
+
+				$name = 'The heading ' . $number . ' (h' . $heading['level'] . ') of the post ' . $unit;
+
+				if ( '' === $heading['text'] ) {
+					$problems[] = $name . ' has no text.';
+				}
+
+				if ( null !== $last && $heading['level'] > $last + 1 ) {
+					$problems[] = $name . ' follows an h' . $last . ': a level is skipped.';
+				}
+
+				if ( null !== $first && $heading['level'] < $first ) {
+					$problems[] = $name . ' is above the first heading of the post (h' . $first . ').';
+				}
+
+				$first = $first ?? $heading['level'];
+				$last  = $heading['level'];
+			}
+		}
+
+		return $problems;
 	}
 
 	/**

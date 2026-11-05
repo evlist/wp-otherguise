@@ -107,16 +107,17 @@ class BooksPaginationDbTest extends Otherguise_Test_Database_Case {
 	/**
 	 * Builds the command.
 	 *
+	 * @param callable|null $manifest Reads a manifest by its key; none by default.
 	 * @return PaginationCommand
 	 */
-	private function command() {
+	private function command( $manifest = null ) {
 		$record = function ( $kind ) {
 			return function ( $message ) use ( $kind ) {
 				$this->out[] = array( $kind, (string) $message );
 			};
 		};
 
-		return new PaginationCommand( $this->sections, $record( 'log' ), $record( 'success' ), $record( 'fail' ), $record( 'warning' ), static fn( $id ) => 'Title ' . $id );
+		return new PaginationCommand( $this->sections, $record( 'log' ), $record( 'success' ), $record( 'fail' ), $record( 'warning' ), static fn( $id ) => 'Title ' . $id, $manifest );
 	}
 
 	/**
@@ -220,6 +221,7 @@ class BooksPaginationDbTest extends Otherguise_Test_Database_Case {
 				array( 'log', "5\t2\tTitle 5" ),
 				array( 'log', "5#1\t2" ),
 				array( 'log', "5#2\t3" ),
+				array( 'warning', 'No manifest for this PDF (made before the manifests, or removed): the level and the text of the headings are not shown.' ),
 				array( 'success', '3 units in 3 pages.' ),
 			),
 			$this->out,
@@ -279,7 +281,145 @@ class BooksPaginationDbTest extends Otherguise_Test_Database_Case {
 		$this->assertSame( array( 'log', "100#1\t1" ), $this->out[1] );
 		$this->assertSame( array( 'log', "100#2\t2" ), $this->out[2] );
 		$this->assertSame( array( 'success', 'All 6 units of the section have a marker, found once.' ), end( $this->out ) );
-		$this->assertSame( array(), array_filter( $this->out, static fn( $line ) => 'warning' === $line[0] ) );
+		$this->assertSame(
+			array( 'No manifest for this PDF (made before the manifests, or removed): the level and the text of the headings are not shown.' ),
+			array_values( array_column( array_filter( $this->out, static fn( $line ) => 'warning' === $line[0] ), 1 ) ),
+			'No other warning.'
+		);
+	}
+
+	/**
+	 * With the manifest of the PDF (its marker names it), `--headings` shows the level and the text of each heading, `--check` reports a level that
+	 * is skipped, a heading above the first one of its post, a heading with no text; a heading left out of the table of contents is not looked at.
+	 *
+	 * @return void
+	 */
+	public function test_the_manifest_gives_the_levels_and_the_checks(): void {
+		$key      = md5( 'manifest' );
+		$manifest = array(
+			'section'  => 100,
+			'headings' => array(
+				array(
+					'unit' => 100,
+					'n' => 1,
+					'level' => 1,
+					'text' => 'Book',
+					'toc' => true,
+					'depth' => 0,
+				),
+				array(
+					'unit' => 1,
+					'n' => 1,
+					'level' => 1,
+					'text' => 'Day 1',
+					'toc' => true,
+					'depth' => 1,
+				),
+				array(
+					'unit' => 1,
+					'n' => 2,
+					'level' => 3,
+					'text' => 'Skipped',
+					'toc' => true,
+					'depth' => 1,
+				),
+				array(
+					'unit' => 1,
+					'n' => 3,
+					'level' => 2,
+					'text' => 'Fine',
+					'toc' => true,
+					'depth' => 1,
+				),
+				array(
+					'unit' => 1,
+					'n' => 4,
+					'level' => 5,
+					'text' => 'Left out',
+					'toc' => false,
+					'depth' => 1,
+				),
+				array(
+					'unit' => 2,
+					'n' => 1,
+					'level' => 2,
+					'text' => 'Starts at 2',
+					'toc' => true,
+					'depth' => 1,
+				),
+				array(
+					'unit' => 2,
+					'n' => 2,
+					'level' => 1,
+					'text' => 'Above',
+					'toc' => true,
+					'depth' => 1,
+				),
+				array(
+					'unit' => 2,
+					'n' => 3,
+					'level' => 2,
+					'text' => '',
+					'toc' => true,
+					'depth' => 1,
+				),
+			),
+		);
+		$file     = $this->pdf(
+			array(
+				'manifest/' . $key => 2,
+				'heading/100/1'    => 2,
+				'heading/1/1'      => 2,
+				'heading/1/2'      => 2,
+				'heading/1/3'      => 3,
+				'heading/1/4'      => 3,
+				'heading/2/1'      => 3,
+				'heading/2/2'      => 4,
+				'heading/2/3'      => 4,
+				'unit/101'         => 4,
+				'unit/3'           => 4,
+				'unit/4'           => 4,
+				'unit/5'           => 4,
+			)
+		);
+		$read     = static fn( $asked ) => $asked === $key ? wp_json_encode( $manifest ) : null;
+
+		$this->command( $read )->__invoke(
+			array( '100' ),
+			array(
+				'file' => $file,
+				'headings' => true,
+				'check' => true,
+			)
+		);
+
+		$lines = array_column( array_filter( $this->out, static fn( $line ) => 'log' === $line[0] ), 1 );
+
+		$this->assertContains( "100#1\t1\th1\tBook", $lines );
+		$this->assertContains( "1#2\t1\th3\tSkipped", $lines );
+		$this->assertContains( "1#4\t2\th5\tLeft out\t(no-toc)", $lines );
+
+		$warnings = array_column( array_filter( $this->out, static fn( $line ) => 'warning' === $line[0] ), 1 );
+
+		$this->assertContains( 'The heading 2 (h3) of the post 1 follows an h1: a level is skipped.', $warnings );
+		$this->assertContains( 'The heading 2 (h1) of the post 2 is above the first heading of the post (h2).', $warnings );
+		$this->assertContains( 'The heading 3 (h2) of the post 2 has no text.', $warnings );
+		$this->assertCount( 3, array_filter( $warnings, static fn( $text ) => str_starts_with( $text, 'The heading' ) ), 'The heading left out is not looked at.' );
+
+		$this->out = array();
+		$this->command()->__invoke(
+			array( '100' ),
+			array(
+				'file' => $file,
+				'headings' => true,
+				'check' => true,
+			)
+		);
+
+		$lines = array_column( array_filter( $this->out, static fn( $line ) => 'log' === $line[0] ), 1 );
+
+		$this->assertContains( "100#1\t1", $lines, 'Without the manifest: the pages only.' );
+		$this->assertStringContainsString( 'No manifest for this PDF', implode( ' ', array_column( array_filter( $this->out, static fn( $line ) => 'warning' === $line[0] ), 1 ) ) );
 	}
 
 	/**

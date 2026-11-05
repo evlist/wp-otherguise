@@ -464,6 +464,101 @@ class BooksMergedPrintDbTest extends Otherguise_Test_Database_Case {
 	}
 
 	/**
+	 * Builds a merge that renders units with headings and hands its manifest to a writer.
+	 *
+	 * @param callable|null $writer Receives the key and the JSON of the manifest; returns whether it was written.
+	 * @return MergedPrint
+	 */
+	private function merge_with_manifest( $writer ) {
+		return new MergedPrint(
+			$this->sections,
+			new MergeAccess( null, static fn() => 'key', static fn() => true, static fn() => '' ),
+			new MergeLog( static fn() => false, static fn() => '' ),
+			fn() => $this->request,
+			static fn( $id ) => 101 === $id ? '<h1>Part &amp; <em>one</em></h1><h2 class="a no-toc">Left   out</h2>' : '<h1>Day ' . $id . '</h1><h3 class="b">Sub</h3><h4></h4>',
+			static fn( $id ) => array(
+				'status'   => 2 === $id ? 'draft' : 'publish',
+				'password' => '',
+			),
+			$writer
+		);
+	}
+
+	/**
+	 * The merge writes a manifest: the headings of the page of the section and of the units in the order of the document, with their level, their
+	 * plain text, whether a table of contents lists them (`no-toc`) and the depth of their unit; its marker, named after its key, goes in front of
+	 * the units.
+	 *
+	 * @return void
+	 */
+	public function test_the_manifest_of_the_headings(): void {
+		$written = array();
+		$merge   = $this->merge_with_manifest(
+			static function ( $key, $json ) use ( &$written ) {
+				$written = array( $key, $json );
+
+				return true;
+			}
+		);
+		$block   = new SectionMergeBlock( $merge, fn() => $this->mode );
+
+		$block->render( array(), '', null );
+
+		ob_start();
+		$merge->head();
+		$source = '<body><h1>Book</h1><p>x</p>' . MergedPrint::MARKER . '<h2>Afterword</h2></body>';
+		echo $source; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+		$merge->footer();
+		ob_end_flush();
+		$page = (string) ob_get_clean();
+
+		$this->assertSame( md5( $written[1] ), $written[0], 'The key is the hash of the JSON.' );
+		$this->assertStringContainsString( 'href="https://marker.invalid/manifest/' . $written[0] . '"', $page );
+		$this->assertLessThan( strpos( $page, 'unit/101' ), strpos( $page, 'manifest/' . $written[0] ), 'In front of the units.' );
+
+		$data = json_decode( $written[1], true );
+
+		$this->assertSame( 100, $data['section'] );
+		$this->assertSame(
+			array(
+				array( 100, 1, 1, 'Book', true, 0 ),
+				array( 101, 1, 1, 'Part & one', true, 1 ),
+				array( 101, 2, 2, 'Left out', false, 1 ),
+				array( 3, 1, 1, 'Day 3', true, 2 ),
+				array( 3, 2, 3, 'Sub', true, 2 ),
+				array( 3, 3, 4, '', true, 2 ),
+			),
+			array_map( static fn( $row ) => array( $row['unit'], $row['n'], $row['level'], $row['text'], $row['toc'], $row['depth'] ), array_slice( $data['headings'], 0, 6 ) ),
+			'The section, then its units in the order of the merge (the part, its own units, then the others), each numbered in its unit, with its depth.'
+		);
+
+		$last = end( $data['headings'] );
+
+		$this->assertSame( array( 100, 2, 2, 'Afterword', 0 ), array( $last['unit'], $last['n'], $last['level'], $last['text'], $last['depth'] ), 'The end of the page of the section goes on with its numbers.' );
+	}
+
+	/**
+	 * No manifest marker when the writer fails, when there is no writer, or when there are no units.
+	 *
+	 * @return void
+	 */
+	public function test_no_manifest_marker_without_a_manifest(): void {
+		foreach ( array( static fn() => false, null ) as $writer ) {
+			$merge = $this->merge_with_manifest( $writer );
+			( new SectionMergeBlock( $merge, fn() => $this->mode ) )->render( array(), '', null );
+
+			ob_start();
+			$merge->head();
+			$source = '<body>' . MergedPrint::MARKER . '</body>';
+			echo $source; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+			$merge->footer();
+			ob_end_flush();
+
+			$this->assertStringNotContainsString( 'marker.invalid/manifest/', (string) ob_get_clean() );
+		}
+	}
+
+	/**
 	 * Builds the template of a loop, as the filter receives it.
 	 *
 	 * @param array $query   The `query` attribute of the loop.

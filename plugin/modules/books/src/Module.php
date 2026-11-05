@@ -189,7 +189,7 @@ final class Module implements ModuleInterface {
 		( $this->add_action )( 'wp_calculate_image_srcset', array( $srcset, 'filter' ), 20, 1 );
 		( $this->add_action )( 'image_downsize', array( $fallback, 'filter' ), 100, 3 );
 		( $this->add_action )( 'wp_head', array( $ratio, 'print_script' ), 0, 0 );
-		$merged = new MergedPrint( $sections, new MergeAccess(), new MergeLog() );
+		$merged = new MergedPrint( $sections, new MergeAccess(), new MergeLog(), null, null, null, static fn( $key, $json ) => self::store()->write_manifest( $key, $json ) );
 		$choices = array( $this, 'mode_choices' );
 		$query  = new UnitsQuery( $sections );
 
@@ -335,7 +335,7 @@ final class Module implements ModuleInterface {
 		\WP_CLI::add_command( 'otherguise books sizes', new SizesCommand( new PrintSizes( new PageFormat() ) ) );
 		\WP_CLI::add_command( 'otherguise books section', new SectionCommand( $this->sections( true ) ) );
 		\WP_CLI::add_command( 'otherguise books merge-log', new MergeLogCommand( new MergeLog() ) );
-		\WP_CLI::add_command( 'otherguise books pagination', new PaginationCommand( $this->sections( true ) ) );
+		\WP_CLI::add_command( 'otherguise books pagination', new PaginationCommand( $this->sections( true ), null, null, null, null, null, static fn( $key ) => self::store()->read_manifest( $key ) ) );
 		\WP_CLI::add_command( 'otherguise books profile', new ProfileCommand( $this->projects(), new WordPressProjects() ) );
 		\WP_CLI::add_command(
 			'otherguise books project',

@@ -115,6 +115,40 @@ final class PdfStore {
 	}
 
 	/**
+	 * Writes the manifest of a merge (slice 227): the JSON of its headings, in a file named by the key of the manifest (a hash of its contents, so
+	 * that the manifest of a PDF is found by the marker in that PDF whatever was merged since).
+	 *
+	 * @param string $key  Key of the manifest: 32 hexadecimal digits.
+	 * @param string $json The JSON.
+	 * @return bool
+	 */
+	public function write_manifest( $key, $json ) {
+		if ( ! self::is_key( $key ) || ! is_string( $json ) || '' === $json || ! $this->prepare() ) {
+			return false;
+		}
+
+		return false !== file_put_contents( $this->directory . '/' . $key . '.json', $json );
+	}
+
+	/**
+	 * Reads the manifest of a key.
+	 *
+	 * @param string $key Key of the manifest.
+	 * @return string|null The JSON, null when there is none.
+	 */
+	public function read_manifest( $key ) {
+		$path = $this->directory . '/' . $key . '.json';
+
+		if ( ! self::is_key( $key ) || ! is_file( $path ) ) {
+			return null;
+		}
+
+		$json = file_get_contents( $path );
+
+		return false === $json ? null : $json;
+	}
+
+	/**
 	 * Creates the directory, with the files that protect it, when it does not exist.
 	 *
 	 * @return bool
@@ -295,12 +329,12 @@ final class PdfStore {
 	}
 
 	/**
-	 * Lists the PDF files of the directory, the files that were being written and the log.
+	 * Lists the PDF files of the directory, the files that were being written, the manifests and the log.
 	 *
 	 * @return string[]
 	 */
 	private function files() {
-		$files = glob( $this->directory . '/*.{pdf,part,log}', GLOB_BRACE );
+		$files = glob( $this->directory . '/*.{pdf,part,log,json}', GLOB_BRACE );
 
 		return is_array( $files ) ? $files : array();
 	}

@@ -123,6 +123,20 @@ final class MergedPrint {
 	private $slot = false;
 
 	/**
+	 * The headings of the units of the last merge, in order (the manifest, slice 227).
+	 *
+	 * @var array<int, array>
+	 */
+	private $rows = array();
+
+	/**
+	 * Writes a manifest: receives its key (32 hexadecimal digits) and its JSON, returns whether it was written.
+	 *
+	 * @var callable|null
+	 */
+	private $manifest_writer;
+
+	/**
 	 * Id of the section whose block asked for the merge (the headings of its own page are marked with it).
 	 *
 	 * @var int
@@ -187,8 +201,10 @@ final class MergedPrint {
 	 * @param callable|null $request  Describes the request; defaults to `MergeRequest`.
 	 * @param callable|null $render   Renders a unit; defaults to `UnitRenderer`.
 	 * @param callable|null $post_of  Reads a post; defaults to `get_post()`.
+	 * @param callable|null $manifest Writes a manifest (key, JSON); none by default: no manifest.
 	 */
-	public function __construct( Sections $sections, MergeAccess $access, MergeLog $log, $request = null, $render = null, $post_of = null ) {
+	public function __construct( Sections $sections, MergeAccess $access, MergeLog $log, $request = null, $render = null, $post_of = null, $manifest = null ) {
+		$this->manifest_writer = $manifest;
 		$this->sections = $sections;
 		$this->access   = $access;
 		$this->log      = $log;
@@ -233,14 +249,31 @@ final class MergedPrint {
 	}
 
 	/**
-	 * Puts the markers of the headings in a piece of HTML, numbering from the number given.
+	 * Marks the headings of a unit and notes them in the manifest.
 	 *
-	 * @param string $html   The HTML.
-	 * @param int    $id     Id of the post.
-	 * @param int    $number The number of the last heading marked before this piece (modified).
+	 * @param string            $html  Rendered page of the unit.
+	 * @param int               $id    Id of the unit.
+	 * @param array<int, array> $rows  The headings of the merge (modified).
+	 * @param int               $depth Depth of the unit in the section.
 	 * @return string
 	 */
-	private static function mark( $html, $id, &$number ) {
+	private static function mark_unit( $html, $id, array &$rows, $depth ) {
+		$number = 0;
+
+		return self::mark( (string) $html, $id, $number, $rows, $depth );
+	}
+
+	/**
+	 * Puts the markers of the headings in a piece of HTML, numbering from the number given, and notes each heading in `$rows` when it is given.
+	 *
+	 * @param string                 $html   The HTML.
+	 * @param int                    $id     Id of the post.
+	 * @param int                    $number The number of the last heading marked before this piece (modified).
+	 * @param array<int, array>|null $rows   The headings seen: `unit`, `n`, `level`, `text`, `toc`, `depth` (modified), or null to note nothing.
+	 * @param int                    $depth  Depth of the post in the section: 0 for the section itself, 1 for its units.
+	 * @return string
+	 */
+	private static function mark( $html, $id, &$number, &$rows = null, $depth = 0 ) {
 		$parts = preg_split( '~(<script\b.*?</script>|<style\b.*?</style>|<textarea\b.*?</textarea>|<!--.*?-->)~is', $html, -1, PREG_SPLIT_DELIM_CAPTURE );
 
 		if ( false === $parts ) {
@@ -249,22 +282,59 @@ final class MergedPrint {
 
 		foreach ( $parts as $index => $part ) {
 			// The odd parts are what the pattern captured: the blocks to leave alone.
-			if ( 1 === $index % 2 ) {
+			if ( 1 === $index % 2 || false === preg_match_all( '~<h([1-6])(?:\s[^>]*)?>~i', $part, $found, PREG_OFFSET_CAPTURE ) || array() === $found[0] ) {
 				continue;
 			}
 
-			$parts[ $index ] = (string) preg_replace_callback(
-				'~<h[1-6](?:\s[^>]*)?>~i',
-				static function ( $found ) use ( $id, &$number ) {
-					++$number;
+			$out  = '';
+			$from = 0;
 
-					return $found[0] . '<a class="books-merge-marker" href="' . esc_url( PdfMarkers::address( 'heading/' . $id . '/' . $number ) ) . '" tabindex="-1" aria-hidden="true" style="display:inline-block;width:1px;height:1px;vertical-align:top;margin-bottom:-1px;"></a>';
-				},
-				$part
-			);
+			foreach ( $found[0] as $at => $tag ) {
+				++$number;
+
+				$level = (int) $found[1][ $at ][0];
+				$after = $tag[1] + strlen( $tag[0] );
+				$out  .= substr( $part, $from, $after - $from ) . '<a class="books-merge-marker" href="' . esc_url( PdfMarkers::address( 'heading/' . $id . '/' . $number ) ) . '" tabindex="-1" aria-hidden="true" style="display:inline-block;width:1px;height:1px;vertical-align:top;margin-bottom:-1px;"></a>';
+				$from  = $after;
+
+				if ( is_array( $rows ) ) {
+					$close  = stripos( $part, '</h' . $level, $after );
+					$inside = false === $close ? '' : substr( $part, $after, $close - $after );
+					$rows[] = array(
+						'unit'  => $id,
+						'n'     => $number,
+						'level' => $level,
+						'text'  => self::plain( $inside ),
+						'toc'   => 1 !== preg_match( '~\bclass\s*=\s*["\'][^"\']*\bno-toc\b~i', $tag[0] ),
+						'depth' => $depth,
+					);
+				}
+			}
+
+			$parts[ $index ] = $out . substr( $part, $from );
 		}
 
 		return implode( '', $parts );
+	}
+
+	/**
+	 * The text of a heading: no tag, no entity, the spaces in one.
+	 *
+	 * @param string $html What is between the tags of the heading.
+	 * @return string
+	 */
+	private static function plain( $html ) {
+		return trim( (string) preg_replace( '~\s+~u', ' ', html_entity_decode( wp_strip_all_tags( $html ), ENT_QUOTES, 'UTF-8' ) ) );
+	}
+
+	/**
+	 * The marker that says which manifest describes the PDF (slice 227): its name is the key of the file where the manifest was written.
+	 *
+	 * @param string $key Key of the manifest.
+	 * @return string
+	 */
+	public static function manifest_marker( $key ) {
+		return '<a class="books-merge-marker" href="' . esc_url( PdfMarkers::address( 'manifest/' . $key ) ) . '" tabindex="-1" aria-hidden="true" style="display:block;width:1px;height:1px;margin:0 0 -1px;overflow:hidden;break-after:avoid;"></a>';
 	}
 
 	/**
@@ -330,18 +400,20 @@ final class MergedPrint {
 		$html     = null === $this->html ? '' : $this->html;
 		$position = strpos( $buffer, self::MARKER );
 		$number   = 0;
+		$before   = array();
+		$after    = array();
 
 		if ( false !== $position ) {
 			$this->inserted = true;
 
 			// The headings of the page of the section itself get their markers; those of the units already have theirs.
-			$before = self::mark( substr( $buffer, 0, $position ), $this->section_id, $number );
-			$after  = self::mark( substr( $buffer, $position + strlen( self::MARKER ) ), $this->section_id, $number );
+			$head = self::mark( substr( $buffer, 0, $position ), $this->section_id, $number, $before );
+			$tail = self::mark( substr( $buffer, $position + strlen( self::MARKER ) ), $this->section_id, $number, $after );
 
-			return $before . $html . $after;
+			return $head . $this->manifest( $html, $before, $after ) . $html . $tail;
 		}
 
-		$buffer = self::mark( $buffer, $this->section_id, $number );
+		$buffer = self::mark( $buffer, $this->section_id, $number, $before );
 		$end    = '' === $html ? false : strrpos( $buffer, '</body>' );
 
 		if ( false === $end ) {
@@ -350,7 +422,38 @@ final class MergedPrint {
 
 		$this->inserted = true;
 
-		return substr_replace( $buffer, $html, $end, 0 );
+		return substr_replace( $buffer, $this->manifest( $html, $before, array() ) . $html, $end, 0 );
+	}
+
+	/**
+	 * Writes the manifest of the merge (the headings of the page of the section and of the units, in the order of the document, with their level,
+	 * their text and the depth of their unit) and returns the marker that names it, to put in front of the units; an empty string when there
+	 * are no units, no place to write it, or it could not be written.
+	 *
+	 * @param string            $html   The units.
+	 * @param array<int, array> $before The headings of the page of the section before the units.
+	 * @param array<int, array> $after  The headings of the page of the section after the units.
+	 * @return string
+	 */
+	private function manifest( $html, array $before, array $after ) {
+		if ( '' === $html || null === $this->manifest_writer ) {
+			return '';
+		}
+
+		$json = wp_json_encode(
+			array(
+				'section'  => $this->section_id,
+				'headings' => array_merge( $before, $this->rows, $after ),
+			)
+		);
+
+		if ( ! is_string( $json ) ) {
+			return '';
+		}
+
+		$key = md5( $json );
+
+		return true === ( $this->manifest_writer )( $key, $json ) ? self::manifest_marker( $key ) : '';
 	}
 
 	/**
@@ -418,6 +521,7 @@ final class MergedPrint {
 		$this->count   = 0;
 		$this->busy    = true;
 		$this->started = microtime( true );
+		$this->rows    = array();
 		$queries       = get_num_queries();
 
 		// The time that a merge may take: the limit of the server and of the print server remain.
@@ -555,7 +659,7 @@ final class MergedPrint {
 			$this->current = 0;
 
 			++$this->count;
-			$out .= '<div class="books-merge-unit" data-post="' . (int) $id . '" data-depth="' . (int) $depth . '">' . self::marker( (int) $id ) . self::mark_headings( $html, (int) $id ) . '</div>';
+			$out .= '<div class="books-merge-unit" data-post="' . (int) $id . '" data-depth="' . (int) $depth . '">' . self::marker( (int) $id ) . self::mark_unit( $html, (int) $id, $this->rows, (int) $depth ) . '</div>';
 
 			$this->log->write(
 				'unit',
