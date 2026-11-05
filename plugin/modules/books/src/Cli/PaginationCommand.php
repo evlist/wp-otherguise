@@ -99,8 +99,10 @@ final class PaginationCommand {
 	/**
 	 * Prints the page where each unit of a section starts in a PDF.
 	 *
-	 * The PDF is the one made from the merged page of the section (the block "Merge the units of the section"): each unit starts with a marker
-	 * that Chromium writes in the file. A PDF that went through a tool that rewrites the objects may have lost them.
+	 * The PDF is the one made from the merged page of the section (the block "Merge the units of the section"): each unit starts with a marker,
+	 * and each heading of a unit has one, that Chromium writes in the file. The page of a unit is the page of its first heading (a template that
+	 * forces a page break before its first block leaves the marker of the unit on the page before), else the page of its marker. A PDF that went
+	 * through a tool that rewrites the objects may have lost them.
 	 *
 	 * ## OPTIONS
 	 *
@@ -112,6 +114,9 @@ final class PaginationCommand {
 	 *
 	 * [--check]
 	 * : Also report the units of the section without a marker, the markers found twice, the markers of a post that is not in the section.
+	 *
+	 * [--headings]
+	 * : Also print the page of every heading of every unit (the id of the unit, `#` and the number of the heading, then the page).
 	 *
 	 * [--format=<format>]
 	 * : `table` (default: one line per unit, tab separated: the id, the page, the title) or `json`.
@@ -147,19 +152,29 @@ final class PaginationCommand {
 			return;
 		}
 
-		$starts  = array();
-		$repeats = array();
+		$unit_pages = array();
+		$headings   = array();
+		$repeats    = array();
 
 		foreach ( $read['markers'] as $name => $pages ) {
-			if ( 1 !== preg_match( '#^unit/(\d+)$#', $name, $unit ) ) {
-				continue;
-			}
+			if ( 1 === preg_match( '#^unit/(\d+)$#', $name, $found ) ) {
+				$unit_pages[ (int) $found[1] ] = $pages[0];
 
-			$starts[ (int) $unit[1] ] = $pages[0];
-
-			if ( count( $pages ) > 1 ) {
-				$repeats[ (int) $unit[1] ] = $pages;
+				if ( count( $pages ) > 1 ) {
+					$repeats[ (int) $found[1] ] = $pages;
+				}
+			} elseif ( 1 === preg_match( '#^heading/(\d+)/(\d+)$#', $name, $found ) ) {
+				$headings[ (int) $found[1] ][ (int) $found[2] ] = $pages[0];
 			}
+		}
+
+		// The page of a unit: its first heading, else its own marker.
+		$starts = $unit_pages;
+
+		foreach ( $headings as $id => $list ) {
+			ksort( $list );
+			$headings[ $id ] = $list;
+			$starts[ $id ]   = reset( $list );
 		}
 
 		$expected = $this->expected( $section );
@@ -175,6 +190,12 @@ final class PaginationCommand {
 
 		usort( $rows, static fn( $a, $b ) => array( $a['page'], $a['id'] ) <=> array( $b['page'], $b['id'] ) );
 
+		if ( isset( $assoc_args['headings'] ) ) {
+			foreach ( $rows as $index => $row ) {
+				$rows[ $index ]['headings'] = $headings[ $row['id'] ] ?? array();
+			}
+		}
+
 		if ( 'json' === $format ) {
 			( $this->log )(
 				(string) wp_json_encode(
@@ -187,6 +208,10 @@ final class PaginationCommand {
 		} else {
 			foreach ( $rows as $row ) {
 				( $this->log )( $row['id'] . "\t" . $row['page'] . "\t" . $row['title'] );
+
+				foreach ( $row['headings'] ?? array() as $number => $page ) {
+					( $this->log )( $row['id'] . '#' . $number . "\t" . $page );
+				}
 			}
 		}
 

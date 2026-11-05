@@ -185,6 +185,68 @@ class BooksPaginationDbTest extends Otherguise_Test_Database_Case {
 	}
 
 	/**
+	 * The page of a unit is the page of its first heading (a forced break leaves the marker of the unit on the page before), else its marker;
+	 * `--headings` prints the page of every heading.
+	 *
+	 * @return void
+	 */
+	public function test_the_first_heading_gives_the_page(): void {
+		$file = $this->pdf(
+			array(
+				'unit/1'      => 2,
+				'heading/1/1' => 3,
+				'heading/1/2' => 4,
+				'unit/2'      => 3,
+				'unit/5'      => 4,
+				'heading/5/2' => 4,
+				'heading/5/1' => 3,
+			)
+		);
+
+		$this->command()->__invoke(
+			array( '100' ),
+			array(
+				'file' => $file,
+				'headings' => true,
+			)
+		);
+
+		$this->assertSame(
+			array(
+				array( 'log', "1\t2\tTitle 1" ),
+				array( 'log', "1#1\t2" ),
+				array( 'log', "1#2\t3" ),
+				array( 'log', "2\t2\tTitle 2" ),
+				array( 'log', "5\t2\tTitle 5" ),
+				array( 'log', "5#1\t2" ),
+				array( 'log', "5#2\t3" ),
+				array( 'success', '3 units in 3 pages.' ),
+			),
+			$this->out,
+			'The unit 1 starts on the page of its heading (the 2nd page of the file), not on its marker (the 1st); the unit 2 has no heading.'
+		);
+
+		$this->out = array();
+		$this->command()->__invoke(
+			array( '100' ),
+			array(
+				'file' => $file,
+				'headings' => true,
+				'format' => 'json',
+			)
+		);
+		$json = json_decode( $this->out[0][1], true );
+
+		$this->assertSame(
+			array(
+				1 => 2,
+				2 => 3,
+			),
+			$json['units'][0]['headings']
+		);
+	}
+
+	/**
 	 * The title is plain text: the entities that WordPress writes in a title are decoded.
 	 *
 	 * @return void

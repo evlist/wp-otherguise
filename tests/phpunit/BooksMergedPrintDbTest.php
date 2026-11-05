@@ -380,6 +380,49 @@ class BooksMergedPrintDbTest extends Otherguise_Test_Database_Case {
 	}
 
 	/**
+	 * Each heading of a unit starts with a marker, numbered in the unit; what a script, a style, a comment or a text area holds is left alone, and
+	 * so are the tags that only start like a heading.
+	 *
+	 * @return void
+	 */
+	public function test_the_headings_are_marked(): void {
+		$marker = static fn( $n ) => '<a class="books-merge-marker" href="https://marker.invalid/heading/7/' . $n . '" tabindex="-1" aria-hidden="true" style="display:inline-block;width:1px;height:1px;vertical-align:top;margin-bottom:-1px;"></a>';
+		$html   = '<h1>A</h1><script>var s="<h2>x</h2>";</script><!-- <h3>c</h3> --><H2 class="x" id="b">B</H2><header>h</header><hr><textarea><h4>t</h4></textarea><style>h5{}</style><h6>F</h6><p>no</p>';
+
+		$this->assertSame(
+			'<h1>' . $marker( 1 ) . 'A</h1><script>var s="<h2>x</h2>";</script><!-- <h3>c</h3> --><H2 class="x" id="b">' . $marker( 2 ) . 'B</H2><header>h</header><hr><textarea><h4>t</h4></textarea><style>h5{}</style><h6>' . $marker( 3 ) . 'F</h6><p>no</p>',
+			MergedPrint::mark_headings( $html, 7 )
+		);
+		$this->assertSame( '<p>No heading</p>', MergedPrint::mark_headings( '<p>No heading</p>', 7 ) );
+		$this->assertSame( '', MergedPrint::mark_headings( '', 7 ) );
+	}
+
+	/**
+	 * In a merge, the headings of each unit carry the markers of that unit.
+	 *
+	 * @return void
+	 */
+	public function test_the_merge_marks_the_headings_of_every_unit(): void {
+		$merge = new MergedPrint(
+			$this->sections,
+			new MergeAccess( null, static fn() => 'key', static fn() => true, static fn() => '' ),
+			new MergeLog( static fn() => false, static fn() => '' ),
+			fn() => $this->request,
+			static fn( $id ) => '<h2>Title ' . $id . '</h2><h3>Sub</h3>',
+			static fn() => array(
+				'status'   => 'publish',
+				'password' => '',
+			)
+		);
+		$html  = $merge->merge();
+
+		$this->assertStringContainsString( 'href="https://marker.invalid/heading/1/1"', $html );
+		$this->assertStringContainsString( 'href="https://marker.invalid/heading/1/2"', $html );
+		$this->assertStringContainsString( 'href="https://marker.invalid/heading/101/1"', $html );
+		$this->assertStringNotContainsString( 'heading/1/3', $html );
+	}
+
+	/**
 	 * Builds the template of a loop, as the filter receives it.
 	 *
 	 * @param array $query   The `query` attribute of the loop.

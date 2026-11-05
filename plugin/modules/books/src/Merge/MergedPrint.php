@@ -210,6 +210,45 @@ final class MergedPrint {
 	}
 
 	/**
+	 * Puts a marker at the start of each heading (`h1` to `h6`) of a unit (slice 227): the marker of the unit can be left on the page before the
+	 * unit when the template of the unit forces a page break before its first block, while a marker **inside** the heading goes with it. The
+	 * markers are numbered in the unit (`heading/<post id>/<n>`). Scripts, styles, comments and text areas are left alone: the text of a
+	 * heading that a script holds is not a heading.
+	 *
+	 * @param string $html Rendered page of the unit.
+	 * @param int    $id   Id of the unit.
+	 * @return string
+	 */
+	public static function mark_headings( $html, $id ) {
+		$parts = preg_split( '~(<script\b.*?</script>|<style\b.*?</style>|<textarea\b.*?</textarea>|<!--.*?-->)~is', (string) $html, -1, PREG_SPLIT_DELIM_CAPTURE );
+
+		if ( false === $parts ) {
+			return (string) $html;
+		}
+
+		$number = 0;
+
+		foreach ( $parts as $index => $part ) {
+			// The odd parts are what the pattern captured: the blocks to leave alone.
+			if ( 1 === $index % 2 ) {
+				continue;
+			}
+
+			$parts[ $index ] = (string) preg_replace_callback(
+				'~<h[1-6](?:\s[^>]*)?>~i',
+				static function ( $found ) use ( $id, &$number ) {
+					++$number;
+
+					return $found[0] . '<a class="books-merge-marker" href="' . esc_url( PdfMarkers::address( 'heading/' . (int) $id . '/' . $number ) ) . '" tabindex="-1" aria-hidden="true" style="display:inline-block;width:1px;height:1px;vertical-align:top;margin-bottom:-1px;"></a>';
+				},
+				$part
+			);
+		}
+
+		return implode( '', $parts );
+	}
+
+	/**
 	 * Tells whether a merge is going on: a unit that renders a section does not merge its units again.
 	 *
 	 * @return bool
@@ -490,7 +529,7 @@ final class MergedPrint {
 			$this->current = 0;
 
 			++$this->count;
-			$out .= '<div class="books-merge-unit" data-post="' . (int) $id . '" data-depth="' . (int) $depth . '">' . self::marker( (int) $id ) . $html . '</div>';
+			$out .= '<div class="books-merge-unit" data-post="' . (int) $id . '" data-depth="' . (int) $depth . '">' . self::marker( (int) $id ) . self::mark_headings( $html, (int) $id ) . '</div>';
 
 			$this->log->write(
 				'unit',
