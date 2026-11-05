@@ -185,6 +185,17 @@ class BooksPaginationDbTest extends Otherguise_Test_Database_Case {
 	}
 
 	/**
+	 * The title is plain text: the entities that WordPress writes in a title are decoded.
+	 *
+	 * @return void
+	 */
+	public function test_a_title_is_plain_text(): void {
+		$this->assertSame( 'Pérols – Tautavel', PaginationCommand::plain( 'Pérols &#8211; Tautavel' ) );
+		$this->assertSame( 'Pic d’Orhy & co', PaginationCommand::plain( 'Pic d&rsquo;Orhy &amp; co' ) );
+		$this->assertSame( 'Bold', PaginationCommand::plain( '<b>Bold</b>' ) );
+	}
+
+	/**
 	 * The format json, and the check: a unit without a marker, a marker found twice, a marker of a post that is not in the section.
 	 *
 	 * @return void

@@ -83,7 +83,17 @@ final class PaginationCommand {
 		$this->success  = $success ?? array( 'WP_CLI', 'success' );
 		$this->fail     = $fail ?? array( 'WP_CLI', 'error' );
 		$this->warning  = $warning ?? array( 'WP_CLI', 'warning' );
-		$this->title    = $title ?? static fn( $id ) => (string) get_the_title( (int) $id );
+		$this->title    = $title ?? static fn( $id ) => self::plain( (string) get_the_title( (int) $id ) );
+	}
+
+	/**
+	 * A title as plain text for a terminal: `get_the_title()` gives HTML (`&#8211;`, `&rsquo;`), which is not read on a command line.
+	 *
+	 * @param string $title Title as WordPress gives it.
+	 * @return string
+	 */
+	public static function plain( $title ) {
+		return html_entity_decode( wp_strip_all_tags( (string) $title ), ENT_QUOTES, 'UTF-8' );
 	}
 
 	/**
