@@ -33,6 +33,12 @@ final class MergedPrint {
 	public const LIMIT = 'books_merge_limit';
 
 	/**
+	 * Name of the query argument that gives the key of the map of the pages (slice 228): the page of each heading, read in the PDF of the first pass
+	 * of the job, that the tables of contents print.
+	 */
+	public const PAGES = 'books_pages';
+
+	/**
 	 * Name of the query argument that marks the preview of the editor.
 	 */
 	public const PREVIEW = 'books_preview';
@@ -163,11 +169,11 @@ final class MergedPrint {
 	private $manifest_writer;
 
 	/**
-	 * The page of each heading (`<post>#<n>`) when a first pass of the job has read them: none yet.
+	 * Reads a map of the pages: receives its key, returns its JSON or null.
 	 *
-	 * @var array<string, int>
+	 * @var callable|null
 	 */
-	private $pages = array();
+	private $pages_reader;
 
 	/**
 	 * Id of the section whose block asked for the merge (the headings of its own page are marked with it).
@@ -235,9 +241,11 @@ final class MergedPrint {
 	 * @param callable|null $render   Renders a unit; defaults to `UnitRenderer`.
 	 * @param callable|null $post_of  Reads a post; defaults to `get_post()`.
 	 * @param callable|null $manifest Writes a manifest (key, JSON); none by default: no manifest.
+	 * @param callable|null $pages    Reads a map of the pages (key): its JSON or null; none by default: the numbers of the tables are placeholders.
 	 */
-	public function __construct( Sections $sections, MergeAccess $access, MergeLog $log, $request = null, $render = null, $post_of = null, $manifest = null ) {
+	public function __construct( Sections $sections, MergeAccess $access, MergeLog $log, $request = null, $render = null, $post_of = null, $manifest = null, $pages = null ) {
 		$this->manifest_writer = $manifest;
+		$this->pages_reader    = $pages;
 		$this->link            = static fn( $id ) => (string) get_permalink( (int) $id );
 		$this->sections = $sections;
 		$this->access   = $access;
@@ -388,12 +396,33 @@ final class MergedPrint {
 			return $page;
 		}
 
+		$pages = $this->pages();
+
 		foreach ( $this->tocs as $index => $toc ) {
-			$html = '' === $units ? '' : TableOfContents::render( TableOfContents::entries( $rows, $toc['levels'] ), $toc['numbered'], $this->pages, $this->link );
+			$html = '' === $units ? '' : TableOfContents::render( TableOfContents::entries( $rows, $toc['levels'] ), $toc['numbered'], $pages, $this->link );
 			$page = str_replace( self::TOC_MARKER . $index . ' -->', $html, $page );
 		}
 
 		return $page;
+	}
+
+	/**
+	 * The page of each heading (`<post>#<n>`) that the address gives (`books_pages`: the map that the first pass of the job saved); none when it
+	 * gives nothing, the map is not found or it is not readable: the numbers are then placeholders.
+	 *
+	 * @return array<string, int>
+	 */
+	private function pages() {
+		$request = (array) ( $this->request )();
+		$key     = (string) ( $request['pages'] ?? '' );
+
+		if ( '' === $key || null === $this->pages_reader ) {
+			return array();
+		}
+
+		$data = json_decode( (string) ( $this->pages_reader )( $key ), true );
+
+		return is_array( $data ) ? array_map( 'intval', array_filter( $data, 'is_numeric' ) ) : array();
 	}
 
 	/**
@@ -415,6 +444,7 @@ final class MergedPrint {
 			array(
 				'section'  => $this->section_id,
 				'units'    => $this->unit_list,
+				'tocs'     => count( array_filter( $this->tocs, static fn( $toc ) => $toc['numbered'] ) ),
 				'headings' => array_merge( $before, $this->rows, $after ),
 			)
 		);

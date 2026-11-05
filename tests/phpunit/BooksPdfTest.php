@@ -451,8 +451,8 @@ class BooksPdfTest extends TestCase {
 			static fn( $slug ) => in_array( $slug, array( 'web', 'print' ), true ),
 			static fn( $url, $mode ) => $url . '?mode=' . $mode,
 			static fn( $address ) => '' === $address ? null : $renderer,
-			static function ( $post_id, $mode, $key, $project = 0 ) use ( &$scheduled ) {
-				$scheduled[] = array( $post_id, $mode, $key, $project );
+			static function ( $post_id, $mode, $key, $project = 0, $numbered = false ) use ( &$scheduled ) {
+				$scheduled[] = array( $post_id, $mode, $key, $project, $numbered );
 			},
 			fn() => $this->time,
 			null,
@@ -470,6 +470,133 @@ class BooksPdfTest extends TestCase {
 	 */
 	private function configure( array $more = array() ) {
 		update_option( RendererSettings::OPTION, array( 'gotenberg_url' => 'http://gotenberg:3000' ) + $more );
+	}
+
+	/**
+	 * A PDF of two pages that carries a marker of the manifest (kept in the store) and the markers of headings given for each page.
+	 *
+	 * @param string[] $page1 Names of the markers of the first page (after the one of the manifest).
+	 * @param string[] $page2 Names of the markers of the second page.
+	 * @return string
+	 */
+	private function numbered_pdf( array $page1, array $page2 = array() ) {
+		$key = md5( 'manifest-of-the-test' );
+		$this->store()->write_manifest( $key, '{"tocs":1}' );
+
+		$objects = array();
+		$number  = 10;
+		$annots  = array();
+
+		foreach ( array(
+			2 => array_merge( array( 'manifest/' . $key ), $page1 ),
+			3 => $page2,
+		) as $page => $names ) {
+			$annots[ $page ] = array();
+
+			foreach ( $names as $name ) {
+				$objects[]         = $number . ' 0 obj <</Type /Annot /Subtype /Link /A <</S /URI /URI (https://marker.invalid/' . $name . ')>>>> endobj';
+				$annots[ $page ][] = $number . ' 0 R';
+				++$number;
+			}
+		}
+
+		foreach ( $annots as $page => $list ) {
+			$objects[] = $page . ' 0 obj <</Type /Page' . ( array() === $list ? '' : ' /Annots [' . implode( ' ', $list ) . ']' ) . ' /Parent 19 0 R>> endobj';
+		}
+
+		$objects[] = '19 0 obj <</Type /Pages /Count 2 /Kids [2 0 R 3 0 R]>> endobj';
+
+		return "%PDF-1.4\n" . implode( "\n", $objects );
+	}
+
+	/**
+	 * Numbering the tables of contents is a PDF of its own: another key, the job is told, and with nothing to settle the conversion is made once.
+	 *
+	 * @return void
+	 */
+	public function test_a_numbered_request_is_a_job_of_its_own(): void {
+		$this->configure();
+
+		$calls     = array();
+		$scheduled = array();
+		$jobs      = $this->jobs( $calls, $scheduled, array( '%PDF-1.7 plain', '%PDF-1.7 numbered' ) );
+
+		$jobs->request( 12, 'print' );
+		$jobs->request( 12, 'print', false, 0, true );
+
+		$this->assertFalse( $scheduled[0][4] );
+		$this->assertTrue( $scheduled[1][4] );
+		$this->assertNotSame( $scheduled[0][2], $scheduled[1][2], 'The numbered PDF has its own key.' );
+
+		$jobs->run( ...$scheduled[1] );
+
+		$this->assertCount( 1, $calls, 'A PDF with no table of contents to number is made once.' );
+		$this->assertSame( 'done', $jobs->status( 12, 'print', 0, true )['status'] );
+		$this->assertSame( 'none', $jobs->status( 12, 'print' )['status'], 'The one-pass PDF was not made.' );
+		$this->assertIsArray( $jobs->download( 12, 'print', 0, true ) );
+		$this->assertInstanceOf( WP_Error::class, $jobs->download( 12, 'print' ) );
+	}
+
+	/**
+	 * The passes: the second conversion is asked for with the key of the map of the pages; when the pagination holds the job is done and says nothing.
+	 *
+	 * @return void
+	 */
+	public function test_the_job_makes_the_passes_of_a_numbered_pdf(): void {
+		$this->configure();
+
+		$same      = $this->numbered_pdf( array( 'heading/1/1' ), array( 'heading/1/2' ) );
+		$calls     = array();
+		$scheduled = array();
+		$logged    = array();
+		$jobs      = $this->jobs(
+			$calls,
+			$scheduled,
+			array( $same, $same ),
+			2,
+			array(),
+			null,
+			null,
+			static function ( $event, array $fields ) use ( &$logged ) {
+				$logged[ $event ] = $fields;
+			}
+		);
+
+		$jobs->request( 12, 'print', false, 0, true );
+		$jobs->run( ...$scheduled[0] );
+
+		$this->assertCount( 2, $calls );
+		$this->assertStringNotContainsString( 'books_pages', $calls[0][0], 'The first pass has no map.' );
+		$this->assertMatchesRegularExpression( '/books_pages=[0-9a-f]{32}/', $calls[1][0], 'The second pass is given the map of the first.' );
+		$this->assertSame( 2, $logged['pdf_convert']['passes'] );
+		$this->assertTrue( $logged['pdf_convert']['stable'] );
+		$this->assertSame( 'done', $jobs->status( 12, 'print', 0, true )['status'] );
+		$this->assertSame( '', $jobs->status( 12, 'print', 0, true )['message'] );
+	}
+
+	/**
+	 * A pagination that does not settle gives a PDF and a message.
+	 *
+	 * @return void
+	 */
+	public function test_a_pagination_that_does_not_settle_gives_a_message(): void {
+		$this->configure();
+
+		$one       = $this->numbered_pdf( array( 'heading/1/1' ), array( 'heading/1/2' ) );
+		$two       = $this->numbered_pdf( array( 'heading/1/1', 'heading/1/2' ) );
+		$calls     = array();
+		$scheduled = array();
+		$jobs      = $this->jobs( $calls, $scheduled, array( $one, $two, $one ) );
+
+		$jobs->request( 12, 'print', false, 0, true );
+		$jobs->run( ...$scheduled[0] );
+
+		$this->assertCount( 3, $calls, 'Three passes at most.' );
+
+		$status = $jobs->status( 12, 'print', 0, true );
+
+		$this->assertSame( 'done', $status['status'] );
+		$this->assertStringContainsString( 'did not settle', $status['message'] );
 	}
 
 	/**

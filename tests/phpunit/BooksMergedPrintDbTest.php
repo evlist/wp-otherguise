@@ -590,6 +590,68 @@ class BooksMergedPrintDbTest extends Otherguise_Test_Database_Case {
 	}
 
 	/**
+	 * With the key of a map of the pages in the address (`books_pages`), the numbered tables print the pages; a heading that is not in the map gets a
+	 * dash; an address with no map, or a map that cannot be read, gives the placeholders. The manifest says how many numbered tables there are.
+	 *
+	 * @return void
+	 */
+	public function test_the_tables_print_the_pages_of_the_map(): void {
+		$key = str_repeat( 'a', 32 );
+		$run = function ( $reader, $request ) {
+			$written = '';
+			$merge   = new MergedPrint(
+				$this->sections,
+				new MergeAccess( null, static fn() => 'key', static fn() => true, static fn() => '' ),
+				new MergeLog( static fn() => false, static fn() => '' ),
+				static fn() => $request,
+				static fn( $id ) => '<h2>Unit ' . $id . '</h2>',
+				static fn() => array(
+					'status'   => 'publish',
+					'password' => '',
+				),
+				static function ( $key, $json ) use ( &$written ) {
+					$written = $json;
+
+					return true;
+				},
+				$reader
+			);
+			$toc     = new SectionTocBlock( $merge, fn() => 'print', null, static fn() => true );
+			$block   = new SectionMergeBlock( $merge, fn() => 'print' );
+			$marker  = $toc->render( array( 'levels' => 0 ), '', null );
+
+			$block->render( array(), '', null );
+
+			ob_start();
+			$merge->head();
+			$source = '<body>' . $marker . MergedPrint::MARKER . '</body>';
+			echo $source; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+			$merge->footer();
+			ob_end_flush();
+
+			return array( (string) ob_get_clean(), $written );
+		};
+		$with    = $this->request + array( 'pages' => $key );
+
+		list( $page, $json ) = $run( static fn( $asked ) => $asked === $key ? '{"1#1":7,"101#1":3,"3#1":4}' : null, $with );
+
+		$this->assertStringContainsString( '<span class="books-toc__text">Unit 101</span><span class="books-toc__leader" aria-hidden="true"></span><span class="books-toc__page">3</span>', $page );
+		$this->assertStringContainsString( '<span class="books-toc__text">Unit 1</span><span class="books-toc__leader" aria-hidden="true"></span><span class="books-toc__page">7</span>', $page );
+		$this->assertStringContainsString( '<span class="books-toc__text">Unit 5</span><span class="books-toc__leader" aria-hidden="true"></span><span class="books-toc__page">–</span>', $page, 'Not in the map.' );
+		$this->assertSame( 1, json_decode( $json, true )['tocs'], 'One numbered table.' );
+
+		list( $page ) = $run( static fn() => null, $with );
+		$this->assertStringContainsString( '<span class="books-toc__page">000</span>', $page, 'A map that is not found.' );
+		$this->assertStringNotContainsString( '–', $page );
+
+		list( $page ) = $run( static fn() => 'not json', $with );
+		$this->assertStringContainsString( '<span class="books-toc__page">000</span>', $page, 'A map that cannot be read.' );
+
+		list( $page ) = $run( static fn() => '{"1#1":7}', $this->request );
+		$this->assertStringContainsString( '<span class="books-toc__page">000</span>', $page, 'No map in the address.' );
+	}
+
+	/**
 	 * Without units, or with a visitor who may not merge, the table is nothing: no marker, or the marker goes away.
 	 *
 	 * @return void

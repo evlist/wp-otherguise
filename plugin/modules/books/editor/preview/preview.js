@@ -59,7 +59,7 @@
 			return null;
 		}
 
-		var route = function ( suffix, mode, project ) {
+		var route = function ( suffix, mode, project, numbered ) {
 			var query = [];
 
 			if ( mode ) {
@@ -70,20 +70,25 @@
 				query.push( 'project=' + encodeURIComponent( project ) );
 			}
 
+			// The tables of contents are numbered (slice 228): several passes, a PDF of its own in the cache.
+			if ( numbered ) {
+				query.push( 'numbered=1' );
+			}
+
 			return settings.pdf.path + '/' + editor().getCurrentPostId() + suffix + ( query.length ? '?' + query.join( '&' ) : '' );
 		};
 
 		return {
 			enabled: true,
 			api: {
-				start: function ( mode, refresh, project ) {
-					return wp.apiFetch( { path: route( '' ), method: 'POST', data: { mode: mode, refresh: !! refresh, project: project || 0 } } );
+				start: function ( mode, refresh, project, numbered ) {
+					return wp.apiFetch( { path: route( '' ), method: 'POST', data: { mode: mode, refresh: !! refresh, project: project || 0, numbered: !! numbered } } );
 				},
-				status: function ( mode, project ) {
-					return wp.apiFetch( { path: route( '', mode, project ) } );
+				status: function ( mode, project, numbered ) {
+					return wp.apiFetch( { path: route( '', mode, project, numbered ) } );
 				},
-				file: function ( mode, project ) {
-					return wp.apiFetch( { path: route( '/file', mode, project ) } );
+				file: function ( mode, project, numbered ) {
+					return wp.apiFetch( { path: route( '/file', mode, project, numbered ) } );
 				},
 			},
 		};

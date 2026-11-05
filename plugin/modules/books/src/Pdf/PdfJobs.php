@@ -187,17 +187,18 @@ final class PdfJobs {
 	 * @param int    $post_id Post.
 	 * @param string $mode    Slug of the mode.
 	 * @param bool   $force   Make a new conversion even when the files hold one.
-	 * @param int    $project Id of the book project whose rules apply (0: the first that covers the post).
+	 * @param int    $project  Id of the book project whose rules apply (0: the first that covers the post).
+	 * @param bool   $numbered Number the tables of contents: several passes (slice 228); else one pass, a real preview.
 	 * @return array<string, mixed>|\WP_Error The state.
 	 */
-	public function request( $post_id, $mode, $force = false, $project = 0 ) {
+	public function request( $post_id, $mode, $force = false, $project = 0, $numbered = false ) {
 		$check = $this->check( $post_id, $mode, true );
 
 		if ( $check instanceof \WP_Error ) {
 			return $check;
 		}
 
-		$key     = $this->key( $post_id, $mode, $check, $project );
+		$key     = $this->key( $post_id, $mode, $check, $project, $numbered );
 		$state   = $this->state->get( $post_id, $mode );
 		$preview = ! empty( $check['preview'] );
 
@@ -216,7 +217,7 @@ final class PdfJobs {
 
 		$state = $this->fresh( $key, 'queued', $preview );
 		$this->state->set( $post_id, $mode, $state );
-		( $this->schedule )( $post_id, $mode, $key, (int) $project );
+		( $this->schedule )( $post_id, $mode, $key, (int) $project, (bool) $numbered );
 
 		return $this->present( $state );
 	}
@@ -226,17 +227,18 @@ final class PdfJobs {
 	 *
 	 * @param int    $post_id Post.
 	 * @param string $mode    Slug of the mode.
-	 * @param int    $project Id of the book project whose rules apply (0: the first that covers the post).
+	 * @param int    $project  Id of the book project whose rules apply (0: the first that covers the post).
+	 * @param bool   $numbered Whether the tables of contents are numbered.
 	 * @return array<string, mixed>|\WP_Error
 	 */
-	public function status( $post_id, $mode, $project = 0 ) {
+	public function status( $post_id, $mode, $project = 0, $numbered = false ) {
 		$check = $this->check( $post_id, $mode );
 
 		if ( $check instanceof \WP_Error ) {
 			return $check;
 		}
 
-		$key     = $this->key( $post_id, $mode, $check, $project );
+		$key     = $this->key( $post_id, $mode, $check, $project, $numbered );
 		$state   = $this->state->get( $post_id, $mode );
 		$preview = ! empty( $check['preview'] );
 
@@ -258,10 +260,11 @@ final class PdfJobs {
 	 * @param int    $post_id Post.
 	 * @param string $mode    Slug of the mode.
 	 * @param string $key     Key of the conversion that was queued.
-	 * @param int    $project Id of the book project whose rules apply (0: the first that covers the post).
+	 * @param int    $project  Id of the book project whose rules apply (0: the first that covers the post).
+	 * @param bool   $numbered Whether the tables of contents are numbered (several passes).
 	 * @return void
 	 */
-	public function run( $post_id, $mode, $key, $project = 0 ) {
+	public function run( $post_id, $mode, $key, $project = 0, $numbered = false ) {
 		$state = $this->state->get( $post_id, $mode );
 
 		if ( ( $state['key'] ?? '' ) !== $key || 'queued' !== ( $state['status'] ?? '' ) ) {
@@ -299,23 +302,23 @@ final class PdfJobs {
 			return;
 		}
 
-		$rules   = ( $this->rules )( $post_id, (int) $project );
-		$url     = ( $this->url_for )( $info['url'], $mode );
-		$started = microtime( true );
-		$result  = $renderer->convert_url_to_file(
-			( $this->reach )( $this->address_of( $url, $post_id, $rules ) ),
-			$this->format_for( $rules ),
-			array(
-				'prefer_css_page_size' => is_array( $rules ),
-				'scale'           => is_array( $rules ) ? $rules['scale'] ?? null : null,
-				'media'           => $settings[ RendererSettings::MEDIA ],
-				'wait_delay'      => $settings[ RendererSettings::WAIT_DELAY ],
-				'wait_expression' => $settings[ RendererSettings::WAIT_EXPRESSION ],
-				'wait_selector'   => $settings[ RendererSettings::WAIT_SELECTOR ],
-				'timeout'         => 300,
-			),
-			$part
+		$rules    = ( $this->rules )( $post_id, (int) $project );
+		$url      = ( $this->url_for )( $info['url'], $mode );
+		$started  = microtime( true );
+		$options  = array(
+			'prefer_css_page_size' => is_array( $rules ),
+			'scale'                => is_array( $rules ) ? $rules['scale'] ?? null : null,
+			'media'                => $settings[ RendererSettings::MEDIA ],
+			'wait_delay'           => $settings[ RendererSettings::WAIT_DELAY ],
+			'wait_expression'      => $settings[ RendererSettings::WAIT_EXPRESSION ],
+			'wait_selector'        => $settings[ RendererSettings::WAIT_SELECTOR ],
+			'timeout'              => 300,
 		);
+		$convert  = function ( $pages ) use ( $renderer, $url, $post_id, $rules, $options, $part ) {
+			return $renderer->convert_url_to_file( ( $this->reach )( $this->address_of( $url, $post_id, $rules, (string) $pages ) ), $this->format_for( $rules ), $options, $part );
+		};
+		$made     = ( new Passes( $this->store ) )->run( $convert, $part, (bool) $numbered );
+		$failed   = ! $made['ok'];
 
 		( $this->log )(
 			'pdf_convert',
@@ -323,15 +326,17 @@ final class PdfJobs {
 				'post'    => (int) $post_id,
 				'mode'    => $mode,
 				'seconds' => round( microtime( true ) - $started, 2 ),
-				'ok'      => ! ( $result instanceof \WP_Error ),
-				'error'   => $result instanceof \WP_Error ? $result->get_error_message() : '',
-				'pdf_kb'  => $result instanceof \WP_Error ? 0 : (int) round( (int) filesize( $part ) / 1024 ),
+				'ok'      => $made['ok'],
+				'passes'  => $made['passes'],
+				'stable'  => $made['stable'],
+				'error'   => $made['error'],
+				'pdf_kb'  => $failed ? 0 : (int) round( (int) filesize( $part ) / 1024 ),
 			)
 		);
 
-		if ( $result instanceof \WP_Error ) {
+		if ( $failed ) {
 			$this->store->discard( $key );
-			$this->fail( $post_id, $mode, $state, $result->get_error_message() );
+			$this->fail( $post_id, $mode, $state, $made['error'] );
 			return;
 		}
 
@@ -341,7 +346,7 @@ final class PdfJobs {
 		}
 
 		$state['status']      = 'done';
-		$state['message']     = '';
+		$state['message']     = $made['stable'] ? '' : __( 'The page numbers of the table of contents did not settle after three passes: some may be wrong.', 'otherguise' );
 		$state['pages']       = $this->count_pages( $renderer, $key );
 		$state['finished_at'] = ( $this->now )();
 		$this->state->set( $post_id, $mode, $state );
@@ -353,17 +358,18 @@ final class PdfJobs {
 	 *
 	 * @param int    $post_id Post.
 	 * @param string $mode    Slug of the mode.
-	 * @param int    $project Id of the book project whose rules apply (0: the first that covers the post).
+	 * @param int    $project  Id of the book project whose rules apply (0: the first that covers the post).
+	 * @param bool   $numbered Whether the tables of contents are numbered.
 	 * @return array{path:string, filename:string, pages:int|null, preview:bool, size:int}|\WP_Error
 	 */
-	public function download( $post_id, $mode, $project = 0 ) {
+	public function download( $post_id, $mode, $project = 0, $numbered = false ) {
 		$check = $this->check( $post_id, $mode );
 
 		if ( $check instanceof \WP_Error ) {
 			return $check;
 		}
 
-		$key = $this->key( $post_id, $mode, $check, $project );
+		$key = $this->key( $post_id, $mode, $check, $project, $numbered );
 
 		if ( ! $this->store->has( $key ) ) {
 			return new \WP_Error( 'books_pdf_not_ready', __( 'The PDF is not ready.', 'otherguise' ), array( 'status' => 409 ) );
@@ -456,10 +462,11 @@ final class PdfJobs {
 	 * @param int                  $post_id Post.
 	 * @param string               $mode    Slug of the mode.
 	 * @param array<string, mixed> $info    What is known of the post.
-	 * @param int                  $project Id of the book project asked for (0 for none).
+	 * @param int                  $project  Id of the book project asked for (0 for none).
+	 * @param bool                 $numbered Whether the tables of contents are numbered.
 	 * @return string
 	 */
-	private function key( $post_id, $mode, array $info, $project = 0 ) {
+	private function key( $post_id, $mode, array $info, $project = 0, $numbered = false ) {
 		$settings = $this->settings->get();
 
 		unset( $settings[ RendererSettings::URL ], $settings[ RendererSettings::KEEP_DAYS ] );
@@ -485,6 +492,11 @@ final class PdfJobs {
 			}
 		}
 
+		// Added only when the tables of contents are numbered, so that the other PDF files keep their key.
+		if ( $numbered ) {
+			$parts['numbered'] = true;
+		}
+
 		return md5( (string) wp_json_encode( $parts ) );
 	}
 
@@ -495,9 +507,10 @@ final class PdfJobs {
 	 * @param string                    $url     Address of the page in the mode.
 	 * @param int                       $post_id Post.
 	 * @param array<string, mixed>|null $rules   The rules of the project, or null.
+	 * @param string                    $pages   Key of the map of the pages that a first pass saved (slice 228), or an empty string.
 	 * @return string
 	 */
-	private function address_of( $url, $post_id, $rules ) {
+	private function address_of( $url, $post_id, $rules, $pages = '' ) {
 		$arguments = array();
 		$token     = (string) ( $this->merge_token )( $post_id );
 
@@ -507,6 +520,10 @@ final class PdfJobs {
 
 		if ( '' !== $token ) {
 			$arguments['books_merge_token'] = $token;
+		}
+
+		if ( '' !== $pages ) {
+			$arguments['books_pages'] = $pages;
 		}
 
 		return array() === $arguments ? $url : add_query_arg( $arguments, $url );

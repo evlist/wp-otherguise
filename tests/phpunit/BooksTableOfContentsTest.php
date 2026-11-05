@@ -97,9 +97,11 @@ class BooksTableOfContentsTest extends TestCase {
 
 		$this->assertSame(
 			'<ul class="books-toc"><li class="books-toc__entry books-toc__level-1"><span class="books-toc__text">Day &lt;1&gt; &amp; co</span><span class="books-toc__leader" aria-hidden="true"></span><span class="books-toc__page">12</span></li>'
-			. '<li class="books-toc__entry books-toc__level-1"><span class="books-toc__text">Day 2</span><span class="books-toc__leader" aria-hidden="true"></span><span class="books-toc__page">000</span></li></ul>',
-			TableOfContents::render( $entries, true, array( '1#1' => 12 ), static fn() => '' )
+			. '<li class="books-toc__entry books-toc__level-1"><span class="books-toc__text">Day 2</span><span class="books-toc__leader" aria-hidden="true"></span><span class="books-toc__page">–</span></li></ul>',
+			TableOfContents::render( $entries, true, array( '1#1' => 12 ), static fn() => '' ),
+			'The pages are known: a heading that is not in the map is not printed, a dash.'
 		);
+		$this->assertStringContainsString( '<span class="books-toc__page">000</span>', TableOfContents::render( $entries, true, array(), static fn() => '' ), 'No pages yet: the placeholder.' );
 		$this->assertSame(
 			'<ul class="books-toc"><li class="books-toc__entry books-toc__level-1"><a href="https://example.test/?p=1">Day &lt;1&gt; &amp; co</a></li>'
 			. '<li class="books-toc__entry books-toc__level-1">Day 2</li></ul>',

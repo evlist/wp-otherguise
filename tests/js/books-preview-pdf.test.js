@@ -23,16 +23,16 @@ const flush = () => new Promise( ( resolve ) => setImmediate( resolve ) );
 function make( options ) {
 	options = options || {};
 	const dom = new JSDOM( '<!doctype html><body></body>', { pretendToBeVisual: true } );
-	const log = { start: [], status: [], file: [], opened: [], timers: [] };
+	const log = { start: [], status: [], file: [], opened: [], timers: [], numbered: [] };
 	const answers = { start: options.start || [ { status: 'queued', elapsed: 0 } ], status: options.status || [], file: options.file || [ { filename: 'post.pdf', url: FILE_URL, pages: 2 } ] };
 	const next = ( name ) => {
 		const answer = answers[ name ].length > 1 ? answers[ name ].shift() : answers[ name ][ 0 ];
 		return answer instanceof Error ? Promise.reject( answer ) : Promise.resolve( answer );
 	};
 	const api = {
-		start: ( mode, refresh ) => ( log.start.push( [ mode, refresh ] ), next( 'start' ) ),
-		status: ( mode ) => ( log.status.push( mode ), next( 'status' ) ),
-		file: ( mode ) => ( log.file.push( mode ), next( 'file' ) ),
+		start: ( mode, refresh, project, numbered ) => ( log.start.push( [ mode, refresh ] ), log.numbered.push( [ 'start', !! numbered ] ), next( 'start' ) ),
+		status: ( mode, project, numbered ) => ( log.status.push( mode ), log.numbered.push( [ 'status', !! numbered ] ), next( 'status' ) ),
+		file: ( mode, project, numbered ) => ( log.file.push( mode ), log.numbered.push( [ 'file', !! numbered ] ), next( 'file' ) ),
 	};
 	const panel = createPanel( {
 		document: dom.window.document,
@@ -386,4 +386,31 @@ test( 'without a PDF server a Refresh of the Web view has nothing to remember', 
 	site.click( '.books-preview__refresh' );
 	assert.strictEqual( site.panel.view(), 'web' );
 	assert.strictEqual( site.log.start.length, 0 );
+} );
+
+test( 'a check box numbers the tables of contents: one pass by default, several when it is checked, and the PDF is asked for again', async () => {
+	const site = make( { start: [ { status: 'done', elapsed: 1 } ] } );
+	const box = site.q( '.books-preview__numbered input' );
+
+	assert.ok( box, 'the check box is with the views' );
+	assert.strictEqual( box.checked, false, 'one pass, a real preview, by default' );
+
+	site.panel.open();
+	site.click( '.books-preview__view--pdf' );
+	await flush();
+	await flush();
+
+	assert.deepStrictEqual( site.log.numbered.filter( ( call ) => 'start' === call[ 0 ] ), [ [ 'start', false ] ] );
+
+	box.checked = true;
+	box.dispatchEvent( new site.dom.window.Event( 'change' ) );
+	await flush();
+	await flush();
+
+	assert.deepStrictEqual( site.log.numbered.filter( ( call ) => 'start' === call[ 0 ] ), [ [ 'start', false ], [ 'start', true ] ], 'the job is asked for again, numbered' );
+	assert.ok( site.log.numbered.filter( ( call ) => 'file' === call[ 0 ] ).every( ( call, index ) => index === 0 ? call[ 1 ] === false : call[ 1 ] === true ), 'the file is the one of the pass that was asked for' );
+} );
+
+test( 'without a PDF server the check box does not exist', () => {
+	assert.strictEqual( make( { noPdf: true } ).q( '.books-preview__numbered' ), null );
 } );

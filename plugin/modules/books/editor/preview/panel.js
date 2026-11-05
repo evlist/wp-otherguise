@@ -60,6 +60,8 @@
 			open: false,
 			mode: settings.defaultMode,
 			project: ( settings.projects && settings.projects.length ) ? settings.projects[ 0 ].id : 0,
+			// The PDF with the numbers of the tables of contents (slice 228): several passes; off, one pass, a real preview.
+			numbered: false,
 			stale: false,
 			measured: undefined,
 			measuring: false,
@@ -143,6 +145,8 @@
 		var pdfButton = null;
 		var downloadButton = null;
 		var openButton = null;
+		var numberedLabel = null;
+		var numberedBox = null;
 		if ( pdfOptions ) {
 			views = el( 'div', 'books-preview__views' );
 			webButton = el( 'button', 'books-preview__view books-preview__view--web button button-small', __( 'Web', 'otherguise' ) );
@@ -157,6 +161,16 @@
 			pdfButton.setAttribute( 'aria-pressed', 'false' );
 			downloadButton.hidden = true;
 			openButton.hidden = true;
+
+			// One pass is the real preview; the box goes on to the numbering of the tables of contents (and, later, of the indexes), which makes the PDF
+			// again with the pages that the first pass found.
+			numberedLabel = el( 'label', 'books-preview__numbered' );
+			numberedBox = el( 'input', '' );
+			numberedBox.type = 'checkbox';
+			numberedBox.checked = state.numbered;
+			numberedLabel.appendChild( numberedBox );
+			numberedLabel.appendChild( doc.createTextNode( ' ' + __( 'Number the tables of contents (several passes)', 'otherguise' ) ) );
+			views.appendChild( numberedLabel );
 		}
 
 		var status = el( 'div', 'books-preview__status' );
@@ -506,7 +520,7 @@
 					return;
 				}
 				if ( 'done' === answer.status ) {
-					pdfOptions.api.file( state.mode, state.project ).then( function ( file ) {
+					pdfOptions.api.file( state.mode, state.project, state.numbered ).then( function ( file ) {
 						showPdf( id, file );
 					}, function ( error ) {
 						pdfFailed( id, error && error.message ? error.message : '' );
@@ -521,7 +535,7 @@
 					timer = later( function () {
 						timer = null;
 						if ( id === generation ) {
-							pdfOptions.api.status( state.mode, state.project ).then( handle, fail );
+							pdfOptions.api.status( state.mode, state.project, state.numbered ).then( handle, fail );
 						}
 					}, pdfOptions.pollMs || POLL_MS );
 				}
@@ -530,7 +544,7 @@
 				pdfFailed( id, error && error.message ? error.message : '' );
 			};
 
-			pdfOptions.api.start( state.mode, !! force, state.project ).then( handle, fail );
+			pdfOptions.api.start( state.mode, !! force, state.project, state.numbered ).then( handle, fail );
 		}
 
 		function setView( view ) {
@@ -587,6 +601,12 @@
 			}
 		} );
 		if ( pdfOptions ) {
+			numberedBox.addEventListener( 'change', function () {
+				state.numbered = numberedBox.checked;
+				if ( state.open && 'pdf' === state.view ) {
+					load();
+				}
+			} );
 			webButton.addEventListener( 'click', function () {
 				setView( 'web' );
 			} );

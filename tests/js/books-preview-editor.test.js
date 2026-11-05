@@ -273,7 +273,7 @@ test( 'with a PDF server the panel has the views, and the PDF view calls the rou
 	site.q( '.books-preview__view--pdf' ).dispatchEvent( new site.dom.window.Event( 'click' ) );
 	await new Promise( ( resolve ) => setImmediate( resolve ) );
 
-	assert.deepStrictEqual( JSON.parse( JSON.stringify( site.fetched ) ), [ { path: '/books/v1/pdf/58325', method: 'POST', data: { mode: 'print', refresh: false, project: 0 } } ] );
+	assert.deepStrictEqual( JSON.parse( JSON.stringify( site.fetched ) ), [ { path: '/books/v1/pdf/58325', method: 'POST', data: { mode: 'print', refresh: false, project: 0, numbered: false } } ] );
 } );
 
 test( 'the PDF routes for the state and the file carry the mode in the query', async () => {

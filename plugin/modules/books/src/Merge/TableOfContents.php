@@ -23,6 +23,11 @@ final class TableOfContents {
 	public const PLACEHOLDER = '000';
 
 	/**
+	 * What a number of page is when the pages are known and the heading is not in the PDF (it is not printed): a dash.
+	 */
+	public const MISSING = '–';
+
+	/**
 	 * The entries of the table: the headings that a table lists, with the level of their entry.
 	 *
 	 * The level of an entry is the depth of its unit (1 for the units of the section, 2 for the units of a part, ...; the headings of the page of
@@ -92,8 +97,9 @@ final class TableOfContents {
 			$text = esc_html( $entry['text'] );
 
 			if ( $numbered ) {
-				$page  = $pages[ $entry['unit'] . '#' . $entry['n'] ] ?? null;
-				$html .= '<li class="books-toc__entry books-toc__level-' . (int) $entry['level'] . '"><span class="books-toc__text">' . $text . '</span><span class="books-toc__leader" aria-hidden="true"></span><span class="books-toc__page">' . ( null === $page ? self::PLACEHOLDER : (int) $page ) . '</span></li>';
+				$page   = $pages[ $entry['unit'] . '#' . $entry['n'] ] ?? null;
+				$number = null !== $page ? (string) (int) $page : ( array() === $pages ? self::PLACEHOLDER : self::MISSING );
+				$html  .= '<li class="books-toc__entry books-toc__level-' . (int) $entry['level'] . '"><span class="books-toc__text">' . $text . '</span><span class="books-toc__leader" aria-hidden="true"></span><span class="books-toc__page">' . esc_html( $number ) . '</span></li>';
 				continue;
 			}
 

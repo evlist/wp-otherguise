@@ -182,7 +182,7 @@ final class Module implements ModuleInterface {
 		( $this->add_action )( 'triples_register_predicates', array( $this, 'register_predicates' ), 10, 1 );
 		( $this->add_action )( 'before_delete_post', array( $sections, 'forget_post' ), 9, 1 );
 		( $this->add_action )( 'enqueue_block_editor_assets', array( $section_editor, 'enqueue' ), 10, 0 );
-		( $this->add_action )( PdfJobs::EVENT, array( $jobs, 'run' ), 10, 4 );
+		( $this->add_action )( PdfJobs::EVENT, array( $jobs, 'run' ), 10, 5 );
 		( $this->add_action )( self::CLEANUP_EVENT, array( $jobs, 'cleanup' ), 10, 0 );
 		( $this->add_action )( 'admin_init', array( $this, 'schedule_cleanup' ), 10, 0 );
 		( $this->add_action )( 'cli_init', array( $this, 'register_command' ), 10, 0 );
@@ -190,7 +190,7 @@ final class Module implements ModuleInterface {
 		( $this->add_action )( 'wp_calculate_image_srcset', array( $srcset, 'filter' ), 20, 1 );
 		( $this->add_action )( 'image_downsize', array( $fallback, 'filter' ), 100, 3 );
 		( $this->add_action )( 'wp_head', array( $ratio, 'print_script' ), 0, 0 );
-		$merged = new MergedPrint( $sections, new MergeAccess(), new MergeLog(), null, null, null, static fn( $key, $json ) => self::store()->write_manifest( $key, $json ) );
+		$merged = new MergedPrint( $sections, new MergeAccess(), new MergeLog(), null, null, null, static fn( $key, $json ) => self::store()->write_manifest( $key, $json ), static fn( $key ) => self::store()->read_manifest( $key ) );
 		$choices = array( $this, 'mode_choices' );
 		$query  = new UnitsQuery( $sections );
 
@@ -382,8 +382,8 @@ final class Module implements ModuleInterface {
 			static function ( $address ) {
 				return new GotenbergClient( $address );
 			},
-			static function ( $post_id, $mode, $key, $project = 0 ) {
-				wp_schedule_single_event( time(), PdfJobs::EVENT, array( (int) $post_id, (string) $mode, (string) $key, (int) $project ) );
+			static function ( $post_id, $mode, $key, $project = 0, $numbered = false ) {
+				wp_schedule_single_event( time(), PdfJobs::EVENT, array( (int) $post_id, (string) $mode, (string) $key, (int) $project, (bool) $numbered ) );
 				spawn_cron();
 			},
 			null,
