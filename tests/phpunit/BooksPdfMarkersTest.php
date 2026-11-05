@@ -99,8 +99,8 @@ class BooksPdfMarkersTest extends TestCase {
 	public function test_the_pages_of_the_markers(): void {
 		$path = $this->file(
 			array(
-				$this->link( 6, 'https://marker.invalid/unit/1' ),
-				$this->link( 7, 'https://marker.invalid/unit/2' ),
+				$this->link( 6, 'https://marker.invalid/heading/1/1' ),
+				$this->link( 7, 'https://marker.invalid/heading/2/1' ),
 				$this->link( 8, 'https://example.org/elsewhere' ),
 				$this->page( 2, 19, array( 6, 8 ) ),
 				$this->page( 9, 19, array( 7 ) ),
@@ -113,8 +113,8 @@ class BooksPdfMarkersTest extends TestCase {
 			array(
 				'pages'   => 3,
 				'markers' => array(
-					'unit/1' => array( 2 ),
-					'unit/2' => array( 3 ),
+					'heading/1/1' => array( 2 ),
+					'heading/2/1' => array( 3 ),
 				),
 			),
 			PdfMarkers::read( $path ),
@@ -131,7 +131,7 @@ class BooksPdfMarkersTest extends TestCase {
 		$stream = '5 0 obj <</Length 40>> stream' . "\n" . str_repeat( "\x00\xff/Type /Page 1 0 R \n", 300 ) . "\nendstream endobj\n";
 		$path   = $this->file(
 			array(
-				$this->link( 6, 'https://marker.invalid/unit/12' ),
+				$this->link( 6, 'https://marker.invalid/heading/12/1' ),
 				$this->page( 2, 19, array( 6 ) ),
 				$this->page( 9, 19 ),
 				$this->node( 19, array( 2, 9 ) ),
@@ -155,8 +155,8 @@ class BooksPdfMarkersTest extends TestCase {
 	public function test_nested_nodes_and_a_marker_twice(): void {
 		$path = $this->file(
 			array(
-				$this->link( 6, 'https://marker.invalid/unit/1' ),
-				$this->link( 7, 'https://marker.invalid/unit/1' ),
+				$this->link( 6, 'https://marker.invalid/heading/1/1' ),
+				$this->link( 7, 'https://marker.invalid/heading/1/1' ),
 				$this->page( 2, 20 ),
 				$this->page( 3, 20, array( 6 ) ),
 				$this->page( 4, 21 ),
@@ -170,7 +170,7 @@ class BooksPdfMarkersTest extends TestCase {
 		$this->assertSame(
 			array(
 				'pages'   => 4,
-				'markers' => array( 'unit/1' => array( 2, 4 ) ),
+				'markers' => array( 'heading/1/1' => array( 2, 4 ) ),
 			),
 			PdfMarkers::read( $path )
 		);
@@ -196,6 +196,6 @@ class BooksPdfMarkersTest extends TestCase {
 		$this->assertNull( PdfMarkers::read( '/nonexistent/file.pdf' ) );
 		$this->assertNull( PdfMarkers::read( $this->file( array() ) ) );
 		$this->assertNull( PdfMarkers::read( $path, 0 ) );
-		$this->assertSame( 'https://marker.invalid/unit/7', PdfMarkers::address( 'unit/7' ) );
+		$this->assertSame( 'https://marker.invalid/heading/7/1', PdfMarkers::address( 'heading/7/1' ) );
 	}
 }

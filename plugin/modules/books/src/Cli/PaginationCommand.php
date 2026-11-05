@@ -108,10 +108,9 @@ final class PaginationCommand {
 	/**
 	 * Prints the page where each unit of a section starts in a PDF.
 	 *
-	 * The PDF is the one made from the merged page of the section (the block "Merge the units of the section"): each unit starts with a marker,
-	 * and each heading of a unit and of the page of the section has one, that Chromium writes in the file. The page of a unit is the page of its first heading (a template that
-	 * forces a page break before its first block leaves the marker of the unit on the page before), else the page of its marker. A PDF that went
-	 * through a tool that rewrites the objects may have lost them.
+	 * The PDF is the one made from the merged page of the section (the block "Merge the units of the section"): each heading of a unit and of the
+	 * page of the section has a marker that Chromium writes in the file. The page of a unit is the page of its first heading; a unit with no heading
+	 * (or whose headings are not printed) has no page. A PDF that went through a tool that rewrites the objects may have lost the markers.
 	 *
 	 * ## OPTIONS
 	 *
@@ -122,7 +121,7 @@ final class PaginationCommand {
 	 * : The PDF file.
 	 *
 	 * [--check]
-	 * : Also report the units of the section without a marker, the markers found twice, the markers of a post that is not in the section.
+	 * : Also report the units of the section without a page (merged without a heading, or not merged), the markers found on several pages, the headings of a post that is not in the section, and the levels of the headings (a level that is skipped, a heading above the first one of its post, a heading with no text).
 	 *
 	 * [--headings]
 	 * : Also print the page of every heading of every unit and of the page of the section itself (listed with the id of the section): the id, `#` and the number of the heading, then the page.
@@ -161,27 +160,24 @@ final class PaginationCommand {
 			return;
 		}
 
-		$unit_pages = array();
-		$headings   = array();
-		$repeats    = array();
-		$manifest   = null;
+		$headings = array();
+		$repeats  = array();
+		$manifest = null;
 
 		foreach ( $read['markers'] as $name => $pages ) {
-			if ( 1 === preg_match( '#^unit/(\d+)$#', $name, $found ) ) {
-				$unit_pages[ (int) $found[1] ] = $pages[0];
+			if ( 1 === preg_match( '#^heading/(\d+)/(\d+)$#', $name, $found ) ) {
+				$headings[ (int) $found[1] ][ (int) $found[2] ] = $pages[0];
 
 				if ( count( $pages ) > 1 ) {
-					$repeats[ (int) $found[1] ] = $pages;
+					$repeats[ $found[1] . '#' . $found[2] ] = $pages;
 				}
-			} elseif ( 1 === preg_match( '#^heading/(\d+)/(\d+)$#', $name, $found ) ) {
-				$headings[ (int) $found[1] ][ (int) $found[2] ] = $pages[0];
 			} elseif ( 1 === preg_match( '#^manifest/([0-9a-f]{32})$#', $name, $found ) ) {
 				$manifest = $this->manifest( $found[1] );
 			}
 		}
 
-		// The page of a unit: its first heading, else its own marker.
-		$starts = $unit_pages;
+		// The page of a unit is the page of its first heading.
+		$starts = array();
 
 		foreach ( $headings as $id => $list ) {
 			ksort( $list );
@@ -204,7 +200,7 @@ final class PaginationCommand {
 
 		if ( isset( $assoc_args['headings'] ) ) {
 			foreach ( $rows as $index => $row ) {
-				$rows[ $index ]['headings'] = $this->described( $headings[ $row['id'] ] ?? array(), $row['id'], $manifest );
+				$rows[ $index ]['headings'] = $this->described( $headings[ $row['id'] ] ?? array(), $row['id'], $manifest['headings'] ?? null );
 			}
 		}
 
@@ -246,29 +242,47 @@ final class PaginationCommand {
 		}
 
 		$problems = 0;
+		$merged   = null === $manifest ? null : $manifest['units'];
 
 		foreach ( array_diff( $expected, array_keys( $starts ) ) as $id ) {
 			++$problems;
-			( $this->warning )( 'No marker for the unit ' . $id . ' (a draft, a post with a password, or a unit left out by a limit).' );
+
+			if ( null === $merged ) {
+				( $this->warning )( 'No heading marker for the unit ' . $id . ' (a draft, a post with a password, a unit left out by a limit, or a unit with no heading).' );
+			} elseif ( in_array( $id, $merged, true ) ) {
+				( $this->warning )( 'The unit ' . $id . ' is in the PDF but none of its headings was found: it has no page (no heading, or the headings are not printed).' );
+			} else {
+				( $this->warning )( 'The unit ' . $id . ' is not in the PDF (a draft, a post with a password, or a unit left out by a limit).' );
+			}
 		}
 
-		foreach ( $repeats as $id => $pages ) {
+		// The first heading of a unit is not printed (hidden by the print stylesheet, say): the page given is that of a later heading.
+		foreach ( $manifest['headings'] ?? array() as $id => $list ) {
+			$first = min( array_keys( $list ) );
+
+			if ( isset( $headings[ $id ] ) && ! isset( $headings[ $id ][ $first ] ) ) {
+				++$problems;
+				( $this->warning )( 'The first heading of the post ' . $id . ' (n° ' . $first . ') is not in the PDF: the page given for it is the page of its heading n° ' . min( array_keys( $headings[ $id ] ) ) . '.' );
+			}
+		}
+
+		foreach ( $repeats as $name => $pages ) {
 			++$problems;
-			( $this->warning )( 'The unit ' . $id . ' has its marker on several pages: ' . implode( ', ', $pages ) . '.' );
+			( $this->warning )( 'The marker of the heading ' . $name . ' is on several pages: ' . implode( ', ', $pages ) . '.' );
 		}
 
 		foreach ( array_diff( array_keys( $starts ), $expected, array( $section ) ) as $id ) {
 			++$problems;
-			( $this->warning )( 'The marker of the post ' . $id . ', which is not in the section.' );
+			( $this->warning )( 'The headings of the post ' . $id . ', which is not in the section.' );
 		}
 
-		foreach ( $this->level_problems( $manifest ) as $problem ) {
+		foreach ( $this->level_problems( $manifest['headings'] ?? null ) as $problem ) {
 			++$problems;
 			( $this->warning )( $problem );
 		}
 
 		if ( 0 === $problems ) {
-			( $this->success )( 'All ' . count( $expected ) . ' units of the section have a marker, found once.' );
+			( $this->success )( 'All ' . count( $expected ) . ' units of the section have a page, from their headings.' );
 			return;
 		}
 
@@ -279,7 +293,7 @@ final class PaginationCommand {
 	 * Reads the manifest of a PDF: the headings by unit and by number, with their level, their text and whether a table of contents lists them.
 	 *
 	 * @param string $key Key of the manifest.
-	 * @return array<int, array<int, array>>|null The headings by unit, by number; null when there is none or it is not readable.
+	 * @return array{headings:array<int, array<int, array>>, units:int[]}|null `headings` by unit and by number, `units`: the ids of the units that were merged; null when there is none or it is not readable.
 	 */
 	private function manifest( $key ) {
 		$json = ( $this->manifest )( $key );
@@ -302,7 +316,18 @@ final class PaginationCommand {
 			}
 		}
 
-		return $by_unit;
+		$units = array();
+
+		foreach ( (array) ( $data['units'] ?? array() ) as $unit ) {
+			if ( is_array( $unit ) && isset( $unit['id'] ) ) {
+				$units[] = (int) $unit['id'];
+			}
+		}
+
+		return array(
+			'headings' => $by_unit,
+			'units'    => $units,
+		);
 	}
 
 	/**

@@ -13,8 +13,8 @@ namespace Otherguise\Books\Pdf;
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Reads the **marker links** of a PDF (slice 227): in the merged HTML of a section each unit starts with an invisible link to
- * `https://marker.invalid/unit/<post id>`; Chromium writes it as a link annotation (`/Type /Annot /Subtype /Link`, action `/URI`) listed in the
+ * Reads the **marker links** of a PDF (slice 227): in the merged HTML of a section each heading (of the page of the section and of its units) starts
+ * with an invisible link to `https://marker.invalid/heading/<post id>/<n>`; Chromium writes it as a link annotation (`/Type /Annot /Subtype /Link`, action `/URI`) listed in the
  * `/Annots` of the page where the link is. The file is read **in pieces** (like `PdfPages`, slice 226), no library and no `shell_exec`: only the
  * page objects, the page tree and the small link annotations are kept, never the streams. It is right for the files that Chromium writes (objects
  * that are not compressed, keys in its order); it gives `null` for a file without a page tree, and an empty list of markers when it finds none
@@ -40,7 +40,7 @@ final class PdfMarkers {
 	/**
 	 * The address of a marker.
 	 *
-	 * @param string $name Name of the marker (`unit/12`).
+	 * @param string $name Name of the marker (`heading/12/1`).
 	 * @return string
 	 */
 	public static function address( $name ) {
@@ -52,7 +52,7 @@ final class PdfMarkers {
 	 *
 	 * @param string $path  Path of the file.
 	 * @param int    $chunk Bytes read at a time (the tests make it small).
-	 * @return array{pages:int, markers:array<string, int[]>}|null `markers`: the name of a marker (`unit/12`) => the pages (from 1) where it is found, in order;
+	 * @return array{pages:int, markers:array<string, int[]>}|null `markers`: the name of a marker (`heading/12/1`) => the pages (from 1) where it is found, in order;
 	 *                                                              null when the file cannot be read or has no page.
 	 */
 	public static function read( $path, $chunk = self::CHUNK ) {

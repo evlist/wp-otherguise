@@ -155,18 +155,18 @@ class BooksPaginationDbTest extends Otherguise_Test_Database_Case {
 	}
 
 	/**
-	 * The units are printed by page, with their title.
+	 * The page of a unit is the page of its first heading; units are printed by page, with their title; the page of the section itself comes first.
 	 *
 	 * @return void
 	 */
 	public function test_the_pages_of_the_units(): void {
 		$file = $this->pdf(
 			array(
-				'unit/1'   => 2,
-				'unit/101' => 3,
-				'unit/3'   => 3,
-				'unit/2'   => 2,
-				'unit/5'   => 4,
+				'heading/1/1'   => 2,
+				'heading/101/1' => 3,
+				'heading/3/1'   => 3,
+				'heading/2/1'   => 2,
+				'heading/5/1'   => 4,
 			)
 		);
 
@@ -186,8 +186,8 @@ class BooksPaginationDbTest extends Otherguise_Test_Database_Case {
 	}
 
 	/**
-	 * The page of a unit is the page of its first heading (a forced break leaves the marker of the unit on the page before), else its marker;
-	 * `--headings` prints the page of every heading.
+	 * The first heading gives the page, whatever order the markers were found in; `--headings` prints the page of every heading; the markers of the
+	 * units that older files had are ignored.
 	 *
 	 * @return void
 	 */
@@ -197,17 +197,16 @@ class BooksPaginationDbTest extends Otherguise_Test_Database_Case {
 				'unit/1'      => 2,
 				'heading/1/1' => 3,
 				'heading/1/2' => 4,
-				'unit/2'      => 3,
-				'unit/5'      => 4,
 				'heading/5/2' => 4,
 				'heading/5/1' => 3,
+				'heading/2/1' => 3,
 			)
 		);
 
 		$this->command()->__invoke(
 			array( '100' ),
 			array(
-				'file' => $file,
+				'file'     => $file,
 				'headings' => true,
 			)
 		);
@@ -218,23 +217,23 @@ class BooksPaginationDbTest extends Otherguise_Test_Database_Case {
 				array( 'log', "1#1\t2" ),
 				array( 'log', "1#2\t3" ),
 				array( 'log', "2\t2\tTitle 2" ),
+				array( 'log', "2#1\t2" ),
 				array( 'log', "5\t2\tTitle 5" ),
 				array( 'log', "5#1\t2" ),
 				array( 'log', "5#2\t3" ),
 				array( 'warning', 'No manifest for this PDF (made before the manifests, or removed): the level and the text of the headings are not shown.' ),
 				array( 'success', '3 units in 3 pages.' ),
 			),
-			$this->out,
-			'The unit 1 starts on the page of its heading (the 2nd page of the file), not on its marker (the 1st); the unit 2 has no heading.'
+			$this->out
 		);
 
 		$this->out = array();
 		$this->command()->__invoke(
 			array( '100' ),
 			array(
-				'file' => $file,
+				'file'     => $file,
 				'headings' => true,
-				'format' => 'json',
+				'format'   => 'json',
 			)
 		);
 		$json = json_decode( $this->out[0][1], true );
@@ -259,33 +258,213 @@ class BooksPaginationDbTest extends Otherguise_Test_Database_Case {
 			array(
 				'heading/100/1' => 2,
 				'heading/100/2' => 3,
-				'unit/1'        => 3,
-				'unit/2'        => 3,
-				'unit/101'      => 3,
-				'unit/3'        => 4,
-				'unit/4'        => 4,
-				'unit/5'        => 4,
+				'heading/1/1'   => 3,
+				'heading/2/1'   => 3,
+				'heading/101/1' => 3,
+				'heading/3/1'   => 4,
+				'heading/4/1'   => 4,
+				'heading/5/1'   => 4,
 			)
 		);
 
 		$this->command()->__invoke(
 			array( '100' ),
 			array(
-				'file' => $file,
+				'file'     => $file,
 				'headings' => true,
-				'check' => true,
+				'check'    => true,
 			)
 		);
 
 		$this->assertSame( array( 'log', "100\t1\tTitle 100" ), $this->out[0] );
 		$this->assertSame( array( 'log', "100#1\t1" ), $this->out[1] );
 		$this->assertSame( array( 'log', "100#2\t2" ), $this->out[2] );
-		$this->assertSame( array( 'success', 'All 6 units of the section have a marker, found once.' ), end( $this->out ) );
+		$this->assertSame( array( 'success', 'All 6 units of the section have a page, from their headings.' ), end( $this->out ) );
 		$this->assertSame(
 			array( 'No manifest for this PDF (made before the manifests, or removed): the level and the text of the headings are not shown.' ),
 			array_values( array_column( array_filter( $this->out, static fn( $line ) => 'warning' === $line[0] ), 1 ) ),
 			'No other warning.'
 		);
+	}
+
+	/**
+	 * The check: a unit with no heading marker (no manifest: could be a draft or a unit without a heading), a heading marker on several pages, a
+	 * heading of a post that is not in the section.
+	 *
+	 * @return void
+	 */
+	public function test_the_check_without_a_manifest(): void {
+		$file = $this->pdf(
+			array(
+				'heading/1/1'   => 2,
+				'heading/101/1' => 3,
+				'heading/5/1'   => 4,
+				'heading/9/1'   => 4,
+			)
+		);
+
+		$this->command()->__invoke(
+			array( '100' ),
+			array(
+				'file'  => $file,
+				'check' => true,
+			)
+		);
+
+		$warnings = array_column( array_filter( $this->out, static fn( $line ) => 'warning' === $line[0] ), 1 );
+
+		$this->assertCount( 4, $warnings );
+		$this->assertStringContainsString( 'No heading marker for the unit 3 ', $warnings[0], 'In the order of the merge: the part comes first.' );
+		$this->assertStringContainsString( 'No heading marker for the unit 4 ', $warnings[1] );
+		$this->assertStringContainsString( 'No heading marker for the unit 2 ', $warnings[2] );
+		$this->assertStringContainsString( 'headings of the post 9, which is not in the section', $warnings[3] );
+	}
+
+	/**
+	 * With the manifest, the check tells the units that were merged but have no heading found from those that were not merged.
+	 *
+	 * @return void
+	 */
+	public function test_the_check_with_a_manifest(): void {
+		$key      = md5( 'units' );
+		$manifest = array(
+			'section'  => 100,
+			'units'    => array(
+				array(
+					'id'    => 101,
+					'depth' => 1,
+				),
+				array(
+					'id'    => 3,
+					'depth' => 2,
+				),
+				array(
+					'id'    => 1,
+					'depth' => 1,
+				),
+			),
+			'headings' => array(
+				array(
+					'unit'  => 101,
+					'n'     => 1,
+					'level' => 1,
+					'text'  => 'Part',
+					'toc'   => true,
+					'depth' => 1,
+				),
+				array(
+					'unit'  => 1,
+					'n'     => 1,
+					'level' => 1,
+					'text'  => 'Day 1',
+					'toc'   => true,
+					'depth' => 1,
+				),
+			),
+		);
+		$file     = $this->pdf(
+			array(
+				'manifest/' . $key => 2,
+				'heading/101/1'    => 2,
+				'heading/1/1'      => 3,
+				'heading/1/2'      => 3,
+				'heading/9/1'      => 4,
+			)
+		);
+		$read     = static fn( $asked ) => $asked === $key ? wp_json_encode( $manifest ) : null;
+
+		$this->command( $read )->__invoke(
+			array( '100' ),
+			array(
+				'file'  => $file,
+				'check' => true,
+			)
+		);
+
+		$warnings = array_column( array_filter( $this->out, static fn( $line ) => 'warning' === $line[0] ), 1 );
+
+		$this->assertContains( 'The unit 3 is in the PDF but none of its headings was found: it has no page (no heading, or the headings are not printed).', $warnings );
+		$this->assertContains( 'The unit 4 is not in the PDF (a draft, a post with a password, or a unit left out by a limit).', $warnings );
+		$this->assertContains( 'The unit 2 is not in the PDF (a draft, a post with a password, or a unit left out by a limit).', $warnings );
+		$this->assertContains( 'The unit 5 is not in the PDF (a draft, a post with a password, or a unit left out by a limit).', $warnings );
+		$this->assertContains( 'The headings of the post 9, which is not in the section.', $warnings );
+		$this->assertCount( 5, $warnings );
+	}
+
+	/**
+	 * When the first heading of a unit is not printed, the page is the one of a later heading: the check says so.
+	 *
+	 * @return void
+	 */
+	public function test_the_first_heading_is_not_printed(): void {
+		$key      = md5( 'hidden' );
+		$manifest = array(
+			'section'  => 100,
+			'units'    => array(),
+			'headings' => array(
+				array(
+					'unit'  => 1,
+					'n'     => 1,
+					'level' => 1,
+					'text'  => 'Title',
+					'toc'   => true,
+					'depth' => 1,
+				),
+				array(
+					'unit'  => 1,
+					'n'     => 2,
+					'level' => 2,
+					'text'  => 'Later',
+					'toc'   => true,
+					'depth' => 1,
+				),
+			),
+		);
+		$file     = $this->pdf(
+			array(
+				'manifest/' . $key => 2,
+				'heading/1/2'      => 3,
+			)
+		);
+
+		$this->command( static fn( $asked ) => $asked === $key ? wp_json_encode( $manifest ) : null )->__invoke(
+			array( '100' ),
+			array(
+				'file'  => $file,
+				'check' => true,
+			)
+		);
+
+		$this->assertContains(
+			'The first heading of the post 1 (n° 1) is not in the PDF: the page given for it is the page of its heading n° 2.',
+			array_column( array_filter( $this->out, static fn( $line ) => 'warning' === $line[0] ), 1 )
+		);
+	}
+
+	/**
+	 * When every unit has a heading on a page, the check has nothing to say.
+	 *
+	 * @return void
+	 */
+	public function test_the_check_when_all_is_well(): void {
+		$file = $this->pdf(
+			array(
+				'heading/1/1'   => 2,
+				'heading/2/1'   => 2,
+				'heading/101/1' => 2,
+				'heading/3/1'   => 3,
+				'heading/4/1'   => 3,
+				'heading/5/1'   => 4,
+			)
+		);
+		$this->command()->__invoke(
+			array( '100' ),
+			array(
+				'file'  => $file,
+				'check' => true,
+			)
+		);
+		$this->assertSame( array( 'success', 'All 6 units of the section have a page, from their headings.' ), end( $this->out ) );
 	}
 
 	/**
@@ -376,10 +555,10 @@ class BooksPaginationDbTest extends Otherguise_Test_Database_Case {
 				'heading/2/1'      => 3,
 				'heading/2/2'      => 4,
 				'heading/2/3'      => 4,
-				'unit/101'         => 4,
-				'unit/3'           => 4,
-				'unit/4'           => 4,
-				'unit/5'           => 4,
+				'heading/101/1'    => 4,
+				'heading/3/1'      => 4,
+				'heading/4/1'      => 4,
+				'heading/5/1'      => 4,
 			)
 		);
 		$read     = static fn( $asked ) => $asked === $key ? wp_json_encode( $manifest ) : null;
@@ -431,96 +610,6 @@ class BooksPaginationDbTest extends Otherguise_Test_Database_Case {
 		$this->assertSame( 'Pérols – Tautavel', PaginationCommand::plain( 'Pérols &#8211; Tautavel' ) );
 		$this->assertSame( 'Pic d’Orhy & co', PaginationCommand::plain( 'Pic d&rsquo;Orhy &amp; co' ) );
 		$this->assertSame( 'Bold', PaginationCommand::plain( '<b>Bold</b>' ) );
-	}
-
-	/**
-	 * The format json, and the check: a unit without a marker, a marker found twice, a marker of a post that is not in the section.
-	 *
-	 * @return void
-	 */
-	public function test_json_and_the_check(): void {
-		$file = $this->pdf(
-			array(
-				'unit/1'   => 2,
-				'unit/101' => 3,
-				'unit/5'   => 4,
-				'unit/9'   => 4,
-			)
-		);
-
-		$this->command()->__invoke(
-			array( '100' ),
-			array(
-				'file' => $file,
-				'format' => 'json',
-			)
-		);
-
-		$this->assertSame( 'log', $this->out[0][0] );
-		$this->assertSame(
-			array(
-				'pages' => 3,
-				'units' => array(
-					array(
-						'id' => 1,
-						'page' => 1,
-						'title' => 'Title 1',
-					),
-					array(
-						'id' => 101,
-						'page' => 2,
-						'title' => 'Title 101',
-					),
-					array(
-						'id' => 5,
-						'page' => 3,
-						'title' => 'Title 5',
-					),
-					array(
-						'id' => 9,
-						'page' => 3,
-						'title' => 'Title 9',
-					),
-				),
-			),
-			json_decode( $this->out[0][1], true )
-		);
-
-		$this->out = array();
-		$this->command()->__invoke(
-			array( '100' ),
-			array(
-				'file' => $file,
-				'check' => true,
-			)
-		);
-		$warnings = array_values( array_filter( $this->out, static fn( $line ) => 'warning' === $line[0] ) );
-
-		$this->assertCount( 4, $warnings );
-		$this->assertStringContainsString( 'unit 3', $warnings[0][1], 'In the order of the merge: the part comes first.' );
-		$this->assertStringContainsString( 'unit 4', $warnings[1][1] );
-		$this->assertStringContainsString( 'unit 2', $warnings[2][1] );
-		$this->assertStringContainsString( 'post 9, which is not in the section', $warnings[3][1] );
-
-		$this->out = array();
-		$twice     = $this->pdf(
-			array(
-				'unit/1'   => 2,
-				'unit/2'   => 2,
-				'unit/101' => 2,
-				'unit/3'   => 3,
-				'unit/4'   => 3,
-				'unit/5'   => 4,
-			)
-		);
-		$this->command()->__invoke(
-			array( '100' ),
-			array(
-				'file' => $twice,
-				'check' => true,
-			)
-		);
-		$this->assertSame( array( 'success', 'All 6 units of the section have a marker, found once.' ), end( $this->out ) );
 	}
 
 	/**

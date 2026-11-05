@@ -130,6 +130,13 @@ final class MergedPrint {
 	private $rows = array();
 
 	/**
+	 * The units of the last merge, in order, with their depth (the manifest says which were merged).
+	 *
+	 * @var array<int, array{id:int, depth:int}>
+	 */
+	private $unit_list = array();
+
+	/**
 	 * Writes a manifest: receives its key (32 hexadecimal digits) and its JSON, returns whether it was written.
 	 *
 	 * @var callable|null
@@ -221,21 +228,9 @@ final class MergedPrint {
 	}
 
 	/**
-	 * The marker that starts a unit (slice 227): an invisible link of one pixel that Chromium writes as a link annotation on the page of the PDF
-	 * where the unit starts, read back by `PdfMarkers`. It leads nowhere (a name reserved for that), is out of the tab order and of the reading of a
-	 * screen, and takes no room.
-	 *
-	 * @param int $id Id of the unit.
-	 * @return string
-	 */
-	public static function marker( $id ) {
-		return '<a class="books-merge-marker" href="' . esc_url( PdfMarkers::address( 'unit/' . (int) $id ) ) . '" tabindex="-1" aria-hidden="true" style="display:block;width:1px;height:1px;margin:0 0 -1px;overflow:hidden;break-after:avoid;"></a>';
-	}
-
-	/**
-	 * Puts a marker at the start of each heading (`h1` to `h6`) of a unit (slice 227): the marker of the unit can be left on the page before the
-	 * unit when the template of the unit forces a page break before its first block, while a marker **inside** the heading goes with it. The
-	 * markers are numbered in the unit (`heading/<post id>/<n>`). Scripts, styles, comments and text areas are left alone: the text of a
+	 * Puts a marker at the start of each heading (`h1` to `h6`) of a unit (slice 227): the page of a unit is the page of its first heading. A
+	 * marker at the start of the unit would be left on the page before when the template of the unit forces a page break before its first block,
+	 * while a marker **inside** the heading goes with it. The markers are numbered in the unit (`heading/<post id>/<n>`). Scripts, styles, comments and text areas are left alone: the text of a
 	 * heading that a script holds is not a heading.
 	 *
 	 * @param string $html Rendered page of the unit.
@@ -443,6 +438,7 @@ final class MergedPrint {
 		$json = wp_json_encode(
 			array(
 				'section'  => $this->section_id,
+				'units'    => $this->unit_list,
 				'headings' => array_merge( $before, $this->rows, $after ),
 			)
 		);
@@ -522,6 +518,7 @@ final class MergedPrint {
 		$this->busy    = true;
 		$this->started = microtime( true );
 		$this->rows    = array();
+		$this->unit_list = array();
 		$queries       = get_num_queries();
 
 		// The time that a merge may take: the limit of the server and of the print server remain.
@@ -659,7 +656,11 @@ final class MergedPrint {
 			$this->current = 0;
 
 			++$this->count;
-			$out .= '<div class="books-merge-unit" data-post="' . (int) $id . '" data-depth="' . (int) $depth . '">' . self::marker( (int) $id ) . self::mark_unit( $html, (int) $id, $this->rows, (int) $depth ) . '</div>';
+			$this->unit_list[] = array(
+				'id'    => (int) $id,
+				'depth' => (int) $depth,
+			);
+			$out .= '<div class="books-merge-unit" data-post="' . (int) $id . '" data-depth="' . (int) $depth . '">' . self::mark_unit( $html, (int) $id, $this->rows, (int) $depth ) . '</div>';
 
 			$this->log->write(
 				'unit',

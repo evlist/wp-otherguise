@@ -148,10 +148,10 @@ class BooksMergedPrintDbTest extends Otherguise_Test_Database_Case {
 		$html = $this->merge()->merge();
 
 		$this->assertSame( array( 101, 3, 1, 5 ), $this->rendered, 'In date order; the part is followed by its own units; the draft and the password are skipped.' );
-		$this->assertStringStartsWith( '<div class="books-merge-unit" data-post="101" data-depth="1">' . MergedPrint::marker( 101 ) . '<p>unit 101</p></div>', $html );
-		$this->assertStringContainsString( 'href="https://marker.invalid/unit/3"', $html, 'Every unit starts with its marker (slice 227).' );
+		$this->assertStringStartsWith( '<div class="books-merge-unit" data-post="101" data-depth="1"><p>unit 101</p></div>', $html );
+		$this->assertStringNotContainsString( 'marker.invalid/unit', $html, 'The page of a unit is the page of its first heading: no marker at the start of a unit.' );
 		$this->assertStringNotContainsString( 'break-before', $html, 'The plugin adds no page break: the templates of the theme decide.' );
-		$this->assertStringContainsString( '<div class="books-merge-unit" data-post="3" data-depth="2">' . MergedPrint::marker( 3 ) . '<p>unit 3</p></div>', $html, 'A level deeper.' );
+		$this->assertStringContainsString( '<div class="books-merge-unit" data-post="3" data-depth="2"><p>unit 3</p></div>', $html, 'A level deeper.' );
 		$this->assertLessThan( strpos( $html, 'data-post="3"' ), strpos( $html, 'data-post="101"' ) );
 		$this->assertLessThan( strpos( $html, 'data-post="1"' ), strpos( $html, 'data-post="3"' ) );
 		$this->assertLessThan( strpos( $html, 'data-post="5"' ), strpos( $html, 'data-post="1"' ) );
@@ -514,11 +514,16 @@ class BooksMergedPrintDbTest extends Otherguise_Test_Database_Case {
 
 		$this->assertSame( md5( $written[1] ), $written[0], 'The key is the hash of the JSON.' );
 		$this->assertStringContainsString( 'href="https://marker.invalid/manifest/' . $written[0] . '"', $page );
-		$this->assertLessThan( strpos( $page, 'unit/101' ), strpos( $page, 'manifest/' . $written[0] ), 'In front of the units.' );
+		$this->assertLessThan( strpos( $page, 'heading/101/1' ), strpos( $page, 'manifest/' . $written[0] ), 'In front of the units.' );
 
 		$data = json_decode( $written[1], true );
 
 		$this->assertSame( 100, $data['section'] );
+		$this->assertSame(
+			array( array( 101, 1 ), array( 3, 2 ), array( 4, 2 ), array( 1, 1 ), array( 5, 1 ) ),
+			array_map( static fn( $unit ) => array( $unit['id'], $unit['depth'] ), $data['units'] ),
+			'The units that were merged, in order, with their depth.'
+		);
 		$this->assertSame(
 			array(
 				array( 100, 1, 1, 'Book', true, 0 ),
