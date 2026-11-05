@@ -100,7 +100,7 @@ final class PaginationCommand {
 	 * Prints the page where each unit of a section starts in a PDF.
 	 *
 	 * The PDF is the one made from the merged page of the section (the block "Merge the units of the section"): each unit starts with a marker,
-	 * and each heading of a unit has one, that Chromium writes in the file. The page of a unit is the page of its first heading (a template that
+	 * and each heading of a unit and of the page of the section has one, that Chromium writes in the file. The page of a unit is the page of its first heading (a template that
 	 * forces a page break before its first block leaves the marker of the unit on the page before), else the page of its marker. A PDF that went
 	 * through a tool that rewrites the objects may have lost them.
 	 *
@@ -116,7 +116,7 @@ final class PaginationCommand {
 	 * : Also report the units of the section without a marker, the markers found twice, the markers of a post that is not in the section.
 	 *
 	 * [--headings]
-	 * : Also print the page of every heading of every unit (the id of the unit, `#` and the number of the heading, then the page).
+	 * : Also print the page of every heading of every unit and of the page of the section itself (listed with the id of the section): the id, `#` and the number of the heading, then the page.
 	 *
 	 * [--format=<format>]
 	 * : `table` (default: one line per unit, tab separated: the id, the page, the title) or `json`.
@@ -215,13 +215,16 @@ final class PaginationCommand {
 			}
 		}
 
+		// The headings of the page of the section itself are listed with its id; it is not one of its units.
+		$units = count( array_diff_key( $starts, array( $section => true ) ) );
+
 		if ( array() === $starts ) {
 			( $this->fail )( 'No marker in this file: it was not made from a merged page, or the objects of the PDF were rewritten.' );
 			return;
 		}
 
 		if ( ! isset( $assoc_args['check'] ) ) {
-			( $this->success )( count( $starts ) . ' units in ' . $read['pages'] . ' pages.' );
+			( $this->success )( $units . ' units in ' . $read['pages'] . ' pages.' );
 			return;
 		}
 
@@ -237,7 +240,7 @@ final class PaginationCommand {
 			( $this->warning )( 'The unit ' . $id . ' has its marker on several pages: ' . implode( ', ', $pages ) . '.' );
 		}
 
-		foreach ( array_diff( array_keys( $starts ), $expected ) as $id ) {
+		foreach ( array_diff( array_keys( $starts ), $expected, array( $section ) ) as $id ) {
 			++$problems;
 			( $this->warning )( 'The marker of the post ' . $id . ', which is not in the section.' );
 		}
@@ -247,7 +250,7 @@ final class PaginationCommand {
 			return;
 		}
 
-		( $this->success )( count( $starts ) . ' units in ' . $read['pages'] . ' pages, ' . $problems . ' to look at.' );
+		( $this->success )( $units . ' units in ' . $read['pages'] . ' pages, ' . $problems . ' to look at.' );
 	}
 
 	/**

@@ -123,6 +123,13 @@ final class MergedPrint {
 	private $slot = false;
 
 	/**
+	 * Id of the section whose block asked for the merge (the headings of its own page are marked with it).
+	 *
+	 * @var int
+	 */
+	private $section_id = 0;
+
+	/**
 	 * Whether an output buffer waits to put the units at the marker.
 	 *
 	 * @var bool
@@ -220,13 +227,25 @@ final class MergedPrint {
 	 * @return string
 	 */
 	public static function mark_headings( $html, $id ) {
-		$parts = preg_split( '~(<script\b.*?</script>|<style\b.*?</style>|<textarea\b.*?</textarea>|<!--.*?-->)~is', (string) $html, -1, PREG_SPLIT_DELIM_CAPTURE );
+		$number = 0;
+
+		return self::mark( (string) $html, (int) $id, $number );
+	}
+
+	/**
+	 * Puts the markers of the headings in a piece of HTML, numbering from the number given.
+	 *
+	 * @param string $html   The HTML.
+	 * @param int    $id     Id of the post.
+	 * @param int    $number The number of the last heading marked before this piece (modified).
+	 * @return string
+	 */
+	private static function mark( $html, $id, &$number ) {
+		$parts = preg_split( '~(<script\b.*?</script>|<style\b.*?</style>|<textarea\b.*?</textarea>|<!--.*?-->)~is', $html, -1, PREG_SPLIT_DELIM_CAPTURE );
 
 		if ( false === $parts ) {
-			return (string) $html;
+			return $html;
 		}
-
-		$number = 0;
 
 		foreach ( $parts as $index => $part ) {
 			// The odd parts are what the pattern captured: the blocks to leave alone.
@@ -239,7 +258,7 @@ final class MergedPrint {
 				static function ( $found ) use ( $id, &$number ) {
 					++$number;
 
-					return $found[0] . '<a class="books-merge-marker" href="' . esc_url( PdfMarkers::address( 'heading/' . (int) $id . '/' . $number ) ) . '" tabindex="-1" aria-hidden="true" style="display:inline-block;width:1px;height:1px;vertical-align:top;margin-bottom:-1px;"></a>';
+					return $found[0] . '<a class="books-merge-marker" href="' . esc_url( PdfMarkers::address( 'heading/' . $id . '/' . $number ) ) . '" tabindex="-1" aria-hidden="true" style="display:inline-block;width:1px;height:1px;vertical-align:top;margin-bottom:-1px;"></a>';
 				},
 				$part
 			);
@@ -278,7 +297,8 @@ final class MergedPrint {
 			return '';
 		}
 
-		$this->slot = true;
+		$this->slot       = true;
+		$this->section_id = $section;
 
 		return self::MARKER;
 	}
@@ -300,8 +320,8 @@ final class MergedPrint {
 	}
 
 	/**
-	 * Output callback: replaces the marker by the units; without a marker (it was not in the page) the units go in front of the end of the
-	 * body, and without units the marker is removed.
+	 * Output callback: replaces the marker by the units and puts a marker in each heading of the page of the section (slice 227); without a marker
+	 * (it was not in the page) the units go in front of the end of the body, and without units the marker is removed.
 	 *
 	 * @param string $buffer The page.
 	 * @return string
@@ -309,14 +329,20 @@ final class MergedPrint {
 	public function place( $buffer ) {
 		$html     = null === $this->html ? '' : $this->html;
 		$position = strpos( $buffer, self::MARKER );
+		$number   = 0;
 
 		if ( false !== $position ) {
 			$this->inserted = true;
 
-			return substr_replace( $buffer, $html, $position, strlen( self::MARKER ) );
+			// The headings of the page of the section itself get their markers; those of the units already have theirs.
+			$before = self::mark( substr( $buffer, 0, $position ), $this->section_id, $number );
+			$after  = self::mark( substr( $buffer, $position + strlen( self::MARKER ) ), $this->section_id, $number );
+
+			return $before . $html . $after;
 		}
 
-		$end = '' === $html ? false : strrpos( $buffer, '</body>' );
+		$buffer = self::mark( $buffer, $this->section_id, $number );
+		$end    = '' === $html ? false : strrpos( $buffer, '</body>' );
 
 		if ( false === $end ) {
 			return $buffer . $html;

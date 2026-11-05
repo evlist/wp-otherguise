@@ -247,6 +247,42 @@ class BooksPaginationDbTest extends Otherguise_Test_Database_Case {
 	}
 
 	/**
+	 * The headings of the page of the section itself (the markers with its id) are listed with it, and it is not counted as one of its units or
+	 * reported by the check.
+	 *
+	 * @return void
+	 */
+	public function test_the_headings_of_the_section_itself(): void {
+		$file = $this->pdf(
+			array(
+				'heading/100/1' => 2,
+				'heading/100/2' => 3,
+				'unit/1'        => 3,
+				'unit/2'        => 3,
+				'unit/101'      => 3,
+				'unit/3'        => 4,
+				'unit/4'        => 4,
+				'unit/5'        => 4,
+			)
+		);
+
+		$this->command()->__invoke(
+			array( '100' ),
+			array(
+				'file' => $file,
+				'headings' => true,
+				'check' => true,
+			)
+		);
+
+		$this->assertSame( array( 'log', "100\t1\tTitle 100" ), $this->out[0] );
+		$this->assertSame( array( 'log', "100#1\t1" ), $this->out[1] );
+		$this->assertSame( array( 'log', "100#2\t2" ), $this->out[2] );
+		$this->assertSame( array( 'success', 'All 6 units of the section have a marker, found once.' ), end( $this->out ) );
+		$this->assertSame( array(), array_filter( $this->out, static fn( $line ) => 'warning' === $line[0] ) );
+	}
+
+	/**
 	 * The title is plain text: the entities that WordPress writes in a title are decoded.
 	 *
 	 * @return void

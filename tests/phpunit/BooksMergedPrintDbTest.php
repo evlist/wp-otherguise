@@ -423,6 +423,47 @@ class BooksMergedPrintDbTest extends Otherguise_Test_Database_Case {
 	}
 
 	/**
+	 * The headings of the page of the section get markers too, numbered in the page (the ones before the units go on after them), and those of
+	 * the units keep theirs: the units are put in the page after, not marked again.
+	 *
+	 * @return void
+	 */
+	public function test_the_headings_of_the_page_of_the_section_are_marked(): void {
+		$merge = new MergedPrint(
+			$this->sections,
+			new MergeAccess( null, static fn() => 'key', static fn() => true, static fn() => '' ),
+			new MergeLog( static fn() => false, static fn() => '' ),
+			fn() => $this->request,
+			static fn( $id ) => '<h2>Unit ' . $id . '</h2>',
+			static fn() => array(
+				'status'   => 'publish',
+				'password' => '',
+			)
+		);
+		$block = new SectionMergeBlock( $merge, fn() => $this->mode );
+
+		$this->assertSame( MergedPrint::MARKER, $block->render( array(), '', null ) );
+
+		ob_start();
+		$merge->head();
+		$source = '<body><h1>Cover</h1><script>var h="<h2>x</h2>";</script><h2>Contents</h2>' . MergedPrint::MARKER . '<h2>The end</h2><footer></footer></body>';
+		echo $source; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+		$merge->footer();
+		ob_end_flush();
+		$page = (string) ob_get_clean();
+
+		foreach ( array( 'heading/100/1', 'heading/100/2', 'heading/100/3', 'heading/101/1', 'heading/1/1' ) as $name ) {
+			$this->assertSame( 1, substr_count( $page, 'href="https://marker.invalid/' . $name . '"' ), $name );
+		}
+
+		$this->assertStringNotContainsString( 'heading/100/4', $page );
+		$this->assertStringNotContainsString( 'heading/101/2', $page, 'The headings of a unit are not marked a second time.' );
+		$this->assertStringContainsString( '<script>var h="<h2>x</h2>";</script>', $page );
+		$this->assertLessThan( strpos( $page, 'heading/101/1' ), strpos( $page, 'heading/100/2' ), 'Before the units.' );
+		$this->assertLessThan( strpos( $page, 'heading/100/3' ), strpos( $page, 'heading/101/1' ), 'The end of the page comes after the units and goes on with the numbers.' );
+	}
+
+	/**
 	 * Builds the template of a loop, as the filter receives it.
 	 *
 	 * @param array $query   The `query` attribute of the loop.

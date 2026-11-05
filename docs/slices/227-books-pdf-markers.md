@@ -44,4 +44,6 @@ Chromium 141 (Playwright, `page.pdf`), a scratch WordPress 7.1.3: the merged pag
 
 **Headings, on the scratch (2026-11-05)**: the 8 posts again, with the template of the units forcing a page break before its main group (as `journee-print` does), 15 pages: the unit markers were one page too early for the units that follow a long one (unit 48 on page 5, printed on page 6), the **heading markers gave the page of the title for the 8 units** (compared with `pdftotext`, page by page); `--headings` lists them. Not tried through Gotenberg since this change.
 
+**The page of the section (scratch, 2026-11-05)**: a section whose content is a cover paragraph, a heading "Table des matieres", the list of its units, the merge block and a heading "Postface": the markers of the 10 headings of the page of the section give page 1 for the cover and the table of contents, page 12 (the last) for "Postface" (checked with `pdftotext`). The 8 titles of the list of the units are headings too (`h3`): they are numbered like the others; leaving them out of a table of contents is the `no-toc` of slice 228.
+
 **Never tried**: the options of Gotenberg that rewrite the objects (`pdfa`, `metadata`, `flatten`, the merge, the post-processing of its PDF engine: a PDF that has lost its link annotations gives no marker, and the command says so), the 184 units of the first book, `gs`.
