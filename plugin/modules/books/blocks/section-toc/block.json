@@ -1,0 +1,27 @@
+{
+	"$schema": "https://schemas.wp.org/trunk/block.json",
+	"apiVersion": 3,
+	"name": "books/section-toc",
+	"title": "Table of contents of the section",
+	"category": "widgets",
+	"description": "The table of contents of the section, made from the headings of its page and of its units: put it in a template or the content of the section, with the block that merges the units. In print each entry has the number of its page; elsewhere it is a link. Leave a heading out of it with the class no-toc.",
+	"textdomain": "otherguise",
+	"attributes": {
+		"levels": {
+			"type": "integer",
+			"default": 2
+		},
+		"modes": {
+			"type": "array",
+			"items": { "type": "string" },
+			"default": []
+		}
+	},
+	"usesContext": [ "postId" ],
+	"supports": {
+		"html": false,
+		"spacing": { "margin": true, "padding": true }
+	},
+	"editorScript": "file:./edit.js",
+	"style": "file:./style.css"
+}

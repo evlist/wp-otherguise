@@ -10,7 +10,6 @@
 
 namespace Otherguise\Books\Merge;
 
-use Otherguise\Books\Pdf\PdfMarkers;
 use Otherguise\Books\Section\Sections;
 
 defined( 'ABSPATH' ) || exit;
@@ -116,6 +115,12 @@ final class MergedPrint {
 	public const MARKER = '<!-- books-section-merge -->';
 
 	/**
+	 * The start of the marker that the block `books/section-toc` leaves where its table of contents goes (slice 228): the number of the table
+	 * follows, then ` -->`.
+	 */
+	public const TOC_MARKER = '<!-- books-section-toc:';
+
+	/**
 	 * Whether the block left the marker in the page.
 	 *
 	 * @var bool
@@ -130,6 +135,20 @@ final class MergedPrint {
 	private $rows = array();
 
 	/**
+	 * The tables of contents that blocks asked for: `levels`, `numbered`, in the order of the markers (slice 228).
+	 *
+	 * @var array<int, array{levels:int, numbered:bool}>
+	 */
+	private $tocs = array();
+
+	/**
+	 * Returns the address of a post, for a table of contents that is not numbered.
+	 *
+	 * @var callable
+	 */
+	private $link;
+
+	/**
 	 * The units of the last merge, in order, with their depth (the manifest says which were merged).
 	 *
 	 * @var array<int, array{id:int, depth:int}>
@@ -142,6 +161,13 @@ final class MergedPrint {
 	 * @var callable|null
 	 */
 	private $manifest_writer;
+
+	/**
+	 * The page of each heading (`<post>#<n>`) when a first pass of the job has read them: none yet.
+	 *
+	 * @var array<string, int>
+	 */
+	private $pages = array();
 
 	/**
 	 * Id of the section whose block asked for the merge (the headings of its own page are marked with it).
@@ -212,6 +238,7 @@ final class MergedPrint {
 	 */
 	public function __construct( Sections $sections, MergeAccess $access, MergeLog $log, $request = null, $render = null, $post_of = null, $manifest = null ) {
 		$this->manifest_writer = $manifest;
+		$this->link            = static fn( $id ) => (string) get_permalink( (int) $id );
 		$this->sections = $sections;
 		$this->access   = $access;
 		$this->log      = $log;
@@ -225,111 +252,6 @@ final class MergedPrint {
 				'password' => (string) $post->post_password,
 			) : null;
 		};
-	}
-
-	/**
-	 * Puts a marker at the start of each heading (`h1` to `h6`) of a unit (slice 227): the page of a unit is the page of its first heading. A
-	 * marker at the start of the unit would be left on the page before when the template of the unit forces a page break before its first block,
-	 * while a marker **inside** the heading goes with it. The markers are numbered in the unit (`heading/<post id>/<n>`). Scripts, styles, comments and text areas are left alone: the text of a
-	 * heading that a script holds is not a heading.
-	 *
-	 * @param string $html Rendered page of the unit.
-	 * @param int    $id   Id of the unit.
-	 * @return string
-	 */
-	public static function mark_headings( $html, $id ) {
-		$number = 0;
-
-		return self::mark( (string) $html, (int) $id, $number );
-	}
-
-	/**
-	 * Marks the headings of a unit and notes them in the manifest.
-	 *
-	 * @param string            $html  Rendered page of the unit.
-	 * @param int               $id    Id of the unit.
-	 * @param array<int, array> $rows  The headings of the merge (modified).
-	 * @param int               $depth Depth of the unit in the section.
-	 * @return string
-	 */
-	private static function mark_unit( $html, $id, array &$rows, $depth ) {
-		$number = 0;
-
-		return self::mark( (string) $html, $id, $number, $rows, $depth );
-	}
-
-	/**
-	 * Puts the markers of the headings in a piece of HTML, numbering from the number given, and notes each heading in `$rows` when it is given.
-	 *
-	 * @param string                 $html   The HTML.
-	 * @param int                    $id     Id of the post.
-	 * @param int                    $number The number of the last heading marked before this piece (modified).
-	 * @param array<int, array>|null $rows   The headings seen: `unit`, `n`, `level`, `text`, `toc`, `depth` (modified), or null to note nothing.
-	 * @param int                    $depth  Depth of the post in the section: 0 for the section itself, 1 for its units.
-	 * @return string
-	 */
-	private static function mark( $html, $id, &$number, &$rows = null, $depth = 0 ) {
-		$parts = preg_split( '~(<script\b.*?</script>|<style\b.*?</style>|<textarea\b.*?</textarea>|<!--.*?-->)~is', $html, -1, PREG_SPLIT_DELIM_CAPTURE );
-
-		if ( false === $parts ) {
-			return $html;
-		}
-
-		foreach ( $parts as $index => $part ) {
-			// The odd parts are what the pattern captured: the blocks to leave alone.
-			if ( 1 === $index % 2 || false === preg_match_all( '~<h([1-6])(?:\s[^>]*)?>~i', $part, $found, PREG_OFFSET_CAPTURE ) || array() === $found[0] ) {
-				continue;
-			}
-
-			$out  = '';
-			$from = 0;
-
-			foreach ( $found[0] as $at => $tag ) {
-				++$number;
-
-				$level = (int) $found[1][ $at ][0];
-				$after = $tag[1] + strlen( $tag[0] );
-				$out  .= substr( $part, $from, $after - $from ) . '<a class="books-merge-marker" href="' . esc_url( PdfMarkers::address( 'heading/' . $id . '/' . $number ) ) . '" tabindex="-1" aria-hidden="true" style="display:inline-block;width:1px;height:1px;vertical-align:top;margin-bottom:-1px;"></a>';
-				$from  = $after;
-
-				if ( is_array( $rows ) ) {
-					$close  = stripos( $part, '</h' . $level, $after );
-					$inside = false === $close ? '' : substr( $part, $after, $close - $after );
-					$rows[] = array(
-						'unit'  => $id,
-						'n'     => $number,
-						'level' => $level,
-						'text'  => self::plain( $inside ),
-						'toc'   => 1 !== preg_match( '~\bclass\s*=\s*["\'][^"\']*\bno-toc\b~i', $tag[0] ),
-						'depth' => $depth,
-					);
-				}
-			}
-
-			$parts[ $index ] = $out . substr( $part, $from );
-		}
-
-		return implode( '', $parts );
-	}
-
-	/**
-	 * The text of a heading: no tag, no entity, the spaces in one.
-	 *
-	 * @param string $html What is between the tags of the heading.
-	 * @return string
-	 */
-	private static function plain( $html ) {
-		return trim( (string) preg_replace( '~\s+~u', ' ', html_entity_decode( wp_strip_all_tags( $html ), ENT_QUOTES, 'UTF-8' ) ) );
-	}
-
-	/**
-	 * The marker that says which manifest describes the PDF (slice 227): its name is the key of the file where the manifest was written.
-	 *
-	 * @param string $key Key of the manifest.
-	 * @return string
-	 */
-	public static function manifest_marker( $key ) {
-		return '<a class="books-merge-marker" href="' . esc_url( PdfMarkers::address( 'manifest/' . $key ) ) . '" tabindex="-1" aria-hidden="true" style="display:block;width:1px;height:1px;margin:0 0 -1px;overflow:hidden;break-after:avoid;"></a>';
 	}
 
 	/**
@@ -369,6 +291,37 @@ final class MergedPrint {
 	}
 
 	/**
+	 * Asks for a table of contents (slice 228): returns the marker to leave where it goes, or an empty string when the page is not the single page
+	 * of that section, may not be merged, holds nothing, or a merge is going on. The table is made when the page is placed, from the headings of
+	 * the merge, so it needs the block that merges on the same page.
+	 *
+	 * @param int  $post_id  Id of the post of the block, 0 when unknown.
+	 * @param int  $levels   The deepest level listed, 0 for all.
+	 * @param bool $numbered Whether the entries have the number of their page (print) or a link.
+	 * @return string
+	 */
+	public function toc_slot( $post_id, $levels, $numbered ) {
+		$request = (array) ( $this->request )();
+		$section = (int) ( $request['section'] ?? 0 );
+
+		if ( $this->busy || $section <= 0 || ( $post_id > 0 && (int) $post_id !== $section ) ) {
+			return '';
+		}
+
+		if ( ! $this->access->allowed( $section ) || array() === $this->sections->order( $section ) ) {
+			return '';
+		}
+
+		$this->tocs[]     = array(
+			'levels'   => max( 0, (int) $levels ),
+			'numbered' => (bool) $numbered,
+		);
+		$this->section_id = $section;
+
+		return self::TOC_MARKER . ( count( $this->tocs ) - 1 ) . ' -->';
+	}
+
+	/**
 	 * Starts the output buffer that puts the units at the marker, when the template had a block that left one: the template is rendered
 	 * before `wp_head`, so the marker is known, and what follows is buffered until the footer has rendered the units. Action `wp_head`, last.
 	 *
@@ -402,13 +355,14 @@ final class MergedPrint {
 			$this->inserted = true;
 
 			// The headings of the page of the section itself get their markers; those of the units already have theirs.
-			$head = self::mark( substr( $buffer, 0, $position ), $this->section_id, $number, $before );
-			$tail = self::mark( substr( $buffer, $position + strlen( self::MARKER ) ), $this->section_id, $number, $after );
+			$head = Headings::mark( substr( $buffer, 0, $position ), $this->section_id, $number, $before );
+			$tail = Headings::mark( substr( $buffer, $position + strlen( self::MARKER ) ), $this->section_id, $number, $after );
+			$rows = array_merge( $before, $this->rows, $after );
 
-			return $head . $this->manifest( $html, $before, $after ) . $html . $tail;
+			return $this->tables( $head, $rows, $html ) . $this->manifest( $html, $before, $after ) . $html . $this->tables( $tail, $rows, $html );
 		}
 
-		$buffer = self::mark( $buffer, $this->section_id, $number, $before );
+		$buffer = $this->tables( Headings::mark( $buffer, $this->section_id, $number, $before ), array_merge( $before, $this->rows ), $html );
 		$end    = '' === $html ? false : strrpos( $buffer, '</body>' );
 
 		if ( false === $end ) {
@@ -418,6 +372,28 @@ final class MergedPrint {
 		$this->inserted = true;
 
 		return substr_replace( $buffer, $this->manifest( $html, $before, array() ) . $html, $end, 0 );
+	}
+
+	/**
+	 * Replaces the markers of the tables of contents in a piece of the page by the tables, made from the headings of the merge; without units the
+	 * markers are removed.
+	 *
+	 * @param string            $page  A piece of the page.
+	 * @param array<int, array> $rows  The headings of the page of the section and of the units, in the order of the document.
+	 * @param string            $units The units.
+	 * @return string
+	 */
+	private function tables( $page, array $rows, $units ) {
+		if ( array() === $this->tocs || false === strpos( $page, self::TOC_MARKER ) ) {
+			return $page;
+		}
+
+		foreach ( $this->tocs as $index => $toc ) {
+			$html = '' === $units ? '' : TableOfContents::render( TableOfContents::entries( $rows, $toc['levels'] ), $toc['numbered'], $this->pages, $this->link );
+			$page = str_replace( self::TOC_MARKER . $index . ' -->', $html, $page );
+		}
+
+		return $page;
 	}
 
 	/**
@@ -449,7 +425,7 @@ final class MergedPrint {
 
 		$key = md5( $json );
 
-		return true === ( $this->manifest_writer )( $key, $json ) ? self::manifest_marker( $key ) : '';
+		return true === ( $this->manifest_writer )( $key, $json ) ? Headings::manifest_marker( $key ) : '';
 	}
 
 	/**
@@ -660,7 +636,7 @@ final class MergedPrint {
 				'id'    => (int) $id,
 				'depth' => (int) $depth,
 			);
-			$out .= '<div class="books-merge-unit" data-post="' . (int) $id . '" data-depth="' . (int) $depth . '">' . self::mark_unit( $html, (int) $id, $this->rows, (int) $depth ) . '</div>';
+			$out .= '<div class="books-merge-unit" data-post="' . (int) $id . '" data-depth="' . (int) $depth . '">' . Headings::unit( $html, (int) $id, $this->rows, (int) $depth ) . '</div>';
 
 			$this->log->write(
 				'unit',

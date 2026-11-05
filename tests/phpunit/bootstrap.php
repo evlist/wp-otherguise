@@ -598,6 +598,16 @@ function add_options_page() {
 }
 
 /**
+ * Stub of get_permalink().
+ *
+ * @param int $id Post.
+ * @return string
+ */
+function get_permalink( $id ) {
+    return 'https://example.test/?p=' . (int) $id;
+}
+
+/**
  * Stub of sanitize_title(): lower case, dashes.
  *
  * @param string $title Title.

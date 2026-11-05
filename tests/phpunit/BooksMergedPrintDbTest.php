@@ -10,8 +10,10 @@
 
 use Otherguise\Books\Block\ModeFilter;
 use Otherguise\Books\Block\SectionMergeBlock;
+use Otherguise\Books\Block\SectionTocBlock;
 use Otherguise\Books\Block\UnitsQuery;
 use Otherguise\Books\Merge\MergeAccess;
+use Otherguise\Books\Merge\Headings;
 use Otherguise\Books\Merge\MergedPrint;
 use Otherguise\Books\Merge\MergeLog;
 use Otherguise\Books\Module as BooksModule;
@@ -28,6 +30,9 @@ require_once __DIR__ . '/support/class-otherguise-test-section-posts.php';
  *
  * @covers \Otherguise\Books\Merge\MergedPrint
  * @covers \Otherguise\Books\Block\SectionMergeBlock
+ * @covers \Otherguise\Books\Block\SectionTocBlock
+ * @covers \Otherguise\Books\Merge\TableOfContents
+ * @covers \Otherguise\Books\Merge\Headings
  * @covers \Otherguise\Books\Block\ModeFilter
  * @covers \Otherguise\Books\Block\UnitsQuery
  */
@@ -391,10 +396,10 @@ class BooksMergedPrintDbTest extends Otherguise_Test_Database_Case {
 
 		$this->assertSame(
 			'<h1>' . $marker( 1 ) . 'A</h1><script>var s="<h2>x</h2>";</script><!-- <h3>c</h3> --><H2 class="x" id="b">' . $marker( 2 ) . 'B</H2><header>h</header><hr><textarea><h4>t</h4></textarea><style>h5{}</style><h6>' . $marker( 3 ) . 'F</h6><p>no</p>',
-			MergedPrint::mark_headings( $html, 7 )
+			Headings::of_unit( $html, 7 )
 		);
-		$this->assertSame( '<p>No heading</p>', MergedPrint::mark_headings( '<p>No heading</p>', 7 ) );
-		$this->assertSame( '', MergedPrint::mark_headings( '', 7 ) );
+		$this->assertSame( '<p>No heading</p>', Headings::of_unit( '<p>No heading</p>', 7 ) );
+		$this->assertSame( '', Headings::of_unit( '', 7 ) );
 	}
 
 	/**
@@ -540,6 +545,66 @@ class BooksMergedPrintDbTest extends Otherguise_Test_Database_Case {
 		$last = end( $data['headings'] );
 
 		$this->assertSame( array( 100, 2, 2, 'Afterword', 0 ), array( $last['unit'], $last['n'], $last['level'], $last['text'], $last['depth'] ), 'The end of the page of the section goes on with its numbers.' );
+	}
+
+	/**
+	 * The table of contents: the block leaves a marker, the merge replaces it, wherever it is in the page (before or after the units), by the entries
+	 * made from the headings of the section and of the units (the page of the section is marked and its headings are entries, except `no-toc`).
+	 *
+	 * @return void
+	 */
+	public function test_the_table_of_contents_is_made_when_the_units_are_placed(): void {
+		$merge = $this->merge_with_manifest( null );
+		$merge_block = new SectionMergeBlock( $merge, fn() => $this->mode );
+		$toc_all     = new SectionTocBlock( $merge, fn() => $this->mode, null, static fn( $slug ) => 'print' === $slug );
+		$toc_one     = new SectionTocBlock( $merge, fn() => $this->mode, null, static fn() => false );
+
+		$this->mode = 'print';
+		$first      = $toc_all->render( array( 'levels' => 0 ), '', null );
+		$this->mode = 'web';
+		$second     = $toc_one->render( array( 'levels' => 1 ), '', null );
+		$this->mode = 'print';
+
+		$this->assertSame( MergedPrint::TOC_MARKER . '0 -->', $first );
+		$this->assertSame( MergedPrint::TOC_MARKER . '1 -->', $second );
+		$this->assertSame( MergedPrint::MARKER, $merge_block->render( array(), '', null ) );
+		$this->assertSame( '', $toc_all->render( array( 'modes' => array( 'web' ) ), '', null ), 'Not in this mode.' );
+
+		ob_start();
+		$merge->head();
+		$source = '<body><h1 class="no-toc">Book</h1>' . $first . '<h2>Intro</h2>' . $second . MergedPrint::MARKER . '<h2>Afterword</h2></body>';
+		echo $source; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+		$merge->footer();
+		ob_end_flush();
+		$page = (string) ob_get_clean();
+
+		$this->assertStringNotContainsString( MergedPrint::TOC_MARKER, $page, 'Every marker is replaced.' );
+		$this->assertSame( 2, substr_count( $page, '<ul class="books-toc">' ) );
+		$this->assertStringContainsString( '<span class="books-toc__text">Part &amp; one</span><span class="books-toc__leader" aria-hidden="true"></span><span class="books-toc__page">000</span>', $page, 'Numbers in print: the placeholder until the pages are known.' );
+		$this->assertStringContainsString( '<span class="books-toc__text">Day 3</span>', $page );
+		$this->assertStringContainsString( '<span class="books-toc__text">Intro</span>', $page, 'The headings of the page of the section are entries.' );
+		$this->assertStringContainsString( '<span class="books-toc__text">Afterword</span>', $page, 'The table before the units knows the heading after them.' );
+		$this->assertStringContainsString( '<li class="books-toc__entry books-toc__level-1"><a href="https://example.test/?p=101">Part &amp; one</a></li>', $page, 'Not numbered (a mode that is not a print mode): links, one level.' );
+		$this->assertStringNotContainsString( 'Left out', $page, 'no-toc.' );
+		$this->assertLessThan( strpos( $page, 'Part &amp; one' ), strpos( $page, '<ul class="books-toc">' ), 'The first table is before the units.' );
+	}
+
+	/**
+	 * Without units, or with a visitor who may not merge, the table is nothing: no marker, or the marker goes away.
+	 *
+	 * @return void
+	 */
+	public function test_no_table_of_contents_without_a_merge(): void {
+		$denied = new MergedPrint(
+			$this->sections,
+			new MergeAccess( null, static fn() => 'key', static fn() => false, static fn() => '' ),
+			new MergeLog( static fn() => false, static fn() => '' ),
+			fn() => $this->request
+		);
+
+		$this->assertSame( '', ( new SectionTocBlock( $denied, fn() => 'print' ) )->render( array(), '', null ) );
+		$this->assertSame( '', $denied->toc_slot( 5, 2, true ), 'Not the post of the section of the page.' );
+		$this->assertSame( '', $this->merge()->toc_slot( 5, 2, true ) );
 	}
 
 	/**

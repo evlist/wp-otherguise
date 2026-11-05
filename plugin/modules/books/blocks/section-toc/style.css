@@ -1,0 +1,39 @@
+/**
+ * SPDX-FileCopyrightText: 2026 Eric van der Vlist <vdv@dyomedea.com>
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ *
+ * The table of contents of a section (block books/section-toc): an entry per line, indented by level; in print the number of the page at the
+ * right with a dotted leader (Chromium has no target-counter and no leader()).
+ */
+.books-toc {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+}
+
+.books-toc__entry {
+	display: flex;
+	align-items: baseline;
+	gap: 0.4em;
+	margin: 0;
+	padding-left: 0;
+}
+
+.books-toc__level-2 { padding-left: 1.5em; }
+.books-toc__level-3 { padding-left: 3em; }
+.books-toc__level-4 { padding-left: 4.5em; }
+.books-toc__level-5 { padding-left: 6em; }
+.books-toc__level-6 { padding-left: 7.5em; }
+
+.books-toc__leader {
+	flex: 1 1 auto;
+	min-width: 1em;
+	border-bottom: 1px dotted currentcolor;
+	/* The dots are at the height of the base line of the text. */
+	transform: translateY(-0.3em);
+}
+
+.books-toc__page {
+	flex: 0 0 auto;
+	font-variant-numeric: tabular-nums;
+}

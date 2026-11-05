@@ -30,6 +30,7 @@ use Otherguise\Books\Merge\MergeAccess;
 use Otherguise\Books\Block\ModeFilter;
 use Otherguise\Books\Block\SectionListBlock;
 use Otherguise\Books\Block\SectionMergeBlock;
+use Otherguise\Books\Block\SectionTocBlock;
 use Otherguise\Books\Block\UnitsQuery;
 use Otherguise\Books\Merge\MergedPrint;
 use Otherguise\Books\Merge\MergeLog;
@@ -199,6 +200,7 @@ final class Module implements ModuleInterface {
 		( $this->add_action )( 'query_loop_block_query_vars', array( $query, 'filter' ), 10, 2 );
 		$this->section_blocks = array(
 			'section-merge' => new SectionMergeBlock( $merged, null, $choices ),
+			'section-toc'   => new SectionTocBlock( $merged, null, $choices ),
 			'section-list'  => new SectionListBlock( null, null, $choices, new ListItems() ),
 		);
 		( $this->add_action )( 'redirect_canonical', array( new InternalHost( $renderer ), 'filter' ), 5, 1 );
