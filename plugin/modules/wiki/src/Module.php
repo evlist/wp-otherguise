@@ -14,10 +14,13 @@ use Otherguise\Core\ModuleInterface;
 use Otherguise\Core\Modules;
 use Otherguise\Wiki\Admin\SettingsScreen;
 use Otherguise\Wiki\Cli\PagesCommand;
+use Otherguise\Wiki\Editor\SpacePanel;
+use Otherguise\Wiki\Page\Lists;
 use Otherguise\Wiki\Page\PageStore;
 use Otherguise\Wiki\Page\Pages;
 use Otherguise\Wiki\Page\PostType;
 use Otherguise\Wiki\Page\Saving;
+use Otherguise\Wiki\Page\SpaceBox;
 use Otherguise\Triples\Predicate\PredicateDefinition;
 use Otherguise\Wiki\Space\Spaces;
 
@@ -103,10 +106,35 @@ final class Module implements ModuleInterface {
 		( $this->add_action )( 'rest_after_insert_' . PageStore::TYPE, array( $saving, 'after_rest' ), 10, 1 );
 		( $this->add_action )( 'wp_after_insert_post', array( $saving, 'after_insert' ), 10, 1 );
 		( $this->add_action )( 'cli_init', array( $this, 'register_command' ), 10, 0 );
+		( $this->add_action )(
+			'enqueue_block_editor_assets',
+			array(
+				new SpacePanel(
+					static function ( $file ) {
+						return plugins_url( 'modules/wiki/editor/space/' . $file, OTHERGUISE_PLUGIN_FILE );
+					}
+				),
+				'enqueue',
+			),
+			10,
+			0
+		);
 
 		if ( is_admin() ) {
+			$box   = new SpaceBox();
+			$lists = new Lists(
+				function ( $id ) {
+					return $this->names()->current_of( $id );
+				}
+			);
+
 			( new SettingsScreen() )->register( $this->add_action );
 			( $this->add_action )( 'admin_notices', array( $saving, 'notice' ), 10, 0 );
+			( $this->add_action )( 'add_meta_boxes_' . PageStore::TYPE, array( $box, 'register' ), 10, 0 );
+			( $this->add_action )( 'save_post_' . PageStore::TYPE, array( $box, 'save' ), 10, 1 );
+			( $this->add_action )( 'manage_' . PageStore::TYPE . '_posts_columns', array( $lists, 'columns' ), 10, 1 );
+			( $this->add_action )( 'manage_' . PageStore::TYPE . '_posts_custom_column', array( $lists, 'column' ), 10, 2 );
+			( $this->add_action )( 'post_row_actions', array( $lists, 'row_actions' ), 10, 2 );
 		}
 	}
 

@@ -67,6 +67,7 @@ class WikiModuleTest extends TestCase {
 				'rest_after_insert_wiki_page'  => array( 'after_rest', 10, 1 ),
 				'wp_after_insert_post'         => array( 'after_insert', 10, 1 ),
 				'cli_init'                     => array( 'register_command', 10, 0 ),
+				'enqueue_block_editor_assets'  => array( 'enqueue', 10, 0 ),
 			),
 			$hooks
 		);

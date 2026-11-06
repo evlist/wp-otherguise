@@ -45,7 +45,7 @@ The module Wiki, on the level 3 of the design note (an address of our own); **pr
 |---|---|
 | [500](500-wiki-module-and-spaces.md) | Wiki: the module and the spaces (the registry of the spaces and its screen) — **coded on the branch `wiki`**, not merged |
 | [501](501-wiki-names.md) | Wiki: the names of the pages (the rules of a title, the names as statements of `triples`, the service) — **coded on the branch `wiki`**, not merged |
-| [502](502-wiki-pages.md) | Wiki: the pages (a content type, the space and the title, the checks at saving, creation from a file) |
+| [502](502-wiki-pages.md) | Wiki: the pages (a content type, the space and the title, the checks at saving, creation from a file) — **mostly coded on the branch `wiki`**, not merged |
 | [503](503-wiki-addresses.md) | Wiki: the addresses and the routing (`/Space:Title`, the canonical form, the redirects) |
 | [504](504-wiki-missing-page.md) | Wiki: the page that does not exist: the 404 that offers to create it (the other angles, the similar pages) |
 | [505](505-wiki-links.md) | Wiki: the links (ordinary links by address, no shortcode), the red links, the move of a page, the rename of a space |
