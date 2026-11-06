@@ -3,7 +3,7 @@
 
 # Slice 502 — Wiki: the pages (a content type, the space and the title)
 
-Status: **proposed (2026-11-06), not coded**. Dependencies: slices 500 (the spaces), 501 (the names, as statements of `triples`), 233 (the menu), 209 (the default template). Context: [`../design/wiki.md`](../design/wiki.md).
+Status: **partly coded on the branch `wiki` (2026-11-06)**: the type, the space, the claim on save, `Pages::create()` and `wp otherguise wiki create` are done; the panel of the editor, the classic box, the lists and `wiki names` are not yet (see "Coded" below). Dependencies: slices 500 (the spaces), 501 (the names, as statements of `triples`), 233 (the menu), 209 (the default template). Context: [`../design/wiki.md`](../design/wiki.md).
 
 ## What it does
 
@@ -19,14 +19,25 @@ A **content type `wiki_page`** whose pages have a **space** and a **title that i
 - **The service `Pages::create( $space, $title, $html, $status )`**: the rules and the claim of slice 501, the meta `wiki_space`, the template of the space; the **same service** serves the screens, the creation of the 404 (slice 504), the command below and, from outside the plugin, the script of the migration (slice 508).
 - WP-CLI: `wp otherguise wiki create --space=<name> --title=<title> [--status=draft|publish] [--file=<html>]` (`Pages::create()`; `--file` gives the content as HTML, kept as it is: there is **no import and nothing that knows MediaWiki** in the plugin, see slice 508) and `wp otherguise wiki names [--space=<name>]` (the index, with `--check`: a page without a name, a name without a page, and `--rebuild`).
 
-## Tests (planned)
+## Coded on 2026-11-06 (first part, branch `wiki`)
 
-The type (registration, no rewrite, the REST flag, the capability filter); the meta (required, not editable after the creation, the error through REST: 409 with the message; the classic screen keeps a draft); the claim on save, the rename and its alias, a refused title, a duplicate in the same space and the **same title in another space** (accepted); the deletion (Triples' cleanup takes the names); the default template; the screens (the columns, the filter) as `BooksEditScreensTest`; the commands (`create` from a file of HTML, `names --check`, `Pages::create()` on its own).
+- `Page\PostType`: the type `wiki_page` as above (no rewrite, no query variable, REST, supports `title`, `editor`, `excerpt`, `thumbnail`, `revisions` and `custom-fields`, the capabilities of the pages through `wiki_capability_type`, own menu "Wiki") and the meta `wiki_space` (REST, **sanitized to the registered form of the space, or to nothing**). `update_post_metadata` and `delete_post_metadata` refuse to change or remove a space that is set, so the space is **chosen once**.
+- `Page\Pages` (the service) and `Page\PageStore` (the posts of WordPress, replaceable by a double): `create( $space, $title, $html, $status )` (checks the name **before** making the page, makes it with the space, claims the name, gives it the template of its space; if the claim fails the page is **deleted again**), `sync( $id )` (the claim from the title and the space of a saved page), `check( $id, $space, $title )`, `space_of()`.
+- `Page\Saving` (the hooks): **before a save through REST** (`rest_pre_insert_wiki_page`): **409** `wiki_name_taken` with "A page of this name exists in this space: <title>", **400** for a title that the rules refuse (`wiki_name_*`), for a page **published, scheduled, private or pending with no space** (`wiki_no_space`) and for a **change of space** (`wiki_space_locked`); a draft may have no space yet. **After any save** (`rest_after_insert_wiki_page` and `wp_after_insert_post`, which call the same idempotent `sync`): the name is claimed, a new title is a rename (alias), and a page that cannot have its name goes **back to draft** with a notice on the next screen (a transient per user).
+- `Cli\PagesCommand`: `wp otherguise wiki create --space=<name> --title=<title> [--status=draft|pending|private|publish] [--file=<html>]`, each refusal said with its code and the page that holds the name.
+- Differences with the text above: **the title of the post is the title of the name** (a name that differed from the title shown would be renamed by the next save: a display title would be a feature of its own, a meta); the **statements are not deleted by the uninstall** (slice 501); the checks of the REST filter use the title and the space **sent**, or those stored when the request does not carry them.
+- **Not done yet**: the panel of the block editor and the box of the classic screen to choose the space, the columns and the filter of the lists, `wiki names` (`--check`, `--rebuild`), the block `wiki/space-status`.
+
+## Tests
+
+`WikiPagesDbTest` (12, on a real MariaDB with the real statements and an in-memory store of posts): creating (title, content kept as it is, status, space as registered, template of the space), the same title in another space and the same name refused with nothing left behind, the other refusals, a page deleted again when the claim fails after the insert, the claim after a save (no title, no space, trash, auto-draft, rename and alias), an existing template kept, the check before a save, the REST filter in each case, the hooks after a save (draft and notice), the type and the meta, the lock of the space, the command. `WikiModuleTest` expects the hooks. The whole suite passes with the database (728 tests, none skipped), `phpcs` is clean.
+
+## Verification
+
+- **Tried** on the scratch WordPress 7.1.x, with real REST requests from the logged-in browser (`wp/v2/wiki_page`): a page created in `biography` (the space in any case), the same name refused (409) and **the same title in another space accepted**, a page published with no space refused, a draft with no space accepted and given its space later, a rename (the old name becomes an alias), a change of space refused (400), a taken name on a rename refused (409), a title with a forbidden character refused (400). With `Pages::create()` and `wp_insert_post()` in a script: the template of the space is set, a refused creation leaves no post, a duplicate saved the classic way goes back to draft with its notice, a draft with no title keeps no name, and **deleting the pages leaves no statement**. The meta `footnotes` of the Footnotes block of WordPress **is registered for the type** (it needs `editor`, `custom-fields` and `revisions`).
+- A page is **viewable** at `/?post_type=wiki_page&p=<id>` until slice 503 gives it its address.
+- **Never tried**: the block editor itself (no panel yet, so the space can only be sent by REST or by `Pages::create()`), the classic screen, a user who may not edit the page, `wp otherguise wiki create` run by the real WP-CLI (the class is tried with doubles; WP-CLI is not installed in the scratch), the Footnotes block on a wiki page, the template of the space on a real theme.
 
 ## Not done
 
 The address and the routing (503); the page that does not exist (504); the links (505); the move between spaces (505).
-
-## Verification (planned)
-
-A scratch WordPress with Chromium: create two pages of the same title in two spaces, a duplicate refused in the editor, a rename. The block editor part is not testable in jsdom for the panel only. Never tried on a real site.

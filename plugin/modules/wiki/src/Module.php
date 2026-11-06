@@ -13,6 +13,11 @@ namespace Otherguise\Wiki;
 use Otherguise\Core\ModuleInterface;
 use Otherguise\Core\Modules;
 use Otherguise\Wiki\Admin\SettingsScreen;
+use Otherguise\Wiki\Cli\PagesCommand;
+use Otherguise\Wiki\Page\PageStore;
+use Otherguise\Wiki\Page\Pages;
+use Otherguise\Wiki\Page\PostType;
+use Otherguise\Wiki\Page\Saving;
 use Otherguise\Triples\Predicate\PredicateDefinition;
 use Otherguise\Wiki\Space\Spaces;
 
@@ -37,6 +42,13 @@ final class Module implements ModuleInterface {
 	 * @var Names|null
 	 */
 	private $names = null;
+
+	/**
+	 * The pages, built when they are needed.
+	 *
+	 * @var Pages|null
+	 */
+	private $pages = null;
 
 	/**
 	 * Builds the module.
@@ -80,10 +92,21 @@ final class Module implements ModuleInterface {
 	 * @return void
 	 */
 	public function boot() {
+		$type   = new PostType();
+		$saving = new Saving( array( $this, 'pages' ) );
+
 		( $this->add_action )( 'triples_register_predicates', array( $this, 'register_predicates' ), 10, 1 );
+		( $this->add_action )( 'init', array( $type, 'register' ), 10, 0 );
+		( $this->add_action )( 'update_post_metadata', array( $type, 'lock_space' ), 10, 4 );
+		( $this->add_action )( 'delete_post_metadata', array( $type, 'lock_space' ), 10, 4 );
+		( $this->add_action )( 'rest_pre_insert_' . PageStore::TYPE, array( $saving, 'check_rest' ), 10, 2 );
+		( $this->add_action )( 'rest_after_insert_' . PageStore::TYPE, array( $saving, 'after_rest' ), 10, 1 );
+		( $this->add_action )( 'wp_after_insert_post', array( $saving, 'after_insert' ), 10, 1 );
+		( $this->add_action )( 'cli_init', array( $this, 'register_command' ), 10, 0 );
 
 		if ( is_admin() ) {
 			( new SettingsScreen() )->register( $this->add_action );
+			( $this->add_action )( 'admin_notices', array( $saving, 'notice' ), 10, 0 );
 		}
 	}
 
@@ -163,6 +186,28 @@ final class Module implements ModuleInterface {
 		}
 
 		return $this->names;
+	}
+
+	/**
+	 * The pages: the names and the posts of WordPress.
+	 *
+	 * @return Pages
+	 */
+	public function pages() {
+		if ( null === $this->pages ) {
+			$this->pages = new Pages( $this->names(), new PageStore() );
+		}
+
+		return $this->pages;
+	}
+
+	/**
+	 * Registers the WP-CLI commands `wp otherguise wiki`. Action `cli_init`.
+	 *
+	 * @return void
+	 */
+	public function register_command() {
+		\WP_CLI::add_command( 'otherguise wiki', new PagesCommand( $this->pages() ) );
 	}
 
 	/**

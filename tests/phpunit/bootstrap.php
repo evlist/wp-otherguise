@@ -699,6 +699,46 @@ function wp_nonce_field() {
 }
 
 /**
+ * Stub of get_current_user_id().
+ *
+ * @return int
+ */
+function get_current_user_id() {
+    return 1;
+}
+
+/**
+ * Stub of wp_specialchars_decode().
+ *
+ * @param string $text  Text.
+ * @param int    $quote Quote style.
+ * @return string
+ */
+function wp_specialchars_decode( $text, $quote = ENT_NOQUOTES ) {
+    return htmlspecialchars_decode( (string) $text, $quote );
+}
+
+/**
+ * Stub of register_post_meta(): records the call.
+ *
+ * @return bool
+ */
+function register_post_meta() {
+    otherguise_test_record( 'register_post_meta', func_get_args() );
+
+    return true;
+}
+
+/**
+ * Stub of current_user_can(): the user may.
+ *
+ * @return bool
+ */
+function current_user_can() {
+    return true;
+}
+
+/**
  * Stub of register_post_type(): records the call.
  *
  * @return void

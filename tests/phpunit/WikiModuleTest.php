@@ -44,11 +44,11 @@ class WikiModuleTest extends TestCase {
 	}
 
 	/**
-	 * Outside the administration the module registers its predicates and nothing else.
+	 * The hooks of the module, with their priority and number of arguments; outside the administration there is no screen.
 	 *
 	 * @return void
 	 */
-	public function test_only_the_predicates_are_hooked_outside_the_administration(): void {
+	public function test_the_hooks(): void {
 		$hooks = array();
 
 		( new Module(
@@ -57,7 +57,19 @@ class WikiModuleTest extends TestCase {
 			}
 		) )->boot();
 
-		$this->assertSame( array( 'triples_register_predicates' => array( 'register_predicates', 10, 1 ) ), $hooks );
+		$this->assertSame(
+			array(
+				'triples_register_predicates'  => array( 'register_predicates', 10, 1 ),
+				'init'                         => array( 'register', 10, 0 ),
+				'update_post_metadata'         => array( 'lock_space', 10, 4 ),
+				'delete_post_metadata'         => array( 'lock_space', 10, 4 ),
+				'rest_pre_insert_wiki_page'    => array( 'check_rest', 10, 2 ),
+				'rest_after_insert_wiki_page'  => array( 'after_rest', 10, 1 ),
+				'wp_after_insert_post'         => array( 'after_insert', 10, 1 ),
+				'cli_init'                     => array( 'register_command', 10, 0 ),
+			),
+			$hooks
+		);
 	}
 
 	/**
