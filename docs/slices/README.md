@@ -48,7 +48,7 @@ The module Wiki, on the level 3 of the design note (an address of our own); **pr
 | [502](502-wiki-pages.md) | Wiki: the pages (a content type, the space and the title, the checks at saving, creation from a file) |
 | [503](503-wiki-addresses.md) | Wiki: the addresses and the routing (`/Space:Title`, the canonical form, the redirects) |
 | [504](504-wiki-missing-page.md) | Wiki: the page that does not exist: the 404 that offers to create it (the other angles, the similar pages) |
-| [505](505-wiki-link-by-name.md) | Wiki: the link by name (`[page "Space:Title"]`, qualified names only, red links), the move of a page, the rename of a space |
+| [505](505-wiki-links.md) | Wiki: the links (ordinary links by address, no shortcode), the red links, the move of a page, the rename of a space |
 | [506](506-wiki-incoming-links.md) | Wiki: the incoming links (`wiki/cites`) and the wanted pages (`wiki/wants`) |
 | [507](507-wiki-other-angles.md) | Wiki: the other angles of a subject (a block, `wiki/same-subject`, the label of the space) |
 | [508](508-wiki-old-addresses.md) | Wiki: the old addresses of the SelfPedia (aliases from a file; the semi-manual migration) |

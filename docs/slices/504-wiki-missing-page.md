@@ -19,7 +19,7 @@ When the address is `/<Space>:<Title>` for a **registered space** and **no page 
 - **The creation**: a POST handled on `admin-post.php` (`action=wiki_create`, the nonce tied to the pair space and title; the capability checked again; the space looked up again): the name is put through the rules and **claimed** (slice 501: if it was taken in the meantime the user is sent to that page); the page is created as a **draft** of the type `wiki_page`, with the template of the space (slice 500), the title **as it was in the address**, the meta `wiki_space`; the user lands in the editor. The address that led there is the address of the page.
 - **Where the logic and where the look**: the logic (what the address means, who may create, the creation, the lists) is the module's; the look is the theme's: the block and the minimal output give the markup with classes (`wiki-missing`, `wiki-angles`, `wiki-similar`), no style of their own beyond a few CSS variables with a fallback.
 - **No chain of parents to create**: with the level 3 there is no hierarchy, `1958-1968/fr` is one title (this closes the question of the design note about the missing parents).
-- **The red link of slice 505 points to this address**, so the same page serves both ways to arrive.
+- **A red link of slice 505 points to this address** (it is an ordinary link to the address of a page that does not exist yet), so the same page serves both ways to arrive.
 
 ## To look at
 
@@ -31,4 +31,4 @@ The state of the request (a registered space and a free name; an unknown space i
 
 ## Not done
 
-The link by name and its red link (505); the rights per space; the title alone as an address (`/Paris`: a list of the angles).
+The links and the red links (505); the rights per space; the title alone as an address (`/Paris`: a list of the angles).

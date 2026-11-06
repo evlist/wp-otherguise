@@ -16,7 +16,7 @@ A **content type `wiki_page`** whose pages have a **space** and a **title that i
 - **The status of the information**: the body class `wiki-space-<name>` and the text of the space are given to the templates (a block `wiki/space-status`, to be written with the wiki theme; here only the data).
 - **When a page is deleted** (not trashed) its names go with it: **the cleanup of Triples deletes its statements** (slice 104), nothing to write here; a page in the trash keeps its names (it can come back).
 - **`uninstall`**: the pages are not deleted (they are the content); the statements of the module are (slice 501: the index can be rebuilt with `wp otherguise wiki names --rebuild`, the aliases are lost).
-- WP-CLI: `wp otherguise wiki create --space=<name> --title=<title> [--status=draft|publish] [--file=<html|md>]` (the claim and the checks of the editor; `--file` gives the content: the **semi-manual import**, enough while the wiki has few pages) and `wp otherguise wiki names [--space=<name>]` (the index, with `--check`: a page without a name, a name without a page, and `--rebuild`).
+- WP-CLI: `wp otherguise wiki create --space=<name> --title=<title> [--status=draft|publish] [--file=<html|md>]` (the claim and the checks of the editor; `--file` gives the content, its links from MediaWiki being rewritten by `Address::from_mediawiki()` (slice 508): the **semi-manual import**, enough while the wiki has few pages) and `wp otherguise wiki names [--space=<name>]` (the index, with `--check`: a page without a name, a name without a page, and `--rebuild`).
 
 ## Tests (planned)
 
@@ -24,7 +24,7 @@ The type (registration, no rewrite, the REST flag, the capability filter); the m
 
 ## Not done
 
-The address and the routing (503); the page that does not exist (504); the link by name (505, the shortcode); the move between spaces (505).
+The address and the routing (503); the page that does not exist (504); the links (505); the move between spaces (505).
 
 ## Verification (planned)
 
