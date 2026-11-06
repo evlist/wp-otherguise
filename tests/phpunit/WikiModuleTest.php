@@ -53,24 +53,46 @@ class WikiModuleTest extends TestCase {
 
 		( new Module(
 			static function ( $hook, $callback, $priority, $accepted ) use ( &$hooks ) {
-				$hooks[ $hook ] = array( $callback[1], $priority, $accepted );
+				$hooks[ $hook ][] = array( $callback[1], $priority, $accepted );
 			}
 		) )->boot();
 
 		$this->assertSame(
 			array(
-				'triples_register_predicates'  => array( 'register_predicates', 10, 1 ),
-				'init'                         => array( 'register', 10, 0 ),
-				'update_post_metadata'         => array( 'lock_space', 10, 4 ),
-				'delete_post_metadata'         => array( 'lock_space', 10, 4 ),
-				'rest_pre_insert_wiki_page'    => array( 'check_rest', 10, 2 ),
-				'rest_after_insert_wiki_page'  => array( 'after_rest', 10, 1 ),
-				'wp_after_insert_post'         => array( 'after_insert', 10, 1 ),
-				'cli_init'                     => array( 'register_command', 10, 0 ),
-				'enqueue_block_editor_assets'  => array( 'enqueue', 10, 0 ),
+				'triples_register_predicates' => array( array( 'register_predicates', 10, 1 ) ),
+				'init'                        => array( array( 'register', 10, 0 ), array( 'add_rule', 10, 0 ), array( 'maybe_flush', 99, 0 ) ),
+				'update_post_metadata'        => array( array( 'lock_space', 10, 4 ) ),
+				'delete_post_metadata'        => array( array( 'lock_space', 10, 4 ) ),
+				'rest_pre_insert_wiki_page'   => array( array( 'check_rest', 10, 2 ) ),
+				'rest_after_insert_wiki_page' => array( array( 'after_rest', 10, 1 ) ),
+				'wp_after_insert_post'        => array( array( 'after_insert', 10, 1 ) ),
+				'cli_init'                    => array( array( 'register_command', 10, 0 ) ),
+				'query_vars'                  => array( array( 'query_vars', 10, 1 ) ),
+				'parse_request'               => array( array( 'parse_request', 10, 1 ) ),
+				'redirect_canonical'          => array( array( 'redirect_canonical', 5, 2 ) ),
+				'post_type_link'              => array( array( 'post_link', 10, 2 ) ),
+				'enqueue_block_editor_assets' => array( array( 'enqueue', 10, 0 ) ),
 			),
 			$hooks
 		);
+	}
+
+	/**
+	 * Activating the plugin adds the rewrite rule and flushes the rules once, and remembers it.
+	 *
+	 * @return void
+	 */
+	public function test_activating_flushes_the_rules(): void {
+		( new Module() )->activate();
+
+		$names = array_column( $GLOBALS['otherguise_test_calls'], 0 );
+
+		$this->assertSame( array( 'add_rewrite_rule', 'flush_rewrite_rules' ), array_values( array_intersect( $names, array( 'add_rewrite_rule', 'flush_rewrite_rules' ) ) ) );
+		$this->assertSame( '1', get_option( 'wiki_rules' ) );
+
+		( new Module() )->uninstall();
+
+		$this->assertFalse( get_option( 'wiki_rules' ) );
 	}
 
 	/**

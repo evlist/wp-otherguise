@@ -92,6 +92,9 @@ class WikiNameTest extends TestCase {
 			array( '/fr', NameException::BAD_SLASH ),
 			array( 'Paris/', NameException::BAD_SLASH ),
 			array( 'Paris//fr', NameException::BAD_SLASH ),
+			array( 'Paris/../fr', NameException::BAD_SLASH ),
+			array( 'Paris/./fr', NameException::BAD_SLASH ),
+			array( '..', NameException::BAD_SLASH ),
 		);
 
 		foreach ( $cases as $case ) {

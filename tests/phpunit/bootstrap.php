@@ -739,6 +739,35 @@ function current_user_can() {
 }
 
 /**
+ * Stub of add_rewrite_rule(): records the call.
+ *
+ * @return void
+ */
+function add_rewrite_rule() {
+    otherguise_test_record( 'add_rewrite_rule', func_get_args() );
+}
+
+/**
+ * Stub of flush_rewrite_rules(): records the call.
+ *
+ * @return void
+ */
+function flush_rewrite_rules() {
+    otherguise_test_record( 'flush_rewrite_rules', func_get_args() );
+}
+
+/**
+ * Stub of wp_safe_redirect(): records the call.
+ *
+ * @return bool
+ */
+function wp_safe_redirect() {
+    otherguise_test_record( 'wp_safe_redirect', func_get_args() );
+
+    return true;
+}
+
+/**
  * Stub of register_post_type(): records the call.
  *
  * @return void
@@ -1138,8 +1167,8 @@ if ( ! class_exists( 'WP_Error' ) ) {
  * @param string $url URL.
  * @return array|false
  */
-function wp_parse_url( $url ) {
-    return parse_url( $url );
+function wp_parse_url( $url, $component = -1 ) {
+    return parse_url( $url, $component );
 }
 
 $GLOBALS['otherguise_test_transients'] = array();

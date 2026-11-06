@@ -3,7 +3,7 @@
 
 # Slice 503 — Wiki: the addresses and the routing
 
-Status: **proposed (2026-11-06), not coded**. Dependencies: slices 500, 501, 502. Context: [`../design/wiki.md`](../design/wiki.md) (the level 3). **What a scratch test showed (2026-11-06, a throw-away rule, nothing of this slice)**: see "What was checked".
+Status: **coded on the branch `wiki` (2026-11-06)**, not merged into `main`. Dependencies: slices 500, 501, 502. Context: [`../design/wiki.md`](../design/wiki.md) (the level 3). **What a scratch test showed (2026-11-06, a throw-away rule, nothing of this slice)**: see "What was checked".
 
 ## What it does
 
@@ -39,9 +39,24 @@ A scratch WordPress 7.1.3 with pretty permalinks (`/%postname%/`) behind the bui
 
 **Not checked**: loading the page from the main query and its template; `get_permalink()` through the filter; the sitemaps and the SEO plugins; `ModeUrl`; a real server (Apache, nginx: the rule only needs the front controller, as for every pretty permalink); the behaviour of a proxy or a CDN with a colon in the path (the colon is valid in a path segment, RFC 3986, except in the **first** segment of a relative reference: the module only writes absolute addresses).
 
-## Tests (planned)
+## Coded on 2026-11-06 (branch `wiki`)
 
-The builder of the address (the encoding, the underscore, the first letter, the prefix, a title with a colon, a slash, an accent, a character to encode) and its inverse; the filter `post_type_link`; the resolution (a current name, an alias, an unknown name, an unknown space, a space in another case, a title with a space or a lower-case first letter): each answer, with the real database; the canonical redirects (301 and its target); `redirect_canonical` off; the rewrite rule and its flush. A Chromium run on a scratch WordPress with pretty permalinks (the router of the spike): the pages, a redirect, a 404.
+- `Address\Address::path( $space, $title )` (the form of the address: the underscore for the space, the slash kept, `rawurlencode` in upper case for the rest, but the colon, the parentheses, the comma, the apostrophe, `!`, `*` and `@` stay readable; the space name is encoded too) and `Address\Router` (the rule, the resolution, the redirects, the permalink), wired by `Module` on `init` (the rule, then a late `maybe_flush`), `query_vars`, `parse_request`, `redirect_canonical` (priority 5) and `post_type_link`.
+- **The rule** `^([^/:]+):(.+?)/?$` => `index.php?wiki_space=$matches[1]&wiki_title=$matches[2]`, **at the top**. It is flushed **when the module is activated** and **once after an update** (the option `wiki_rules` holds the version of the rule, `Router::VERSION`).
+- **The resolution** on `parse_request`: an **unknown space** is an ordinary 404 (and not ours: the redirect of WordPress is left alone); a **current name** makes the main query ask for the page (`post_type` `wiki_page`, `p`), so that the templates, the modes and the variants work as for any post; an **alias** is a **301** to the current address; a **name that nobody has** is a **404 that keeps** `wiki_space` (as registered) and `wiki_title` (as the rules make it) as query variables, for slice 504.
+- **The canonical form is ours**: for a request that is ours the `redirect_canonical` of WordPress is turned off, and a **301** (with the query string kept) is sent when the path received is not exactly the canonical one: another case of the space or of the first letter, a space or a lower-case digit in the encoding, a character that was not encoded, a trailing slash. The path is the one the server received (read as `add_query_arg( array() )` does), not the decoded one.
+- **The permalink** (`post_type_link`) is the address for a page that has a current name, **when the site has pretty permalinks**; a page with no name, or a site with plain permalinks, keeps `?post_type=wiki_page&p=<id>`.
+- **One more rule of the names**: a title with a part that is `.` or `..` (`Paris/../fr`) is refused, because a browser would rewrite the address (slice 501).
+- **Not done**: the **prefix** (the module is at the root of the site; the question stays **open**), `?post_type=wiki_page&p=<id>` is **not** redirected to the address (WordPress does not do it for this type; the page is shown as it is), the unlisted flag of `access`, `ModeUrl` checked only through the query string kept on a redirect.
+
+## Tests
+
+`WikiAddressTest` (2: the form of an address, the readable signs), `WikiRouterDbTest` (8, with the real statements: a current name, the same title in another space, every non-canonical form redirected with the query kept, an alias, an unknown name and an unknown space, another request left alone, the permalink, the rule and its flush), `WikiModuleTest` (the hooks, the activation) and `WikiNameTest` (the dots). The whole suite passes with the database (745 tests, none skipped), `phpcs` is clean.
+
+## Verification
+
+- **Tried** on the scratch WordPress 7.1.x with pretty permalinks (`/%postname%/`) behind the built-in server of PHP, with real pages and `curl` (statuses and `Location`): `/Biography:Paris` 200 with its content and the body classes of a single post and of the mode; `/biography:Paris`, `/Biography:paris`, `/Biography:Paris/` 301 to the canonical address; the query string kept (`?mode=print`); the alias `/Biography:Lut%C3%A8ce` 301 to `/Biography:Paris` after a **rename**; a title with an accent, in lower-case hexadecimal and written unencoded: 301 to the canonical form; a title with a slash (`Biography:1958-1968/fr`) 200 and with a trailing slash 301; the same title in another space; a title with colons and parentheses (`Encyclopédie:Rue:_Edgar_Faure_(Paris)`); an unknown name and an unknown space 404; a **draft** 404 for a visitor; the ordinary addresses (`/hello-world`, `/`, `/feed/`, `/wp-json/`, `/about-nothing`) behave as before, **including the redirect of WordPress to `/hello-world/`**; **the sitemap of the pages lists the addresses of the module** (and not the draft). With plain permalinks the pages keep `?post_type=wiki_page&p=<id>`.
+- **Never tried**: Apache and nginx (the rule only needs the front controller, as every pretty permalink), a site in a subdirectory, a proxy or a CDN with a colon in the path, the SEO plugins, a page of the trash or a private page for a logged-in user, the performance of the permalink on a long list (one lookup per page), a theme that shows the 404 with a form to create the page (slice 504).
 
 ## Not done
 

@@ -12,6 +12,7 @@ namespace Otherguise\Wiki;
 
 use Otherguise\Core\ModuleInterface;
 use Otherguise\Core\Modules;
+use Otherguise\Wiki\Address\Router;
 use Otherguise\Wiki\Admin\SettingsScreen;
 use Otherguise\Wiki\Cli\PagesCommand;
 use Otherguise\Wiki\Editor\SpacePanel;
@@ -54,6 +55,13 @@ final class Module implements ModuleInterface {
 	private $pages = null;
 
 	/**
+	 * The router, built when it is needed.
+	 *
+	 * @var Router|null
+	 */
+	private $router = null;
+
+	/**
 	 * Builds the module.
 	 *
 	 * @param callable|null $add_action Adds an action or a filter; defaults to WordPress `add_action`.
@@ -86,7 +94,10 @@ final class Module implements ModuleInterface {
 	 * @return void
 	 */
 	public function activate() {
-		// Nothing to create: the spaces are an option, saved from the screen.
+		// Nothing to create but the rewrite rule: the spaces are an option, saved from the screen.
+		$this->router()->add_rule();
+		flush_rewrite_rules( false );
+		update_option( Router::OPTION, Router::VERSION );
 	}
 
 	/**
@@ -106,6 +117,12 @@ final class Module implements ModuleInterface {
 		( $this->add_action )( 'rest_after_insert_' . PageStore::TYPE, array( $saving, 'after_rest' ), 10, 1 );
 		( $this->add_action )( 'wp_after_insert_post', array( $saving, 'after_insert' ), 10, 1 );
 		( $this->add_action )( 'cli_init', array( $this, 'register_command' ), 10, 0 );
+		( $this->add_action )( 'init', array( $this->router(), 'add_rule' ), 10, 0 );
+		( $this->add_action )( 'init', array( $this->router(), 'maybe_flush' ), 99, 0 );
+		( $this->add_action )( 'query_vars', array( $this->router(), 'query_vars' ), 10, 1 );
+		( $this->add_action )( 'parse_request', array( $this->router(), 'parse_request' ), 10, 1 );
+		( $this->add_action )( 'redirect_canonical', array( $this->router(), 'redirect_canonical' ), 5, 2 );
+		( $this->add_action )( 'post_type_link', array( $this->router(), 'post_link' ), 10, 2 );
 		( $this->add_action )(
 			'enqueue_block_editor_assets',
 			array(
@@ -230,6 +247,19 @@ final class Module implements ModuleInterface {
 	}
 
 	/**
+	 * The router of the addresses.
+	 *
+	 * @return Router
+	 */
+	public function router() {
+		if ( null === $this->router ) {
+			$this->router = new Router( $this->names() );
+		}
+
+		return $this->router;
+	}
+
+	/**
 	 * Registers the WP-CLI commands `wp otherguise wiki`. Action `cli_init`.
 	 *
 	 * @return void
@@ -246,5 +276,6 @@ final class Module implements ModuleInterface {
 	 */
 	public function uninstall() {
 		delete_option( Spaces::OPTION );
+		delete_option( Router::OPTION );
 	}
 }

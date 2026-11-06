@@ -19,8 +19,8 @@ defined( 'ABSPATH' ) || exit;
  * 1. Unicode normal form C (needs the PHP extension `intl`; without it the step is skipped).
  * 2. A space and an underscore are the same: a run of spaces and underscores is one space, and the ends are trimmed.
  * 3. The first letter is a capital; nothing else is changed (the case and the accents tell two titles apart).
- * 4. Refused: an empty title, the control characters, the characters `# ? % < > [ ] { }` and `|`, a title that starts or ends with a slash or
- *    holds two in a row, and a qualified name of more than 191 bytes (the limit of a string of Triples).
+ * 4. Refused: an empty title, the control characters, the characters `# ? % < > [ ] { }` and `|`, a title that starts or ends with a slash,
+ *    holds two in a row or has a part that is `.` or `..` (an address would be rewritten by the browser), and a qualified name of more than 191 bytes (the limit of a string of Triples).
  *
  * The colon is allowed in a title: only the first one of an address separates the space. A slash is a subpage **by convention** and nothing
  * more: there is no hierarchy in the data.
@@ -71,7 +71,7 @@ final class Name {
 			NameException::refuse( NameException::FORBIDDEN );
 		}
 
-		if ( '/' === $title[0] || '/' === substr( $title, -1 ) || false !== strpos( $title, '//' ) ) {
+		if ( '/' === $title[0] || '/' === substr( $title, -1 ) || false !== strpos( $title, '//' ) || array_intersect( array( '.', '..' ), explode( '/', $title ) ) ) {
 			NameException::refuse( NameException::BAD_SLASH );
 		}
 
