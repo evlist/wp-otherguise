@@ -311,6 +311,10 @@ class WP_Block_Template {
     }
 }
 
+if ( ! defined( 'MINUTE_IN_SECONDS' ) ) {
+    define( 'MINUTE_IN_SECONDS', 60 );
+}
+
 $GLOBALS['otherguise_test_objects'] = array();
 
 /**

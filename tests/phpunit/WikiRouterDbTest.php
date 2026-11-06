@@ -311,4 +311,38 @@ class WikiRouterDbTest extends Otherguise_Test_Database_Case {
 
 		$this->assertCount( 2, array_filter( $GLOBALS['otherguise_test_calls'], static fn( $call ) => 'flush_rewrite_rules' === $call[0] ), 'Flushed again when the version changes.' );
 	}
+
+	/**
+	 * The rules are flushed again when the ones that WordPress keeps do not hold the rule of the module, whatever the version, but not
+	 * twice in a minute, and never when there are no rules (plain permalinks).
+	 *
+	 * @return void
+	 */
+	public function test_the_rules_are_flushed_when_the_rule_is_missing(): void {
+		$flushes = static fn() => count( array_filter( $GLOBALS['otherguise_test_calls'], static fn( $call ) => 'flush_rewrite_rules' === $call[0] ) );
+		$router  = $this->router();
+
+		update_option( Router::OPTION, Router::VERSION );
+		update_option( 'rewrite_rules', '' );
+		$router->maybe_flush();
+		$this->assertSame( 0, $flushes(), 'Plain permalinks keep no rule: nothing to flush.' );
+
+		update_option( 'rewrite_rules', array( '^about/?$' => 'index.php?pagename=about' ) );
+		$router->maybe_flush();
+		$this->assertSame( 1, $flushes(), 'Pretty permalinks saved without the rule.' );
+
+		$router->maybe_flush();
+		$this->assertSame( 1, $flushes(), 'Not again at once.' );
+
+		delete_transient( 'wiki_rules_flushed' );
+		update_option(
+			'rewrite_rules',
+			array(
+				Router::PATTERN => 'index.php?x=1',
+				'^about/?$' => 'index.php?pagename=about',
+			)
+		);
+		$router->maybe_flush();
+		$this->assertSame( 1, $flushes(), 'The rule is there: nothing to do.' );
+	}
 }

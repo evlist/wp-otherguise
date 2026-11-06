@@ -52,6 +52,11 @@ final class Router {
 	public const OPTION = 'wiki_rules';
 
 	/**
+	 * The rewrite rule, as WordPress keeps it (its regular expression is its key).
+	 */
+	public const PATTERN = '^([^/:]+):(.+?)/?$';
+
+	/**
 	 * The names.
 	 *
 	 * @var Names
@@ -123,19 +128,34 @@ final class Router {
 	 * @return void
 	 */
 	public function add_rule() {
-		add_rewrite_rule( '^([^/:]+):(.+?)/?$', 'index.php?' . self::SPACE . '=$matches[1]&' . self::TITLE . '=$matches[2]', 'top' );
+		add_rewrite_rule( self::PATTERN, 'index.php?' . self::SPACE . '=$matches[1]&' . self::TITLE . '=$matches[2]', 'top' );
 	}
 
 	/**
-	 * Flushes the rewrite rules once when the version of the rule is not the one that was flushed. Action `init`, late.
+	 * Flushes the rewrite rules when they have to be: the version of the rule is not the one that was flushed (an update), or the rules that
+	 * WordPress keeps **do not hold the rule** although the site has pretty permalinks (they were saved before the module was there, or
+	 * with the permalinks switched off: a flush with plain permalinks keeps no rule at all). Action `init`, late.
+	 *
+	 * A flush costs a write of the option: after one, a second is not made for a minute, so that a rule that something else removes cannot
+	 * make every request flush.
 	 *
 	 * @return void
 	 */
 	public function maybe_flush() {
-		if ( self::VERSION !== get_option( self::OPTION ) ) {
-			flush_rewrite_rules( false );
-			update_option( self::OPTION, self::VERSION );
+		$stored  = get_option( 'rewrite_rules' );
+		$missing = is_array( $stored ) && ! isset( $stored[ self::PATTERN ] );
+
+		if ( self::VERSION === get_option( self::OPTION ) && ! $missing ) {
+			return;
 		}
+
+		if ( $missing && false !== get_transient( self::OPTION . '_flushed' ) ) {
+			return;
+		}
+
+		flush_rewrite_rules( false );
+		update_option( self::OPTION, self::VERSION );
+		set_transient( self::OPTION . '_flushed', '1', MINUTE_IN_SECONDS );
 	}
 
 	/**
