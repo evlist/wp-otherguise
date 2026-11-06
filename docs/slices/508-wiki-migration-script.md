@@ -21,12 +21,19 @@ Nothing else: **no command that imports, no function that knows MediaWiki.**
 ## The script (outside the plugin)
 
 - **Where** (**decided by Eric, 2026-11-06**): the repository `evlist/shared-room`, `tools/wiki-migration/` (the tools of the blog live there), run with `wp eval-file` on the site; it is archived or deleted when the migration is done.
-- **Input**: a **list** with one line per page (tab separated): `old name`, `new qualified name`, `file`; and a **directory of files**, the pages converted to HTML (Pandoc, by hand).
+- **Scope** (**decided by Eric, 2026-11-06**): **every page of the wiki except the native MediaWiki pages** (the namespaces Special, MediaWiki, Help, Template, Category, File and the talk pages are not migrated as pages), not only the namespace `Biography`: the user namespaces of the wiki (`Biography`, `WikiVlist`...) **and the pages of the main namespace**, which were the **encyclopaedic pages** of the wiki.
+- **The space of the pages without a namespace** (**decided by Eric, 2026-11-06**): they go to a **new space dedicated to them**; working name **`Encyclopédie`** (to confirm before the first run; the name is a line of the list, not code).
+- **Input**: a **list** with one line per page (tab separated): `old name`, `new qualified name`, `file`; and a **directory of files**, the pages converted to HTML (Pandoc, by hand). The old name is a **title as the wiki gave it** (with its page id in the file name, see above).
+- **The names, decided by Eric on 2026-11-06** (seen on the ten pages of `Biography`):
+  - the **suffix `/fr` is removed** from titles and from link targets (`Biography:1958-1968/fr` becomes `Biography:1958-1968`): the multilingual layer of the wiki is out of scope, so there is **no alias** for the old name (no `Names::add_alias()` in the migration); the **redirect from the old host** has to strip the `/fr` (a rule of the old server, not code of the module);
+  - the **root pages** (`Biography:11 septembre`, whose only content is `{{Langues}}`, the language selector) are **not migrated**; the template `{{Langues}}` is **removed** from the leaves;
+  - a space after the colon in a link (`[[Biography: Jean|...]]`) is an **error of the wiki**: the script trims it;
+  - a link without a namespace (`[[Title/fr]]`) goes to the space `Encyclopédie` with the `/fr` removed;
+  - two pages that give **the same name** after the removal of `/fr` (or a name that already exists) stop the line with an **error in the report**: nothing is overwritten.
 - **What it does**, for each line, **in this order**:
-  1. reads the file and **rewrites its links** (a pure function of the script: `Biography:1958-1968/fr`, `/wiki/Biography:1958-1968/fr`, `../Biography:Paris`, `index.php?title=Biography:Paris` become the **addresses of this site**; a link of MediaWiki with the class `new` or `action=edit&redlink=1` becomes an ordinary link, **a red link here** until the page is made; a link to another site is left alone), so that they are the links of slice 505 from the first day;
-  2. **creates the page** with `Pages::create()` (a page whose new name exists is **skipped**, so the script can be run twice);
-  3. adds **the old name as an alias** when it differs from the new one (`Names::add_alias()`; an old name that is the same as the new one is the same address: nothing to add, which is the point of the level 3).
-- **`--dry-run`** writes nothing and reports; **the report** counts what was created, skipped, aliased, and lists the **errors by line**: a name that the rules refuse, an old name held by **another** page, a missing file; **`--check`** reads the list again and checks that **every old name resolves** (`Names::resolve()`) and every new one is a page.
+  1. reads the file and **rewrites its links** (a pure function of the script: `Biography:1958-1968/fr`, `/wiki/Biography:1958-1968/fr`, `../Biography:Paris`, `index.php?title=Biography:Paris` become the **addresses of this site**, with the rules above; a link of MediaWiki with the class `new` or `action=edit&redlink=1` becomes an ordinary link, **a red link here** until the page is made; a link to another site is left alone), so that they are the links of slice 505 from the first day;
+  2. **creates the page** with `Pages::create()` (a page whose new name exists is **skipped**, so the script can be run twice).
+- **`--dry-run`** writes nothing and reports; **the report** counts what was created and skipped, and lists the **errors by line**: a name that the rules refuse, an old name held by **another** page, a missing file; **`--check`** reads the list again and checks that **every new name resolves** (`Names::resolve()`) to a page.
 - A **small test of the pure function** (the forms of the links above) next to the script; the rest is tried by the dry-run and on the test site.
 
 ## The procedure (done by hand)
