@@ -345,4 +345,67 @@ class WikiRouterDbTest extends Otherguise_Test_Database_Case {
 		$router->maybe_flush();
 		$this->assertSame( 1, $flushes(), 'The rule is there: nothing to do.' );
 	}
+
+	/**
+	 * The values that WordPress hands over are still percent-encoded when the server gives the raw path (nginx; the built-in server of PHP
+	 * gives `PATH_INFO`, decoded): the space and the title are decoded, whichever form arrives.
+	 *
+	 * @return void
+	 */
+	public function test_values_that_are_still_encoded_are_decoded(): void {
+		$cases = array(
+			array( 'Opinion', 'Paris', 2 ),
+			array( 'Biography', 'Sant_Lloren%C3%A7_de_Morunys', 3 ),
+			array( 'Biography', 'Sant Llorenç de Morunys', 3 ),
+			array( 'Biography', 'Sant%20Lloren%c3%a7%20de%20Morunys', 3 ),
+		);
+
+		foreach ( $cases as $case ) {
+			$this->redirects = array();
+			$this->uri       = '/' . $case[0] . ':' . $case[1];
+			$wp              = $this->wp( $case[0], $case[1] );
+
+			$this->router()->parse_request( $wp );
+
+			$loaded = isset( $wp->query_vars['p'] ) ? $wp->query_vars['p'] : ( array() === $this->redirects ? 'nothing' : 'redirect' );
+
+			$this->assertTrue( in_array( $loaded, array( $case[2], 'redirect' ), true ), $case[1] . ' gave ' . $loaded );
+			$this->assertArrayNotHasKey( 'error', $wp->query_vars, $case[1] );
+		}
+
+		update_option(
+			Spaces::OPTION,
+			array(
+				array( 'name' => 'Encyclopédie' ),
+				array( 'name' => 'Biography' ),
+				array( 'name' => 'Opinion' ),
+			)
+		);
+		$this->names->claim( 4, 'Encyclopédie', 'Accueil' );
+
+		$this->redirects = array();
+		$this->uri       = '/Encyclop%C3%A9die:Accueil';
+		$wp        = $this->wp( 'Encyclop%C3%A9die', 'Accueil' );
+
+		$this->router()->parse_request( $wp );
+
+		$this->assertSame(
+			array(
+				'post_type' => 'wiki_page',
+				'p' => 4,
+			),
+			$wp->query_vars,
+			'A space with an accent, as nginx hands it over.'
+		);
+		$this->assertSame( array(), $this->redirects );
+
+		$wp = $this->wp( 'Encyclopédie', 'Accueil' );
+		$this->router()->parse_request( $wp );
+		$this->assertSame( 4, $wp->query_vars['p'], 'And already decoded.' );
+
+		$this->redirects = array();
+		$this->uri       = '/encyclop%C3%A9die:Accueil';
+		$this->router()->parse_request( $this->wp( 'encyclop%C3%A9die', 'Accueil' ) );
+		$this->assertSame( array( array( 'https://example.test/Encyclop%C3%A9die:Accueil', 301 ) ), $this->redirects, 'The space in another case is a 301.' );
+	}
 }

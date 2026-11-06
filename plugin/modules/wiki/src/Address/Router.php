@@ -185,8 +185,8 @@ final class Router {
 			return;
 		}
 
-		$space = Spaces::find( (string) $wp->query_vars[ self::SPACE ] );
-		$title = (string) $wp->query_vars[ self::TITLE ];
+		$space = Spaces::find( $this->decoded( (string) $wp->query_vars[ self::SPACE ] ) );
+		$title = $this->decoded( (string) $wp->query_vars[ self::TITLE ] );
 
 		unset( $wp->query_vars[ self::SPACE ], $wp->query_vars[ self::TITLE ] );
 
@@ -264,6 +264,19 @@ final class Router {
 	 */
 	public function canonical( $space, $title ) {
 		return (string) ( $this->home )( '/' . Address::path( $space, $title ) );
+	}
+
+	/**
+	 * Decodes a value of the address that is still percent-encoded. WordPress matches the rule against the path **as the server received it**
+	 * (a server that gives `PATH_INFO`, such as the built-in server of PHP, gives it decoded, and nginx does not), and puts what the rule
+	 * captured in the query as it is: with the raw path `Encyclop%C3%A9die` stays encoded. A name never holds a percent sign (slice 501), so a
+	 * `%` followed by two digits is always an encoding to undo, and a value that is already decoded is left as it is.
+	 *
+	 * @param string $value The value of the query variable.
+	 * @return string
+	 */
+	private function decoded( $value ) {
+		return 1 === preg_match( '/%[0-9A-Fa-f]{2}/', $value ) ? rawurldecode( $value ) : $value;
 	}
 
 	/**
