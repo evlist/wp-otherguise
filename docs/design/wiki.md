@@ -122,7 +122,7 @@ Reading by Claude, **Proposed**, nothing checked in code:
 
 ## The level 3 in short, and the slices
 
-**Decided (Eric, 2026-11-06):** the work goes on **on the level 3** (an address of our own) and the first slices are prepared; **the migration from the SelfPedia is semi-manual and stays as simple as possible** (the wiki has few pages): a WP-CLI command that creates a page from a file (slice 502), and the old addresses as aliases made from a list (slice 508), no import tool.
+**Decided (Eric, 2026-11-06):** the work goes on **on the level 3** (an address of our own) and the first slices are prepared; **the migration from the SelfPedia is semi-manual and stays as simple as possible** (the wiki has few pages): the plugin gives its API and a command that creates a page from a file of HTML (slice 502); **the code that knows MediaWiki (the conversion of the links, the aliases made from a list) is a throw-away script outside the plugin** (slice 508, Eric's question of 2026-11-06 about "cluttering" the plugin), tried first on a new test site (`sb.vli.st`, Media Helper and Otherguise, without the module Wiki).
 
 **Proposed (Claude)**, the model that the slices write down:
 
@@ -133,7 +133,7 @@ Reading by Claude, **Proposed**, nothing checked in code:
 
 **What a throw-away test showed (2026-11-06, scratch WordPress with pretty permalinks)**: the rule `^([^/:]+):(.+?)/?$` reaches the two query variables with the title **decoded** (UTF-8), the slash kept; WordPress's own canonical redirect would add a trailing slash and write the percent-encoding in lower case; the rule matches any `word:word`, so the space is checked by the handler. Details in [slice 503](../slices/503-wiki-addresses.md); **not checked**: the loading of the page from the main query, the filter on the address, the sitemaps and the SEO plugins, `ModeUrl`.
 
-The slices (all **proposed**, nothing coded; the numbers are those of [`../slices/README.md`](../slices/README.md)): **500** the module and the spaces, **501** the names, **502** the pages, **503** the addresses and the routing; then **504** the page that does not exist, **505** the links (ordinary links, red links) and the move between spaces, **506** the incoming links and the wanted pages, **507** the other angles, **508** the old addresses of the SelfPedia (**500 to 508 are all written, the 505 rewritten the same day**, see the index of the slices; nothing is coded). The wiki theme and the multilingual stay as above.
+The slices (all **proposed**, nothing coded; the numbers are those of [`../slices/README.md`](../slices/README.md)): **500** the module and the spaces, **501** the names, **502** the pages, **503** the addresses and the routing; then **504** the page that does not exist, **505** the links (ordinary links, red links) and the move between spaces, **506** the incoming links and the wanted pages, **507** the other angles, **508** the migration from the SelfPedia (a script outside the plugin) (**500 to 508 are all written, the 505 rewritten the same day**, see the index of the slices; nothing is coded). The wiki theme and the multilingual stay as above.
 
 ## Open questions (the list)
 

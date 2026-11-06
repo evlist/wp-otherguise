@@ -1,0 +1,49 @@
+<!-- SPDX-FileCopyrightText: 2026 Eric van der Vlist <vdv@dyomedea.com> -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+
+# Slice 508 — Wiki: the migration from the SelfPedia (a throw-away script outside the plugin)
+
+Status: **proposed (2026-11-06; rewritten the same day), not coded**. Dependencies: slices 501 (`Names`), 502 (`Pages`), 503 (the addresses and the redirects of the aliases). Context: [`../design/wiki.md`](../design/wiki.md). **Eric, 2026-11-06:** the wiki has few pages, the migration can be semi-manual and stay as simple as possible; and he asked whether the plugin should be "cluttered" with the code of the migration.
+
+## What changed from the first version of this slice
+
+The first version put in the plugin a command `wiki alias <file>` and a function `Address::from_mediawiki()` (the links of MediaWiki turned into addresses of the site). **Both are migration code**: they depend on the shape of the SelfPedia, are used once, and have nothing to do in a product. They are **out of the plugin**.
+
+The rule of `CLAUDE.md` ("a step of a migration that touches what a plugin is responsible for is a WP-CLI command that can be run twice, with `--dry-run`, a report and a way to check the result") is read as aimed at the migrations **of the production blog**. Here the conversion of foreign content stays outside; **only what writes in the data of the plugin goes through its public API**, and the script keeps the properties of the rule (run twice, `--dry-run`, report, check). **Eric decides** if the rule is to be applied as it stands (a command in the plugin).
+
+## What the plugin gives (generic, useful without the migration)
+
+- the services **`Names`** (claim, resolve, aliases: `Names::add_alias( $post_id, $space, $title )`, which `move` of slice 505 needs anyway) and **`Pages::create( $space, $title, $html, $status )`** (slice 502: the rules, the claim, the space, the template; the same service as the creation of the 404, slice 504, and of the command `wiki create`);
+- the commands `wiki create`, `wiki names`, `wiki move`, `wiki rename-space`, `wiki relink` (slices 502 and 505).
+
+Nothing else: **no command that imports, no function that knows MediaWiki.**
+
+## The script (outside the plugin)
+
+- **Where** (to confirm with Eric): the repository `evlist/shared-room`, `tools/wiki-migration/` (the tools of the blog live there), run with `wp eval-file` on the site; it is archived or deleted when the migration is done.
+- **Input**: a **list** with one line per page (tab separated): `old name`, `new qualified name`, `file`; and a **directory of files**, the pages converted to HTML (Pandoc, by hand).
+- **What it does**, for each line, **in this order**:
+  1. reads the file and **rewrites its links** (a pure function of the script: `Biography:1958-1968/fr`, `/wiki/Biography:1958-1968/fr`, `../Biography:Paris`, `index.php?title=Biography:Paris` become the **addresses of this site**; a link of MediaWiki with the class `new` or `action=edit&redlink=1` becomes an ordinary link, **a red link here** until the page is made; a link to another site is left alone), so that they are the links of slice 505 from the first day;
+  2. **creates the page** with `Pages::create()` (a page whose new name exists is **skipped**, so the script can be run twice);
+  3. adds **the old name as an alias** when it differs from the new one (`Names::add_alias()`; an old name that is the same as the new one is the same address: nothing to add, which is the point of the level 3).
+- **`--dry-run`** writes nothing and reports; **the report** counts what was created, skipped, aliased, and lists the **errors by line**: a name that the rules refuse, an old name held by **another** page, a missing file; **`--check`** reads the list again and checks that **every old name resolves** (`Names::resolve()`) and every new one is a page.
+- A **small test of the pure function** (the forms of the links above) next to the script; the rest is tried by the dry-run and on the test site.
+
+## The procedure (done by hand)
+
+1. List the pages of the SelfPedia worth keeping (MediaWiki: *Special:AllPages*, by hand).
+2. Convert each (Pandoc, from the export of the wiki or from the page itself) to HTML; **look at the result**: what is lost (the quotations, the notes, the categories, the templates) is **written down** (this is the bounded test of the design note).
+3. Write the list (the names that changed their name or their space) and run the script, `--dry-run` then for real, then `--check`.
+4. **The media**: the panel of Media Helper inserts the photos from Nextcloud (not part of this slice).
+
+## Where it is tried
+
+**`sb.vli.st`** (Eric, 2026-11-06): a new WordPress with Media Helper, Otherguise and the other plugins, **without the module Wiki** (nothing of it is coded, and the moratorium of the SelfPedia applies): the **first test** is therefore the conversion of a page with Pandoc and its pasting into an ordinary page, and the insertion of photos by the media panel; the script itself comes after slices 500 to 503 are coded. Never tried on a real site.
+
+## What is not the module's business
+
+The redirect **from the old host** (`wiki.vli.st`, a MediaWiki that has its own address form: `/wiki/Title`, `index.php?title=`...) **to the new site** is a rule of the old server or of its front proxy, written once. Whether the new wiki keeps the old host is **open** (Eric).
+
+## Not done
+
+Any import of the history of the revisions; the categories of MediaWiki (a taxonomy of the content, a subject of its own); a Markdown conversion (the pages are given as HTML).

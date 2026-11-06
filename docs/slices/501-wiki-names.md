@@ -36,6 +36,7 @@ A rename replaces `wiki/name` and adds `wiki/former-name` (`Statements::replace`
 
 - `claim( $post_id, $space, $title )`: **in a transaction** (`Statements::transaction`): the name is put through the rules; it is **refused** (an exception that carries the page that holds it) when another page has it as a current name **or as an alias** (**the two predicates are checked here**, `max_subjects_per_object` only sees one predicate at a time); the page's former current name becomes an alias; a name that the page had as an alias comes back as its current one; `wiki/space` and `wiki/folded-name` are kept up to date.
 - `resolve( $space, $title )`: `array( 'post' => id, 'current' => bool )` or null (`subjects_of()` on the literal: **one indexed query**, then the aliases).
+- `add_alias( $post_id, $space, $title )`: adds a name that the page **had** (or that an import brings) as a `wiki/former-name`; **refused** when another page holds it; nothing when it is the page's own current name (slice 505 `move` and the script of slice 508 use it).
 - `current_of( $post_id )`: the current name, split at its first colon.
 - `similar( $space, $title )`: the pages of the same space whose folded name is the same; `elsewhere( $title, $except_space )`: the pages of the same title in the **other** spaces (the angles, slice 507: there are few spaces, one `resolve` each).
 - `pages_of( $space )`: the pages of a space.

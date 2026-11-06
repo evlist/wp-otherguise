@@ -51,7 +51,7 @@ The module Wiki, on the level 3 of the design note (an address of our own); **pr
 | [505](505-wiki-links.md) | Wiki: the links (ordinary links by address, no shortcode), the red links, the move of a page, the rename of a space |
 | [506](506-wiki-incoming-links.md) | Wiki: the incoming links (`wiki/cites`) and the wanted pages (`wiki/wants`) |
 | [507](507-wiki-other-angles.md) | Wiki: the other angles of a subject (a block, `wiki/same-subject`, the label of the space) |
-| [508](508-wiki-old-addresses.md) | Wiki: the old addresses of the SelfPedia (aliases from a file; the semi-manual migration) |
+| [508](508-wiki-migration-script.md) | Wiki: the migration from the SelfPedia, a throw-away script outside the plugin (the plugin only gives its API) |
 
 ## Candidates (not planned yet)
 
