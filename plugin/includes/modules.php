@@ -18,4 +18,5 @@ return array(
 	new \Otherguise\Media\Module(),
 	new \Otherguise\Books\Module(),
 	new \Otherguise\Access\Module(),
+	new \Otherguise\Wiki\Module(),
 );
