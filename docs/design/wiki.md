@@ -90,7 +90,7 @@ What the address has to guarantee is **Open**: the same name always gives the sa
 | 2 | `[page "Biography:1958-1968"]` / `/Biography:1958-1968` | One syntax; the form of MediaWiki is kept as it is, at the import too, and the colon removes the doubt. **A slug of WordPress cannot hold a colon** (checked on 2026-11-05: it is stripped): a colon in the address needs a layer of our own (a rewrite rule, a filter on the address of the content, the canonical redirect), the level 3 above or a light form of it that keeps the hierarchical pages behind. A relative address written with no protocol (`href="Biography:x"`) would be read as a protocol; the absolute ones are valid. |
 | 3 | **Proposed (Claude):** the shortcode **accepts both**, `Biography:1958-1968/fr` and `Biography/1958-1968/fr`; the address stays native (slashes) | A colon, when it is written, keeps its role (it marks a space); without a colon a name is looked for in the space of the page, then its first segment is tried as a space. No routing to write, the import stays trivial, an address is copied as it is seen. The colon in the address comes only with the level 3 and the shortcode has nothing to change then. |
 
-### The unqualified names (Open; Eric hesitates between three)
+### The unqualified names (**Decided on 2026-11-06: start with qualified names only**; the rule as a setting of the space stays a way to relax it later)
 
 A name with no space (`[page "Paris"]`) is ambiguous as soon as the same title lives in several spaces (above). **Eric, 2026-11-06:** three ways, he hesitates:
 
@@ -98,7 +98,29 @@ A name with no space (`[page "Paris"]`) is ambiguous as soon as the same title l
 2. **In a space that is "the main one"** (the default, the encyclopaedic one, say): the same meaning everywhere, a text can be copied without a change, the import is the semantic of MediaWiki. Writing inside another space needs a qualifier on every link to a page of that space, which is heavy in the autobiography.
 3. **Forbidden**: a name is always qualified. No ambiguity; the index of the links (the relation "cites") only ever holds qualified targets; a move or a rename of a space is a plain search. The cost is the verbosity and a less "wiki" feel.
 
-**Proposed (Claude), a way to decide without blocking:** the qualified names are always understood, so the question can be **a setting of the space** (the rule for the unqualified names written in its pages: current space, the main space, or refused with a message when the page is saved), and the first value can be **"refused"**: **loosening a rule later breaks no existing content** (every link written is qualified), **tightening it later does** (a link that said "current space" would have to be rewritten). Two facts would help to choose, and the first ten pages of the autobiography will give them: **the share of the links that stay inside a space** (the "current" form pays when it is high) and **which namespace is the main one of the SelfPedia** (not known to Claude: the encyclopaedic part, probably).
+**Decided (Eric, 2026-11-06, on this reading):** the first version **requires qualified names**; a name with no space is refused (a message when the page is saved, a visible error where it is rendered). What follows is why, and the way out if it proves too heavy. **Proposed (Claude), a way to decide without blocking:** the qualified names are always understood, so the question can be **a setting of the space** (the rule for the unqualified names written in its pages: current space, the main space, or refused with a message when the page is saved), and the first value can be **"refused"**: **loosening a rule later breaks no existing content** (every link written is qualified), **tightening it later does** (a link that said "current space" would have to be rewritten). Two facts would help to choose, and the first ten pages of the autobiography will give them: **the share of the links that stay inside a space** (the "current" form pays when it is high) and **which namespace is the main one of the SelfPedia** (not known to Claude: the encyclopaedic part, probably).
+
+### The page that does not exist: red links and the 404 (idea of Eric, 2026-11-06; Open)
+
+**Idea (Eric):** push the parallel with a wiki: **the page "404" proposes to create a page that does not exist when the address matches a page of a space**.
+
+Reading by Claude, **Proposed**, nothing checked in code:
+
+- **Two ways to arrive on a missing page**, with not the same knowledge: a **red link** (`[page "Biography:Sant Llorenç de Morunys"]`) knows the **exact title**; an **address typed or followed from outside** (`/biography/sant-llorenc-de-morunys`) only knows a **slug**, which has lost its accents (see "What was checked"). The creation takes the title from the link when it has one; from a slug it proposes a title made of the slug (hyphens to spaces) that the user corrects, and the page is created **with the slug that was asked for** so that the address that led there is the one that works afterwards.
+- **What the red link points to**: the address the page would have (as in MediaWiki, where a red link leads to the editing of the page). That address answers **404** (the status code stays the right one for a page that does not exist) with the offer to create it.
+- **Who may create**: only a logged-in user with the right to create content in that space, with a nonce; for anybody else the normal 404 (a crawler that asks for addresses must not make pages). **The rights per space are the open reflection of [`capabilities.md`](capabilities.md)**: the first value can be one right for all the spaces. The page is created as a **draft** and the editor opens on it.
+- **The address must match a space**: its first segment is the root page of a space (a flagged page). The module never creates a space from a 404 (a new space is a deliberate act). If the parents of a page that is asked for do not exist (`/biography/1958-1968/fr` with no `1958-1968`) the offer is to create the chain, or it is refused: **Open**.
+- **What the 404 can also say**: that a page of the **same title exists in another space** ("Other angles: Encyclopaedia"), and that a **similar page exists** (the same title but for an accent or the case: the `-2` of the slugs). Both come from the index of the exact titles.
+- **Where it is written**: the **logic** (what the address means, who may create, the creation, the other angles) belongs to the module; the **look** belongs to the theme. As for the print pages the contract is one way: the module gives **a block** (for the template `404` of a block theme) and a function, and a **minimal output of its own** when the theme has no such block; classic themes are not a first target.
+
+### The instance and the theme (**Decided by Eric, 2026-11-06**, as it stands today)
+
+**The wiki will probably not be hosted on the same WordPress instance as the blog**, and the theme of the blog is not necessarily the theme that it will use. What follows, **Proposed (Claude)**:
+
+- the module must work with **any block theme**: it gives blocks, data and CSS variables with a fallback, and assumes nothing of the child theme of the blog (`wp-twenty-twenty-five-printable`); the wiki look is the business of **a theme of its own** (a theme or a child theme in a repository of its own), as the idea 4 of `ideas.md` already says;
+- the plugin is **one plugin with modules** (`docs/IA.md`): each instance enables the modules it uses (the filter `otherguise_enabled_modules`); the wiki would enable `triples`, `modes`, `wiki` and, to publish the autobiography as a book, `books` (with the print templates **in the theme of the wiki**, not in that of the blog), `media` if the media panel of Media Helper is installed there;
+- the rollouts, the staging and the testing of that instance are **its own** (`shared-room`, `docs/design/rollout.md` is written for the blog);
+- **the links between the two instances are ordinary links**: `[page ...]` resolves on its own instance, and the index of the incoming links does **not** see a link written in a post of the blog (**Open**: whether a link from the blog to a page of the wiki is wanted as such, and how it would be known on the other side).
 
 ## Where it lives
 
@@ -122,7 +144,9 @@ A name with no space (`[page "Paris"]`) is ambiguous as soon as the same title l
 
 - The address: slugs of WordPress, an index of exact titles, or an address of our own (above)? What does the address guarantee?
 - A prefix or the root? One type per space (A) or the space as a root page (C)?
-- The syntax of the names (one syntax for the shortcode and the address: slash, colon, or both read?) and the **unqualified names**: the current space, a main space, or refused (a setting of the space, first value: refused)?
+- The syntax of the names: one syntax for the shortcode and the address (slash, colon, or both read: Claude proposes both read)? The unqualified names are **refused in the first version** (decided); the rule as a setting of the space remains the way to relax it.
+- The 404 that proposes to create the page: who may create (the rights per space), the creation of the missing parents, the title taken from a slug that lost its accents.
+- Links between the wiki and the blog, if they are two instances.
 - How to link two pages of different titles on the same subject?
 - The behaviour of the pretty permalinks and the redirects (to check).
 - The collation of the production database.
