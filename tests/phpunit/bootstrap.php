@@ -772,6 +772,24 @@ function wp_safe_redirect() {
 }
 
 /**
+ * Stub of register_block_type(): records the call.
+ *
+ * @return void
+ */
+function register_block_type() {
+    otherguise_test_record( 'register_block_type', func_get_args() );
+}
+
+/**
+ * Stub of register_block_template(): records the call.
+ *
+ * @return void
+ */
+function register_block_template() {
+    otherguise_test_record( 'register_block_template', func_get_args() );
+}
+
+/**
  * Stub of register_post_type(): records the call.
  *
  * @return void

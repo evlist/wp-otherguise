@@ -16,6 +16,9 @@ use Otherguise\Wiki\Address\Router;
 use Otherguise\Wiki\Admin\SettingsScreen;
 use Otherguise\Wiki\Cli\PagesCommand;
 use Otherguise\Wiki\Editor\SpacePanel;
+use Otherguise\Wiki\Missing\CreateAction;
+use Otherguise\Wiki\Missing\MissingPage;
+use Otherguise\Wiki\Missing\Presentation;
 use Otherguise\Wiki\Page\Lists;
 use Otherguise\Wiki\Page\PageStore;
 use Otherguise\Wiki\Page\Pages;
@@ -60,6 +63,13 @@ final class Module implements ModuleInterface {
 	 * @var Router|null
 	 */
 	private $router = null;
+
+	/**
+	 * The page that does not exist, built when it is needed.
+	 *
+	 * @var MissingPage|null
+	 */
+	private $missing = null;
 
 	/**
 	 * Builds the module.
@@ -123,6 +133,15 @@ final class Module implements ModuleInterface {
 		( $this->add_action )( 'parse_request', array( $this->router(), 'parse_request' ), 10, 1 );
 		( $this->add_action )( 'redirect_canonical', array( $this->router(), 'redirect_canonical' ), 5, 2 );
 		( $this->add_action )( 'post_type_link', array( $this->router(), 'post_link' ), 10, 2 );
+
+		$presentation = new Presentation( $this->missing(), dirname( __DIR__ ) . '/templates/missing-page.php' );
+		$create       = new CreateAction( $this->pages(), $this->missing() );
+
+		( $this->add_action )( 'init', array( $presentation, 'register_block' ), 10, 0 );
+		( $this->add_action )( 'init', array( $presentation, 'register_template' ), 10, 0 );
+		( $this->add_action )( '404_template_hierarchy', array( $presentation, 'hierarchy' ), 10, 1 );
+		( $this->add_action )( 'template_include', array( $presentation, 'template' ), 99, 1 );
+		( $this->add_action )( 'admin_post_' . MissingPage::ACTION, array( $create, 'handle' ), 10, 0 );
 		( $this->add_action )(
 			'enqueue_block_editor_assets',
 			array(
@@ -244,6 +263,19 @@ final class Module implements ModuleInterface {
 		}
 
 		return $this->pages;
+	}
+
+	/**
+	 * The page that does not exist: the offer of the 404 of a wiki address.
+	 *
+	 * @return MissingPage
+	 */
+	public function missing() {
+		if ( null === $this->missing ) {
+			$this->missing = new MissingPage( $this->names() );
+		}
+
+		return $this->missing;
 	}
 
 	/**

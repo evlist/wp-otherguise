@@ -3,7 +3,7 @@
 
 # Slice 504 — Wiki: the page that does not exist (the 404 that offers to create it)
 
-Status: **proposed (2026-11-06), not coded**. Dependencies: slices 503 (the 404 keeps the space and the exact title), 501 (`similar`, `elsewhere`), 502 (the creation of a page). Idea of Eric (2026-11-06): the page "404" proposes to create a page that does not exist when the address matches a page of a space. Context: [`../design/wiki.md`](../design/wiki.md).
+Status: **coded on the branch `wiki` (2026-11-06)**, not merged into `main`. Dependencies: slices 503 (the 404 keeps the space and the exact title), 501 (`similar`, `elsewhere`), 502 (the creation of a page). Idea of Eric (2026-11-06): the page "404" proposes to create a page that does not exist when the address matches a page of a space. Context: [`../design/wiki.md`](../design/wiki.md).
 
 ## What it does
 
@@ -21,13 +21,22 @@ When the address is `/<Space>:<Title>` for a **registered space** and **no page 
 - **No chain of parents to create**: with the level 3 there is no hierarchy, `1958-1968/fr` is one title (this closes the question of the design note about the missing parents).
 - **A red link of slice 505 points to this address** (it is an ordinary link to the address of a page that does not exist yet), so the same page serves both ways to arrive.
 
-## To look at
+## Coded on 2026-11-06 (branch `wiki`)
 
-How the module gives its template to the 404 of a block theme that has none: `register_block_template()` (WordPress 6.7, to check on the version of the site) or a filter on the template of the 404 request.
+- `Missing\MissingPage` (the logic and the markup): `asked()` (the space and the title that slice 503 keeps on a 404, nothing for another request), `view()` (the name as the rules make it, the angles from `Names::elsewhere()`, the similar pages from `Names::similar()`, the right to create, or the reason when the title is refused) and `render()` (a `div.wiki-missing`: "This page does not exist: <name>", the form, `div.wiki-angles`, `div.wiki-similar`; no style). The pages that the user may not see are left out of the lists. `allowed_html()` gives the tags for `wp_kses()`; a test checks that the markup holds nothing else.
+- **Who may create**: `MissingPage::may_create()`, the capability `create_posts` of the type `wiki_page` and the filter `wiki_may_create( $allowed, $space, $user )`. The form is **shown only to such a user**; the others get the 404, the angles and the similar pages, and nothing that writes.
+- `Missing\CreateAction` on `admin-post.php` (`action=wiki_create`, hooked on `admin_post_wiki_create` **only**, so a logged-out POST does nothing): the nonce **tied to the pair** (`wiki_create:<space>:<title>`), the right checked again, then `Pages::create()` as a **draft** with the title of the address and the template of the space; the user lands in the **editor**. A name **taken in the meantime** sends the user to that page; a refused title or an unknown space stops with a message (400), a bad nonce or no right with 403. Nothing is made in those cases.
+- `Missing\Presentation`: the **block `wiki/missing-page`** (registered from PHP with `autoRegister`, so no editor script; in the editor it shows a note), a **template `wiki-missing`** for block themes (`register_block_template()`, header, the block, footer) put first in the hierarchy of the 404 **of a wiki address only** (`404_template_hierarchy`), and `templates/missing-page.php` for classic themes (`template_include`, late). The status stays **404**.
+- Differences with the text above: the form is a plain `POST` to `admin-post.php`; the title of the offer is the title of the **name** (`Biography:Elisabeth`, the first letter made a capital), not the raw text of the address; the question "how the module gives its template to the 404 of a block theme" is answered by `register_block_template()` (WordPress 6.7) and the hierarchy filter.
 
-## Tests (planned)
+## Tests
 
-The state of the request (a registered space and a free name; an unknown space is an ordinary 404; a refused title); who sees the form (may create, may not, logged out); the nonce (valid, invalid, tied to another title); the creation (a draft, the title, the space, the template, the claim, the redirect to the editor; the name taken in the meantime; a refused title posted by hand); the lists (other angles, similar pages; a page that the user cannot see is not listed; an unlisted page, slice 402, is not listed); the block and the minimal output; the filter `wiki_may_create`. A Chromium run on a scratch WordPress with pretty permalinks: type an address, see the offer, create, land in the editor.
+`WikiMissingDbTest` (9, with the real statements): what was asked, the view (angles, similar pages, rights, hidden pages), a refused title, the markup, the markup against `allowed_html()`, the creation, what stops it (nonce, nonce tied to another title, no right), a name taken in the meantime and the refusals, the presentation (block, template, hierarchy, classic theme). `WikiModuleTest` expects the hooks. The whole suite passes with the database (756 tests, none skipped), `phpcs` is clean.
+
+## Verification
+
+- **Tried** on the scratch WordPress 7.1.x (a block theme: Twenty Twenty-Five and its child), pretty permalinks, with `curl` and Chromium: `/Biography:Nobody` is a **404** with the offer (no form for a visitor); `/Biography:Elisabeth` offers `Biography:Élisabeth` as a similar page; `/Biography:Rome` lists `Opinion:Rome` as the same title in another space; a title with a forbidden character gives the reason and no offer; an unknown space is an ordinary 404 (no offer). Logged in as an administrator: the form appears, **a click creates a draft** (title, space, name) and **lands in the block editor**; a form whose title was changed by hand is refused (**403**, nothing made); a **logged-out POST** to `admin-post.php` makes nothing. The template of the plugin shows the header and the footer of the theme around the offer.
+- **Never tried**: a **classic theme** (the template file and `get_header()`), a block theme with its own 404 that already holds the block, `register_block_template()` on a WordPress older than 6.7 (the module falls back to nothing: no offer), the block in the site editor, a user who may create posts but not pages, `wiki_may_create` with a real rule per space, the page seen from a crawler (the 404 is the same status and holds no form).
 
 ## Not done
 
