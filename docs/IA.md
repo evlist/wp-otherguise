@@ -34,6 +34,7 @@ The repository contains the structure of the plugin and the registries of the `T
 - `Modes` stylesheet of the theme (slice 213): `modes/<mode>.css` of the (child) theme is enqueued by `StylesheetLoader` (handle `modes-theme-<mode>`) when that mode is active, before the Media Library ones.
 - `Modes` default template (slice 209): the option `modes_default_templates` gives each type of content the template its new posts start with (`Settings\DefaultTemplates`, `Template\NewPostTemplate` on `wp_insert_post` for auto-drafts, section **Template of new posts** of the modes screen). It does not depend on the modes.
 - `Media` (slice 210): the predicate `media/illustrated-by` (post, attachment, qualified by `modes/mode` and `triples/position`) and, when Media Helper offers its contract version 1, its attachment method `otherguise` (`Method\MediaHelperMethod`, `Link\Links`, `Method\PostParents`): a media item in several posts, in chosen modes, at a rank, with `post_parent` kept as the primary parent. Media Helper keeps `native` unless its setting chooses `otherguise`.
+- `Wiki` (slice 500, **on the branch `wiki` only**, design note [`design/wiki.md`](design/wiki.md)): the spaces of the wiki (`Space\Spaces`, the option `wiki_spaces`: name, label, template, class, status line, order; the name is unique whatever the case) and their screen **Otherguise → Wiki** (`Admin\SettingsScreen`, capability `manage_options`, filter `wiki_admin_capability`); the module depends on Triples. No page, name or address yet (slices 501 to 503).
 - The WP-CLI commands are documented in [`wp-cli.md`](wp-cli.md).
 - `Media` migration (slice 211): the WP-CLI command `wp otherguise media migrate` (`Cli\MigrateCommand`, `Migration\NativeLinksMigration`, `Migration\AttachmentSource`) turns the parents of attachments and the flag `wpdfh.print` into links, reproducing the old behaviour (images not flagged: every mode but print); idempotent, with a generic criterion on a meta (`--meta-key`, `--meta-value`, `--restrict-mode`, `--mime` for a list of families or `all`, `--post-ids`; slices 215 and 217), `--dry-run`, never touches `post_parent` or the flag.
 
@@ -50,7 +51,7 @@ No REST route exists yet. What was never run on a real WordPress: the existence 
 
 ## Modules
 
-The plugin is a single plugin with several modules (Triples, Modes, Media, Books, Access), to be split into several plugins later if useful. `Access` (slice 400: the private links with a secret token; slice 401: a settings page that can switch them off; slice 402: the unlisted state) has no dependency and nothing depends on it: it is the first one that could be lifted out as it is.
+The plugin is a single plugin with several modules (Triples, Modes, Media, Books, Access, and Wiki on the branch `wiki`), to be split into several plugins later if useful. `Access` (slice 400: the private links with a secret token; slice 401: a settings page that can switch them off; slice 402: the unlisted state) has no dependency and nothing depends on it: it is the first one that could be lifted out as it is.
 
 | Module | Namespace | Directory | Depends on |
 |---|---|---|---|
@@ -59,6 +60,7 @@ The plugin is a single plugin with several modules (Triples, Modes, Media, Books
 | Modes | `Otherguise\Modes\` | `plugin/modules/modes/src/` | Triples |
 | Books | `Otherguise\Books\` | `plugin/modules/books/src/` | Triples, Modes |
 | Access | `Otherguise\Access\` | `plugin/modules/access/src/` | nothing |
+| Wiki (branch `wiki`) | `Otherguise\Wiki\` | `plugin/modules/wiki/src/` | Triples |
 
 The composition root is `plugin/includes/modules.php`, the only file that knows every module. A module implements `Otherguise\Core\ModuleInterface` (`id`, `dependencies`, `boot`, `uninstall`). `ModuleLoader` boots modules dependencies first and uninstalls them dependents first, rejects unknown dependencies and cycles, and supports a list of enabled modules (filter `otherguise_enabled_modules`).
 

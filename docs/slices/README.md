@@ -43,7 +43,7 @@ The module Wiki, on the level 3 of the design note (an address of our own); **pr
 
 | Slice | Title |
 |---|---|
-| [500](500-wiki-module-and-spaces.md) | Wiki: the module and the spaces (the registry of the spaces and its screen) |
+| [500](500-wiki-module-and-spaces.md) | Wiki: the module and the spaces (the registry of the spaces and its screen) — **coded on the branch `wiki`**, not merged |
 | [501](501-wiki-names.md) | Wiki: the names of the pages (the rules of a title, the names as statements of `triples`, the service) |
 | [502](502-wiki-pages.md) | Wiki: the pages (a content type, the space and the title, the checks at saving, creation from a file) |
 | [503](503-wiki-addresses.md) | Wiki: the addresses and the routing (`/Space:Title`, the canonical form, the redirects) |
