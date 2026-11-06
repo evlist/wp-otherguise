@@ -147,6 +147,7 @@ The slices (all **proposed**, nothing coded; the numbers are those of [`../slice
 - The collation of the production database.
 - A bounded test of the import (not a plugin): convert the page `Biography:1958-1968/fr` with Pandoc on the testing site and see what is lost (quotations, notes, categories) and how the media panel inserts photos from Nextcloud there.
 - A middle way for the second phase (the editing of the autobiography): the wiki stays the memory base and the source; WordPress and Otherguise Books are the editing layer where chosen pages are imported. The same principle as Otherguise: one source, several forms.
+- A namespace declared **after** its pages (seen on the real wiki, 2026-11-06): the `Biography` namespace exists but the old pages are still in the main namespace under the literal title `Biography:...`, which MediaWiki now reads as an empty page of the namespace. The migration fetches by page id, in bulk through the JSON API ([slice 508](../slices/508-wiki-migration-script.md)); whether the wiki is repaired with `namespaceDupes.php` is Eric's choice and not needed for the migration.
 
 ## What was checked, what was not
 

@@ -36,6 +36,14 @@ Nothing else: **no command that imports, no function that knows MediaWiki.**
 3. Write the list (the names that changed their name or their space) and run the script, `--dry-run` then for real, then `--check`.
 4. **The media**: the panel of Media Helper inserts the photos from Nextcloud (not part of this slice).
 
+## Fetching the pages from the wiki (decided by Eric, 2026-11-06: in bulk, as JSON)
+
+- **In bulk through the API**, not page after page: `api.php?action=query&generator=allpages&gapnamespace=0&gapprefix=Biography&gaplimit=50&prop=revisions&rvprop=content&rvslots=main&format=json`, following the `continue` field until the end; **one local file per batch**, so a run can resume without downloading again. The alternatives are `Special:Export` (one XML file for a list of titles) and `maintenance/dumpBackup.php --current` (needs shell access on the wiki server, not known).
+- **The trap of a namespace declared after the pages** (seen on the real wiki on 2026-11-06, from Eric's screenshots and answers): the namespace `Biography` (id 3002, subpages enabled) exists, but the old pages are still **in the main namespace under the literal title** `Biography:...`. Today MediaWiki reads that prefix as the namespace, so `index.php?title=Biography:1958-1968/fr` shows an **empty page of the namespace** ("no text on this page"), and `Special:AllPages` on the namespace Biography is **empty**. Consequences: fetch by **page id** (the generator above returns `pages` indexed by id; `index.php?curid=<id>&action=raw` for a single page), **never by title**; the API refuses `apprefix=Biography:` in the main namespace (`Bad title`): use the prefix **without** the colon and drop false matches. The script does not repair the wiki (`maintenance/namespaceDupes.php` can move such pages, options to check with `--help`, backup first; optional and not needed here).
+- **Wikitext is not enough for the HTML**: Pandoc drops the templates. For pages that contain templates, call `action=parse&pageid=<id>&prop=text` (the wiki itself expands them) or turn the templates into plain HTML before Pandoc. **Not known yet** whether the pages of `Biography` contain templates.
+- **To handle in the script**: redirects (an alias to keep, no content of its own), empty or deleted pages (no article), and the images (the text only names the files; the files are fetched apart, `list=allimages`, and are the media panel's business).
+- **Not tried**: the bulk request was written by Claude and **has not been confirmed on the real wiki** (Eric had not yet run it when this was written).
+
 ## What Pandoc does with a page of MediaWiki (checked on 2026-11-06)
 
 Pandoc 3.1.3, `pandoc -f mediawiki -t html5 --wrap=none`, on **a sample page that Claude wrote** (templates, a note, categories, an image, links of every form), **not on a page of the SelfPedia**:
