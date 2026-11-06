@@ -44,7 +44,7 @@ The module Wiki, on the level 3 of the design note (an address of our own); **pr
 | Slice | Title |
 |---|---|
 | [500](500-wiki-module-and-spaces.md) | Wiki: the module and the spaces (the registry of the spaces and its screen) |
-| [501](501-wiki-names.md) | Wiki: the names of the pages (the rules of a title, the table of the names, the index) |
+| [501](501-wiki-names.md) | Wiki: the names of the pages (the rules of a title, the names as statements of `triples`, the service) |
 | [502](502-wiki-pages.md) | Wiki: the pages (a content type, the space and the title, the checks at saving, creation from a file) |
 | [503](503-wiki-addresses.md) | Wiki: the addresses and the routing (`/Space:Title`, the canonical form, the redirects) |
 
@@ -83,5 +83,5 @@ Titles only. Each one is to be planned with Eric, from the decisions recorded in
 - `505` Wiki, the link by name: the shortcode `[page "Space:Title"]` (**qualified names only**, decided on 2026-11-06; the colon or the slash read; a name with no space is refused with a message), resolved when the page is rendered; the red link points to the address the page would have; the tool that moves a page to another space and renames a space.
 - `506` Wiki, the incoming links and the wanted pages: the relation "cites" / "cited by" in `triples`, kept up to date when a page is saved; a list of the pages to write; a block "pages that cite this one".
 - `507` Wiki, the other angles: a block that lists the pages of the same title in the other spaces, from the index of the names.
-- `508` Wiki, the old addresses of the SelfPedia: aliases made from a list (a file), since the wiki has few pages and the migration is semi-manual (Eric, 2026-11-06: "stay as simple as possible").
+- `508` Wiki, the old addresses of the SelfPedia: aliases (statements `wiki/former-name`) made from a list (a file), since the wiki has few pages and the migration is semi-manual (Eric, 2026-11-06: "stay as simple as possible").
 - Integration with Media Helper (attachments qualified by mode, one image attached to several posts).
