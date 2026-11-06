@@ -132,17 +132,20 @@ Reading by Claude, **Proposed**, nothing checked in code:
 
 **A theme** that looks like a wiki (**Proposed**): with a one-way contract as for the print pages (CSS variables with a fallback, the plugin gives the data and the blocks, the theme dresses them), perhaps a variation of the child theme of Twenty Twenty-Five so that it keeps the print modes. Take the **grammar** of MediaWiki (a side navigation, the tabs read / edit / history, a table of contents, hatnotes, the footer of categories, the last-modified line) and **not a copy**: the logos and marks of Wikimedia are not reusable, the compatibility of the licence of the skins with the code of Eric is to check before reusing files, and the SelfPedia shows the **status of each piece of information** (fact, source, interpretation): a look identical to Wikipedia would suggest a neutrality that it does not claim.
 
-## Slices that could come
+## The level 3 in short, and the slices
 
-**Proposed, not decided; the order depends on what the ten pages show.** The numbers are not taken (the 500s are free).
+**Decided (Eric, 2026-11-06):** the work goes on **on the level 3** (an address of our own) and the first slices are prepared; **the migration from the SelfPedia is semi-manual and stays as simple as possible** (the wiki has few pages): a WP-CLI command that creates a page from a file (slice 502), and the old addresses as aliases made from a list (slice 508), no import tool.
 
-1. The **spaces**: the root pages with their settings; the address; the template and the style by space.
-2. The **link by name** with the red links; the index (space, exact title).
-3. The **index of the links**, the incoming links, the wanted pages; the band "other angles".
-4. The **old addresses** and the **import** from MediaWiki (Pandoc, a script, a redirect map).
-5. A tool to **move a page** from a space to another, with the checks above.
-6. The wiki theme as a style variation.
-7. The multilingual, last.
+**Proposed (Claude)**, the model that the slices write down:
+
+- **The spaces** are an option `wiki_spaces` set on a screen (a handful of records: the name as it is in the address, a label, the template of a new page, a CSS class, a status text).
+- **The pages** are one content type `wiki_page`, not hierarchical, **with no rewrite rule of its own**; a page has a space (a meta, chosen at its creation) and a title.
+- **The names** are a table `wiki_names` (space, exact key, title, folded key, page, current or alias) whose unique key (space, exact key) is **the identity of a page**, the redirect and the history at once; the key is compared byte for byte (the collation of the database is not trusted); the rules that make a title a name are MediaWiki's, not its code: NFC, the underscore is a space, the first letter in capitals, nothing else changed.
+- **The address** is `/<Space>:<Title>` (the underscore for the space, the slash kept, no trailing slash), resolved by one rewrite rule at the top and our own canonical redirect; the module turns off the `redirect_canonical` of WordPress for these requests.
+
+**What a throw-away test showed (2026-11-06, scratch WordPress with pretty permalinks)**: the rule `^([^/:]+):(.+?)/?$` reaches the two query variables with the title **decoded** (UTF-8), the slash kept; WordPress's own canonical redirect would add a trailing slash and write the percent-encoding in lower case; the rule matches any `word:word`, so the space is checked by the handler. Details in [slice 503](../slices/503-wiki-addresses.md); **not checked**: the loading of the page from the main query, the filter on the address, the sitemaps and the SEO plugins, `ModeUrl`.
+
+The slices (all **proposed**, nothing coded; the numbers are those of [`../slices/README.md`](../slices/README.md)): **500** the module and the spaces, **501** the names, **502** the pages, **503** the addresses and the routing; then **504** the page that does not exist, **505** the link by name (qualified names only) and the move between spaces, **506** the incoming links and the wanted pages, **507** the other angles, **508** the old addresses of the SelfPedia. The wiki theme and the multilingual stay as above.
 
 ## Open questions (the list)
 
