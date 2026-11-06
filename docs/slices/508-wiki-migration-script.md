@@ -20,7 +20,7 @@ Nothing else: **no command that imports, no function that knows MediaWiki.**
 
 ## The script (outside the plugin)
 
-- **Where** (to confirm with Eric): the repository `evlist/shared-room`, `tools/wiki-migration/` (the tools of the blog live there), run with `wp eval-file` on the site; it is archived or deleted when the migration is done.
+- **Where** (**decided by Eric, 2026-11-06**): the repository `evlist/shared-room`, `tools/wiki-migration/` (the tools of the blog live there), run with `wp eval-file` on the site; it is archived or deleted when the migration is done.
 - **Input**: a **list** with one line per page (tab separated): `old name`, `new qualified name`, `file`; and a **directory of files**, the pages converted to HTML (Pandoc, by hand).
 - **What it does**, for each line, **in this order**:
   1. reads the file and **rewrites its links** (a pure function of the script: `Biography:1958-1968/fr`, `/wiki/Biography:1958-1968/fr`, `../Biography:Paris`, `index.php?title=Biography:Paris` become the **addresses of this site**; a link of MediaWiki with the class `new` or `action=edit&redlink=1` becomes an ordinary link, **a red link here** until the page is made; a link to another site is left alone), so that they are the links of slice 505 from the first day;
@@ -35,6 +35,18 @@ Nothing else: **no command that imports, no function that knows MediaWiki.**
 2. Convert each (Pandoc, from the export of the wiki or from the page itself) to HTML; **look at the result**: what is lost (the quotations, the notes, the categories, the templates) is **written down** (this is the bounded test of the design note).
 3. Write the list (the names that changed their name or their space) and run the script, `--dry-run` then for real, then `--check`.
 4. **The media**: the panel of Media Helper inserts the photos from Nextcloud (not part of this slice).
+
+## What Pandoc does with a page of MediaWiki (checked on 2026-11-06)
+
+Pandoc 3.1.3, `pandoc -f mediawiki -t html5 --wrap=none`, on **a sample page that Claude wrote** (templates, a note, categories, an image, links of every form), **not on a page of the SelfPedia**:
+
+- **a link** `[[Biography:1958-1968/fr|the period]]` becomes `<a href="Biography:1958-1968/fr" title="wikilink">`: a **relative address with no leading slash, the underscore for the space** (`Une_page_absente`), and the marker `title="wikilink"` that the script can use to tell the internal links from the others; **a category** becomes an ordinary link `Category:...` (to remove);
+- **a template is dropped without a word**: `{{Source|text|origin}}` and `{{Citation|...}}` leave **nothing** in the output (the content is lost);
+- **a note** `<ref>` becomes a footnote (a list at the end of the document, with its back links), and a `<references />` stays in the text as a literal tag (to remove);
+- **an image** `[[File:...|thumb|caption]]` becomes a `<figure>` with the **file name as a relative address** (the files are the media panel's business);
+- the headings and the lists are kept (`==` gives an `h2`).
+
+The two ways to get a page, to compare on one page: the **wikitext** (`index.php?title=<page>&action=raw`) through Pandoc, which loses the templates; or the **page rendered by MediaWiki** (`index.php?title=<page>&action=render`), an HTML fragment **with the templates expanded** and the notes rendered, but links that are `/wiki/...`, the classes of MediaWiki and no WordPress footnotes. A template such as `{{Source|text|origin}}` (the template of the documentary blocks of the SelfPedia) can also be **turned into plain HTML in the wikitext before Pandoc** (a `<blockquote class="source">` with a caption: the portable form that `ideas.md` suggests).
 
 ## Where it is tried
 
