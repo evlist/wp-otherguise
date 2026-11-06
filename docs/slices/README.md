@@ -39,7 +39,7 @@ Numbering: `0xx` foundation, `1xx` Triples, `2xx` Modes (and the first slices of
 
 ## Planned
 
-The module Wiki, on the level 3 of the design note (an address of our own); **proposed on 2026-11-06, nothing coded, and the moratorium of the SelfPedia applies** (nothing is built before the ten pages of the autobiography are written). See [`../design/wiki.md`](../design/wiki.md).
+The module Wiki, on the level 3 of the design note (an address of our own); **proposed on 2026-11-06; developed on the branch `wiki`** (the moratorium of the SelfPedia was lifted by Eric on 2026-11-06 to validate the feasibility of the migration). See [`../design/wiki.md`](../design/wiki.md).
 
 | Slice | Title |
 |---|---|

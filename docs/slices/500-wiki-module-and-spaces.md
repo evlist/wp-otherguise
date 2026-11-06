@@ -3,7 +3,7 @@
 
 # Slice 500 — Wiki: the module and the spaces
 
-Status: **proposed (2026-11-06), not coded**. Dependencies: slice 000 (the module loader), 233 (the menu Otherguise: the screen is declared to it), the module `triples` (from slice 501; declared here so that the module has its dependency from the start). Context: [`../design/wiki.md`](../design/wiki.md) (open): the moratorium of the SelfPedia applies (nothing is built before the ten pages of the autobiography are written; this slice only prepares the work).
+Status: **proposed (2026-11-06), not coded**. Dependencies: slice 000 (the module loader), 233 (the menu Otherguise: the screen is declared to it), the module `triples` (from slice 501; declared here so that the module has its dependency from the start). Context: [`../design/wiki.md`](../design/wiki.md) (open): the moratorium of the SelfPedia was lifted by Eric on 2026-11-06 to validate the feasibility of the migration; the module is developed on the branch `wiki`.
 
 ## What it does
 
