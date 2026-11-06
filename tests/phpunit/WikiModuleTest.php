@@ -44,20 +44,83 @@ class WikiModuleTest extends TestCase {
 	}
 
 	/**
-	 * Outside the administration the module hooks nothing.
+	 * Outside the administration the module registers its predicates and nothing else.
 	 *
 	 * @return void
 	 */
-	public function test_nothing_is_hooked_outside_the_administration(): void {
+	public function test_only_the_predicates_are_hooked_outside_the_administration(): void {
 		$hooks = array();
 
 		( new Module(
-			static function ( $hook ) use ( &$hooks ) {
-				$hooks[] = $hook;
+			static function ( $hook, $callback, $priority, $accepted ) use ( &$hooks ) {
+				$hooks[ $hook ] = array( $callback[1], $priority, $accepted );
 			}
 		) )->boot();
 
-		$this->assertSame( array(), $hooks );
+		$this->assertSame( array( 'triples_register_predicates' => array( 'register_predicates', 10, 1 ) ), $hooks );
+	}
+
+	/**
+	 * The four predicates of the names, with their limits (slice 501).
+	 *
+	 * @return void
+	 */
+	public function test_the_predicates_of_the_names(): void {
+		$registry = new class() {
+			/**
+			 * The definitions registered.
+			 *
+			 * @var array<string, \Otherguise\Triples\Predicate\PredicateDefinition>
+			 */
+			public $definitions = array();
+
+			/**
+			 * Records a definition.
+			 *
+			 * @param \Otherguise\Triples\Predicate\PredicateDefinition $definition Definition.
+			 * @return void
+			 */
+			public function register( $definition ) {
+				$this->definitions[ $definition->slug() ] = $definition;
+			}
+		};
+
+		( new Module() )->register_predicates( $registry );
+
+		$limits = array();
+
+		foreach ( $registry->definitions as $slug => $definition ) {
+			$limits[ $slug ] = array( $definition->subject_types(), $definition->object_types(), $definition->max_objects_per_subject(), $definition->max_subjects_per_object() );
+		}
+
+		$this->assertSame(
+			array(
+				'wiki/name'        => array( array( 'post' ), array( 'string' ), 1, 1 ),
+				'wiki/former-name' => array( array( 'post' ), array( 'string' ), null, 1 ),
+				'wiki/folded-name' => array( array( 'post' ), array( 'string' ), 1, null ),
+				'wiki/space'       => array( array( 'post' ), array( 'string' ), 1, null ),
+			),
+			$limits
+		);
+	}
+
+	/**
+	 * Without the extension intl the screen warns, and says why it matters.
+	 *
+	 * @return void
+	 */
+	public function test_the_screen_warns_when_intl_is_missing(): void {
+		ob_start();
+		( new SettingsScreen( static fn() => true, static fn() => false ) )->render();
+		$without = ob_get_clean();
+
+		ob_start();
+		( new SettingsScreen( static fn() => true, static fn() => true ) )->render();
+		$with = ob_get_clean();
+
+		$this->assertStringContainsString( 'notice-warning', $without );
+		$this->assertStringContainsString( 'intl', $without );
+		$this->assertStringNotContainsString( 'notice-warning', $with );
 	}
 
 	/**

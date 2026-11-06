@@ -3,7 +3,7 @@
 
 # Slice 501 — Wiki: the names of the pages (rules, relations, service)
 
-Status: **proposed (2026-11-06; rewritten the same day after Eric's question "why a new table, and not the table of the relations?"), not coded**. Dependencies: slices 500 (the spaces), 100 to 104 (**Triples**: the registry of the predicates, the statements, the cleanup). Context: [`../design/wiki.md`](../design/wiki.md): the level 3 (an address of our own), the identity of a page is the pair **(space, exact title)**.
+Status: **coded on the branch `wiki` (2026-11-06)**, not merged into `main` (proposed and rewritten the same day after Eric's question "why a new table, and not the table of the relations?"). Dependencies: slices 500 (the spaces), 100 to 104 (**Triples**: the registry of the predicates, the statements, the cleanup). Context: [`../design/wiki.md`](../design/wiki.md): the level 3 (an address of our own), the identity of a page is the pair **(space, exact title)**.
 
 ## What it does
 
@@ -51,14 +51,29 @@ A rename replaces `wiki/name` and adds `wiki/former-name` (`Statements::replace`
 - **Three or four statements for a page** instead of a row; a lookup is still one indexed query.
 - **The dependency on `triples` starts here**, not at slice 506; an instance that is a wiki enables Triples anyway.
 
-## Tests (planned)
+## Coded on 2026-11-06 (branch `wiki`)
 
-The rules (each step; NFC with and without `intl`; the refused titles; a qualified name of 191 and 192 bytes; the first letter in other scripts; a title that differs only by an accent is another name, its folded name is the same); the predicates (registered, the limits as in the table); `claim` (free, taken as a current name, taken as an alias, a rename and its alias, a name that comes back, the folded name and the space kept up to date, the transaction rolled back when a check fails), `resolve`, `similar`, `elsewhere`, `pages_of`, `rebuild`; the deletion of a post (Triples' cleanup) and the uninstall; `ArchitectureTest` (the dependency on `triples`).
+`plugin/modules/wiki/src/`: **`Name`** (the rules, static, no database), **`NameException`** (codes `wiki_name_*`; `refuse()` throws with a translated message; `TAKEN` carries the page that holds the name and whether it is its current name), **`Names`** (the service, on the `Statements` of Triples, given by a callable like `Books\Section\Sections`), and the four predicates registered by `Module::register_predicates()` on `triples_register_predicates`, with the limits of the table above. `Module::names()` builds the service on the statements of the module Triples.
+
+**Where the code differs from the text above** (decided while coding; Eric to confirm):
+
+- **A trailing slash is refused** (`Paris/`), like a leading one: the address strips a trailing slash (slice 503), so `Paris` and `Paris/` would be the same address and two names. **A tab or a line break is refused** as a control character (it is not turned into a space).
+- **`similar()` leaves out the page that has exactly the name** (it serves the page that does not exist, slice 504, and its suggestions): the other pages with the same folded name are the answer.
+- **`rebuild( $pages )` takes the list of pages** (`post`, `space`, `title`) from the caller and **keeps the aliases** (the text said they are lost). The service does not read posts: the slice that stores the title and the space (502) gives the list. It deletes `wiki/name`, `wiki/space` and `wiki/folded-name`, claims each page, and **reports** (does not throw) the pages that were refused with the reason, such as a name that an alias of another page already holds.
+- **No uninstall of the statements.** The module's uninstall only deletes the option of the spaces: the statements stay in the table of Triples, which keeps or deletes its data as its own setting says (`delete_data_on_uninstall`), as the other modules do; `rebuild()` makes the current names again.
+- **A folded name of more than 191 bytes is not stored** (a few letters get longer in lower case): the page has no suggestions, and the name itself is not affected.
+- **The folded name needs `intl`** (accents are removed through the decomposition of Unicode, not through `remove_accents`, so that the rules need no WordPress). Without `intl` the titles are not put in normal form C and the folded name keeps the accents; **the screen of the spaces warns** of it (`SettingsScreen`, a notice).
+- **A bug of Triples was found and fixed on the way**: refusing a literal because of `max_subjects_per_object` built its message from the object, and a `Literal` has no string form, so the refusal ended in a PHP `Error` instead of the `InvalidStatementException` `too_many_subjects` (`StatementValidator::shown()`). No existing predicate had a literal with that limit; `wiki/name` does. Covered by `WikiNamesDbTest::test_the_predicates()`; **it is a change of the module Triples, to merge with the branch**.
+
+## Tests
+
+PHPUnit (the database tests need `OTHERGUISE_TEST_DB`): `WikiNameTest` (7: the form of a name, normal form C, each refused title, the limit in bytes, the cut at the first colon, the folded name, the refusal that carries the holder), `WikiNamesDbTest` (14, on a real MariaDB with the real statements: a free name, claiming twice, a name held as a current name and as an alias, a rename and its alias, a name that comes back, a move to another space, the other refusals, 191 bytes and the accents, the suggestions, the other angles, `add_alias`, the limits of the four predicates, a deleted page, `rebuild`), and two more in `WikiModuleTest` (the predicates and their limits, the notice about `intl`). The whole suite passes with the database (716 tests, none skipped) and `phpcs` is clean.
+
+## Verification
+
+- **Tried** on the scratch WordPress 7.1.x with the real table of Triples (`varbinary(191)`, no collation) and real posts: the module and its predicates are registered; `Cité` and `Cite` are two names for two pages; a move to another space leaves the old name as an alias; another page is refused with the holder and the fact that it is an alias; the suggestions find the page that differs by an accent; **deleting the posts** (`wp_delete_post`) leaves no `wiki/*` statement (the cleanup of Triples). This was a throw-away script run once, not a test kept in the repository.
+- **Never tried**: a database whose collation is accent-insensitive for the index of the table of Triples (the column is binary, so it should not matter; not checked on another server version), two saves of the same name at the very same moment (the known limit above), the notice about `intl` on a PHP without it, a site with a large number of pages (the speed of `rebuild`), a multisite network.
 
 ## Not done
 
-The content type and the screens (502), the address (503), the 404 (504); a lock for concurrent saves.
-
-## Verification (planned)
-
-PHPUnit with a real MariaDB and the real statements of Triples (as `BooksSectionDbTest`); a scratch WordPress with `utf8mb4_unicode_520_ci`: two titles that differ by an accent **both** fit and are told apart. Never tried on a real site.
+The content type and the screens (502: where the title and the space are stored, and the list that `rebuild()` takes), the address (503), the 404 (504); a lock for concurrent saves.

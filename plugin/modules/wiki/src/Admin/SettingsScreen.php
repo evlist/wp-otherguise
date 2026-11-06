@@ -11,6 +11,7 @@
 namespace Otherguise\Wiki\Admin;
 
 use Otherguise\Core\AdminMenu;
+use Otherguise\Wiki\Name;
 use Otherguise\Wiki\Space\Spaces;
 
 defined( 'ABSPATH' ) || exit;
@@ -39,12 +40,21 @@ final class SettingsScreen {
 	private $can;
 
 	/**
+	 * Tells whether the PHP extension `intl` is there.
+	 *
+	 * @var callable
+	 */
+	private $has_intl;
+
+	/**
 	 * Builds the screen.
 	 *
-	 * @param callable|null $can Default `current_user_can`.
+	 * @param callable|null $can      Default `current_user_can`.
+	 * @param callable|null $has_intl Default `Name::has_intl()`.
 	 */
-	public function __construct( $can = null ) {
-		$this->can = $can ?? 'current_user_can';
+	public function __construct( $can = null, $has_intl = null ) {
+		$this->can      = $can ?? 'current_user_can';
+		$this->has_intl = $has_intl ?? array( Name::class, 'has_intl' );
 	}
 
 	/**
@@ -147,6 +157,11 @@ final class SettingsScreen {
 		echo '<div class="wrap"><h1>' . esc_html__( 'Otherguise wiki', 'otherguise' ) . '</h1>';
 		// The screens of the Settings menu print the notices of the Settings API by themselves; this one is under the Otherguise menu.
 		settings_errors();
+
+		if ( ! (bool) ( $this->has_intl )() ) {
+			echo '<div class="notice notice-warning inline"><p>' . esc_html__( 'The PHP extension intl is missing: the titles of the pages are not put in Unicode normal form, and the suggestions of similar titles keep the accents. Two titles that look the same may then be two names.', 'otherguise' ) . '</p></div>';
+		}
+
 		echo '<p>' . esc_html__( 'A space is a section of the wiki: its name is the word before the colon in the address of a page (Biography:Paris).', 'otherguise' ) . '</p>';
 		echo '<form method="post" action="options.php">';
 		settings_fields( self::GROUP );

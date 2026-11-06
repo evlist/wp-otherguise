@@ -11,7 +11,9 @@
 namespace Otherguise\Wiki;
 
 use Otherguise\Core\ModuleInterface;
+use Otherguise\Core\Modules;
 use Otherguise\Wiki\Admin\SettingsScreen;
+use Otherguise\Triples\Predicate\PredicateDefinition;
 use Otherguise\Wiki\Space\Spaces;
 
 defined( 'ABSPATH' ) || exit;
@@ -28,6 +30,13 @@ final class Module implements ModuleInterface {
 	 * @var callable
 	 */
 	private $add_action;
+
+	/**
+	 * The names, built when they are needed.
+	 *
+	 * @var Names|null
+	 */
+	private $names = null;
 
 	/**
 	 * Builds the module.
@@ -66,18 +75,99 @@ final class Module implements ModuleInterface {
 	}
 
 	/**
-	 * Registers the screen of the spaces, in the administration only.
+	 * Registers the predicates of the names on the registration of Triples, and the screen of the spaces in the administration.
 	 *
 	 * @return void
 	 */
 	public function boot() {
+		( $this->add_action )( 'triples_register_predicates', array( $this, 'register_predicates' ), 10, 1 );
+
 		if ( is_admin() ) {
 			( new SettingsScreen() )->register( $this->add_action );
 		}
 	}
 
 	/**
-	 * Removes the data owned by the module: the spaces.
+	 * Registers the predicates of the names (slice 501). Action `triples_register_predicates`.
+	 *
+	 * @param \Otherguise\Triples\Predicate\PredicateRegistry $predicates Predicates.
+	 * @return void
+	 */
+	public function register_predicates( $predicates ) {
+		$string = array( 'string' );
+		$post   = array( 'post' );
+
+		$predicates->register(
+			PredicateDefinition::from_array(
+				array(
+					'slug'                    => Names::NAME,
+					'label'                   => __( 'Has the name', 'otherguise' ),
+					'inverse_label'           => __( 'Is the name of', 'otherguise' ),
+					'subject_types'           => $post,
+					'object_types'            => $string,
+					'max_objects_per_subject' => 1,
+					'max_subjects_per_object' => 1,
+				)
+			)
+		);
+		$predicates->register(
+			PredicateDefinition::from_array(
+				array(
+					'slug'                    => Names::FORMER,
+					'label'                   => __( 'Had the name', 'otherguise' ),
+					'inverse_label'           => __( 'Was the name of', 'otherguise' ),
+					'subject_types'           => $post,
+					'object_types'            => $string,
+					'max_subjects_per_object' => 1,
+				)
+			)
+		);
+		$predicates->register(
+			PredicateDefinition::from_array(
+				array(
+					'slug'                    => Names::FOLDED,
+					'label'                   => __( 'Has the folded name', 'otherguise' ),
+					'inverse_label'           => __( 'Is the folded name of', 'otherguise' ),
+					'subject_types'           => $post,
+					'object_types'            => $string,
+					'max_objects_per_subject' => 1,
+				)
+			)
+		);
+		$predicates->register(
+			PredicateDefinition::from_array(
+				array(
+					'slug'                    => Names::SPACE,
+					'label'                   => __( 'Is in the space', 'otherguise' ),
+					'inverse_label'           => __( 'Holds the page', 'otherguise' ),
+					'subject_types'           => $post,
+					'object_types'            => $string,
+					'max_objects_per_subject' => 1,
+				)
+			)
+		);
+	}
+
+	/**
+	 * The names of the pages: the statements of the module Triples.
+	 *
+	 * @return Names
+	 */
+	public function names() {
+		if ( null === $this->names ) {
+			$this->names = new Names(
+				static function () {
+					return Modules::get( 'triples' )->statements();
+				}
+			);
+		}
+
+		return $this->names;
+	}
+
+	/**
+	 * Removes the data owned by the module: the spaces. The statements of the names stay with the table of Triples, which keeps or deletes
+	 * its data as its own setting says (`delete_data_on_uninstall`); the index can be made again (`Names::rebuild()`).
 	 *
 	 * @return void
 	 */
