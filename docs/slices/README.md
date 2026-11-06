@@ -47,6 +47,11 @@ The module Wiki, on the level 3 of the design note (an address of our own); **pr
 | [501](501-wiki-names.md) | Wiki: the names of the pages (the rules of a title, the names as statements of `triples`, the service) |
 | [502](502-wiki-pages.md) | Wiki: the pages (a content type, the space and the title, the checks at saving, creation from a file) |
 | [503](503-wiki-addresses.md) | Wiki: the addresses and the routing (`/Space:Title`, the canonical form, the redirects) |
+| [504](504-wiki-missing-page.md) | Wiki: the page that does not exist: the 404 that offers to create it (the other angles, the similar pages) |
+| [505](505-wiki-link-by-name.md) | Wiki: the link by name (`[page "Space:Title"]`, qualified names only, red links), the move of a page, the rename of a space |
+| [506](506-wiki-incoming-links.md) | Wiki: the incoming links (`wiki/cites`) and the wanted pages (`wiki/wants`) |
+| [507](507-wiki-other-angles.md) | Wiki: the other angles of a subject (a block, `wiki/same-subject`, the label of the space) |
+| [508](508-wiki-old-addresses.md) | Wiki: the old addresses of the SelfPedia (aliases from a file; the semi-manual migration) |
 
 ## Candidates (not planned yet)
 
@@ -79,9 +84,4 @@ Titles only. Each one is to be planned with Eric, from the decisions recorded in
 - `401` Access, a settings page ([coded and tried on a scratch WordPress](401-access-settings.md)): whether the module exposes its functioning (private links, who may create one), read before any hook is added.
 - `402` Access, published but hidden ([coded and tried on a scratch WordPress](402-access-unlisted.md)): an "unlisted" flag that removes a post from the lists, feeds, search and sitemaps while its address works.
 - `403` Access and Books, previewing unpublished posts ([coded in part, tried with a stand-in for Gotenberg](403-access-section-preview.md)): the PDF job converts a post that is not published through its private link, as a preview (flagged, not for the final print); the links of a section page wait for the loop block.
-- `504` Wiki, the page that does not exist: the 404 that offers to create the page (the exact title is in the address; who may create; a nonce; a draft that opens in the editor; "other angles" and "a similar page exists"); a block for the template `404` and a minimal output of its own.
-- `505` Wiki, the link by name: the shortcode `[page "Space:Title"]` (**qualified names only**, decided on 2026-11-06; the colon or the slash read; a name with no space is refused with a message), resolved when the page is rendered; the red link points to the address the page would have; the tool that moves a page to another space and renames a space.
-- `506` Wiki, the incoming links and the wanted pages: the relation "cites" / "cited by" in `triples`, kept up to date when a page is saved; a list of the pages to write; a block "pages that cite this one".
-- `507` Wiki, the other angles: a block that lists the pages of the same title in the other spaces, from the index of the names.
-- `508` Wiki, the old addresses of the SelfPedia: aliases (statements `wiki/former-name`) made from a list (a file), since the wiki has few pages and the migration is semi-manual (Eric, 2026-11-06: "stay as simple as possible").
 - Integration with Media Helper (attachments qualified by mode, one image attached to several posts).

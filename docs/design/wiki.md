@@ -145,14 +145,14 @@ Reading by Claude, **Proposed**, nothing checked in code:
 
 **What a throw-away test showed (2026-11-06, scratch WordPress with pretty permalinks)**: the rule `^([^/:]+):(.+?)/?$` reaches the two query variables with the title **decoded** (UTF-8), the slash kept; WordPress's own canonical redirect would add a trailing slash and write the percent-encoding in lower case; the rule matches any `word:word`, so the space is checked by the handler. Details in [slice 503](../slices/503-wiki-addresses.md); **not checked**: the loading of the page from the main query, the filter on the address, the sitemaps and the SEO plugins, `ModeUrl`.
 
-The slices (all **proposed**, nothing coded; the numbers are those of [`../slices/README.md`](../slices/README.md)): **500** the module and the spaces, **501** the names, **502** the pages, **503** the addresses and the routing (**500 to 503 are written**, see the index of the slices); then **504** the page that does not exist, **505** the link by name (qualified names only) and the move between spaces, **506** the incoming links and the wanted pages, **507** the other angles, **508** the old addresses of the SelfPedia. The wiki theme and the multilingual stay as above.
+The slices (all **proposed**, nothing coded; the numbers are those of [`../slices/README.md`](../slices/README.md)): **500** the module and the spaces, **501** the names, **502** the pages, **503** the addresses and the routing; then **504** the page that does not exist, **505** the link by name (qualified names only) and the move between spaces, **506** the incoming links and the wanted pages, **507** the other angles, **508** the old addresses of the SelfPedia (**500 to 508 are all written**, see the index of the slices; nothing is coded). The wiki theme and the multilingual stay as above.
 
 ## Open questions (the list)
 
 - The address: slugs of WordPress, an index of exact titles, or an address of our own (above)? What does the address guarantee?
 - A prefix or the root? One type per space (A) or the space as a root page (C)?
 - The syntax of the names: one syntax for the shortcode and the address (slash, colon, or both read: Claude proposes both read)? The unqualified names are **refused in the first version** (decided); the rule as a setting of the space remains the way to relax it.
-- The 404 that proposes to create the page: who may create (the rights per space), the creation of the missing parents, the title taken from a slug that lost its accents.
+- The 404 that proposes to create the page ([slice 504](../slices/504-wiki-missing-page.md)): who may create (the rights per space). The missing parents and the title taken from a slug that lost its accents are **closed by the level 3**: no hierarchy, and the address is the exact title.
 - Links between the wiki and the blog, if they are two instances.
 - How to link two pages of different titles on the same subject?
 - The behaviour of the pretty permalinks and the redirects (to check).
