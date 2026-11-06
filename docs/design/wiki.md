@@ -26,7 +26,7 @@ Also decided on 2026-11-05: **the multilingual is left out of the first step** (
 **Decided (Eric, 2026-11-05):** one of the interests of the spaces is to treat **the same subject from several angles** (encyclopaedic, subjective, autobiographical...). The same title therefore exists in several spaces: **the identity of a page is the pair (space, title)**, not the title. What follows:
 
 - the **unicity is per space**, not global;
-- the **link by name** has to name the space, or have a default one (**Open**: the current space, or a general one?): `Biography:Paris` for the explicit form, `Paris` alone resolved in the space of the page that holds the link;
+- the **link by name** has to name the space, or have a default one (**Open**, see "The unqualified names" below): `Biography:Paris` for the explicit form;
 - **Proposed:** a band "Other angles: Encyclopaedia · Opinion · Biography" at the top of a page, made by looking up the same title in the other spaces (the index of the titles is enough); for two different titles on one subject ("Paris" and "Paris (ville)") an explicit relation "same subject" would be needed (**Open**);
 - **Proposed, optional:** the address with the title alone (`/paris`) lists the angles that exist, as a disambiguation page does;
 - **moving a page from a space to another** can land on a page of the same title in the target space: the move must be refused, or ask for another title; WordPress alone renames in silence (see below);
@@ -80,6 +80,26 @@ What the address has to guarantee is **Open**: the same name always gives the sa
 - **The incoming links**: a relation **"cites"** with the inverse **"cited by"** in the module `triples`, kept up to date when a page is saved. The module already stores one direction and reads both (`subjects_of`, the `inverse_label` of the predicates, as the relations of the sections and of the book projects do); the statement is made of the identifier of the pages, so it does not depend on the slugs.
 - **In the printed book (Books)**: a link to an encyclopaedic page becomes a note or a reference; the pages of the merged section and the markers of slices 227 and 228 may help (**Open**, not analysed).
 
+### The syntax of the names (Open; Eric's question of 2026-11-06)
+
+**Should the shortcode and the address use the same syntax?** `[page "Biography:1958-1968"]` and `https://.../Biography/1958-1968` do not. In MediaWiki the colon says that the first word is a **space**, the slash only goes down a hierarchy (`Biography:1958-1968/fr`: the space `Biography`, the page `1958-1968/fr`, a subpage). With the space as the root page of the hierarchy (way C above) the first segment of the address is the space too, but nothing in the address says so.
+
+| | Shortcode / address | Reading |
+|---|---|---|
+| 1 | `[page "Biography/1958-1968"]` / `/Biography/1958-1968` | One syntax; the address is copied into the shortcode as it is. But the **space is no longer marked**: `Biography/Paris` is a page "Biography" of another space, or the space itself? A rule is needed. A link of the wikitext to import (`[[Biography:1958-1968/fr]]`) has its first colon converted. |
+| 2 | `[page "Biography:1958-1968"]` / `/Biography:1958-1968` | One syntax; the form of MediaWiki is kept as it is, at the import too, and the colon removes the doubt. **A slug of WordPress cannot hold a colon** (checked on 2026-11-05: it is stripped): a colon in the address needs a layer of our own (a rewrite rule, a filter on the address of the content, the canonical redirect), the level 3 above or a light form of it that keeps the hierarchical pages behind. A relative address written with no protocol (`href="Biography:x"`) would be read as a protocol; the absolute ones are valid. |
+| 3 | **Proposed (Claude):** the shortcode **accepts both**, `Biography:1958-1968/fr` and `Biography/1958-1968/fr`; the address stays native (slashes) | A colon, when it is written, keeps its role (it marks a space); without a colon a name is looked for in the space of the page, then its first segment is tried as a space. No routing to write, the import stays trivial, an address is copied as it is seen. The colon in the address comes only with the level 3 and the shortcode has nothing to change then. |
+
+### The unqualified names (Open; Eric hesitates between three)
+
+A name with no space (`[page "Paris"]`) is ambiguous as soon as the same title lives in several spaces (above). **Eric, 2026-11-06:** three ways, he hesitates:
+
+1. **In the current space**: `[page "Paris"]` written in the space `Biography` means `Biography:Paris`. Convenient for writing inside a space (the links of the autobiography are mostly between its own pages); a link is "relative", and the same text copied into another space means another page, or a red link. In MediaWiki an unqualified link means the **main** namespace, never the current one: the pages imported have to be qualified.
+2. **In a space that is "the main one"** (the default, the encyclopaedic one, say): the same meaning everywhere, a text can be copied without a change, the import is the semantic of MediaWiki. Writing inside another space needs a qualifier on every link to a page of that space, which is heavy in the autobiography.
+3. **Forbidden**: a name is always qualified. No ambiguity; the index of the links (the relation "cites") only ever holds qualified targets; a move or a rename of a space is a plain search. The cost is the verbosity and a less "wiki" feel.
+
+**Proposed (Claude), a way to decide without blocking:** the qualified names are always understood, so the question can be **a setting of the space** (the rule for the unqualified names written in its pages: current space, the main space, or refused with a message when the page is saved), and the first value can be **"refused"**: **loosening a rule later breaks no existing content** (every link written is qualified), **tightening it later does** (a link that said "current space" would have to be rewritten). Two facts would help to choose, and the first ten pages of the autobiography will give them: **the share of the links that stay inside a space** (the "current" form pays when it is high) and **which namespace is the main one of the SelfPedia** (not known to Claude: the encyclopaedic part, probably).
+
 ## Where it lives
 
 **Proposed (Claude):** **a module of Otherguise**, the sixth (next to `triples`, `modes`, `media`, `books`, `access`), with clear boundaries (its tests, its settings, its uninstall) so that it can be lifted out later; it would depend on `triples` (the relation "cites") and `modes`, and use `access` for the drafts. The rules of [`packaging.md`](packaging.md) and of `docs/IA.md` ("Modules": one-way dependencies checked by `ArchitectureTest`, names that belong to the module) apply. Alternatively a plugin "Other Wiki"; the cost of a module is that Otherguise grows.
@@ -102,7 +122,7 @@ What the address has to guarantee is **Open**: the same name always gives the sa
 
 - The address: slugs of WordPress, an index of exact titles, or an address of our own (above)? What does the address guarantee?
 - A prefix or the root? One type per space (A) or the space as a root page (C)?
-- The default space of a link by name: the current one, or a general one?
+- The syntax of the names (one syntax for the shortcode and the address: slash, colon, or both read?) and the **unqualified names**: the current space, a main space, or refused (a setting of the space, first value: refused)?
 - How to link two pages of different titles on the same subject?
 - The behaviour of the pretty permalinks and the redirects (to check).
 - The collation of the production database.
