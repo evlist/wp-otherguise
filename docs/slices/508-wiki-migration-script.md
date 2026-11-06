@@ -80,7 +80,7 @@ The two ways to get a page, to compare on one page: the **wikitext** (`index.php
 
 ## Where it is tried
 
-**`sb.vli.st`** (Eric, 2026-11-06): a new WordPress with Media Helper, Otherguise and the other plugins, **without the module Wiki** (nothing of it is coded, and the moratorium of the SelfPedia applies): the **first test** is therefore the conversion of a page with Pandoc and its pasting into an ordinary page, and the insertion of photos by the media panel; the script itself comes after slices 500 to 503 are coded. Never tried on a real site.
+**`sb.vli.st`** (Eric, 2026-11-06): a new WordPress with Media Helper, Otherguise and the other plugins, **without the module Wiki** (at first: the module is being developed on the branch `wiki`): the **first test** is therefore the conversion of a page with Pandoc and its pasting into an ordinary page, and the insertion of photos by the media panel; the script itself comes after slices 500 to 503 are coded. Never tried on a real site.
 
 ## What is not the module's business
 

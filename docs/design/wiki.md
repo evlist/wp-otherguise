@@ -5,7 +5,7 @@
 
 Status: **open**. Nothing here is designed, scheduled or coded. Points are marked **Decided** (Eric said so), **Proposed** (Claude's reading, not confirmed) or **Open**. The idea comes from the point 4 of [`ideas.md`](https://github.com/evlist/shared-room/blob/main/docs/ideas.md) of `shared-room` (SelfPedia under WordPress); **the analysis goes on here**, in the repository of the plugin, since what is built would be a module of Otherguise.
 
-**The moratorium (Decided, Eric, 2026-10-31):** nothing starts before the ten pages of the autobiography of the SelfPedia are written (content first, no architecture work before). Until then the pages are written in a portable way: headings, links, categories, `<ref>` notes, no template with parameters, no parser function.
+**The moratorium (Decided, Eric, 2026-10-31; lifted by Eric on 2026-11-06):** nothing was to start before the ten pages of the autobiography of the SelfPedia were written (content first, no architecture work before). Eric lifted it on 2026-11-06 **to validate the feasibility of the migration**; the module is developed on the **branch `wiki`**, away from the development of the blog. The advice for the pages still stands: write them in a portable way (headings, links, categories, `<ref>` notes, no template with parameters, no parser function).
 
 ## What is wanted
 
