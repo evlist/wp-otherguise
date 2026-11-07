@@ -263,6 +263,22 @@ class WikiTreeCitationsDbTest extends Otherguise_Test_Database_Case {
 	}
 
 	/**
+	 * The statements of pages that no longer exist go (a deletion that skipped the hooks of WordPress leaves them); the others stay.
+	 *
+	 * @return void
+	 */
+	public function test_purge(): void {
+		$this->citations->sync( $this->id['op'], $this->html( '/Biography/Paris', '/Biography/Nobody' ) );
+		$this->citations->sync( $this->id['par'], $this->html( '/Opinion', '/Biography/Other' ) );
+
+		// The page `op` is gone: what it said, and what was said about it, go with it.
+		$this->assertSame( 3, $this->citations->purge( array( $this->id['bio'], $this->id['par'] ) ) );
+		$this->assertSame( array(), $this->citations->cited_by( $this->id['par'] ) );
+		$this->assertSame( array( 'Biography/Other' => array( $this->id['par'] ) ), $this->citations->wanted() );
+		$this->assertSame( 0, $this->citations->purge( array( $this->id['bio'], $this->id['par'] ) ) );
+	}
+
+	/**
 	 * The block lists the pages that cite the current one that the reader may see; nothing when there is none.
 	 *
 	 * @return void

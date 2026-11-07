@@ -116,6 +116,26 @@ final class Angles {
 	}
 
 	/**
+	 * Deletes the declarations that involve a page that no longer exists (a deletion that skipped the hooks of WordPress leaves them).
+	 *
+	 * @param int[] $pages The ids of the pages that exist.
+	 * @return int The number of statements deleted.
+	 */
+	public function purge( array $pages ) {
+		$known   = array_flip( array_map( 'intval', $pages ) );
+		$deleted = 0;
+
+		foreach ( $this->statements()->match( null, self::SAME ) as $statement ) {
+			if ( ! isset( $known[ (int) $statement->subject()->id() ], $known[ (int) $statement->object()->id() ] ) ) {
+				$this->statements()->delete( $statement );
+				++$deleted;
+			}
+		}
+
+		return $deleted;
+	}
+
+	/**
 	 * Orders pages by their address; a page with no key goes last.
 	 *
 	 * @param int[] $pages Page ids.

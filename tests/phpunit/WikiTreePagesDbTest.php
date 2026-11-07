@@ -578,7 +578,7 @@ class WikiTreePagesDbTest extends Otherguise_Test_Database_Case {
 			array(
 				'Page 3 refused: wiki_name_taken, the key is held by page 2',
 				'Page 4 refused: wiki_name_digits',
-				'OK 2 key(s) made, 2 page(s) refused, 0 alias(es) of vanished pages removed.',
+				'OK 2 key(s) made, 2 page(s) refused, 0 alias(es) and 0 link statement(s) of vanished pages removed.',
 			),
 			$lines
 		);

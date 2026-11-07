@@ -20,7 +20,7 @@ A link is kept **by id**: it survives a rename or a move, and an alias counts as
 
 - **On save** (`wp_after_insert_post`, priority 20, any page that is not an auto-draft, trashed or a revision): the anchors are read with `WP_HTML_Tag_Processor`; the statements of the page are **brought in line** (missing ones added, ones no longer in the text removed, one transaction; `sync()` says whether anything changed). A link to the page itself is left out. Drafts are indexed too; **readers are filtered when they read**.
 - **When a page is given a key** (created, renamed, moved, first saved: `Pages` calls back `Citations::claimed()`): the `wants` of its path become `cites` to it (one indexed query).
-- **Deletion**: the cleanup of Triples takes both directions.
+- **Deletion**: the cleanup of Triples takes both directions. A deletion that **skips the hooks** (`wp site empty` truncates the tables) leaves the statements behind: `wp otherguise tree rebuild` removes the link statements of pages that no longer exist (found on a real site, 2026-11-07: a wanted page named by a page that was gone).
 - **`wp otherguise tree links [--dry-run]`**: reads every page that is not in the trash again; reports pages read and changed; can be run twice.
 
 ### Readings

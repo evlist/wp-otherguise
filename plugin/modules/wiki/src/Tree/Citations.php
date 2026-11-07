@@ -238,6 +238,34 @@ final class Citations {
 	}
 
 	/**
+	 * Deletes the statements of pages that no longer exist: the links they made (`wiki/cites`, `wiki/wants`) and the links to them. A deletion
+	 * made by a way that skips the hooks of WordPress (`wp site empty` truncates the tables) leaves them behind.
+	 *
+	 * @param int[] $pages The ids of the pages that exist.
+	 * @return int The number of statements deleted.
+	 */
+	public function purge( array $pages ) {
+		$known   = array_flip( array_map( 'intval', $pages ) );
+		$deleted = 0;
+
+		foreach ( $this->statements()->match( null, self::WANTS ) as $statement ) {
+			if ( ! isset( $known[ (int) $statement->subject()->id() ] ) ) {
+				$this->statements()->delete( $statement );
+				++$deleted;
+			}
+		}
+
+		foreach ( $this->statements()->match( null, self::CITES ) as $statement ) {
+			if ( ! isset( $known[ (int) $statement->subject()->id() ], $known[ (int) $statement->object()->id() ] ) ) {
+				$this->statements()->delete( $statement );
+				++$deleted;
+			}
+		}
+
+		return $deleted;
+	}
+
+	/**
 	 * Whether the statements of a page differ from what its content says.
 	 *
 	 * @param int    $post_id The page.

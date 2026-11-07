@@ -153,6 +153,20 @@ class WikiTreeAnglesDbTest extends Otherguise_Test_Database_Case {
 	}
 
 	/**
+	 * A declaration that involves a page that no longer exists goes.
+	 *
+	 * @return void
+	 */
+	public function test_purge(): void {
+		$this->angles->relate( $this->id['par_bio'], $this->id['ville'] );
+		$this->angles->relate( $this->id['par_op'], $this->id['alone'] );
+
+		$this->assertSame( 1, $this->angles->purge( array( $this->id['par_bio'], $this->id['ville'], $this->id['par_op'] ) ) );
+		$this->assertSame( array( $this->id['ville'] ), $this->angles->related( $this->id['par_bio'] ) );
+		$this->assertSame( array(), $this->angles->related( $this->id['par_op'] ) );
+	}
+
+	/**
 	 * The block lists the pages the reader may see; nothing when there are none.
 	 *
 	 * @return void

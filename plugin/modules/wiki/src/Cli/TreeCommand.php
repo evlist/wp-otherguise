@@ -341,7 +341,8 @@ final class TreeCommand {
 
 	/**
 	 * Makes the keys again from the pages of the site: the current keys are deleted and made again, the aliases of the pages that exist are kept
-	 * (those of pages that no longer exist are removed), and the pages that cannot have their key are listed.
+	 * (those of pages that no longer exist are removed, and so are the link statements `wiki/cites`, `wiki/wants` and `wiki/same-subject` of pages
+	 * that no longer exist: `wp site empty` truncates the tables and leaves them), and the pages that cannot have their key are listed.
 	 *
 	 * @param array $args  Positional arguments.
 	 * @param array $assoc Options.
@@ -350,12 +351,15 @@ final class TreeCommand {
 	public function rebuild( $args, $assoc ) {
 		unset( $args, $assoc );
 
-		$report = $this->pages->keys()->rebuild( $this->pages->nodes()->all() );
+		$pages  = $this->pages->nodes()->all();
+		$report = $this->pages->keys()->rebuild( $pages );
+		$ids    = array_column( $pages, 'post' );
+		$links  = ( null === $this->citations ? 0 : $this->citations->purge( $ids ) ) + ( null === $this->angles ? 0 : $this->angles->purge( $ids ) );
 
 		foreach ( $report['refused'] as $page ) {
 			( $this->log )( 'Page ' . $page['post'] . ' refused: ' . $page['code'] . ( $page['holder'] > 0 ? ', the key is held by page ' . $page['holder'] : '' ) );
 		}
 
-		( $this->success )( $report['done'] . ' key(s) made, ' . count( $report['refused'] ) . ' page(s) refused, ' . $report['orphans'] . ' alias(es) of vanished pages removed.' );
+		( $this->success )( $report['done'] . ' key(s) made, ' . count( $report['refused'] ) . ' page(s) refused, ' . $report['orphans'] . ' alias(es) and ' . $links . ' link statement(s) of vanished pages removed.' );
 	}
 }
