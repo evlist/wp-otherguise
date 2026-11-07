@@ -33,6 +33,27 @@ class Nodes {
 	}
 
 	/**
+	 * Changes the parent and the title of a page.
+	 *
+	 * @param int    $id     Page.
+	 * @param int    $parent The new parent (0 for the first level).
+	 * @param string $title  The new title.
+	 * @return bool False when WordPress could not save it.
+	 */
+	public function update( $id, $parent, $title ) {
+		$done = wp_update_post(
+			array(
+				'ID'          => (int) $id,
+				'post_parent' => (int) $parent,
+				'post_title'  => (string) $title,
+			),
+			true
+		);
+
+		return is_int( $done ) && $done > 0;
+	}
+
+	/**
 	 * Deletes a page for good.
 	 *
 	 * @param int $id Page.

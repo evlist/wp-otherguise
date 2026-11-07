@@ -156,6 +156,75 @@ final class TreeCommand {
 	}
 
 	/**
+	 * Moves a page under another parent and/or renames it; the old address becomes an alias that redirects.
+	 *
+	 * ## OPTIONS
+	 *
+	 * <id>
+	 * : The page.
+	 *
+	 * [--parent=<id>]
+	 * : The new parent (0 for the first level).
+	 *
+	 * [--path=<titles>]
+	 * : The new parent as a path of titles (`Biography/1958-1968`); wins over `--parent`.
+	 *
+	 * [--title=<title>]
+	 * : The new title; default: the title stays.
+	 *
+	 * [--dry-run]
+	 * : Checks and reports, writes nothing.
+	 *
+	 * ## EXAMPLES
+	 *
+	 *     wp otherguise tree move 42 --path=Opinion --dry-run
+	 *
+	 * @param array $args  Positional arguments.
+	 * @param array $assoc Options.
+	 * @return void
+	 */
+	public function move( $args, $assoc ) {
+		$id     = (int) ( $args[0] ?? 0 );
+		$page   = $this->pages->nodes()->get( $id );
+		$parent = isset( $assoc['parent'] ) ? (int) $assoc['parent'] : ( null === $page ? 0 : $page['parent'] );
+
+		if ( isset( $assoc['path'] ) ) {
+			$titles = '' === trim( (string) $assoc['path'], '/ ' ) ? array() : explode( '/', trim( (string) $assoc['path'], '/ ' ) );
+			$found  = array() === $titles ? array(
+				'post' => 0,
+			) : $this->pages->find( $titles );
+
+			if ( null === $found['post'] ) {
+				( $this->fail )( 'The parent does not exist: ' . $assoc['path'] );
+
+				return;
+			}
+
+			$parent = (int) $found['post'];
+		}
+
+		$dry = ! empty( $assoc['dry-run'] );
+
+		try {
+			$key = $this->pages->move( $id, $parent, $assoc['title'] ?? null, ! $dry );
+		} catch ( NameException $refusal ) {
+			( $this->fail )( $refusal->getMessage() . ' (' . $refusal->error_code() . ( $refusal->holder() > 0 ? ', page ' . $refusal->holder() : '' ) . ')' );
+
+			return;
+		}
+
+		if ( $dry ) {
+			( $this->success )( 'Page ' . $id . ' can be moved (dry run, nothing written).' );
+
+			return;
+		}
+
+		$path = $this->pages->keys()->path_of( $id );
+
+		( $this->success )( null === $key ? 'Page ' . $id . ' is already there.' : 'Page ' . $id . ' moved: ' . ( null === $path ? '' : implode( '/', $path ) ) );
+	}
+
+	/**
 	 * Makes the keys again from the pages of the site: the current keys are deleted and made again, the aliases are kept, and the pages that
 	 * cannot have their key are listed.
 	 *

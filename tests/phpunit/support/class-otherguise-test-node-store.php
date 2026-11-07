@@ -72,6 +72,25 @@ class Otherguise_Test_Node_Store extends Nodes {
 	}
 
 	/**
+	 * Changes the parent and the title of a page.
+	 *
+	 * @param int    $id     Id.
+	 * @param int    $parent Parent.
+	 * @param string $title  Title.
+	 * @return bool
+	 */
+	public function update( $id, $parent, $title ) {
+		if ( ! isset( $this->pages[ $id ] ) ) {
+			return false;
+		}
+
+		$this->pages[ $id ]['parent'] = (int) $parent;
+		$this->pages[ $id ]['title']  = (string) $title;
+
+		return true;
+	}
+
+	/**
 	 * Deletes a page.
 	 *
 	 * @param int $id Id.

@@ -14,7 +14,9 @@ use Otherguise\Core\DescribedModule;
 use Otherguise\Core\DisabledByDefault;
 use Otherguise\Core\ModuleInterface;
 use Otherguise\Core\Modules;
+use Otherguise\Wiki\Tree\Links;
 use Otherguise\Wiki\Tree\Reserved;
+use Otherguise\Wiki\Tree\SearchTitles;
 use Otherguise\Wiki\Tree\Router as TreeRouter;
 use Otherguise\Wiki\Admin\SettingsScreen;
 use Otherguise\Wiki\Cli\PagesCommand;
@@ -193,6 +195,15 @@ final class Module implements ModuleInterface, DescribedModule, DisabledByDefaul
 		( $this->add_action )( 'parse_request', array( $this->tree_router(), 'parse_request' ), 10, 1 );
 		( $this->add_action )( 'redirect_canonical', array( $this->tree_router(), 'redirect_canonical' ), 5, 2 );
 		( $this->add_action )( 'page_link', array( $this->tree_router(), 'page_link' ), 10, 2 );
+
+		// Slice 505: ordinary links are links by name; the link tool of the editor tells two pages of one title apart.
+		$links  = new Links( $this->keys(), $this->tree_router() );
+		$search = new SearchTitles( $this->keys() );
+
+		( $this->add_action )( 'the_content', array( $links, 'filter' ), 20, 1 );
+		( $this->add_action )( 'rest_post_search_query', array( $search, 'begin' ), 10, 1 );
+		( $this->add_action )( 'rest_post_dispatch', array( $search, 'end' ), 10, 1 );
+		( $this->add_action )( 'the_title', array( $search, 'title' ), 10, 2 );
 
 		$presentation = new Presentation( $this->missing(), dirname( __DIR__ ) . '/templates/missing-page.php' );
 		$create       = new CreateAction( $this->tree(), $this->missing() );

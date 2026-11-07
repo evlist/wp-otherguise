@@ -117,6 +117,71 @@ final class Pages {
 	}
 
 	/**
+	 * Moves a page under another parent, and renames it if a title is given. Only the key of the page changes: the old key becomes an
+	 * alias, so the old address of the page and of its descendants redirects and the links written with it still work. Refused (nothing
+	 * written) when the title is taken under the new parent, when the parent does not exist, or when the parent is the page or one of its
+	 * descendants. Can be run twice.
+	 *
+	 * @param int        $id     The page.
+	 * @param int        $parent The new parent (0 for the first level).
+	 * @param mixed|null $title  The new title; null keeps the title.
+	 * @param bool       $apply  False checks only (a dry run).
+	 * @return array{key: string, parent: int, title: string, former: string|null}|null The new key; null for a dry run or when nothing changes.
+	 * @throws \Throwable A `NameException` when the move is refused; what the claim throws, after the page is put back where it was.
+	 */
+	public function move( $id, $parent, $title = null, $apply = true ) {
+		$page = $this->nodes->get( $id );
+
+		if ( null === $page ) {
+			NameException::refuse( NameException::UNKNOWN_PARENT );
+		}
+
+		$parent = max( 0, (int) $parent );
+		$title  = null === $title ? $page['title'] : $title;
+
+		if ( $parent > 0 && null === $this->nodes->get( $parent ) ) {
+			NameException::refuse( NameException::UNKNOWN_PARENT );
+		}
+
+		$below = $parent;
+
+		for ( $depth = 0; $below > 0 && $depth < 64; $depth++ ) {
+			if ( $below === (int) $page['id'] ) {
+				NameException::refuse( NameException::BAD_PARENT );
+			}
+
+			$node  = $this->nodes->get( $below );
+			$below = null === $node ? 0 : (int) $node['parent'];
+		}
+
+		$refusal = $this->keys->check( $page['id'], $parent, $title );
+
+		if ( null !== $refusal ) {
+			NameException::refuse( $refusal->error_code(), $refusal->holder(), $refusal->holder_has_it_as_current() );
+		}
+
+		if ( ! $apply ) {
+			return null;
+		}
+
+		$clean = Title::title( $title );
+
+		if ( $parent === (int) $page['parent'] && $clean === $page['title'] ) {
+			return null;
+		}
+
+		$this->nodes->update( $page['id'], $parent, $clean );
+
+		try {
+			return $this->keys->claim( $page['id'], $parent, $clean );
+		} catch ( \Throwable $problem ) {
+			$this->nodes->update( $page['id'], $page['parent'], $page['title'] );
+
+			throw $problem;
+		}
+	}
+
+	/**
 	 * Gives a saved page its key from its parent and its title. A page with no title, in the trash, or an auto-draft, is left alone. Called
 	 * on every save; it can be called twice. A new title is a rename and a new parent a move.
 	 *
