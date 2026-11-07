@@ -14,6 +14,7 @@ use Otherguise\Wiki\NameException;
 use Otherguise\Wiki\Page\Saving as FirstModelSaving;
 use Otherguise\Wiki\Tree\Keys;
 use Otherguise\Wiki\Tree\Pages;
+use Otherguise\Wiki\Tree\Rules;
 use Otherguise\Wiki\Tree\Saving;
 
 require_once __DIR__ . '/support/class-otherguise-test-database-case.php';
@@ -581,5 +582,48 @@ class WikiTreePagesDbTest extends Otherguise_Test_Database_Case {
 			),
 			$lines
 		);
+	}
+
+	/**
+	 * A new page starts with the template of its branch: set when the page is created, or at its first key when it comes from the editor;
+	 * a page that has a template keeps it, and a template chosen later is not taken back.
+	 *
+	 * @return void
+	 */
+	public function test_a_new_page_starts_with_the_template_of_its_branch(): void {
+		$stored = array();
+		$rules  = new Rules(
+			static function ( $id ) use ( &$stored ) {
+				return $stored[ $id ] ?? '';
+			},
+			fn( $id ) => $this->store->pages[ $id ]['parent'] ?? 0
+		);
+		$pages  = new Pages( $this->keys, $this->store, $rules );
+		$bio    = $pages->create( 0, 'Biography', '', 'publish' );
+
+		$this->assertSame( '', $this->store->meta( $bio, '_wp_page_template' ), 'A first-level page has no branch above it.' );
+
+		$stored[ $bio ] = array( 'template' => 'page-bio' );
+		$one            = $pages->create( $bio, 'Paris', '', 'publish' );
+		$deep           = $pages->create( $one, 'Rue', '', 'publish' );
+
+		$this->assertSame( 'page-bio', $this->store->meta( $one, '_wp_page_template' ), 'Made by the service.' );
+		$this->assertSame( 'page-bio', $this->store->meta( $deep, '_wp_page_template' ), 'The rule is inherited at any depth.' );
+
+		$this->store->add( 50, 'Rome', $bio, 'publish' );
+		$pages->sync( 50 );
+
+		$this->assertSame( 'page-bio', $this->store->meta( 50, '_wp_page_template' ), 'Saved from the editor: at the first key.' );
+
+		$this->store->add( 51, 'Nice', $bio, 'publish' );
+		$this->store->set_meta( 51, '_wp_page_template', 'page-wide' );
+		$pages->sync( 51 );
+
+		$this->assertSame( 'page-wide', $this->store->meta( 51, '_wp_page_template' ), 'A template that the page has is kept.' );
+
+		$this->store->set_meta( 50, '_wp_page_template', 'default' );
+		$pages->sync( 50 );
+
+		$this->assertSame( 'default', $this->store->meta( 50, '_wp_page_template' ), 'A later choice is not taken back: it is only said at the first key.' );
 	}
 }

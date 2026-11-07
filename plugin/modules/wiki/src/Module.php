@@ -18,6 +18,7 @@ use Otherguise\Wiki\Address\Router;
 use Otherguise\Wiki\Admin\SettingsScreen;
 use Otherguise\Wiki\Cli\PagesCommand;
 use Otherguise\Wiki\Cli\TreeCommand;
+use Otherguise\Wiki\Editor\RulesPanel;
 use Otherguise\Wiki\Editor\SpacePanel;
 use Otherguise\Wiki\Missing\CreateAction;
 use Otherguise\Wiki\Missing\MissingPage;
@@ -30,9 +31,13 @@ use Otherguise\Wiki\Page\Saving;
 use Otherguise\Wiki\Page\SpaceBox;
 use Otherguise\Triples\Predicate\PredicateDefinition;
 use Otherguise\Wiki\Space\Spaces;
+use Otherguise\Wiki\Rest\RulesRoutes;
+use Otherguise\Wiki\Tree\Branch;
 use Otherguise\Wiki\Tree\Keys;
 use Otherguise\Wiki\Tree\Nodes;
 use Otherguise\Wiki\Tree\Pages as TreePages;
+use Otherguise\Wiki\Tree\Rules;
+use Otherguise\Wiki\Tree\RulesMeta;
 use Otherguise\Wiki\Tree\Saving as TreeSaving;
 
 defined( 'ABSPATH' ) || exit;
@@ -93,6 +98,13 @@ final class Module implements ModuleInterface, DescribedModule, DisabledByDefaul
 	private $tree = null;
 
 	/**
+	 * The rules of the branches, built when they are needed.
+	 *
+	 * @var Rules|null
+	 */
+	private $rules = null;
+
+	/**
 	 * Builds the module.
 	 *
 	 * @param callable|null $add_action Adds an action or a filter; defaults to WordPress `add_action`.
@@ -150,6 +162,28 @@ final class Module implements ModuleInterface, DescribedModule, DisabledByDefaul
 		( $this->add_action )( 'cli_init', array( $this, 'register_command' ), 10, 0 );
 
 		$tree_saving = new TreeSaving( array( $this, 'tree' ) );
+		$branch      = new Branch( $this->rules() );
+		$rules_meta  = new RulesMeta();
+		$rules_route = new RulesRoutes( $this->rules() );
+
+		( $this->add_action )( 'init', array( $rules_meta, 'register' ), 10, 0 );
+		( $this->add_action )( 'init', array( $branch, 'register_block' ), 10, 0 );
+		( $this->add_action )( 'body_class', array( $branch, 'body_class' ), 10, 1 );
+		( $this->add_action )( 'page_template_hierarchy', array( $branch, 'templates' ), 10, 1 );
+		( $this->add_action )( 'rest_api_init', array( $rules_route, 'register' ), 10, 0 );
+		( $this->add_action )(
+			'enqueue_block_editor_assets',
+			array(
+				new RulesPanel(
+					static function ( $file ) {
+						return plugins_url( 'modules/wiki/editor/rules/' . $file, OTHERGUISE_PLUGIN_FILE );
+					}
+				),
+				'enqueue',
+			),
+			10,
+			0
+		);
 
 		( $this->add_action )( 'rest_pre_insert_' . Nodes::TYPE, array( $tree_saving, 'check_rest' ), 10, 2 );
 		( $this->add_action )( 'rest_after_insert_' . Nodes::TYPE, array( $tree_saving, 'after_rest' ), 10, 1 );
@@ -385,13 +419,26 @@ final class Module implements ModuleInterface, DescribedModule, DisabledByDefaul
 	}
 
 	/**
+	 * The rules of the branches (the hierarchical model, slice 500): set on any page, inherited by its descendants.
+	 *
+	 * @return Rules
+	 */
+	public function rules() {
+		if ( null === $this->rules ) {
+			$this->rules = new Rules();
+		}
+
+		return $this->rules;
+	}
+
+	/**
 	 * The pages of the tree (the hierarchical model, slice 502): the index of the tree and the pages of WordPress.
 	 *
 	 * @return TreePages
 	 */
 	public function tree() {
 		if ( null === $this->tree ) {
-			$this->tree = new TreePages( $this->keys(), new Nodes() );
+			$this->tree = new TreePages( $this->keys(), new Nodes(), $this->rules() );
 		}
 
 		return $this->tree;

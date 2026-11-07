@@ -41,11 +41,11 @@ Numbering: `0xx` foundation, `1xx` Triples, `2xx` Modes (and the first slices of
 
 The module Wiki, on the level 3 of the design note (an address of our own); **proposed on 2026-11-06; developed on the branch `wiki`** (the moratorium of the SelfPedia was lifted by Eric on 2026-11-06 to validate the feasibility of the migration). See [`../design/wiki.md`](../design/wiki.md).
 
-**Read before the slices 500 to 508 (2026-11-07):** they describe the **first model** (spaces, a flat type `wiki_page`, addresses `Space:Title`); the slices 500 to 504 are coded on the branch as written (**the 501 and the 502 are now rewritten and coded for the second model**, the others not yet). Eric's chosen direction is now the **hierarchy of the pages of WordPress with rules per branch** (design note, "The model"): the slices **500, 503 and 504 are to be reworked and 505 to 508 to be rewritten** (501 and 502 are done) for it, **nothing is reworked yet**; the slice documents stay accurate as a description of the code they describe.
+**Read before the slices 500 to 508 (2026-11-07):** they describe the **first model** (spaces, a flat type `wiki_page`, addresses `Space:Title`); the slices 500 to 504 are coded on the branch as written (**the 501 and the 502 are now rewritten and coded for the second model**, the others not yet). Eric's chosen direction is now the **hierarchy of the pages of WordPress with rules per branch** (design note, "The model"): the slices **503 and 504 are to be reworked and 505 to 508 to be rewritten** (500, 501 and 502 are done) for it; the slice documents stay accurate as a description of the code they describe.
 
 | Slice | Title |
 |---|---|
-| [500](500-wiki-module-and-spaces.md) | Wiki: the module and the spaces (the registry of the spaces and its screen) — **coded on the branch `wiki`**, not merged |
+| [500](500-wiki-module-and-spaces.md) | Wiki: the module switch (off by default) and the rules of a branch — **reworked and coded on the branch `wiki`**, not merged |
 | [501](501-wiki-names.md) | Wiki: the titles and the index of the tree (the rules, the keys as statements of `triples`, the service) — **rewritten for the hierarchical model and coded on the branch `wiki`**, not merged |
 | [502](502-wiki-pages.md) | Wiki: the pages (the type `page`, the check of the key at saving, creation under a parent) — **rewritten for the hierarchical model and coded on the branch `wiki`**, not merged |
 | [503](503-wiki-addresses.md) | Wiki: the addresses and the routing (`/Space:Title`, the canonical form, the redirects) — **coded on the branch `wiki`**, not merged |

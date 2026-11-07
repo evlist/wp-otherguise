@@ -40,14 +40,23 @@ final class Pages {
 	private $nodes;
 
 	/**
+	 * The rules of the branches, for the template a new page starts with; null for none.
+	 *
+	 * @var Rules|null
+	 */
+	private $rules;
+
+	/**
 	 * Builds the service.
 	 *
-	 * @param Keys  $keys  The index of the tree.
-	 * @param Nodes $nodes The posts.
+	 * @param Keys       $keys  The index of the tree.
+	 * @param Nodes      $nodes The posts.
+	 * @param Rules|null $rules The rules of the branches.
 	 */
-	public function __construct( Keys $keys, Nodes $nodes ) {
+	public function __construct( Keys $keys, Nodes $nodes, $rules = null ) {
 		$this->keys  = $keys;
 		$this->nodes = $nodes;
+		$this->rules = $rules;
 	}
 
 	/**
@@ -102,6 +111,8 @@ final class Pages {
 			throw $problem;
 		}
 
+		$this->start_template( $id, $parent_id );
+
 		return $id;
 	}
 
@@ -120,7 +131,36 @@ final class Pages {
 			return null;
 		}
 
-		return $this->keys->claim( $page['id'], $page['parent'], $page['title'] );
+		$first = null === $this->keys->current_of( $page['id'] );
+		$done  = $this->keys->claim( $page['id'], $page['parent'], $page['title'] );
+
+		if ( $first ) {
+			$this->start_template( $page['id'], $page['parent'] );
+		}
+
+		return $done;
+	}
+
+	/**
+	 * A new page starts with the template of its branch (the effective rule of its parent) when it has none: said once, at its first key, so
+	 * that a template chosen later is not taken back.
+	 *
+	 * @param int $id     The page.
+	 * @param int $parent Its parent.
+	 * @return void
+	 */
+	private function start_template( $id, $parent ) {
+		if ( null === $this->rules || $parent <= 0 ) {
+			return;
+		}
+
+		$this->rules->forget();
+
+		$slug = $this->rules->value( $parent, 'template' );
+
+		if ( '' !== $slug && in_array( $this->nodes->meta( $id, '_wp_page_template' ), array( '', 'default' ), true ) ) {
+			$this->nodes->set_meta( $id, '_wp_page_template', $slug );
+		}
 	}
 
 	/**

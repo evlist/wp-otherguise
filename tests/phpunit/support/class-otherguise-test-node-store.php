@@ -102,6 +102,29 @@ class Otherguise_Test_Node_Store extends Nodes {
 	}
 
 	/**
+	 * Reads a meta.
+	 *
+	 * @param int    $id  Page.
+	 * @param string $key Key.
+	 * @return string
+	 */
+	public function meta( $id, $key ) {
+		return (string) ( $this->pages[ $id ]['meta'][ $key ] ?? '' );
+	}
+
+	/**
+	 * Writes a meta.
+	 *
+	 * @param int    $id    Page.
+	 * @param string $key   Key.
+	 * @param string $value Value.
+	 * @return void
+	 */
+	public function set_meta( $id, $key, $value ) {
+		$this->pages[ $id ]['meta'][ $key ] = $value;
+	}
+
+	/**
 	 * Changes the status of a page.
 	 *
 	 * @param int    $id     Page.

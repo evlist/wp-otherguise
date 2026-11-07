@@ -64,6 +64,29 @@ class Nodes {
 	}
 
 	/**
+	 * Reads a meta of a page.
+	 *
+	 * @param int    $id  Page.
+	 * @param string $key Key.
+	 * @return string
+	 */
+	public function meta( $id, $key ) {
+		return (string) get_post_meta( (int) $id, (string) $key, true );
+	}
+
+	/**
+	 * Writes a meta of a page.
+	 *
+	 * @param int    $id    Page.
+	 * @param string $key   Key.
+	 * @param string $value Value.
+	 * @return void
+	 */
+	public function set_meta( $id, $key, $value ) {
+		update_post_meta( (int) $id, (string) $key, (string) $value );
+	}
+
+	/**
 	 * Changes the status of a page.
 	 *
 	 * @param int    $id     Page.
