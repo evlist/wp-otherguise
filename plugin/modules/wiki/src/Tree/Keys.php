@@ -388,8 +388,9 @@ final class Keys {
 	 * does not read posts.
 	 *
 	 * @param iterable<int, array{post: int, parent: int, title: mixed}> $pages The pages.
-	 * @return array{done: int, refused: array<int, array{post: int, code: string, holder: int}>} The number of keys made, and the pages that
-	 *         were refused with the reason (a bad title, a key that an alias of another page already holds).
+	 * @return array{done: int, refused: array<int, array{post: int, code: string, holder: int}>, orphans: int} The number of keys made, the pages
+	 *         that were refused with the reason (a bad title, a key that an alias of another page already holds), and the aliases of pages that
+	 *         are not in the list, which were deleted.
 	 */
 	public function rebuild( $pages ) {
 		return $this->statements()->transaction(
@@ -405,9 +406,13 @@ final class Keys {
 				$report = array(
 					'done'    => 0,
 					'refused' => array(),
+					'orphans' => 0,
 				);
+				$known  = array();
 
 				foreach ( $pages as $page ) {
+					$known[ (int) $page['post'] ] = true;
+
 					try {
 						$this->claim( $page['post'], $page['parent'], $page['title'] );
 						++$report['done'];
@@ -417,6 +422,14 @@ final class Keys {
 							'code'   => $refusal->error_code(),
 							'holder' => $refusal->holder(),
 						);
+					}
+				}
+
+				// An alias of a page that no longer exists would hold its key for nothing (a deletion that left it behind).
+				foreach ( $statements->match( null, self::FORMER ) as $statement ) {
+					if ( ! isset( $known[ (int) $statement->subject()->id() ] ) ) {
+						$statements->delete( $statement );
+						++$report['orphans'];
 					}
 				}
 

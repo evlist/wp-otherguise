@@ -340,8 +340,8 @@ final class TreeCommand {
 	}
 
 	/**
-	 * Makes the keys again from the pages of the site: the current keys are deleted and made again, the aliases are kept, and the pages that
-	 * cannot have their key are listed.
+	 * Makes the keys again from the pages of the site: the current keys are deleted and made again, the aliases of the pages that exist are kept
+	 * (those of pages that no longer exist are removed), and the pages that cannot have their key are listed.
 	 *
 	 * @param array $args  Positional arguments.
 	 * @param array $assoc Options.
@@ -356,6 +356,6 @@ final class TreeCommand {
 			( $this->log )( 'Page ' . $page['post'] . ' refused: ' . $page['code'] . ( $page['holder'] > 0 ? ', the key is held by page ' . $page['holder'] : '' ) );
 		}
 
-		( $this->success )( $report['done'] . ' key(s) made, ' . count( $report['refused'] ) . ' page(s) refused.' );
+		( $this->success )( $report['done'] . ' key(s) made, ' . count( $report['refused'] ) . ' page(s) refused, ' . $report['orphans'] . ' alias(es) of vanished pages removed.' );
 	}
 }

@@ -564,6 +564,7 @@ class WikiKeysDbTest extends Otherguise_Test_Database_Case {
 		$this->tree();
 		$this->keys->claim( 5, 1, 'Lutèce' );
 		$this->keys->claim( 9, 0, 'Stale' );
+		$this->keys->claim( 9, 0, 'Stale too' );
 
 		$report = $this->keys->rebuild(
 			array(
@@ -618,7 +619,8 @@ class WikiKeysDbTest extends Otherguise_Test_Database_Case {
 			'Paris is an alias of page 5: kept, so page 10 cannot have it.'
 		);
 		$this->assertNull( $this->keys->current_of( 9 ), 'The key that no list gives is gone.' );
-		$this->assertNull( $this->keys->resolve( 0, 'Stale' ) );
+		$this->assertNull( $this->keys->resolve( 0, 'Stale' ), 'The alias of a page that is not in the list is gone too.' );
+		$this->assertSame( 1, $report['orphans'] );
 		$this->assertSame( array( '1/Paris' ), $this->keys->aliases_of( 5 ), 'The aliases are kept.' );
 		$this->assertSame( 5, $this->keys->resolve( 1, 'Lutèce' )['post'] );
 	}
