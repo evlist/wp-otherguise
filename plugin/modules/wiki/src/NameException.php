@@ -24,6 +24,11 @@ final class NameException extends \RuntimeException {
 	public const TOO_LONG           = 'wiki_name_too_long';
 	public const UNKNOWN_SPACE      = 'wiki_name_unknown_space';
 	public const TAKEN              = 'wiki_name_taken';
+	public const SLASH              = 'wiki_name_slash';
+	public const DOTS               = 'wiki_name_dots';
+	public const DIGITS             = 'wiki_name_digits';
+	public const RESERVED           = 'wiki_name_reserved';
+	public const BAD_PARENT         = 'wiki_name_bad_parent';
 
 	/**
 	 * Code of the refusal.
@@ -107,6 +112,11 @@ final class NameException extends \RuntimeException {
 			self::TOO_LONG          => __( 'A qualified name is at most 191 bytes in UTF-8.', 'otherguise' ),
 			self::UNKNOWN_SPACE     => __( 'There is no such space.', 'otherguise' ),
 			self::TAKEN             => __( 'Another page has this name.', 'otherguise' ),
+			self::SLASH             => __( 'A title has no slash: it separates the levels.', 'otherguise' ),
+			self::DOTS              => __( 'A title is not "." or "..".', 'otherguise' ),
+			self::DIGITS            => __( 'A title of the first level is not made only of digits.', 'otherguise' ),
+			self::RESERVED          => __( 'A page of the first level cannot have this title: the address belongs to something else.', 'otherguise' ),
+			self::BAD_PARENT        => __( 'A page cannot be its own parent.', 'otherguise' ),
 		);
 
 		$exception = new self( $error_code, esc_html( $messages[ $error_code ] ), $holder, $current );

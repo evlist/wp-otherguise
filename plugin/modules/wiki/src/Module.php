@@ -27,6 +27,7 @@ use Otherguise\Wiki\Page\Saving;
 use Otherguise\Wiki\Page\SpaceBox;
 use Otherguise\Triples\Predicate\PredicateDefinition;
 use Otherguise\Wiki\Space\Spaces;
+use Otherguise\Wiki\Tree\Keys;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -70,6 +71,13 @@ final class Module implements ModuleInterface {
 	 * @var MissingPage|null
 	 */
 	private $missing = null;
+
+	/**
+	 * The index of the tree, built when it is needed.
+	 *
+	 * @var Keys|null
+	 */
+	private $keys = null;
 
 	/**
 	 * Builds the module.
@@ -233,6 +241,72 @@ final class Module implements ModuleInterface {
 				)
 			)
 		);
+		$predicates->register(
+			PredicateDefinition::from_array(
+				array(
+					'slug'                    => Keys::KEY,
+					'label'                   => __( 'Has the key', 'otherguise' ),
+					'inverse_label'           => __( 'Is the key of', 'otherguise' ),
+					'subject_types'           => $post,
+					'object_types'            => $string,
+					'max_objects_per_subject' => 1,
+					'max_subjects_per_object' => 1,
+				)
+			)
+		);
+		$predicates->register(
+			PredicateDefinition::from_array(
+				array(
+					'slug'                    => Keys::FORMER,
+					'label'                   => __( 'Had the key', 'otherguise' ),
+					'inverse_label'           => __( 'Was the key of', 'otherguise' ),
+					'subject_types'           => $post,
+					'object_types'            => $string,
+					'max_subjects_per_object' => 1,
+				)
+			)
+		);
+		$predicates->register(
+			PredicateDefinition::from_array(
+				array(
+					'slug'                    => Keys::FOLDED,
+					'label'                   => __( 'Has the folded key', 'otherguise' ),
+					'inverse_label'           => __( 'Is the folded key of', 'otherguise' ),
+					'subject_types'           => $post,
+					'object_types'            => $string,
+					'max_objects_per_subject' => 1,
+				)
+			)
+		);
+		$predicates->register(
+			PredicateDefinition::from_array(
+				array(
+					'slug'                    => Keys::TITLE,
+					'label'                   => __( 'Has the title', 'otherguise' ),
+					'inverse_label'           => __( 'Is the title of', 'otherguise' ),
+					'subject_types'           => $post,
+					'object_types'            => $string,
+					'max_objects_per_subject' => 1,
+				)
+			)
+		);
+	}
+
+	/**
+	 * The index of the tree (the hierarchical model, slice 501): the keys of the pages, as statements of the module Triples.
+	 *
+	 * @return Keys
+	 */
+	public function keys() {
+		if ( null === $this->keys ) {
+			$this->keys = new Keys(
+				static function () {
+					return Modules::get( 'triples' )->statements();
+				}
+			);
+		}
+
+		return $this->keys;
 	}
 
 	/**

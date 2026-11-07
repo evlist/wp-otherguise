@@ -137,6 +137,10 @@ class WikiModuleTest extends TestCase {
 				'wiki/former-name' => array( array( 'post' ), array( 'string' ), null, 1 ),
 				'wiki/folded-name' => array( array( 'post' ), array( 'string' ), 1, null ),
 				'wiki/space'       => array( array( 'post' ), array( 'string' ), 1, null ),
+				'wiki/key'         => array( array( 'post' ), array( 'string' ), 1, 1 ),
+				'wiki/former-key'  => array( array( 'post' ), array( 'string' ), null, 1 ),
+				'wiki/folded-key'  => array( array( 'post' ), array( 'string' ), 1, null ),
+				'wiki/title'       => array( array( 'post' ), array( 'string' ), 1, null ),
 			),
 			$limits
 		);
