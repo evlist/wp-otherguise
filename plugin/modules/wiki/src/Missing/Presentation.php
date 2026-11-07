@@ -75,7 +75,7 @@ final class Presentation {
 			array(
 				'api_version'     => 3,
 				'title'           => __( 'Wiki: page that does not exist', 'otherguise' ),
-				'description'     => __( 'On the 404 of a wiki address: what was asked, the offer to create the page, the same title in other spaces and the similar pages.', 'otherguise' ),
+				'description'     => __( 'On the 404 of a path of the tree: what was asked, the approaching paths, the same title elsewhere and the offer to create the page.', 'otherguise' ),
 				'category'        => 'widgets',
 				'supports'        => array(
 					'html'         => false,

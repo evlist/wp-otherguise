@@ -295,6 +295,12 @@ class WikiTreeRouterDbTest extends Otherguise_Test_Database_Case {
 
 		$this->assertSame( array( 'name' => 'hello-world' ), $wp->query_vars );
 
+		$wp = $this->wp( 'biography/whatever', array( 'attachment' => 'whatever' ) );
+		$router->parse_request( $wp );
+
+		$this->assertSame( array( 'error' => '404' ), $wp->query_vars );
+		$this->assertSame( 0, $router->missing()['deepest'] );
+
 		$wp = $this->wp( 'Nowhere/Paris', array( 'error' => '404' ) );
 		$router->parse_request( $wp );
 

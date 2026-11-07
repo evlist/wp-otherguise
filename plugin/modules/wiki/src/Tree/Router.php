@@ -21,7 +21,7 @@ defined( 'ABSPATH' ) || exit;
  * - The path is walked one level at a time through the index (`Keys`). A page found at its canonical address is **served as it is**
  *   (`page_id`); an alias, a lower-case encoding or a trailing slash is a **301** to the canonical address.
  * - A path that does not resolve is left to WordPress **unless it enters the tree** (its first title exists) **or WordPress would find a
- *   page of the tree by its slug**: it is then a **404** that remembers where the path stopped (`missing()`, for slice 504). **There is no
+ *   page of the tree by its slug**, or **its first title is a first-level title written another way** (an accent or a case): it is then a **404** that remembers where the path stopped (`missing()`, for slice 504). **There is no
  *   slug door.**
  * - The `redirect_canonical` of WordPress is turned off for the requests that are ours: it adds a trailing slash, which our own redirect
  *   removes (a loop), and it guesses slugs; its guess for a 404 that is not ours never lands on a page of the tree (`guess()`).
@@ -182,7 +182,7 @@ final class Router {
 			return;
 		}
 
-		if ( $walk['deepest'] > 0 || $this->slug_is_ours( $wp->query_vars ) ) {
+		if ( $walk['deepest'] > 0 || $this->slug_is_ours( $wp->query_vars ) || array() !== $this->keys->similar( 0, $titles[0] ) ) {
 			$this->ours    = true;
 			$this->missing = array(
 				'deepest' => (int) $walk['deepest'],

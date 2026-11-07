@@ -195,7 +195,7 @@ final class Module implements ModuleInterface, DescribedModule, DisabledByDefaul
 		( $this->add_action )( 'page_link', array( $this->tree_router(), 'page_link' ), 10, 2 );
 
 		$presentation = new Presentation( $this->missing(), dirname( __DIR__ ) . '/templates/missing-page.php' );
-		$create       = new CreateAction( $this->pages(), $this->missing() );
+		$create       = new CreateAction( $this->tree(), $this->missing() );
 
 		( $this->add_action )( 'init', array( $presentation, 'register_block' ), 10, 0 );
 		( $this->add_action )( 'init', array( $presentation, 'register_template' ), 10, 0 );
@@ -399,7 +399,7 @@ final class Module implements ModuleInterface, DescribedModule, DisabledByDefaul
 	 */
 	public function missing() {
 		if ( null === $this->missing ) {
-			$this->missing = new MissingPage( $this->names() );
+			$this->missing = new MissingPage( $this->keys(), $this->tree_router() );
 		}
 
 		return $this->missing;
