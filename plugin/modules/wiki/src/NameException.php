@@ -29,6 +29,7 @@ final class NameException extends \RuntimeException {
 	public const DIGITS             = 'wiki_name_digits';
 	public const RESERVED           = 'wiki_name_reserved';
 	public const BAD_PARENT         = 'wiki_name_bad_parent';
+	public const UNKNOWN_PARENT     = 'wiki_name_unknown_parent';
 
 	/**
 	 * Code of the refusal.
@@ -117,6 +118,7 @@ final class NameException extends \RuntimeException {
 			self::DIGITS            => __( 'A title of the first level is not made only of digits.', 'otherguise' ),
 			self::RESERVED          => __( 'A page of the first level cannot have this title: the address belongs to something else.', 'otherguise' ),
 			self::BAD_PARENT        => __( 'A page cannot be its own parent.', 'otherguise' ),
+			self::UNKNOWN_PARENT    => __( 'There is no such parent page.', 'otherguise' ),
 		);
 
 		$exception = new self( $error_code, esc_html( $messages[ $error_code ] ), $holder, $current );

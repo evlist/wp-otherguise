@@ -15,6 +15,7 @@ use Otherguise\Core\Modules;
 use Otherguise\Wiki\Address\Router;
 use Otherguise\Wiki\Admin\SettingsScreen;
 use Otherguise\Wiki\Cli\PagesCommand;
+use Otherguise\Wiki\Cli\TreeCommand;
 use Otherguise\Wiki\Editor\SpacePanel;
 use Otherguise\Wiki\Missing\CreateAction;
 use Otherguise\Wiki\Missing\MissingPage;
@@ -28,6 +29,9 @@ use Otherguise\Wiki\Page\SpaceBox;
 use Otherguise\Triples\Predicate\PredicateDefinition;
 use Otherguise\Wiki\Space\Spaces;
 use Otherguise\Wiki\Tree\Keys;
+use Otherguise\Wiki\Tree\Nodes;
+use Otherguise\Wiki\Tree\Pages as TreePages;
+use Otherguise\Wiki\Tree\Saving as TreeSaving;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -78,6 +82,13 @@ final class Module implements ModuleInterface {
 	 * @var Keys|null
 	 */
 	private $keys = null;
+
+	/**
+	 * The pages of the tree, built when they are needed.
+	 *
+	 * @var TreePages|null
+	 */
+	private $tree = null;
 
 	/**
 	 * Builds the module.
@@ -135,6 +146,12 @@ final class Module implements ModuleInterface {
 		( $this->add_action )( 'rest_after_insert_' . PageStore::TYPE, array( $saving, 'after_rest' ), 10, 1 );
 		( $this->add_action )( 'wp_after_insert_post', array( $saving, 'after_insert' ), 10, 1 );
 		( $this->add_action )( 'cli_init', array( $this, 'register_command' ), 10, 0 );
+
+		$tree_saving = new TreeSaving( array( $this, 'tree' ) );
+
+		( $this->add_action )( 'rest_pre_insert_' . Nodes::TYPE, array( $tree_saving, 'check_rest' ), 10, 2 );
+		( $this->add_action )( 'rest_after_insert_' . Nodes::TYPE, array( $tree_saving, 'after_rest' ), 10, 1 );
+		( $this->add_action )( 'wp_after_insert_post', array( $tree_saving, 'after_insert' ), 10, 1 );
 		( $this->add_action )( 'init', array( $this->router(), 'add_rule' ), 10, 0 );
 		( $this->add_action )( 'init', array( $this->router(), 'maybe_flush' ), 99, 0 );
 		( $this->add_action )( 'query_vars', array( $this->router(), 'query_vars' ), 10, 1 );
@@ -366,12 +383,26 @@ final class Module implements ModuleInterface {
 	}
 
 	/**
-	 * Registers the WP-CLI commands `wp otherguise wiki`. Action `cli_init`.
+	 * The pages of the tree (the hierarchical model, slice 502): the index of the tree and the pages of WordPress.
+	 *
+	 * @return TreePages
+	 */
+	public function tree() {
+		if ( null === $this->tree ) {
+			$this->tree = new TreePages( $this->keys(), new Nodes() );
+		}
+
+		return $this->tree;
+	}
+
+	/**
+	 * Registers the WP-CLI commands `wp otherguise wiki` and `wp otherguise tree`. Action `cli_init`.
 	 *
 	 * @return void
 	 */
 	public function register_command() {
 		\WP_CLI::add_command( 'otherguise wiki', new PagesCommand( $this->pages() ) );
+		\WP_CLI::add_command( 'otherguise tree', new TreeCommand( $this->tree() ) );
 	}
 
 	/**

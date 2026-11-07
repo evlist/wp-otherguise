@@ -123,6 +123,42 @@ final class Keys {
 	}
 
 	/**
+	 * Tells why a title cannot be given to a page under a parent, **without writing anything**: the check made before a save.
+	 *
+	 * @param int   $post_id   The page (0 for a new one).
+	 * @param int   $parent_id The parent (0 for the first level).
+	 * @param mixed $title     The title as typed.
+	 * @return NameException|null The refusal, or null when the key is free (or already the page's own).
+	 */
+	public function check( $post_id, $parent_id, $title ) {
+		try {
+			$post_id   = (int) $post_id;
+			$parent_id = max( 0, (int) $parent_id );
+
+			if ( $post_id > 0 && $parent_id === $post_id ) {
+				NameException::refuse( NameException::BAD_PARENT );
+			}
+
+			$key   = Title::key( $parent_id, $title );
+			$parts = Title::split( $key );
+
+			if ( 0 === $parent_id && null !== $this->reserved && (bool) ( $this->reserved )( $parts['title'] ) ) {
+				NameException::refuse( NameException::RESERVED );
+			}
+
+			$holder = $this->holder( $key );
+
+			if ( null !== $holder && $holder['post'] !== $post_id ) {
+				NameException::refuse( NameException::TAKEN, $holder['post'], $holder['current'] );
+			}
+		} catch ( NameException $refusal ) {
+			return $refusal;
+		}
+
+		return null;
+	}
+
+	/**
 	 * Finds the page that has a title under a parent, as a current key or as an alias. One indexed query, then the aliases.
 	 *
 	 * @param int   $parent_id The parent (0 for the first level).
