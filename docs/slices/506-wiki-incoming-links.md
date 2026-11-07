@@ -3,37 +3,42 @@
 
 # Slice 506 — Wiki: the incoming links and the wanted pages
 
-Status: **proposed (2026-11-06; rewritten the same day, the links are the ordinary links of slice 505), not coded**. Dependencies: slices 501 (the names), 505 (`Address::name_of()`, the links), Triples. Context: [`../design/wiki.md`](../design/wiki.md): "which pages cite this one" is the piece that WordPress does not have, and the equivalent of `Special:WantedPages` that Eric uses to write the autobiography.
+Status: **rewritten for the hierarchical model and coded on the branch `wiki` (2026-11-07)**, not merged into `main`. Dependencies: slices 501, 502, 505 (the links), Triples. Context: [`../design/wiki.md`](../design/wiki.md): "which pages cite this one" is what WordPress does not have, and the equivalent of `Special:WantedPages` that Eric uses to write the autobiography.
 
 ## What it does
 
-An **index of the links** kept up to date when a page is saved, in statements of `triples`, and two readings of it. A link is **an ordinary link** (`<a href>`) whose address stands for a name of the wiki (slice 505); there is no shortcode.
-
-### The statements
+An **index of the ordinary links** (`<a href>` whose address stands for a path of the tree, slice 505), kept in `triples` (`Tree\Citations`), and its readings.
 
 | Predicate | Subject | Object | Meaning |
 |---|---|---|---|
-| `wiki/cites` | a `wiki_page` | a `wiki_page` | the page has a link to that page; `inverse_label` "Cited by"; no limit |
-| `wiki/wants` | a `wiki_page` | `string`: a qualified name | the page has a link to a name that **no page has yet** |
+| `wiki/cites` | a page | a page | the page links to that page; inverse "Cited by"; no limit |
+| `wiki/wants` | a page | `string`: a path of titles joined by `/` (`Biography/Nobody`) | the page links to a path that **enters the tree and stops** (a red link); a path over 191 bytes is not recorded |
 
-A link is kept **by the id of the page** (`wiki/cites`), so it **survives a rename or a move** (slice 505).
+A link is kept **by id**: it survives a rename or a move, and an alias counts as the page that has it.
 
 ### Kept up to date
 
-- **When a page is saved**: the anchors of its content are read (`WP_HTML_Tag_Processor`, the same as the render of slice 505), each address that stands for a name is resolved; the statements of the page are **brought in line** (the missing ones added, the ones that are no longer in the text removed: one transaction, nothing written when nothing changed); a link to the page itself is left out. A name that has an alias is a link to the page that has it.
-- **When a name is claimed** (a page created, renamed, moved): the `wiki/wants` statements that hold that name become `wiki/cites` to the new page (`subjects_of()` on the literal: **one indexed query**).
-- **When a page is deleted**: the cleanup of Triples takes both directions.
-- `wp otherguise wiki links --rebuild [--dry-run]`: reads every page again (can be run twice) and reports what changed.
+- **On save** (`wp_after_insert_post`, priority 20, any page that is not an auto-draft, trashed or a revision): the anchors are read with `WP_HTML_Tag_Processor`; the statements of the page are **brought in line** (missing ones added, ones no longer in the text removed, one transaction; `sync()` says whether anything changed). A link to the page itself is left out. Drafts are indexed too; **readers are filtered when they read**.
+- **When a page is given a key** (created, renamed, moved, first saved: `Pages` calls back `Citations::claimed()`): the `wants` of its path become `cites` to it (one indexed query).
+- **Deletion**: the cleanup of Triples takes both directions.
+- **`wp otherguise tree links [--dry-run]`**: reads every page that is not in the trash again; reports pages read and changed; can be run twice.
 
 ### Readings
 
-- **A block `wiki/cited-by`**: the pages that cite this one, with the label of their space, in the order of their titles; only the pages that the reader may see; nothing when there is none.
-- **The wanted pages**: a screen under **Wiki** (and `wp otherguise wiki wanted`): each missing qualified name with **how many pages want it** and which, and a link to the offer of slice 504 (a user who may create makes the page from the list); sorted by the number of pages, then by name.
+- **Block `wiki/cited-by`** (server-rendered, `autoRegister`, class `wiki-cited-by`): the pages that cite the current page, by address, **only those the reader may see**, nothing when there is none.
+- **Wanted pages**: screen **Otherguise → Wanted pages** (read-only, capability `edit_pages`, filter `wiki_wanted_capability`, declared to the overview) and `wp otherguise tree wanted`: each wanted path with the pages that want it, **most wanted first, then by path**; the address leads to the offer of slice 504 where a user who may create makes the page or the chain.
 
-## Tests (planned)
+## Tests
 
-Predicates (registered, no limit); saving a page (a link added, removed, resolved, to an alias, missing, to itself, an address that is not the wiki's; nothing written when nothing changed); the claim of a name that turns wants into cites; deletion; `--rebuild` and its report; the block (the order, the visibility, the empty case); the wanted list (the counts, the order, a name that was created in the meantime is no longer there); the screen (capability, as the other screens of the menu).
+`WikiTreeCitationsDbTest` (6, real statements, tag processor from `OTHERGUISE_WP_CORE`, skipped without it): reading a content; sync (added, removed, nothing written when unchanged, itself left out); links surviving a move; creating a wanted page turns wants into cites and updates the count; rebuild (dry run, real, second run); the block (visibility, empty). `WikiModuleTest` (predicates, hooks). Suite OK (833), `phpcs` clean.
+
+## Verification
+
+- **Tried** on the scratch WordPress: saving a page with three links created the `cites` (through an alias of a renamed page) and two `wants`; `Tree\Pages::create` of one wanted page turned its want into a `cites` and left the other; the block printed "Cited by: /Opinion/Note 506" on the new page; the screen listed the remaining wanted path with its page, and the overview mentions it.
+- **Never tried**: `wp otherguise tree wanted` and `tree links` from a real WP-CLI (the services were called); a page saved from the block editor (the hook is the same, but not driven); the block in the Site Editor; a large site (the wanted list reads every `wiki/wants` statement: not measured); deleting a page (relied on Triples); a wanted path whose ancestors are renamed afterwards (the string is kept as written and is not rewritten); the blog instance.
 
 ## Not done
 
-Links written in a form other than an address of the wiki (a link to the blog, to another instance: see the design note); links in the pages that are not `wiki_page`; the link in the printed book: a link to an encyclopaedic page becoming a note (a subject of Books, not analysed).
+- Links written in another form than an address of the site; links in the printed book (a subject of Books).
+- Wanted paths whose first title is unknown (a first-level page that does not exist yet is not a red link, slice 505).
+- A cache or a paging of the wanted list.

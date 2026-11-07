@@ -155,6 +155,24 @@ class Otherguise_Test_Node_Store extends Nodes {
 	}
 
 	/**
+	 * Every page with its content.
+	 *
+	 * @return array<int, array{id: int, content: string}>
+	 */
+	public function contents() {
+		$list = array();
+
+		foreach ( $this->pages as $id => $page ) {
+			$list[] = array(
+				'id'      => (int) $id,
+				'content' => (string) ( $page['content'] ?? '' ),
+			);
+		}
+
+		return $list;
+	}
+
+	/**
 	 * Every page, as the list that `Keys::rebuild()` takes.
 	 *
 	 * @return array<int, array{post: int, parent: int, title: string}>

@@ -124,6 +124,32 @@ class Nodes {
 	}
 
 	/**
+	 * Every page that is not in the trash, with its content: what the index of the links reads.
+	 *
+	 * @return array<int, array{id: int, content: string}>
+	 */
+	public function contents() {
+		$list = array();
+
+		foreach ( get_posts(
+			array(
+				'post_type'      => self::TYPE,
+				'post_status'    => array( 'publish', 'future', 'draft', 'pending', 'private' ),
+				'posts_per_page' => -1,
+				'orderby'        => 'ID',
+				'order'          => 'ASC',
+			)
+		) as $post ) {
+			$list[] = array(
+				'id'      => (int) $post->ID,
+				'content' => (string) $post->post_content,
+			);
+		}
+
+		return $list;
+	}
+
+	/**
 	 * Every page, trashed ones included (a page in the trash keeps its keys), without the auto-drafts: the list that `Keys::rebuild()` takes.
 	 *
 	 * @return array<int, array{post: int, parent: int, title: string}>

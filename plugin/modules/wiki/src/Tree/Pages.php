@@ -47,16 +47,25 @@ final class Pages {
 	private $rules;
 
 	/**
+	 * Called with the id of a page each time it is given a key (a creation, a rename, a move): the links that wanted its path (slice 506).
+	 *
+	 * @var callable|null
+	 */
+	private $claimed;
+
+	/**
 	 * Builds the service.
 	 *
-	 * @param Keys       $keys  The index of the tree.
-	 * @param Nodes      $nodes The posts.
-	 * @param Rules|null $rules The rules of the branches.
+	 * @param Keys          $keys    The index of the tree.
+	 * @param Nodes         $nodes   The posts.
+	 * @param Rules|null    $rules   The rules of the branches.
+	 * @param callable|null $claimed Receives the id of a page that was given a key.
 	 */
-	public function __construct( Keys $keys, Nodes $nodes, $rules = null ) {
-		$this->keys  = $keys;
-		$this->nodes = $nodes;
-		$this->rules = $rules;
+	public function __construct( Keys $keys, Nodes $nodes, $rules = null, $claimed = null ) {
+		$this->keys    = $keys;
+		$this->nodes   = $nodes;
+		$this->rules   = $rules;
+		$this->claimed = $claimed;
 	}
 
 	/**
@@ -112,6 +121,7 @@ final class Pages {
 		}
 
 		$this->start_template( $id, $parent_id );
+		$this->tell_claimed( $id );
 
 		return $id;
 	}
@@ -173,7 +183,11 @@ final class Pages {
 		$this->nodes->update( $page['id'], $parent, $clean );
 
 		try {
-			return $this->keys->claim( $page['id'], $parent, $clean );
+			$done = $this->keys->claim( $page['id'], $parent, $clean );
+
+			$this->tell_claimed( $page['id'] );
+
+			return $done;
 		} catch ( \Throwable $problem ) {
 			$this->nodes->update( $page['id'], $page['parent'], $page['title'] );
 
@@ -203,7 +217,21 @@ final class Pages {
 			$this->start_template( $page['id'], $page['parent'] );
 		}
 
+		$this->tell_claimed( $page['id'] );
+
 		return $done;
+	}
+
+	/**
+	 * Tells the listener that a page was given a key.
+	 *
+	 * @param int $id The page.
+	 * @return void
+	 */
+	private function tell_claimed( $id ) {
+		if ( null !== $this->claimed ) {
+			( $this->claimed )( (int) $id );
+		}
 	}
 
 	/**

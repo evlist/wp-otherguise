@@ -14,6 +14,9 @@ use Otherguise\Core\DescribedModule;
 use Otherguise\Core\DisabledByDefault;
 use Otherguise\Core\ModuleInterface;
 use Otherguise\Core\Modules;
+use Otherguise\Wiki\Admin\WantedScreen;
+use Otherguise\Wiki\Tree\CitedBy;
+use Otherguise\Wiki\Tree\Citations;
 use Otherguise\Wiki\Tree\Links;
 use Otherguise\Wiki\Tree\Reserved;
 use Otherguise\Wiki\Tree\SearchTitles;
@@ -78,6 +81,13 @@ final class Module implements ModuleInterface, DescribedModule, DisabledByDefaul
 	 * @var TreeRouter|null
 	 */
 	private $tree_router = null;
+
+	/**
+	 * The index of the links, built when it is needed.
+	 *
+	 * @var Citations|null
+	 */
+	private $citations = null;
 
 	/**
 	 * The page that does not exist, built when it is needed.
@@ -200,7 +210,11 @@ final class Module implements ModuleInterface, DescribedModule, DisabledByDefaul
 		$links  = new Links( $this->keys(), $this->tree_router() );
 		$search = new SearchTitles( $this->keys() );
 
+		$cited = new CitedBy( $this->citations(), $this->keys(), $this->tree_router() );
+
 		( $this->add_action )( 'the_content', array( $links, 'filter' ), 20, 1 );
+		( $this->add_action )( 'init', array( $cited, 'register_block' ), 10, 0 );
+		( $this->add_action )( 'wp_after_insert_post', array( $this, 'index_links' ), 20, 2 );
 		( $this->add_action )( 'rest_post_search_query', array( $search, 'begin' ), 10, 1 );
 		( $this->add_action )( 'rest_post_dispatch', array( $search, 'end' ), 10, 1 );
 		( $this->add_action )( 'the_title', array( $search, 'title' ), 10, 2 );
@@ -236,6 +250,7 @@ final class Module implements ModuleInterface, DescribedModule, DisabledByDefaul
 			);
 
 			( new SettingsScreen() )->register( $this->add_action );
+			( new WantedScreen( $this->citations(), $this->keys(), $this->tree_router() ) )->register( $this->add_action );
 			( $this->add_action )( 'admin_notices', array( $saving, 'notice' ), 10, 0 );
 			( $this->add_action )( 'add_meta_boxes_' . PageStore::TYPE, array( $box, 'register' ), 10, 0 );
 			( $this->add_action )( 'save_post_' . PageStore::TYPE, array( $box, 'save' ), 10, 1 );
@@ -353,6 +368,29 @@ final class Module implements ModuleInterface, DescribedModule, DisabledByDefaul
 				)
 			)
 		);
+
+		$predicates->register(
+			PredicateDefinition::from_array(
+				array(
+					'slug'          => Citations::CITES,
+					'label'         => __( 'Links to', 'otherguise' ),
+					'inverse_label' => __( 'Cited by', 'otherguise' ),
+					'subject_types' => $post,
+					'object_types'  => $post,
+				)
+			)
+		);
+		$predicates->register(
+			PredicateDefinition::from_array(
+				array(
+					'slug'          => Citations::WANTS,
+					'label'         => __( 'Wants the page', 'otherguise' ),
+					'inverse_label' => __( 'Is wanted by', 'otherguise' ),
+					'subject_types' => $post,
+					'object_types'  => $string,
+				)
+			)
+		);
 	}
 
 	/**
@@ -417,6 +455,40 @@ final class Module implements ModuleInterface, DescribedModule, DisabledByDefaul
 	}
 
 	/**
+	 * The index of the links between the pages (slice 506).
+	 *
+	 * @return Citations
+	 */
+	public function citations() {
+		if ( null === $this->citations ) {
+			$this->citations = new Citations(
+				$this->keys(),
+				new Links( $this->keys(), $this->tree_router() ),
+				static function () {
+					return Modules::get( 'triples' )->statements();
+				}
+			);
+		}
+
+		return $this->citations;
+	}
+
+	/**
+	 * Brings the links of a saved page into the index. Action `wp_after_insert_post`.
+	 *
+	 * @param mixed $post_id The page.
+	 * @param mixed $post    The post object.
+	 * @return void
+	 */
+	public function index_links( $post_id, $post = null ) {
+		if ( ! is_object( $post ) || Nodes::TYPE !== ( $post->post_type ?? '' ) || in_array( $post->post_status ?? '', array( 'auto-draft', 'trash', 'inherit' ), true ) ) {
+			return;
+		}
+
+		$this->citations()->sync( (int) $post_id, (string) ( $post->post_content ?? '' ) );
+	}
+
+	/**
 	 * The router of the tree (the hierarchical model, slice 503): no rewrite rule, the path is walked on `parse_request`.
 	 *
 	 * @return TreeRouter
@@ -449,7 +521,14 @@ final class Module implements ModuleInterface, DescribedModule, DisabledByDefaul
 	 */
 	public function tree() {
 		if ( null === $this->tree ) {
-			$this->tree = new TreePages( $this->keys(), new Nodes(), $this->rules() );
+			$this->tree = new TreePages(
+				$this->keys(),
+				new Nodes(),
+				$this->rules(),
+				function ( $id ) {
+					$this->citations()->claimed( $id );
+				}
+			);
 		}
 
 		return $this->tree;
@@ -462,7 +541,7 @@ final class Module implements ModuleInterface, DescribedModule, DisabledByDefaul
 	 */
 	public function register_command() {
 		\WP_CLI::add_command( 'otherguise wiki', new PagesCommand( $this->pages() ) );
-		\WP_CLI::add_command( 'otherguise tree', new TreeCommand( $this->tree() ) );
+		\WP_CLI::add_command( 'otherguise tree', new TreeCommand( $this->tree(), null, null, null, null, $this->citations() ) );
 	}
 
 	/**

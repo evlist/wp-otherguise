@@ -11,6 +11,7 @@
 namespace Otherguise\Wiki\Cli;
 
 use Otherguise\Wiki\NameException;
+use Otherguise\Wiki\Tree\Citations;
 use Otherguise\Wiki\Tree\Pages;
 
 defined( 'ABSPATH' ) || exit;
@@ -26,6 +27,13 @@ final class TreeCommand {
 	 * @var Pages
 	 */
 	private $pages;
+
+	/**
+	 * The index of the links, or null.
+	 *
+	 * @var Citations|null
+	 */
+	private $citations;
 
 	/**
 	 * Prints a line.
@@ -58,14 +66,16 @@ final class TreeCommand {
 	/**
 	 * Builds the command.
 	 *
-	 * @param Pages         $pages   The pages.
-	 * @param callable|null $log     Default `WP_CLI::log`.
-	 * @param callable|null $success Default `WP_CLI::success`.
-	 * @param callable|null $fail    Default `WP_CLI::error`.
-	 * @param callable|null $read    Reads a local file named on the command line; returns its content or false.
+	 * @param Pages          $pages   The pages.
+	 * @param callable|null  $log     Default `WP_CLI::log`.
+	 * @param callable|null  $success Default `WP_CLI::success`.
+	 * @param callable|null  $fail    Default `WP_CLI::error`.
+	 * @param callable|null  $read    Reads a local file named on the command line; returns its content or false.
+	 * @param Citations|null $citations The index of the links (slice 506).
 	 */
-	public function __construct( Pages $pages, $log = null, $success = null, $fail = null, $read = null ) {
-		$this->pages   = $pages;
+	public function __construct( Pages $pages, $log = null, $success = null, $fail = null, $read = null, $citations = null ) {
+		$this->pages     = $pages;
+		$this->citations = $citations;
 		$this->log     = $log ?? array( 'WP_CLI', 'log' );
 		$this->success = $success ?? array( 'WP_CLI', 'success' );
 		$this->fail    = $fail ?? array( 'WP_CLI', 'error' );
@@ -222,6 +232,58 @@ final class TreeCommand {
 		$path = $this->pages->keys()->path_of( $id );
 
 		( $this->success )( null === $key ? 'Page ' . $id . ' is already there.' : 'Page ' . $id . ' moved: ' . ( null === $path ? '' : implode( '/', $path ) ) );
+	}
+
+	/**
+	 * Lists the wanted pages: the paths that pages link to and that nobody has yet, the most wanted first.
+	 *
+	 * @param array $args  Positional arguments.
+	 * @param array $assoc Options.
+	 * @return void
+	 */
+	public function wanted( $args, $assoc ) {
+		unset( $args, $assoc );
+
+		if ( null === $this->citations ) {
+			( $this->fail )( 'The index of the links is not available.' );
+
+			return;
+		}
+
+		$wanted = $this->citations->wanted();
+
+		foreach ( $wanted as $path => $from ) {
+			( $this->log )( '/' . $path . ' (wanted by ' . count( $from ) . ': ' . implode( ', ', $from ) . ')' );
+		}
+
+		( $this->success )( count( $wanted ) . ' wanted page(s).' );
+	}
+
+	/**
+	 * Reads every page again and brings the index of the links in line with the content. Can be run twice.
+	 *
+	 * ## OPTIONS
+	 *
+	 * [--dry-run]
+	 * : Counts the pages whose statements would change, writes nothing.
+	 *
+	 * @param array $args  Positional arguments.
+	 * @param array $assoc Options.
+	 * @return void
+	 */
+	public function links( $args, $assoc ) {
+		unset( $args );
+
+		if ( null === $this->citations ) {
+			( $this->fail )( 'The index of the links is not available.' );
+
+			return;
+		}
+
+		$dry    = ! empty( $assoc['dry-run'] );
+		$report = $this->citations->rebuild( $this->pages->nodes()->contents(), ! $dry );
+
+		( $this->success )( $report['pages'] . ' page(s) read, ' . $report['changed'] . ' ' . ( $dry ? 'would change (dry run).' : 'changed.' ) );
 	}
 
 	/**

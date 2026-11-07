@@ -60,12 +60,12 @@ class WikiModuleTest extends TestCase {
 		$this->assertSame(
 			array(
 				'triples_register_predicates' => array( array( 'register_predicates', 10, 1 ) ),
-				'init'                        => array( array( 'register', 10, 0 ), array( 'register', 10, 0 ), array( 'register_block', 10, 0 ), array( 'maybe_flush', 99, 0 ), array( 'register_block', 10, 0 ), array( 'register_template', 10, 0 ) ),
+				'init'                        => array( array( 'register', 10, 0 ), array( 'register', 10, 0 ), array( 'register_block', 10, 0 ), array( 'maybe_flush', 99, 0 ), array( 'register_block', 10, 0 ), array( 'register_block', 10, 0 ), array( 'register_template', 10, 0 ) ),
 				'update_post_metadata'        => array( array( 'lock_space', 10, 4 ) ),
 				'delete_post_metadata'        => array( array( 'lock_space', 10, 4 ) ),
 				'rest_pre_insert_wiki_page'   => array( array( 'check_rest', 10, 2 ) ),
 				'rest_after_insert_wiki_page' => array( array( 'after_rest', 10, 1 ) ),
-				'wp_after_insert_post'        => array( array( 'after_insert', 10, 1 ), array( 'after_insert', 10, 1 ) ),
+				'wp_after_insert_post'        => array( array( 'after_insert', 10, 1 ), array( 'after_insert', 10, 1 ), array( 'index_links', 20, 2 ) ),
 				'cli_init'                    => array( array( 'register_command', 10, 0 ) ),
 				'body_class'                  => array( array( 'body_class', 10, 1 ) ),
 				'page_template_hierarchy'     => array( array( 'templates', 10, 1 ) ),
@@ -149,6 +149,8 @@ class WikiModuleTest extends TestCase {
 				'wiki/former-key'  => array( array( 'post' ), array( 'string' ), null, 1 ),
 				'wiki/folded-key'  => array( array( 'post' ), array( 'string' ), 1, null ),
 				'wiki/title'       => array( array( 'post' ), array( 'string' ), 1, null ),
+				'wiki/cites'       => array( array( 'post' ), array( 'post' ), null, null ),
+				'wiki/wants'       => array( array( 'post' ), array( 'string' ), null, null ),
 			),
 			$limits
 		);
