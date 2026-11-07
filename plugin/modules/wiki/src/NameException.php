@@ -20,9 +20,7 @@ final class NameException extends \RuntimeException {
 	public const BAD_ENCODING       = 'wiki_name_bad_encoding';
 	public const CONTROL_CHARACTER  = 'wiki_name_control_character';
 	public const FORBIDDEN          = 'wiki_name_forbidden_character';
-	public const BAD_SLASH          = 'wiki_name_bad_slash';
 	public const TOO_LONG           = 'wiki_name_too_long';
-	public const UNKNOWN_SPACE      = 'wiki_name_unknown_space';
 	public const TAKEN              = 'wiki_name_taken';
 	public const SLASH              = 'wiki_name_slash';
 	public const DOTS               = 'wiki_name_dots';
@@ -109,9 +107,7 @@ final class NameException extends \RuntimeException {
 			self::BAD_ENCODING      => __( 'A title is a string of UTF-8 characters.', 'otherguise' ),
 			self::CONTROL_CHARACTER => __( 'A title holds no control character.', 'otherguise' ),
 			self::FORBIDDEN         => __( 'A title holds none of the characters # ? % < > [ ] { } |.', 'otherguise' ),
-			self::BAD_SLASH         => __( 'A title does not start or end with a slash and has no two slashes in a row.', 'otherguise' ),
 			self::TOO_LONG          => __( 'A qualified name is at most 191 bytes in UTF-8.', 'otherguise' ),
-			self::UNKNOWN_SPACE     => __( 'There is no such space.', 'otherguise' ),
 			self::TAKEN             => __( 'Another page has this name.', 'otherguise' ),
 			self::SLASH             => __( 'A title has no slash: it separates the levels.', 'otherguise' ),
 			self::DOTS              => __( 'A title is not "." or "..".', 'otherguise' ),

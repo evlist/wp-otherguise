@@ -11,7 +11,6 @@
 namespace Otherguise\Wiki\Tree;
 
 use Otherguise\Wiki\NameException;
-use Otherguise\Wiki\Page\Saving as FirstModelSaving;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -22,6 +21,11 @@ defined( 'ABSPATH' ) || exit;
  * that cannot have its key is **put back to draft** with a notice, so that no published page is left without its key.
  */
 final class Saving {
+	/**
+	 * Prefix of the transient that carries the notice of a page put back to draft (with the id of the user).
+	 */
+	public const NOTICE = 'wiki_name_notice_';
+
 	/**
 	 * The statuses of a page that is seen by other people or is waiting to be.
 	 */
@@ -102,8 +106,7 @@ final class Saving {
 	}
 
 	/**
-	 * Claims the key of a page; one that cannot have it goes back to draft, with a notice for the user (the notice of the first model, which
-	 * reads the same transient).
+	 * Claims the key of a page; one that cannot have it goes back to draft, with a notice for the user (`notice()`).
 	 *
 	 * @param int $id The page.
 	 * @return void
@@ -124,8 +127,26 @@ final class Saving {
 				$pages->nodes()->set_status( $id, 'draft' );
 			}
 
-			set_transient( FirstModelSaving::NOTICE . get_current_user_id(), $refusal->getMessage(), 120 );
+			set_transient( self::NOTICE . get_current_user_id(), $refusal->getMessage(), 120 );
 		}
+	}
+
+	/**
+	 * Tells the user that a page was saved as a draft and why. Action `admin_notices`.
+	 *
+	 * @return void
+	 */
+	public function notice() {
+		$key     = self::NOTICE . get_current_user_id();
+		$message = get_transient( $key );
+
+		if ( ! is_string( $message ) || '' === $message ) {
+			return;
+		}
+
+		delete_transient( $key );
+
+		echo '<div class="notice notice-error is-dismissible"><p>' . esc_html__( 'The page was saved as a draft.', 'otherguise' ) . ' ' . esc_html( $message ) . '</p></div>';
 	}
 
 	/**

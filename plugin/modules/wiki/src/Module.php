@@ -3,7 +3,7 @@
  * SPDX-FileCopyrightText: 2026 Eric van der Vlist <vdv@dyomedea.com>
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * The functions of a wiki: spaces, names and addresses of pages.
+ * The functions of a wiki: a tree of pages with exact titles, rules per branch, links by address.
  *
  * @package Otherguise
  */
@@ -23,22 +23,12 @@ use Otherguise\Wiki\Tree\Links;
 use Otherguise\Wiki\Tree\Reserved;
 use Otherguise\Wiki\Tree\SearchTitles;
 use Otherguise\Wiki\Tree\Router as TreeRouter;
-use Otherguise\Wiki\Admin\SettingsScreen;
-use Otherguise\Wiki\Cli\PagesCommand;
 use Otherguise\Wiki\Cli\TreeCommand;
 use Otherguise\Wiki\Editor\RulesPanel;
-use Otherguise\Wiki\Editor\SpacePanel;
 use Otherguise\Wiki\Missing\CreateAction;
 use Otherguise\Wiki\Missing\MissingPage;
 use Otherguise\Wiki\Missing\Presentation;
-use Otherguise\Wiki\Page\Lists;
-use Otherguise\Wiki\Page\PageStore;
-use Otherguise\Wiki\Page\Pages;
-use Otherguise\Wiki\Page\PostType;
-use Otherguise\Wiki\Page\Saving;
-use Otherguise\Wiki\Page\SpaceBox;
 use Otherguise\Triples\Predicate\PredicateDefinition;
-use Otherguise\Wiki\Space\Spaces;
 use Otherguise\Wiki\Rest\RulesRoutes;
 use Otherguise\Wiki\Tree\Branch;
 use Otherguise\Wiki\Tree\Keys;
@@ -62,20 +52,6 @@ final class Module implements ModuleInterface, DescribedModule, DisabledByDefaul
 	 * @var callable
 	 */
 	private $add_action;
-
-	/**
-	 * The names, built when they are needed.
-	 *
-	 * @var Names|null
-	 */
-	private $names = null;
-
-	/**
-	 * The pages, built when they are needed.
-	 *
-	 * @var Pages|null
-	 */
-	private $pages = null;
 
 	/**
 	 * The router of the tree, built when it is needed.
@@ -165,21 +141,12 @@ final class Module implements ModuleInterface, DescribedModule, DisabledByDefaul
 	}
 
 	/**
-	 * Registers the predicates of the names on the registration of Triples, and the screen of the spaces in the administration.
+	 * Registers the predicates of the keys on the registration of Triples, and every hook of the tree of pages.
 	 *
 	 * @return void
 	 */
 	public function boot() {
-		$type   = new PostType();
-		$saving = new Saving( array( $this, 'pages' ) );
-
 		( $this->add_action )( 'triples_register_predicates', array( $this, 'register_predicates' ), 10, 1 );
-		( $this->add_action )( 'init', array( $type, 'register' ), 10, 0 );
-		( $this->add_action )( 'update_post_metadata', array( $type, 'lock_space' ), 10, 4 );
-		( $this->add_action )( 'delete_post_metadata', array( $type, 'lock_space' ), 10, 4 );
-		( $this->add_action )( 'rest_pre_insert_' . PageStore::TYPE, array( $saving, 'check_rest' ), 10, 2 );
-		( $this->add_action )( 'rest_after_insert_' . PageStore::TYPE, array( $saving, 'after_rest' ), 10, 1 );
-		( $this->add_action )( 'wp_after_insert_post', array( $saving, 'after_insert' ), 10, 1 );
 		( $this->add_action )( 'cli_init', array( $this, 'register_command' ), 10, 0 );
 
 		$tree_saving = new TreeSaving( array( $this, 'tree' ) );
@@ -237,41 +204,14 @@ final class Module implements ModuleInterface, DescribedModule, DisabledByDefaul
 		( $this->add_action )( '404_template_hierarchy', array( $presentation, 'hierarchy' ), 10, 1 );
 		( $this->add_action )( 'template_include', array( $presentation, 'template' ), 99, 1 );
 		( $this->add_action )( 'admin_post_' . MissingPage::ACTION, array( $create, 'handle' ), 10, 0 );
-		( $this->add_action )(
-			'enqueue_block_editor_assets',
-			array(
-				new SpacePanel(
-					static function ( $file ) {
-						return plugins_url( 'modules/wiki/editor/space/' . $file, OTHERGUISE_PLUGIN_FILE );
-					}
-				),
-				'enqueue',
-			),
-			10,
-			0
-		);
-
 		if ( is_admin() ) {
-			$box   = new SpaceBox();
-			$lists = new Lists(
-				function ( $id ) {
-					return $this->names()->current_of( $id );
-				}
-			);
-
-			( new SettingsScreen() )->register( $this->add_action );
 			( new WantedScreen( $this->citations(), $this->keys(), $this->tree_router() ) )->register( $this->add_action );
-			( $this->add_action )( 'admin_notices', array( $saving, 'notice' ), 10, 0 );
-			( $this->add_action )( 'add_meta_boxes_' . PageStore::TYPE, array( $box, 'register' ), 10, 0 );
-			( $this->add_action )( 'save_post_' . PageStore::TYPE, array( $box, 'save' ), 10, 1 );
-			( $this->add_action )( 'manage_' . PageStore::TYPE . '_posts_columns', array( $lists, 'columns' ), 10, 1 );
-			( $this->add_action )( 'manage_' . PageStore::TYPE . '_posts_custom_column', array( $lists, 'column' ), 10, 2 );
-			( $this->add_action )( 'post_row_actions', array( $lists, 'row_actions' ), 10, 2 );
+			( $this->add_action )( 'admin_notices', array( $tree_saving, 'notice' ), 10, 0 );
 		}
 	}
 
 	/**
-	 * Registers the predicates of the names (slice 501). Action `triples_register_predicates`.
+	 * Registers the predicates of the tree (slices 501, 506, 507). Action `triples_register_predicates`.
 	 *
 	 * @param \Otherguise\Triples\Predicate\PredicateRegistry $predicates Predicates.
 	 * @return void
@@ -280,55 +220,6 @@ final class Module implements ModuleInterface, DescribedModule, DisabledByDefaul
 		$string = array( 'string' );
 		$post   = array( 'post' );
 
-		$predicates->register(
-			PredicateDefinition::from_array(
-				array(
-					'slug'                    => Names::NAME,
-					'label'                   => __( 'Has the name', 'otherguise' ),
-					'inverse_label'           => __( 'Is the name of', 'otherguise' ),
-					'subject_types'           => $post,
-					'object_types'            => $string,
-					'max_objects_per_subject' => 1,
-					'max_subjects_per_object' => 1,
-				)
-			)
-		);
-		$predicates->register(
-			PredicateDefinition::from_array(
-				array(
-					'slug'                    => Names::FORMER,
-					'label'                   => __( 'Had the name', 'otherguise' ),
-					'inverse_label'           => __( 'Was the name of', 'otherguise' ),
-					'subject_types'           => $post,
-					'object_types'            => $string,
-					'max_subjects_per_object' => 1,
-				)
-			)
-		);
-		$predicates->register(
-			PredicateDefinition::from_array(
-				array(
-					'slug'                    => Names::FOLDED,
-					'label'                   => __( 'Has the folded name', 'otherguise' ),
-					'inverse_label'           => __( 'Is the folded name of', 'otherguise' ),
-					'subject_types'           => $post,
-					'object_types'            => $string,
-					'max_objects_per_subject' => 1,
-				)
-			)
-		);
-		$predicates->register(
-			PredicateDefinition::from_array(
-				array(
-					'slug'                    => Names::SPACE,
-					'label'                   => __( 'Is in the space', 'otherguise' ),
-					'inverse_label'           => __( 'Holds the page', 'otherguise' ),
-					'subject_types'           => $post,
-					'object_types'            => $string,
-					'max_objects_per_subject' => 1,
-				)
-			)
-		);
 		$predicates->register(
 			PredicateDefinition::from_array(
 				array(
@@ -431,36 +322,6 @@ final class Module implements ModuleInterface, DescribedModule, DisabledByDefaul
 		}
 
 		return $this->keys;
-	}
-
-	/**
-	 * The names of the pages: the statements of the module Triples.
-	 *
-	 * @return Names
-	 */
-	public function names() {
-		if ( null === $this->names ) {
-			$this->names = new Names(
-				static function () {
-					return Modules::get( 'triples' )->statements();
-				}
-			);
-		}
-
-		return $this->names;
-	}
-
-	/**
-	 * The pages: the names and the posts of WordPress.
-	 *
-	 * @return Pages
-	 */
-	public function pages() {
-		if ( null === $this->pages ) {
-			$this->pages = new Pages( $this->names(), new PageStore() );
-		}
-
-		return $this->pages;
 	}
 
 	/**
@@ -575,23 +436,23 @@ final class Module implements ModuleInterface, DescribedModule, DisabledByDefaul
 	}
 
 	/**
-	 * Registers the WP-CLI commands `wp otherguise wiki` and `wp otherguise tree`. Action `cli_init`.
+	 * Registers the WP-CLI command `wp otherguise tree`. Action `cli_init`.
 	 *
 	 * @return void
 	 */
 	public function register_command() {
-		\WP_CLI::add_command( 'otherguise wiki', new PagesCommand( $this->pages() ) );
 		\WP_CLI::add_command( 'otherguise tree', new TreeCommand( $this->tree(), null, null, null, null, $this->citations(), $this->angles() ) );
 	}
 
 	/**
-	 * Removes the data owned by the module: the spaces. The statements of the names stay with the table of Triples, which keeps or deletes
-	 * its data as its own setting says (`delete_data_on_uninstall`); the index can be made again (`Names::rebuild()`).
+	 * Removes the data owned by the module: its option, and the one of the spaces of the first model (`wiki_spaces`), which may be left.
+	 * The statements of the keys stay with the table of Triples, which keeps or deletes its data as its own setting says
+	 * (`delete_data_on_uninstall`); the index can be made again (`wp otherguise tree rebuild`).
 	 *
 	 * @return void
 	 */
 	public function uninstall() {
-		delete_option( Spaces::OPTION );
+		delete_option( 'wiki_spaces' );
 		delete_option( TreeRouter::OPTION );
 	}
 

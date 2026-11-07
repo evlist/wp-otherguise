@@ -41,7 +41,7 @@ Numbering: `0xx` foundation, `1xx` Triples, `2xx` Modes (and the first slices of
 
 The module Wiki, on the level 3 of the design note (an address of our own); **proposed on 2026-11-06; developed on the branch `wiki`** (the moratorium of the SelfPedia was lifted by Eric on 2026-11-06 to validate the feasibility of the migration). See [`../design/wiki.md`](../design/wiki.md).
 
-**Read before the slices 500 to 508 (2026-11-07):** they describe the **first model** (spaces, a flat type `wiki_page`, addresses `Space:Title`); the slices 500 to 504 are coded on the branch as written (**the 501 and the 502 are now rewritten and coded for the second model**, the others not yet). Eric's chosen direction is now the **hierarchy of the pages of WordPress with rules per branch** (design note, "The model"): the slices 500 to 508 are all reworked for it (508 is a script outside this repository) for it; the slice documents stay accurate as a description of the code they describe.
+**Read before the slices 500 to 508 (2026-11-07):** they describe the code of the **hierarchical model** (pages of WordPress, a branch with rules, addresses by exact titles), reworked slice by slice from a first model (spaces, a flat type `wiki_page`, addresses `Space:Title`) whose code was **removed** from the branch; the tag `wiki-model-1` keeps it. Each slice document says what is coded and what was never tried. The slice 508 is a script outside this repository.
 
 | Slice | Title |
 |---|---|

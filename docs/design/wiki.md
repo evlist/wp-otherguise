@@ -5,7 +5,7 @@
 
 Status: **open; partly coded on the branch `wiki`, and the model is being changed.** Points are marked **Decided** (Eric said so), **Proposed** (Claude's reading, not confirmed) or **Open**. The idea comes from the point 4 of [`ideas.md`](https://github.com/evlist/shared-room/blob/main/docs/ideas.md) of `shared-room` (SelfPedia under WordPress); the analysis goes on here, in the repository of the plugin.
 
-**Read this first (2026-11-07).** The code of the slices 500 to 504 on the branch `wiki` implements a **first model**: a flat content type `wiki_page`, **spaces** registered in an option, and addresses of the form `/Space:Title`. After Eric tried it on a test site (`sb.vli.st`), the model was questioned and a **second one**, written below, is the **direction chosen by Eric**: the **hierarchy of the pages of WordPress**, a **branch** of the tree instead of a space, and **rules that apply to a branch**. **The code has not been reworked yet**; the pages of the test site are in the first model. The first model is kept at the end as a record ("The first model").
+**Read this first (2026-11-07).** The first code of the slices 500 to 504 implemented a **first model**: a flat content type `wiki_page`, **spaces** registered in an option, and addresses of the form `/Space:Title`. After Eric tried it on a test site (`sb.vli.st`), the model was questioned and a **second one**, written below, was **chosen by Eric**: the **hierarchy of the pages of WordPress**, a **branch** of the tree instead of a space, and **rules that apply to a branch**. **The slices 500 to 508 are all reworked and coded for it on the branch `wiki`, tried on `sb.vli.st`, and the code of the first model is removed from the branch** (it stays at the tag `wiki-model-1`). The first model is kept at the end as a record ("The first model").
 
 **The moratorium (Decided, Eric, 2026-10-31; lifted by Eric on 2026-11-06):** nothing was to start before the ten pages of the autobiography of the SelfPedia were written. Eric lifted it on 2026-11-06 **to validate the feasibility of the migration**; the module is developed on the **branch `wiki`**, away from the development of the blog.
 
@@ -124,20 +124,20 @@ A scratch WordPress 7.1.x with pretty permalinks and a **throw-away `mu-plugin`*
 
 **Not checked**: a real nginx (the absence of `PATH_INFO` was simulated), the **speed at scale** (the test looked the title up in the table of the posts by a `BINARY` comparison, which the index of WordPress does not serve: it scans the pages of the type; the index of `triples` with a binary indexed literal is what is meant, **not measured**), the page list of the **Site Editor**, an SEO plugin, a site of several thousands of pages, the behaviour with the module enabled on a site that has ordinary pages, the rights per branch.
 
-## What stays of the code, what changes
+## What the code became
 
-The code on the branch `wiki` follows the first model. **Proposed** (nothing reworked yet):
+The first model was coded first (slices 500 to 504), then **reworked slice by slice** for the second one and **removed** (2026-11-07; tag `wiki-model-1` keeps it):
 
-| Slice | What it did | In the second model |
+| Slice | First model | Second model, as coded |
 |---|---|---|
-| 500 | the module, the spaces (option, screen) | the module stays and is **disabled by default**; the **spaces and their screen are replaced by the rules of a branch** (a panel on a node) |
-| 501 | the names (rules, four predicates, `Names`) | the **rules of the names change**: **no capital first letter**, the slash is refused, the colon is free; the **index becomes per node** `(parent, title)` with former keys, a folded key and the exact title alone (for the angles); `claim`, `resolve` walk the path |
-| 502 | the type `wiki_page`, the space (meta), the claim at saving, `Pages::create`, the panel, the list | **the type is `page`**; no meta "space", the parent is the selector of WordPress; the claim at saving checks `(parent, title)`; `Pages::create( $parent, $title, … )` |
-| 503 | the rule `Space:Title`, the resolution, the canonical form | **no rule**: the resolution on `parse_request`; the canonical form and the 301 stay (the decoding of the percent-encoded values, the redirects), the slug door is added |
-| 504 | the 404 and the offer | stays, with "where the path stopped" instead of a space; the creation chain is Open |
-| 505 to 508 | (proposed) links, incoming links, angles, migration | written for the first model: to rewrite |
+| 500 | the module, the spaces (option, screen) | the module **disabled by default** (a switch per module) and the **rules of a branch** (`Tree\Rules`, a panel on a node) |
+| 501 | the names (four predicates, `Names`) | the titles (`Tree\Title`, no capital first letter, no slash) and the **index per node** `(parent, title)` (`Tree\Keys`: key, former keys, folded key, exact title) |
+| 502 | the type `wiki_page`, the space, `Pages` | **the type `page`**; the key is claimed at saving (`Tree\Saving`); `Tree\Pages::create( $parent, $title, … )` and `move` |
+| 503 | the rule `Space:Title` | **no rule**: the resolution on `parse_request` (`Tree\Router`), the canonical form, no slug door, the preview of a draft |
+| 504 | the 404 and the offer | the offer, the approaching paths and the creation of a chain after confirmation |
+| 505 to 508 | (proposed) | links by address and red links, incoming links and wanted pages, other angles, and a throw-away migration tool in `evlist/shared-room` |
 
-The tests of the first model are the starting point of the new ones; the work on the checks at saving, the claim, the nonce of the creation, the block and the template of the 404, and the decoding are reusable.
+What the first model taught is kept in "The first model" below.
 
 ## The sitemap, and a cached map of the addresses
 

@@ -8,7 +8,6 @@
  * @package Otherguise
  */
 
-use Otherguise\Wiki\Name;
 use Otherguise\Wiki\NameException;
 use Otherguise\Wiki\Tree\Title;
 use PHPUnit\Framework\TestCase;
@@ -57,7 +56,7 @@ class WikiTitleTest extends TestCase {
 	 * @return void
 	 */
 	public function test_the_normal_form_c(): void {
-		if ( ! Name::has_intl() ) {
+		if ( ! Title::has_intl() ) {
 			$this->markTestSkipped( 'The extension intl is missing.' );
 		}
 
@@ -151,7 +150,7 @@ class WikiTitleTest extends TestCase {
 		);
 		$this->assertSame( 0, Title::split( 'No slash' )['parent'] );
 
-		if ( ! Name::has_intl() ) {
+		if ( ! Title::has_intl() ) {
 			$this->markTestSkipped( 'The extension intl is missing.' );
 		}
 

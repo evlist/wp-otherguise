@@ -36,6 +36,15 @@ final class Title {
 	public const MAX_BYTES = 191;
 
 	/**
+	 * Tells whether the extension `intl` is there: without it a title is not normalized and the folded key keeps the accents.
+	 *
+	 * @return bool
+	 */
+	public static function has_intl() {
+		return class_exists( 'Normalizer' );
+	}
+
+	/**
 	 * Gives a title its form of a name.
 	 *
 	 * @param mixed $raw The title as typed or imported.
@@ -51,7 +60,7 @@ final class Title {
 			NameException::refuse( NameException::CONTROL_CHARACTER );
 		}
 
-		if ( Name::has_intl() ) {
+		if ( self::has_intl() ) {
 			$normalized = \Normalizer::normalize( $raw, \Normalizer::FORM_C );
 			$raw        = is_string( $normalized ) ? $normalized : $raw;
 		}
@@ -137,7 +146,7 @@ final class Title {
 	 * @return string
 	 */
 	public static function folded( $title ) {
-		if ( Name::has_intl() ) {
+		if ( self::has_intl() ) {
 			$decomposed = \Normalizer::normalize( $title, \Normalizer::FORM_D );
 
 			if ( is_string( $decomposed ) ) {

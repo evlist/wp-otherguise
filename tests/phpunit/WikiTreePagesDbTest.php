@@ -11,7 +11,6 @@
 use Otherguise\Wiki\Cli\TreeCommand;
 use Otherguise\Wiki\Module as WikiModule;
 use Otherguise\Wiki\NameException;
-use Otherguise\Wiki\Page\Saving as FirstModelSaving;
 use Otherguise\Wiki\Tree\Keys;
 use Otherguise\Wiki\Tree\Pages;
 use Otherguise\Wiki\Tree\Rules;
@@ -414,7 +413,7 @@ class WikiTreePagesDbTest extends Otherguise_Test_Database_Case {
 		$saving->after_rest( new WP_Post( 2, 'page', 'Paris' ) );
 
 		$this->assertSame( 'draft', $this->store->pages[2]['status'], 'Put back to draft.' );
-		$this->assertSame( 'Another page has this name.', get_transient( FirstModelSaving::NOTICE . '1' ), 'The notice of the first model shows it.' );
+		$this->assertSame( 'Another page has this name.', get_transient( Saving::NOTICE . '1' ), 'The notice shows it.' );
 		$this->assertNull( $this->keys->current_of( 2 ) );
 
 		$this->store->add( 3, 'Rome', 0, 'draft' );
