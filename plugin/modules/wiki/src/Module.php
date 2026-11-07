@@ -14,7 +14,8 @@ use Otherguise\Core\DescribedModule;
 use Otherguise\Core\DisabledByDefault;
 use Otherguise\Core\ModuleInterface;
 use Otherguise\Core\Modules;
-use Otherguise\Wiki\Address\Router;
+use Otherguise\Wiki\Tree\Reserved;
+use Otherguise\Wiki\Tree\Router as TreeRouter;
 use Otherguise\Wiki\Admin\SettingsScreen;
 use Otherguise\Wiki\Cli\PagesCommand;
 use Otherguise\Wiki\Cli\TreeCommand;
@@ -70,11 +71,11 @@ final class Module implements ModuleInterface, DescribedModule, DisabledByDefaul
 	private $pages = null;
 
 	/**
-	 * The router, built when it is needed.
+	 * The router of the tree, built when it is needed.
 	 *
-	 * @var Router|null
+	 * @var TreeRouter|null
 	 */
-	private $router = null;
+	private $tree_router = null;
 
 	/**
 	 * The page that does not exist, built when it is needed.
@@ -137,10 +138,9 @@ final class Module implements ModuleInterface, DescribedModule, DisabledByDefaul
 	 * @return void
 	 */
 	public function activate() {
-		// Nothing to create but the rewrite rule: the spaces are an option, saved from the screen.
-		$this->router()->add_rule();
+		// The routing has no rewrite rule of its own: one flush drops the rule of the first model.
 		flush_rewrite_rules( false );
-		update_option( Router::OPTION, Router::VERSION );
+		update_option( TreeRouter::OPTION, TreeRouter::VERSION );
 	}
 
 	/**
@@ -188,12 +188,11 @@ final class Module implements ModuleInterface, DescribedModule, DisabledByDefaul
 		( $this->add_action )( 'rest_pre_insert_' . Nodes::TYPE, array( $tree_saving, 'check_rest' ), 10, 2 );
 		( $this->add_action )( 'rest_after_insert_' . Nodes::TYPE, array( $tree_saving, 'after_rest' ), 10, 1 );
 		( $this->add_action )( 'wp_after_insert_post', array( $tree_saving, 'after_insert' ), 10, 1 );
-		( $this->add_action )( 'init', array( $this->router(), 'add_rule' ), 10, 0 );
-		( $this->add_action )( 'init', array( $this->router(), 'maybe_flush' ), 99, 0 );
-		( $this->add_action )( 'query_vars', array( $this->router(), 'query_vars' ), 10, 1 );
-		( $this->add_action )( 'parse_request', array( $this->router(), 'parse_request' ), 10, 1 );
-		( $this->add_action )( 'redirect_canonical', array( $this->router(), 'redirect_canonical' ), 5, 2 );
-		( $this->add_action )( 'post_type_link', array( $this->router(), 'post_link' ), 10, 2 );
+		// Slice 503: no rewrite rule; the route is resolved on parse_request. WordPress's own redirect is turned off for our requests.
+		( $this->add_action )( 'init', array( $this->tree_router(), 'maybe_flush' ), 99, 0 );
+		( $this->add_action )( 'parse_request', array( $this->tree_router(), 'parse_request' ), 10, 1 );
+		( $this->add_action )( 'redirect_canonical', array( $this->tree_router(), 'redirect_canonical' ), 5, 2 );
+		( $this->add_action )( 'page_link', array( $this->tree_router(), 'page_link' ), 10, 2 );
 
 		$presentation = new Presentation( $this->missing(), dirname( __DIR__ ) . '/templates/missing-page.php' );
 		$create       = new CreateAction( $this->pages(), $this->missing() );
@@ -355,7 +354,8 @@ final class Module implements ModuleInterface, DescribedModule, DisabledByDefaul
 			$this->keys = new Keys(
 				static function () {
 					return Modules::get( 'triples' )->statements();
-				}
+				},
+				new Reserved()
 			);
 		}
 
@@ -406,16 +406,16 @@ final class Module implements ModuleInterface, DescribedModule, DisabledByDefaul
 	}
 
 	/**
-	 * The router of the addresses.
+	 * The router of the tree (the hierarchical model, slice 503): no rewrite rule, the path is walked on `parse_request`.
 	 *
-	 * @return Router
+	 * @return TreeRouter
 	 */
-	public function router() {
-		if ( null === $this->router ) {
-			$this->router = new Router( $this->names() );
+	public function tree_router() {
+		if ( null === $this->tree_router ) {
+			$this->tree_router = new TreeRouter( $this->keys() );
 		}
 
-		return $this->router;
+		return $this->tree_router;
 	}
 
 	/**
@@ -462,7 +462,7 @@ final class Module implements ModuleInterface, DescribedModule, DisabledByDefaul
 	 */
 	public function uninstall() {
 		delete_option( Spaces::OPTION );
-		delete_option( Router::OPTION );
+		delete_option( TreeRouter::OPTION );
 	}
 
 	/**

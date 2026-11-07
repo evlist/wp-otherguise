@@ -60,7 +60,7 @@ class WikiModuleTest extends TestCase {
 		$this->assertSame(
 			array(
 				'triples_register_predicates' => array( array( 'register_predicates', 10, 1 ) ),
-				'init'                        => array( array( 'register', 10, 0 ), array( 'register', 10, 0 ), array( 'register_block', 10, 0 ), array( 'add_rule', 10, 0 ), array( 'maybe_flush', 99, 0 ), array( 'register_block', 10, 0 ), array( 'register_template', 10, 0 ) ),
+				'init'                        => array( array( 'register', 10, 0 ), array( 'register', 10, 0 ), array( 'register_block', 10, 0 ), array( 'maybe_flush', 99, 0 ), array( 'register_block', 10, 0 ), array( 'register_template', 10, 0 ) ),
 				'update_post_metadata'        => array( array( 'lock_space', 10, 4 ) ),
 				'delete_post_metadata'        => array( array( 'lock_space', 10, 4 ) ),
 				'rest_pre_insert_wiki_page'   => array( array( 'check_rest', 10, 2 ) ),
@@ -73,10 +73,9 @@ class WikiModuleTest extends TestCase {
 				'enqueue_block_editor_assets' => array( array( 'enqueue', 10, 0 ), array( 'enqueue', 10, 0 ) ),
 				'rest_pre_insert_page'        => array( array( 'check_rest', 10, 2 ) ),
 				'rest_after_insert_page'      => array( array( 'after_rest', 10, 1 ) ),
-				'query_vars'                  => array( array( 'query_vars', 10, 1 ) ),
 				'parse_request'               => array( array( 'parse_request', 10, 1 ) ),
 				'redirect_canonical'          => array( array( 'redirect_canonical', 5, 2 ) ),
-				'post_type_link'              => array( array( 'post_link', 10, 2 ) ),
+				'page_link'                   => array( array( 'page_link', 10, 2 ) ),
 				'404_template_hierarchy'      => array( array( 'hierarchy', 10, 1 ) ),
 				'template_include'            => array( array( 'template', 99, 1 ) ),
 				'admin_post_wiki_create'      => array( array( 'handle', 10, 0 ) ),
@@ -86,7 +85,7 @@ class WikiModuleTest extends TestCase {
 	}
 
 	/**
-	 * Activating the plugin adds the rewrite rule and flushes the rules once, and remembers it.
+	 * Activating the plugin flushes (no rule of its own: the one of the first model goes) the rules once, and remembers it.
 	 *
 	 * @return void
 	 */
@@ -95,8 +94,8 @@ class WikiModuleTest extends TestCase {
 
 		$names = array_column( $GLOBALS['otherguise_test_calls'], 0 );
 
-		$this->assertSame( array( 'add_rewrite_rule', 'flush_rewrite_rules' ), array_values( array_intersect( $names, array( 'add_rewrite_rule', 'flush_rewrite_rules' ) ) ) );
-		$this->assertSame( '1', get_option( 'wiki_rules' ) );
+		$this->assertSame( array( 'flush_rewrite_rules' ), array_values( array_intersect( $names, array( 'add_rewrite_rule', 'flush_rewrite_rules' ) ) ) );
+		$this->assertSame( '2', get_option( 'wiki_rules' ) );
 
 		( new Module() )->uninstall();
 
