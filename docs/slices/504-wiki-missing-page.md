@@ -17,6 +17,8 @@ A path that does not resolve stays a **404** (slice 503); the router remembers w
   - The form posts to `admin-post.php` (action `wiki_create`) with a **nonce tied to the parent and the titles**. The server checks nonce, right, titles (the rules of slice 501, reserved titles included) and the confirmation; pages are created as **drafts**, each under the previous, **never with rules of their own** (they inherit those of the branch, and the starting template of slice 500); the user lands in the editor of the last. A title taken in the meantime: the chain goes on under its holder (the last one taken sends the user to that page). A refusal stops with a message; drafts already made stay.
 - The first-model offer (`Space:Title`) is gone; the module still registers the page type `wiki_page` and its code until the cutover.
 
+- **A first title that nothing has** (`/Encyclopédie/XML` on an empty tree) is offered for creation too, but **only to a user who may create** (slice 503): the chain `Encyclopédie` then `XML` is listed and confirmed as any other.
+
 ## Tests
 
 `WikiTreeMissingDbTest` (9, real statements): one title, approaching paths (case at two levels, accent), the angles, the chain with its confirmation, no form without the right or for a refused or too long title, the action (one draft; chain refused without confirmation then created; taken title; bad nonce, no right, reserved title, empty, too deep, unknown parent), the link with the router; `WikiTreeRouterDbTest` (the first-level variant). Suite OK (822), `phpcs` clean. The old `WikiMissingDbTest` is removed with the model it tested.
@@ -24,6 +26,7 @@ A path that does not resolve stays a **404** (slice 503); the router remembers w
 ## Verification
 
 - **Tried** on the scratch WordPress (`/%postname%/`), as a visitor (404, the message, no form) and as an administrator in Chromium: `/biography/lutece` (404, "Did you mean /Biography/Lutèce" and the offer); `/Biography/Nobody/Deeper` (the two-page chain, the box blocks the submit); ticking it created two drafts under `Biography` and landed in the editor; both addresses then answer 200 for the administrator.
+- **Tried afterwards** (administrator, Chromium): `/Encyclopédie/XML` on a tree without `Encyclopédie` shows the offer and the chain, the creation made both drafts; a visitor, `/hello-world/`, `/feed/`, `/sample-page/` and `/apple-touch-icon.png` are unchanged.
 - **Never tried**: a user with the right but not on that parent; the block in the Site Editor; a classic theme (file template); a **large tree** (the approaching paths read the index level by level: not measured); a page that is a draft or private in the suggestions for a logged-in user; nginx; the blog instance.
 
 ## Not done

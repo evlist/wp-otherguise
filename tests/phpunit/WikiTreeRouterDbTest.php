@@ -51,6 +51,20 @@ class WikiTreeRouterDbTest extends Otherguise_Test_Database_Case {
 	private $slugs = array();
 
 	/**
+	 * Whether the user may create pages.
+	 *
+	 * @var bool
+	 */
+	private $may = false;
+
+	/**
+	 * The slugs that WordPress finds as a post or a page, whatever the type: name => true.
+	 *
+	 * @var array<string, bool>
+	 */
+	private $found = array();
+
+	/**
 	 * The static front page.
 	 *
 	 * @var int
@@ -120,7 +134,9 @@ class WikiTreeRouterDbTest extends Otherguise_Test_Database_Case {
 			static fn( $path ) => 'https://example.test' . $path,
 			fn() => $pretty,
 			fn( $path ) => $this->slugs[ $path ] ?? 0,
-			fn() => $this->front
+			fn() => $this->front,
+			fn() => $this->may,
+			fn( $vars ) => isset( $vars['name'] ) && isset( $this->found[ $vars['name'] ] )
 		);
 	}
 
@@ -319,6 +335,51 @@ class WikiTreeRouterDbTest extends Otherguise_Test_Database_Case {
 		$this->assertFalse( $router->redirect_canonical( 'https://example.test/Biography/Paris', 'https://example.test/Nowhere/Paris' ) );
 		$this->assertSame( 'https://example.test/hello-world/', $router->redirect_canonical( 'https://example.test/hello-world/', 'https://example.test/hello-world' ) );
 		$this->assertFalse( $router->redirect_canonical( false, 'x' ) );
+	}
+
+	/**
+	 * A user who may create pages gets the offer for a path whose first title nothing has, unless WordPress finds something there or the
+	 * path looks like a file; a visitor keeps the plain 404.
+	 *
+	 * @return void
+	 */
+	public function test_a_user_who_may_create_gets_the_offer_for_an_unknown_first_title(): void {
+		$router = $this->router();
+		$wp     = $this->wp( 'Encyclopédie/XML', array( 'attachment' => 'XML' ) );
+
+		$router->parse_request( $wp );
+		$this->assertSame( array( 'attachment' => 'XML' ), $wp->query_vars );
+		$this->assertNull( $router->missing() );
+
+		$this->may = true;
+		$wp        = $this->wp( 'Encyclopédie/XML', array( 'attachment' => 'XML' ) );
+
+		$router->parse_request( $wp );
+		$this->assertSame( array( 'error' => '404' ), $wp->query_vars );
+		$this->assertSame(
+			array(
+				'deepest' => 0,
+				'rest'    => array( 'Encyclopédie', 'XML' ),
+			),
+			$router->missing()
+		);
+		$this->assertFalse( $router->redirect_canonical( 'guess', 'x' ) );
+
+		// Three levels: no variable but the error.
+		$wp = $this->wp( 'Encyclopédie/XML/Schema', array( 'error' => '404' ) );
+		$router->parse_request( $wp );
+		$this->assertSame( 3, count( $router->missing()['rest'] ) );
+
+		// A post of the blog is left alone, a file too.
+		$this->found = array( 'hello-world' => true );
+		$wp          = $this->wp( 'hello-world', array( 'name' => 'hello-world' ) );
+		$router->parse_request( $wp );
+		$this->assertSame( array( 'name' => 'hello-world' ), $wp->query_vars );
+		$this->assertNull( $router->missing() );
+
+		$wp = $this->wp( 'apple-touch-icon.png', array( 'name' => 'apple-touch-icon.png' ) );
+		$router->parse_request( $wp );
+		$this->assertSame( array( 'name' => 'apple-touch-icon.png' ), $wp->query_vars );
 	}
 
 	/**

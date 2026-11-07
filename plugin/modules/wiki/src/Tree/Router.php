@@ -20,9 +20,10 @@ defined( 'ABSPATH' ) || exit;
  *   WordPress therefore always win.
  * - The path is walked one level at a time through the index (`Keys`). A page found at its canonical address is **served as it is**
  *   (`page_id`); an alias, a lower-case encoding or a trailing slash is a **301** to the canonical address.
- * - A path that does not resolve is left to WordPress **unless it enters the tree** (its first title exists) **or WordPress would find a
- *   page of the tree by its slug**, or **its first title is a first-level title written another way** (an accent or a case): it is then a **404** that remembers where the path stopped (`missing()`, for slice 504). **There is no
- *   slug door.**
+ * - A path that does not resolve is left to WordPress **unless** it enters the tree (its first title exists), WordPress would find a page of
+ *   the tree by its slug, its first title is a first-level title written another way (an accent, a case), **or the user may create pages and
+ *   WordPress finds nothing at that address**: it is then a **404** that remembers where the path stopped (`missing()`, for slice 504), and the
+ *   offer of creation (a visitor keeps the plain 404). **There is no slug door.**
  * - The `redirect_canonical` of WordPress is turned off for the requests that are ours: it adds a trailing slash, which our own redirect
  *   removes (a loop), and it guesses slugs; its guess for a 404 that is not ours never lands on a page of the tree (`guess()`).
  * - `page_link` gives the address; the page that is the static front page keeps `/` (it is served at its own address too).
@@ -93,6 +94,20 @@ final class Router {
 	private $front;
 
 	/**
+	 * Tells whether the current user may create a page (a path that nothing has is then offered for creation).
+	 *
+	 * @var callable
+	 */
+	private $may_create;
+
+	/**
+	 * Tells whether WordPress would find something for the request (a page, a post, a attachment) by its slug.
+	 *
+	 * @var callable
+	 */
+	private $exists;
+
+	/**
 	 * Whether the request being answered is one of ours.
 	 *
 	 * @var bool
@@ -116,8 +131,10 @@ final class Router {
 	 * @param callable|null $pretty      Default: the site has a permalink structure.
 	 * @param callable|null $by_slug     Receives a path of slugs; default `get_page_by_path()`.
 	 * @param callable|null $front       Default: the option `page_on_front` when the front page is a page.
+	 * @param callable|null $may_create  Default: the user may create pages (`create_posts` of the type `page`).
+	 * @param callable|null $exists      Receives the query variables; default: `get_page_by_path()` finds a public post for one of the slugs.
 	 */
-	public function __construct( Keys $keys, $request_uri = null, $redirect = null, $home = null, $pretty = null, $by_slug = null, $front = null ) {
+	public function __construct( Keys $keys, $request_uri = null, $redirect = null, $home = null, $pretty = null, $by_slug = null, $front = null, $may_create = null, $exists = null ) {
 		$this->keys        = $keys;
 		$this->request_uri = $request_uri ?? static function () {
 			return add_query_arg( array() );
@@ -134,6 +151,20 @@ final class Router {
 			$page = get_page_by_path( $path );
 
 			return is_object( $page ) ? (int) $page->ID : 0;
+		};
+		$this->may_create  = $may_create ?? static function () {
+			$type = get_post_type_object( Nodes::TYPE );
+
+			return is_object( $type ) && isset( $type->cap->create_posts ) && current_user_can( $type->cap->create_posts );
+		};
+		$this->exists      = $exists ?? static function ( $vars ) {
+			foreach ( array( 'pagename', 'name', 'attachment' ) as $name ) {
+				if ( isset( $vars[ $name ] ) && '' !== (string) $vars[ $name ] && is_object( get_page_by_path( (string) $vars[ $name ], OBJECT, get_post_types( array( 'public' => true ) ) ) ) ) {
+					return true;
+				}
+			}
+
+			return false;
 		};
 		$this->front       = $front ?? static function () {
 			return 'page' === get_option( 'show_on_front' ) ? (int) get_option( 'page_on_front' ) : 0;
@@ -182,7 +213,7 @@ final class Router {
 			return;
 		}
 
-		if ( $walk['deepest'] > 0 || $this->slug_is_ours( $wp->query_vars ) || array() !== $this->keys->similar( 0, $titles[0] ) ) {
+		if ( $walk['deepest'] > 0 || $this->slug_is_ours( $wp->query_vars ) || array() !== $this->keys->similar( 0, $titles[0] ) || $this->offer_creation( $wp->query_vars, $titles ) ) {
 			$this->ours    = true;
 			$this->missing = array(
 				'deepest' => (int) $walk['deepest'],
@@ -311,6 +342,18 @@ final class Router {
 		}
 
 		return isset( $vars['pagename'] ) || isset( $vars['name'] ) || isset( $vars['attachment'] ) || ( isset( $vars['error'] ) && '404' === (string) $vars['error'] );
+	}
+
+	/**
+	 * Whether a path whose first title nothing has is offered for creation: only to a user who may create pages, when WordPress would find
+	 * nothing at that address, and when the last title does not look like a file (`/apple-touch-icon.png`). A visitor keeps the plain 404.
+	 *
+	 * @param array<string, mixed> $vars   The query variables.
+	 * @param string[]             $titles The titles asked.
+	 * @return bool
+	 */
+	private function offer_creation( array $vars, array $titles ) {
+		return 1 !== preg_match( '/\.[A-Za-z0-9]{2,5}$/', (string) end( $titles ) ) && (bool) ( $this->may_create )() && ! (bool) ( $this->exists )( $vars );
 	}
 
 	/**
