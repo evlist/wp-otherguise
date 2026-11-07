@@ -3,21 +3,26 @@
 
 # Slice 507 — Wiki: the other angles of a subject
 
-Status: **proposed (2026-11-06), not coded**. Dependencies: slices 501 (`elsewhere`), 502 (the pages), 505 (the reading of a name). Context: [`../design/wiki.md`](../design/wiki.md): one of the interests of the spaces (Eric) is to treat **the same subject from several angles**; the same title lives in several spaces.
+Status: **rewritten for the hierarchical model and coded on the branch `wiki` (2026-11-07)**, not merged into `main`. Dependencies: slices 501 (`Keys::elsewhere`, the index of the exact title), 502, 505. Context: [`../design/wiki.md`](../design/wiki.md): Eric treats **the same subject from several angles**; in the tree the same title lives under several branches (`Biography/Paris`, `Opinion/Paris`).
 
 ## What it does
 
-A **block `wiki/other-angles`** for the template of a page: the band "Other angles: Encyclopaedia · Opinion · Biography".
+- **The other angles of a page** (`Tree\Angles::of( $id )`): **the pages that have the same title elsewhere in the hierarchy, at any level** (decided 2026-11-07), by address, then **the pages declared as the same subject** under another title, by address; each page once, the page itself never.
+- **Declaring a same subject** (`Tree\Angles::relate()`, `unrelate()`, `related()`): the predicate **`wiki/same-subject`**, **symmetric**, page to page, no limit (`Paris` and `Paris (ville)`). Said twice, it is one statement; a page that has no key, or a page with itself, is refused. `wp otherguise tree relate <a> <b> [--remove]`.
+- **The block `wiki/other-angles`** (`Tree\AnglesBlock`, server-rendered, `autoRegister`): "Other angles:" and a list of the addresses (`wiki-angles`, `wiki-angle`, no style), **only pages the reader may see**, nothing when there are none. The page that does not exist (slice 504) already shows the same-title list with the same class.
+- **What went with the spaces**: there is no `wiki/space-label` block. The role of the label is played by the address itself, and by the ancestors given to the results of the link tool (slice 505).
 
-- **The pages of the same title** in the other spaces (`Names::elsewhere( $title, $space )`), each as a link with the **label of its space** (slice 500), in the order of the spaces; only the pages that the reader may see (published, not unlisted: slice 402); nothing is printed when there are none.
-- **The pages declared as the same subject with another title** ("Paris" and "Paris (ville)"): a predicate **`wiki/same-subject`**, **symmetric** (Triples already has that kind of predicate), page to page. It is written in a **box of the edit screen** ("Same subject as": one qualified name per line, resolved as the link by name of slice 505; a name that does not resolve is an error shown at saving), and by `wp otherguise wiki relate <post> <post>`. The block lists these too, after the pages of the same title; a page is listed once.
-- **A block `wiki/space-label`**: the label of the space of a page, for a template of search results or of an archive (the same title in several spaces would otherwise look the same); with the status text of the space (slice 502: the data is there) as an option. A function `wiki_space_label( $post )` for a template that is not blocks.
-- The markup carries classes (`wiki-angles`, `wiki-angle`, `wiki-space-label`); the look is the theme's.
+## Tests
 
-## Tests (planned)
+`WikiTreeAnglesDbTest` (3, real statements): the same title at any level (order by address, the page excluded, unknown page); the same subject (symmetric, said twice, listed once and after the same title, refusals, removed); the block (links, order, visibility, empty). `WikiModuleTest` (predicate, hooks). Suite OK (836), `phpcs` clean.
 
-The block (none, one, several; the order of the spaces; a page that the reader cannot see; an unlisted page; a page of the same space is not listed; a declared page that has the same title is listed once); the predicate (symmetric, no limit; `relate` run twice); the box (a name that resolves, one that does not, a removal); the label (the block, the function, the status text).
+## Verification
+
+- **Tried** on the scratch WordPress: two `Rome` pages and a `Rome (ville)` declared the same subject; `/Biography/Rome` printed the band with `/Opinion/Rome` then `/Opinion/Rome (ville)`, as links.
+- **Never tried**: `wp otherguise tree relate` from a real WP-CLI (the service was called); the block in the Site Editor or in a template of a theme; a draft or private angle for a logged-in user; many angles at once (`elsewhere` is bounded to 50, no paging).
 
 ## Not done
 
-The address of the title alone (`/Paris`: a page that lists the angles, like a disambiguation page): a request with no colon is an ordinary request of WordPress and the rule of slice 503 does not take it; it would be a second rule, **to decide** when the first angles are written.
+- **A box or panel in the editor** to declare a same subject (one title or address per line, resolved like a link): only the command exists for now.
+- The address of the **title alone** (`/Paris`) as a page that lists the angles (a disambiguation page): not designed; a single-segment path is a first-level title.
+- The unlisted flag of the module `access` (slice 402) is not looked at.

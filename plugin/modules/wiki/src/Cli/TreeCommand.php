@@ -11,6 +11,7 @@
 namespace Otherguise\Wiki\Cli;
 
 use Otherguise\Wiki\NameException;
+use Otherguise\Wiki\Tree\Angles;
 use Otherguise\Wiki\Tree\Citations;
 use Otherguise\Wiki\Tree\Pages;
 
@@ -27,6 +28,13 @@ final class TreeCommand {
 	 * @var Pages
 	 */
 	private $pages;
+
+	/**
+	 * The other angles, or null.
+	 *
+	 * @var Angles|null
+	 */
+	private $angles;
 
 	/**
 	 * The index of the links, or null.
@@ -72,9 +80,11 @@ final class TreeCommand {
 	 * @param callable|null  $fail    Default `WP_CLI::error`.
 	 * @param callable|null  $read    Reads a local file named on the command line; returns its content or false.
 	 * @param Citations|null $citations The index of the links (slice 506).
+	 * @param Angles|null    $angles    The other angles (slice 507).
 	 */
-	public function __construct( Pages $pages, $log = null, $success = null, $fail = null, $read = null, $citations = null ) {
+	public function __construct( Pages $pages, $log = null, $success = null, $fail = null, $read = null, $citations = null, $angles = null ) {
 		$this->pages     = $pages;
+		$this->angles    = $angles;
 		$this->citations = $citations;
 		$this->log     = $log ?? array( 'WP_CLI', 'log' );
 		$this->success = $success ?? array( 'WP_CLI', 'success' );
@@ -257,6 +267,49 @@ final class TreeCommand {
 		}
 
 		( $this->success )( count( $wanted ) . ' wanted page(s).' );
+	}
+
+	/**
+	 * Declares two pages the same subject (symmetric), or takes the declaration back.
+	 *
+	 * ## OPTIONS
+	 *
+	 * <a>
+	 * : A page.
+	 *
+	 * <b>
+	 * : Another page.
+	 *
+	 * [--remove]
+	 * : Takes the declaration back.
+	 *
+	 * @param array $args  Positional arguments.
+	 * @param array $assoc Options.
+	 * @return void
+	 */
+	public function relate( $args, $assoc ) {
+		if ( null === $this->angles ) {
+			( $this->fail )( 'The angles are not available.' );
+
+			return;
+		}
+
+		$a = (int) ( $args[0] ?? 0 );
+		$b = (int) ( $args[1] ?? 0 );
+
+		if ( ! empty( $assoc['remove'] ) ) {
+			( $this->success )( $this->angles->unrelate( $a, $b ) ? 'The declaration is removed.' : 'There was none.' );
+
+			return;
+		}
+
+		if ( ! $this->angles->relate( $a, $b ) ) {
+			( $this->fail )( 'Both must be different pages of the tree.' );
+
+			return;
+		}
+
+		( $this->success )( 'Pages ' . $a . ' and ' . $b . ' are the same subject.' );
 	}
 
 	/**

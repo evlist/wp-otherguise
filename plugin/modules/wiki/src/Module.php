@@ -15,6 +15,8 @@ use Otherguise\Core\DisabledByDefault;
 use Otherguise\Core\ModuleInterface;
 use Otherguise\Core\Modules;
 use Otherguise\Wiki\Admin\WantedScreen;
+use Otherguise\Wiki\Tree\Angles;
+use Otherguise\Wiki\Tree\AnglesBlock;
 use Otherguise\Wiki\Tree\CitedBy;
 use Otherguise\Wiki\Tree\Citations;
 use Otherguise\Wiki\Tree\Links;
@@ -88,6 +90,13 @@ final class Module implements ModuleInterface, DescribedModule, DisabledByDefaul
 	 * @var Citations|null
 	 */
 	private $citations = null;
+
+	/**
+	 * The other angles, built when they are needed.
+	 *
+	 * @var Angles|null
+	 */
+	private $angles = null;
 
 	/**
 	 * The page that does not exist, built when it is needed.
@@ -214,6 +223,7 @@ final class Module implements ModuleInterface, DescribedModule, DisabledByDefaul
 
 		( $this->add_action )( 'the_content', array( $links, 'filter' ), 20, 1 );
 		( $this->add_action )( 'init', array( $cited, 'register_block' ), 10, 0 );
+		( $this->add_action )( 'init', array( new AnglesBlock( $this->angles(), $this->keys(), $this->tree_router() ), 'register_block' ), 10, 0 );
 		( $this->add_action )( 'wp_after_insert_post', array( $this, 'index_links' ), 20, 2 );
 		( $this->add_action )( 'rest_post_search_query', array( $search, 'begin' ), 10, 1 );
 		( $this->add_action )( 'rest_post_dispatch', array( $search, 'end' ), 10, 1 );
@@ -391,6 +401,18 @@ final class Module implements ModuleInterface, DescribedModule, DisabledByDefaul
 				)
 			)
 		);
+
+		$predicates->register(
+			PredicateDefinition::from_array(
+				array(
+					'slug'          => Angles::SAME,
+					'label'         => __( 'Is the same subject as', 'otherguise' ),
+					'subject_types' => $post,
+					'object_types'  => $post,
+					'symmetric'     => true,
+				)
+			)
+		);
 	}
 
 	/**
@@ -452,6 +474,24 @@ final class Module implements ModuleInterface, DescribedModule, DisabledByDefaul
 		}
 
 		return $this->missing;
+	}
+
+	/**
+	 * The other angles of a subject (slice 507).
+	 *
+	 * @return Angles
+	 */
+	public function angles() {
+		if ( null === $this->angles ) {
+			$this->angles = new Angles(
+				$this->keys(),
+				static function () {
+					return Modules::get( 'triples' )->statements();
+				}
+			);
+		}
+
+		return $this->angles;
 	}
 
 	/**
@@ -541,7 +581,7 @@ final class Module implements ModuleInterface, DescribedModule, DisabledByDefaul
 	 */
 	public function register_command() {
 		\WP_CLI::add_command( 'otherguise wiki', new PagesCommand( $this->pages() ) );
-		\WP_CLI::add_command( 'otherguise tree', new TreeCommand( $this->tree(), null, null, null, null, $this->citations() ) );
+		\WP_CLI::add_command( 'otherguise tree', new TreeCommand( $this->tree(), null, null, null, null, $this->citations(), $this->angles() ) );
 	}
 
 	/**

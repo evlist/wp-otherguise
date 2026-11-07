@@ -41,7 +41,7 @@ Numbering: `0xx` foundation, `1xx` Triples, `2xx` Modes (and the first slices of
 
 The module Wiki, on the level 3 of the design note (an address of our own); **proposed on 2026-11-06; developed on the branch `wiki`** (the moratorium of the SelfPedia was lifted by Eric on 2026-11-06 to validate the feasibility of the migration). See [`../design/wiki.md`](../design/wiki.md).
 
-**Read before the slices 500 to 508 (2026-11-07):** they describe the **first model** (spaces, a flat type `wiki_page`, addresses `Space:Title`); the slices 500 to 504 are coded on the branch as written (**the 501 and the 502 are now rewritten and coded for the second model**, the others not yet). Eric's chosen direction is now the **hierarchy of the pages of WordPress with rules per branch** (design note, "The model"): the slices **507 and 508 are to be rewritten** (500 to 506 are done) for it; the slice documents stay accurate as a description of the code they describe.
+**Read before the slices 500 to 508 (2026-11-07):** they describe the **first model** (spaces, a flat type `wiki_page`, addresses `Space:Title`); the slices 500 to 504 are coded on the branch as written (**the 501 and the 502 are now rewritten and coded for the second model**, the others not yet). Eric's chosen direction is now the **hierarchy of the pages of WordPress with rules per branch** (design note, "The model"): the slice **508 is to be rewritten** (500 to 507 are done) for it; the slice documents stay accurate as a description of the code they describe.
 
 | Slice | Title |
 |---|---|
@@ -52,7 +52,7 @@ The module Wiki, on the level 3 of the design note (an address of our own); **pr
 | [504](504-wiki-missing-page.md) | Wiki: the page that does not exist: the 404 with the approaching paths, the angles and the creation of a page or of a chain after confirmation — **reworked and coded on the branch `wiki`**, not merged |
 | [505](505-wiki-links.md) | Wiki: the links (ordinary links by address, no shortcode), the red links, the titles of the link tool, the move of a page — **rewritten and coded on the branch `wiki`**, not merged |
 | [506](506-wiki-incoming-links.md) | Wiki: the incoming links (`wiki/cites`) and the wanted pages (`wiki/wants`): the block "Cited by", the screen and the command — **rewritten and coded on the branch `wiki`**, not merged |
-| [507](507-wiki-other-angles.md) | Wiki: the other angles of a subject (a block, `wiki/same-subject`, the label of the space) |
+| [507](507-wiki-other-angles.md) | Wiki: the other angles of a subject (the same title elsewhere in the hierarchy, `wiki/same-subject`, the block) — **rewritten and coded on the branch `wiki`**, not merged |
 | [508](508-wiki-migration-script.md) | Wiki: the migration from the SelfPedia, a throw-away script outside the plugin (the plugin only gives its API) |
 
 ## Candidates (not planned yet)

@@ -60,7 +60,7 @@ class WikiModuleTest extends TestCase {
 		$this->assertSame(
 			array(
 				'triples_register_predicates' => array( array( 'register_predicates', 10, 1 ) ),
-				'init'                        => array( array( 'register', 10, 0 ), array( 'register', 10, 0 ), array( 'register_block', 10, 0 ), array( 'maybe_flush', 99, 0 ), array( 'register_block', 10, 0 ), array( 'register_block', 10, 0 ), array( 'register_template', 10, 0 ) ),
+				'init'                        => array( array( 'register', 10, 0 ), array( 'register', 10, 0 ), array( 'register_block', 10, 0 ), array( 'maybe_flush', 99, 0 ), array( 'register_block', 10, 0 ), array( 'register_block', 10, 0 ), array( 'register_block', 10, 0 ), array( 'register_template', 10, 0 ) ),
 				'update_post_metadata'        => array( array( 'lock_space', 10, 4 ) ),
 				'delete_post_metadata'        => array( array( 'lock_space', 10, 4 ) ),
 				'rest_pre_insert_wiki_page'   => array( array( 'check_rest', 10, 2 ) ),
@@ -151,6 +151,7 @@ class WikiModuleTest extends TestCase {
 				'wiki/title'       => array( array( 'post' ), array( 'string' ), 1, null ),
 				'wiki/cites'       => array( array( 'post' ), array( 'post' ), null, null ),
 				'wiki/wants'       => array( array( 'post' ), array( 'string' ), null, null ),
+				'wiki/same-subject' => array( array( 'post' ), array( 'post' ), null, null ),
 			),
 			$limits
 		);
