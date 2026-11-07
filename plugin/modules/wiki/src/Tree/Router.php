@@ -40,9 +40,10 @@ final class Router {
 	public const VERSION = '2';
 
 	/**
-	 * Query variables of the routes that are not ours: when one is set the request is left alone.
+	 * Query variables of the routes that are not ours: when one is set the request is left alone. Not `preview`: the preview of a draft is its
+	 * own address with `?preview=true` (WordPress builds it from the permalink), and it must be resolved like the address itself.
 	 */
-	private const OTHER_ROUTES = array( 'feed', 'embed', 'trackback', 's', 'p', 'page_id', 'attachment_id', 'preview' );
+	private const OTHER_ROUTES = array( 'feed', 'embed', 'trackback', 's', 'p', 'page_id', 'attachment_id' );
 
 	/**
 	 * The index of the tree.

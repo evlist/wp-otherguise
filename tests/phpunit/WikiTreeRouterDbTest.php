@@ -182,6 +182,50 @@ class WikiTreeRouterDbTest extends Otherguise_Test_Database_Case {
 	}
 
 	/**
+	 * The preview of a draft is its address with `?preview=true`: it is resolved like the address, the variable is kept for WordPress, and the
+	 * old routes of the previews (`p` or `page_id` with `preview`) are still left alone.
+	 *
+	 * @return void
+	 */
+	public function test_a_preview_is_resolved_like_the_address(): void {
+		$this->uri = '/Biography/Paris?preview=true';
+		$wp        = $this->wp(
+			'Biography/Paris',
+			array(
+				'attachment' => 'Paris',
+				'preview'    => 'true',
+			)
+		);
+
+		$this->router()->parse_request( $wp );
+
+		$this->assertSame(
+			array(
+				'preview' => 'true',
+				'page_id' => 2,
+			),
+			$wp->query_vars
+		);
+		$this->assertSame( array(), $this->redirects );
+
+		$wp = $this->wp(
+			'',
+			array(
+				'page_id' => '2',
+				'preview' => 'true',
+			)
+		);
+		$this->router()->parse_request( $wp );
+		$this->assertSame(
+			array(
+				'page_id' => '2',
+				'preview' => 'true',
+			),
+			$wp->query_vars
+		);
+	}
+
+	/**
 	 * Another query variable of the request is kept; a percent-encoded request (nginx) is decoded.
 	 *
 	 * @return void
