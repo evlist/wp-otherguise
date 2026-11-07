@@ -60,13 +60,22 @@ final class AdminMenu {
 	private $add_action;
 
 	/**
+	 * Prints a section at the end of the overview (the switches of the modules), or null.
+	 *
+	 * @var callable|null
+	 */
+	private $section;
+
+	/**
 	 * Builds the menu.
 	 *
 	 * @param callable|null $declared   Returns the declared screens; defaults to the filter.
 	 * @param callable|null $can        Receives a capability; defaults to `current_user_can`.
 	 * @param callable|null $add_action Adds an action; defaults to `add_action`.
+	 * @param callable|null $section    Prints a section at the end of the overview; default none.
 	 */
-	public function __construct( $declared = null, $can = null, $add_action = null ) {
+	public function __construct( $declared = null, $can = null, $add_action = null, $section = null ) {
+		$this->section    = $section;
 		$this->declared   = $declared ?? static function () {
 			return apply_filters( self::FILTER, array() );
 		};
@@ -158,7 +167,13 @@ final class AdminMenu {
 		echo '<div class="wrap"><h1>' . esc_html__( 'Otherguise', 'otherguise' ) . '</h1>';
 
 		if ( array() === $groups['settings'] && array() === $groups['tools'] ) {
-			echo '<p>' . esc_html__( 'No screen of Otherguise is available to you.', 'otherguise' ) . '</p></div>';
+			echo '<p>' . esc_html__( 'No screen of Otherguise is available to you.', 'otherguise' ) . '</p>';
+
+			if ( null !== $this->section ) {
+				( $this->section )();
+			}
+
+			echo '</div>';
 
 			return;
 		}
@@ -180,6 +195,10 @@ final class AdminMenu {
 			}
 
 			echo '</ul>';
+		}
+
+		if ( null !== $this->section ) {
+			( $this->section )();
 		}
 
 		echo '</div>';

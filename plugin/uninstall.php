@@ -21,3 +21,5 @@ require_once __DIR__ . '/includes/Core/Autoloader.php';
 $otherguise_modules = require __DIR__ . '/includes/modules.php';
 
 ( new \Otherguise\Core\ModuleLoader( $otherguise_modules ) )->uninstall();
+
+delete_option( \Otherguise\Core\ModuleSwitches::OPTION );

@@ -10,6 +10,8 @@
 
 namespace Otherguise\Wiki;
 
+use Otherguise\Core\DescribedModule;
+use Otherguise\Core\DisabledByDefault;
 use Otherguise\Core\ModuleInterface;
 use Otherguise\Core\Modules;
 use Otherguise\Wiki\Address\Router;
@@ -40,7 +42,7 @@ defined( 'ABSPATH' ) || exit;
  * (statements of Triples, slice 501), the pages (502) and their addresses (503). It depends on `triples` from the start, because the names
  * are statements.
  */
-final class Module implements ModuleInterface {
+final class Module implements ModuleInterface, DescribedModule, DisabledByDefault {
 	/**
 	 * Adds an action or a filter.
 	 *
@@ -414,5 +416,23 @@ final class Module implements ModuleInterface {
 	public function uninstall() {
 		delete_option( Spaces::OPTION );
 		delete_option( Router::OPTION );
+	}
+
+	/**
+	 * The name of the module, for the switches of the overview.
+	 *
+	 * @return string
+	 */
+	public function title() {
+		return __( 'Wiki', 'otherguise' );
+	}
+
+	/**
+	 * What the module does, for the switches of the overview.
+	 *
+	 * @return string
+	 */
+	public function description() {
+		return __( 'The functions of a wiki: pages with titles for addresses, a tree of branches with rules, red links.', 'otherguise' );
 	}
 }
