@@ -13,7 +13,7 @@ The reasoning behind the decisions of Otherguise: what was considered, what was 
 | [media-helper.md](media-helper.md) | Integration with Media Helper |
 | [usage-examples.md](usage-examples.md) | Usage examples of the planned API: templates, photos, modes, books |
 | [capabilities.md](capabilities.md) | Rights of access of the screens, the types of content and the tokens: the state of the code and the questions of an overall reflection (**open**) |
-| [wiki.md](wiki.md) | A "Wiki" module: the functions of a wiki (spaces, permalinks, links by name and incoming links) in WordPress (**open**; in development on the branch `wiki`) |
+| [wiki.md](wiki.md) | A "Wiki" module: the functions of a wiki (spaces, permalinks, links by name and incoming links) in WordPress (**open**; in development on the branch `wiki`; **the model changed on 2026-11-07**: the hierarchy of the pages of WordPress and rules per branch, instead of spaces) |
 | [packaging.md](packaging.md) | One plugin with three modules: reasons and the rules that keep a later split cheap |
 | [rollout.md](https://github.com/evlist/shared-room/blob/main/docs/design/rollout.md) | Moved to `shared-room`: rolling out to the production blog (the loop production, staging, testing; the order of the steps) |
 
