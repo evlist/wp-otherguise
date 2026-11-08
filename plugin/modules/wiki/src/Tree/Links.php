@@ -16,8 +16,10 @@ defined( 'ABSPATH' ) || exit;
  * Ordinary links are links by name (slice 505, hierarchical model): the address is the chain of the titles, so a link to it needs no syntax
  * and no stored address. At render, for every `<a href>` that stands for a path of the tree:
  *
- * - a page the reader may see at its **current address**: the class `wiki-link`;
- * - an **alias** (the page was renamed or moved): the `href` is **replaced by the current address**, so there is no redirect to follow, and the class `wiki-link` is added;
+ * - a page the reader may see: the class `wiki-link`, and the `href` is **written in the canonical form** when it is not (an **alias**, the
+ *   old address of a renamed or moved page; `%20` or a space for an underscore, a lower-case encoding, a trailing slash, another scheme): a
+ *   relative address stays relative, the query string and the fragment are kept, so the content has one address for a page and a click needs
+ *   no redirect;
  * - a path that **enters the tree but stops** (or a page the reader may not see, which is not told apart from one that does not exist): the
  *   classes `wiki-link wiki-missing` and a `title`; the address stays, and leads to the offer of slice 504 (a red link).
  *
@@ -186,12 +188,32 @@ final class Links {
 			if ( 'missing' === $state['state'] ) {
 				$tags->add_class( 'wiki-missing' );
 				$tags->set_attribute( 'title', __( 'This page does not exist', 'otherguise' ) );
-			} elseif ( 'alias' === $state['state'] ) {
-				$tags->set_attribute( 'href', $state['url'] . $this->tail( (string) $href ) );
+			} else {
+				$canonical = $this->canonical_href( (string) $href, $state['url'] );
+
+				if ( null !== $canonical ) {
+					$tags->set_attribute( 'href', $canonical );
+				}
 			}
 		}
 
 		return $tags->get_updated_html();
+	}
+
+	/**
+	 * The `href` written in its canonical form, when it is not: an alias (the old address of a renamed or moved page), `%20` or a space for
+	 * an underscore, a lower-case encoding, a trailing slash, another scheme. A relative address stays relative, an absolute one stays
+	 * absolute; the query string and the fragment are kept. Null when the address already is the canonical one.
+	 *
+	 * @param string $href      The `href` as it is written.
+	 * @param string $canonical The canonical address of the page, absolute.
+	 * @return string|null
+	 */
+	private function canonical_href( $href, $canonical ) {
+		$want = '/' === ( $href[0] ?? '' ) ? (string) wp_parse_url( $canonical, PHP_URL_PATH ) : $canonical;
+		$base = substr( $href, 0, strcspn( $href, '?#' ) );
+
+		return $base === $want ? null : $want . $this->tail( $href );
 	}
 
 	/**

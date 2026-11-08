@@ -14,7 +14,7 @@ Status: **rewritten for the hierarchical model and coded on the branch `wiki` (2
 `titles_of( $href )` turns an `href` into titles: a path that starts with `/`, on the host of the site (relative or absolute; http/https only; the path of `home_url()` stripped); the query and the fragment are ignored. Then, for each `<a href>`:
 
 - **a page the reader may see at its current address**: class `wiki-link`;
-- **an alias** (the page or an ancestor was renamed or moved): the `href` is **replaced by the current address** (query and fragment kept) and `wiki-link` is added: no redirect to follow;
+- **an address that is not the canonical one**: an **alias** (the page or an ancestor was renamed or moved), `%20` or a space for an underscore, a lower-case encoding, a trailing slash, another scheme. The `href` is **rewritten to the canonical form** (decided with Eric, 2026-11-08: one address for a page, in the content too), **relative if it was relative**, absolute if it was absolute, query and fragment kept, and `wiki-link` is added: no redirect to follow. The canonical form is left as it is;
 - **a path that enters the tree but stops**, or a **page the reader may not see** (not told apart from one that does not exist): classes `wiki-link wiki-missing` and `title="This page does not exist"`; the address stays and leads to the offer of slice 504 (a red link);
 - **anything else is untouched**: another host, `mailto:`, a fragment, a post, and **a path whose first title is unknown** (a first-level page that does not exist yet cannot be told from a broken link of the site) **unless** that title is a first-level title written another way (an accent, a case), which is a red link.
 

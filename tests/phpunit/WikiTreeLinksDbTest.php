@@ -172,13 +172,45 @@ class WikiTreeLinksDbTest extends Otherguise_Test_Database_Case {
 		$out  = $this->links()->filter( $html );
 
 		$this->assertStringContainsString( '<a class="wiki-link" href="/Opinion/Lut%C3%A8ce">ok</a>', $out );
-		$this->assertStringContainsString( 'class="wiki-link" href="https://example.test/Opinion/Lut%C3%A8ce?x=1#n"', $out );
+		$this->assertStringContainsString( 'class="wiki-link" href="/Opinion/Lut%C3%A8ce?x=1#n"', $out, 'An alias is rewritten, as a relative address.' );
 		$this->assertStringContainsString( 'class="c wiki-link wiki-missing"', $out );
 		$this->assertStringContainsString( 'title="This page does not exist"', $out );
 		$this->assertStringContainsString( '<a href="https://other.test/Biography/Paris">out</a>', $out );
 		$this->assertStringContainsString( '<a href="/hello-world/">post</a> <a>none</a>', $out );
 		$this->assertSame( 'no link', $this->links()->filter( 'no link' ) );
 		$this->assertSame( 5, $this->links()->filter( 5 ) );
+	}
+
+	/**
+	 * A link is written in the canonical form: `%20` or a space for an underscore, a lower-case encoding, a trailing slash and another
+	 * scheme are rewritten, a relative address stays relative and an absolute one absolute, the query string and the fragment are kept; the
+	 * canonical form is left as it is.
+	 *
+	 * @return void
+	 */
+	public function test_a_link_is_written_in_the_canonical_form(): void {
+		$this->load_tag_processor();
+
+		$this->pages->create( $this->id['par'], 'Rue de la Paix (Paris): 1', '', 'publish' );
+
+		$cases = array(
+			'/Biography/Paris/Rue%20de%20la%20Paix%20(Paris):%201'          => '/Biography/Paris/Rue_de_la_Paix_(Paris):_1',
+			'/Biography/Paris/Rue de la Paix (Paris): 1'                    => '/Biography/Paris/Rue_de_la_Paix_(Paris):_1',
+			'/Biography/Paris/Rue_de_la_Paix_(Paris):_1/'                   => '/Biography/Paris/Rue_de_la_Paix_(Paris):_1',
+			'/Biography/Paris/Rue%20de%20la%20Paix%20(Paris):%201?a=1#part' => '/Biography/Paris/Rue_de_la_Paix_(Paris):_1?a=1#part',
+			'http://example.test/Biography/Paris'                          => 'https://example.test/Biography/Paris',
+			'https://example.test/Biography/Paris/'                        => 'https://example.test/Biography/Paris',
+			'/Biography/Paris'                                             => null,
+			'https://example.test/Biography/Paris'                          => null,
+			'/Biography/Paris#section'                                     => null,
+		);
+
+		foreach ( $cases as $href => $expected ) {
+			$out = $this->links()->filter( '<a href="' . $href . '">x</a>' );
+
+			$this->assertStringContainsString( 'class="wiki-link"', $out, $href );
+			$this->assertStringContainsString( 'href="' . ( $expected ?? $href ) . '"', $out, $href );
+		}
 	}
 
 	/**
