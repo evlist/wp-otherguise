@@ -266,6 +266,40 @@ class WikiTreeRouterDbTest extends Otherguise_Test_Database_Case {
 	}
 
 	/**
+	 * The space is written with underscores: an address that writes it as `%20` or as a literal space is redirected to the form with
+	 * underscores, so that a page has one address (MediaWiki serves the other forms without a redirect: not kept).
+	 *
+	 * @return void
+	 */
+	public function test_a_space_in_an_address_is_redirected_to_underscores(): void {
+		$canonical = 'https://example.test/Biography/Paris/Rue_(Saint-Just):_la_tour';
+
+		foreach ( array(
+			'/Biography/Paris/Rue%20(Saint-Just):%20la%20tour',
+			'/Biography/Paris/Rue (Saint-Just): la tour',
+			'/Biography/Paris/Rue%20(Saint-Just):_la_tour',
+		) as $path ) {
+			$this->redirects = array();
+			$this->uri       = $path . '?mode=print';
+			$wp              = $this->wp( ltrim( $path, '/' ), array( 'attachment' => 'x' ) );
+
+			$this->router()->parse_request( $wp );
+
+			$this->assertSame( array( array( $canonical . '?mode=print', 301 ) ), $this->redirects, $path );
+		}
+
+		// The canonical form is served as it is.
+		$this->redirects = array();
+		$this->uri       = '/Biography/Paris/Rue_(Saint-Just):_la_tour';
+		$wp              = $this->wp( 'Biography/Paris/Rue_(Saint-Just):_la_tour', array( 'attachment' => 'x' ) );
+
+		$this->router()->parse_request( $wp );
+
+		$this->assertSame( array(), $this->redirects );
+		$this->assertSame( array( 'page_id' => 6 ), $wp->query_vars );
+	}
+
+	/**
 	 * Case is not folded: `paris` is not `Paris`; the path stops where it stops, and WordPress is not asked for the slug.
 	 *
 	 * @return void
