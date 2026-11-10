@@ -27,6 +27,7 @@ What is to be taken from MediaWiki is **the structure**, not the style (**Propos
 | The print version of a page goes through the **Modes of Otherguise** (`?mode=print`) | **Decided** (Eric) |
 | A **standalone minimal block theme**, not a child of Twenty Twenty-Five | **Proposed** (Claude): the look is a three-column layout that Twenty Twenty-Five does not have, most of its templates and styles would be overridden, and the wiki is an instance of its own. Starting point: a blank block theme (the plugin *Create Block Theme* can generate one), not a hand-written skeleton. A child of Twenty Twenty-Five stays possible and reversible if Eric prefers the speed |
 | **One responsive theme**, not a separate mobile theme | **Proposed** (Claude), after Eric pointed out that MediaWiki uses another skin for mobile: detecting the device to change the theme means two sets of templates, cache problems and two renderings for one address |
+| The **breadcrumb** is the core block `core/breadcrumbs` | **Decided** (Eric, 2026-11-10) |
 | The **structure** to keep from MediaWiki: left column (menu and table of contents), tabs of action, right column of tools | **Open**: Eric has not said which |
 
 ## What the plugin already gives (any block theme)
@@ -40,7 +41,9 @@ The theme styles these; it does not reimplement them. Names are **the contract**
 - **Footnotes**: the **core Footnotes block** (`core/footnotes`) is what the pages use for notes. It is inserted in the editor from the "more" menu of the toolbar ("Footnote"); its notes are in a post meta. The theme only styles it (**Open**: the migration of the SelfPedia writes for now the plain list that Pandoc produces; converting `<ref>` into core footnotes is planned).
 - **The tree**: the pages are WordPress pages, the tree is `post_parent`, the address is the chain of the titles. A theme can use the core blocks on it (`core/page-list` with a parent, `core/navigation`, `core/post-title`, `core/post-content`, `core/post-date`).
 
-**Blocks that do not exist yet** and that the theme will want (to be built **in the plugin**, in this repository, by the session that has its context; the theme must **work without them first**, with core blocks and room left for them): a **breadcrumb** of the tree (with a "Racine" link up), a **navigation of the branch** (children and siblings), a **table of contents** of the headings (WordPress has no such block), an **"Edit" button** shown to those who may edit.
+**The breadcrumb is the core block** `core/breadcrumbs` (**Decided**, Eric, 2026-11-10, on the proposal of the theme session): the plugin builds none. Checked in the source of WordPress 7.1.4 (the block, not a page of the wiki): for a hierarchical post type it lists `get_post_ancestors()` and gives each item `get_permalink()`, so it follows the tree (`post_parent`) and the addresses of the module (the filter `page_link`); the attributes are `separator`, `showHomeItem`, `showCurrentItem`, `showOnHomePage`, `prefersTaxonomy`; the filter `block_core_breadcrumbs_items` can change the items (a "Racine" link, for example, is **Open**: the theme may do it with that filter or with a link to the parent page). **Not tried** on a page of the tree.
+
+**Blocks that do not exist yet** and that the theme will want (to be built **in the plugin**, in this repository, by the session that has its context; the theme must **work without them first**, with core blocks and room left for them): a **navigation of the branch** (children and siblings), a **table of contents** of the headings (WordPress has no such block), an **"Edit" button** shown to those who may edit.
 
 ## Responsive (Proposed)
 
@@ -99,7 +102,7 @@ The same as the other repositories of Eric:
 2. The blank theme (`theme.json`: width, typography, colours; templates `index`, `page`, `archive`, `search`, `404`; parts `header`, `footer`), the styles of the classes above.
 3. A template per branch (the biography, the encyclopaedia), declared in `customTemplates`.
 4. `modes/print.css` (CSS rules, see "Print").
-5. Then, with the session that works on the plugin, the blocks that do not exist yet.
+5. Then, with the session that works on the plugin, the blocks that do not exist yet (the navigation of the branch, the table of contents, the edit button; **not** the breadcrumb).
 
 ## A `CLAUDE.md` for the new repository (to adapt and commit there)
 
