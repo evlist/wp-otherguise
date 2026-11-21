@@ -182,13 +182,39 @@ What follows from it:
 - **The chain rule drifts** on a slow walk (each photograph is within 50 m of the previous one, the group goes on for hundreds of metres): to be measured on a walking day; the distance to the **first** photograph of the group is the alternative.
 - **To calibrate with Eric, who knows the day**: which of the **14 places** of the list does he want to find in the index? The rule (a number of photographs, a duration, a number of visits, or a combination) is **taken from his answer**, not guessed.
 
-- **The volume decides online or offline**: **35 calls for one post's photographs**, at one call a second, make about 40 seconds. **A book of 180 days is about two hours of calls; the whole blog, with a few hundred or a thousand posts, is many hours**. The public service of OpenStreetMap asks for no heavy use (**from memory, not checked**: at most one request a second, bulk geocoding discouraged). The cache of the whole answer, shared by the cells that several posts have in common, **softens** it; **an offline file or a service of one's own** is the solution for the photographs; **the ends of the track** (two calls a post) can stay online. **To be decided by Eric.**
+- **The volume would have decided online or offline** (settled below: the work is done as the photographs arrive): **35 calls for one post's photographs**, at one call a second, make about 40 seconds. **A book of 180 days is about two hours of calls; the whole blog, with a few hundred or a thousand posts, is many hours**. The public service of OpenStreetMap asks for no heavy use (**from memory, not checked**: at most one request a second, bulk geocoding discouraged). The cache of the whole answer, shared by the cells that several posts have in common, **softens** it; **an offline file or a service of one's own** is the solution for the photographs; **the ends of the track** (two calls a post) can stay online. **Settled by what follows (Eric, 2026-11-21).**
 
 **What the geocoding gave** (two calls to Nominatim, zoom 14, on the first and the last point; one call to the search of Wikidata; the courtesy asked by the services was respected):
 
 - the **nearest named object**, not the municipality: *Combe* (an isolated dwelling, in Cerisey, Étroubles) and *La Glirettaz* (a hamlet of Beaufort), with **the chain of the address** (hamlet, municipality, department, region, country) in the answer. The track starts and ends where a van is parked, so **a hamlet is what is found**; **the municipality is a level of the chain to be chosen by a rule**, the hamlet being a **sub-entry** if wanted (`Beaufort > La Glirettaz`).
 - **neither object had a `wikidata` tag**: for the small places OpenStreetMap is indeed **the only identifier** there is, as the rule "Wikidata first, OpenStreetMap as a fallback" supposed.
 - the search of Wikidata for "Étroubles" gives **Q35036, "Italian municipality in the Aosta Valley"**, with a description: **what the queue needs to show to choose**.
+
+
+## Who geolocates: Media Helper, as the files arrive (Decided by Eric, 2026-11-21; the details are Proposed)
+
+**The photographs arrive from Nextcloud during the day**, and **Media Helper** already discovers the files as they come. **Eric's point: the geolocation can be done by Media Helper, file by file, as they arrive**; at one call a second the volume is **no longer a problem**, and the module Index does **no geocoding** of photographs.
+
+**What was read in Media Helper** (2026-11-21, shallow clone, nothing run):
+
+- It has a **persistent index of the files** (slice 025: the table `{prefix}media_helper_files`, with `path`, `kind`, `size`, `mtime`, `name_date`, **`embedded_date`**, **`embedded_state`** (0 not read, 1 read, 2 none)…), filled **incrementally by WP-Cron** (`Index\Cron`: a pass of 15 seconds at most, a lock, rescheduled while work remains, an hourly maintenance). **A file does not have to be an attachment** to be in it (the index carries the data of files that are not imported).
+- **The content of a file is read only when needed and once** (the pattern to follow): the embedded date is read only for an image whose name has no date, **kept with a state**, and read again only when the **size or the time** of the file changes. **Today the EXIF of a photograph named `20261001_134828.jpg` is not opened at all** (its name has the date): reading the GPS means opening the header of every image once.
+- **GPX files are a type of media** of its index (`gps`).
+- **Not checked**: the way an address of the page (a thumbnail in `uploads/thumbnails/…`, a lightbox link) is mapped to a row of the index; the NextGEN images (`wp-content/gallery/…`, outside the uploads) are probably **not** in it.
+
+**The split** (Proposed): **Media Helper keeps the facts, Index applies the policy.**
+
+| Media Helper (facts about a file) | Index (what is worth indexing) |
+|---|---|
+| the **coordinates** and the **time** of a photograph (EXIF), read once with a state; for a **GPX file**, its **first and last points by time** | the **grouping** by time and distance (visits), the **duration of a stay**, the minimum for a place to count |
+| the **answer of the reverse geocoding**, kept **whole** (the chain), in a cache by cell of about 100 m, one request a second, a polite client, a back-off after a failure; the **service is a setting** (the public one, one's own, or later an offline file) | the **choice of the level** (the lowest place-like one), the **roles** (start, end, photo), the **entries** and their hierarchy |
+| a **filter** that answers "where is this file?" for an address or a path | the harvesters of the page, the resolver, the queue |
+
+- **The contract** (Proposed): a filter of Media Helper, for example `media_helper_file_geo( $address )`, answers **null** or `array( lat, lon, taken_at, places, fetched_at )`; **Index does not depend on Media Helper** (a site without it simply has no photographs and no GPX places).
+- **The arrival**: a new file is read (EXIF and GPS in one pass), put in a **queue of geocoding** and answered **within minutes** by a second cron job, so that the data are there **when the post is written**. The **old photographs** (about 34,000 attachments in the library of the blog, rollout 005) are a **backfill in the background**: **an estimate from one day** (35 cells for 66 photographs, 0.5 call a photograph) is **about 18,000 calls, five hours at a call a second**, less with the cache shared between days; **to measure**.
+- **Useful beyond the index** (the media panel could show the place of a photograph, a caption, a map): it is a **property of the file**, not of a post.
+- **The old posts with NextGEN Gallery** (images outside the uploads): **no data** unless that folder becomes a source of Media Helper (**to check**), or until the posts are migrated to the new templates and the photographs are in `cumulus` (Eric's long-term wish).
+- **Open**: a **slice of Media Helper** for it (its numbering, the schema version 3: `gps_lat`, `gps_lon`, `geo_state`, a table of places by cell); who writes it (the repository is cloned **read-only**); how the privacy of the coordinates is protected (they are in the database, **not printed in the page**).
 
 ## Identifiers: Wikidata first (Decided), places to discuss
 
