@@ -17,6 +17,8 @@ use Otherguise\Core\Modules;
 use Otherguise\Index\Admin\TermsScreen;
 use Otherguise\Index\Cli\IndexCommand;
 use Otherguise\Index\Cli\KindsCommand;
+use Otherguise\Index\Cli\BuildCommand;
+use Otherguise\Index\Build\IndexBuilder;
 use Otherguise\Index\Admin\KindsScreen;
 use Otherguise\Index\Cli\PagesCommand;
 use Otherguise\Index\Harvest\PageFetcher;
@@ -487,6 +489,19 @@ final class Module implements ModuleInterface, DescribedModule, DisabledByDefaul
 		$pages = $this->pages();
 
 		\WP_CLI::add_command( 'otherguise index kinds', new KindsCommand() );
+		\WP_CLI::add_command(
+			'otherguise index build',
+			new BuildCommand(
+				new IndexBuilder( $this->entries(), $this->mentions() ),
+				// The posts of a section come from the module that has sections (Books answers this filter): this module does not know it.
+				static fn( $section ) => apply_filters( 'index_section_posts', array(), (int) $section ),
+				static function ( $post, $strength ) {
+					$link = '<a href="' . esc_url( (string) get_permalink( (int) $post ) ) . '">' . esc_html( get_the_title( (int) $post ) ) . '</a>';
+
+					return 'main' === $strength ? '<strong>' . $link . '</strong>' : $link;
+				}
+			)
+		);
 		\WP_CLI::add_command(
 			'otherguise index pages',
 			new PagesCommand(

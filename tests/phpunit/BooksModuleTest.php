@@ -80,6 +80,7 @@ class BooksModuleTest extends TestCase {
 
 		$this->assertSame(
 			array(
+				'index_section_posts'                => array( array( 'filter', 10, 2 ) ),
 				'admin_init'                         => array( array( 'register', 10, 0 ), array( 'schedule_cleanup', 10, 0 ) ),
 				'admin_menu'                         => array( array( 'add_menu', 10, 0 ), array( 'add_menu', 11, 0 ) ),
 				'otherguise_admin_screens'           => array( array( 'declare_screen', 10, 1 ), array( 'declare_screens', 10, 1 ) ),

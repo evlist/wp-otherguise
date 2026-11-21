@@ -53,6 +53,7 @@ use Otherguise\Books\Render\SiteAddress;
 use Otherguise\Books\Rest\PdfRoutes;
 use Otherguise\Books\Rest\SectionRoutes;
 use Otherguise\Books\Section\SectionEditor;
+use Otherguise\Books\Section\SectionPostsFilter;
 use Otherguise\Books\Section\Sections;
 use Otherguise\Books\Section\WordPressPostStore;
 use Otherguise\Books\Settings\ListItems;
@@ -170,6 +171,7 @@ final class Module implements ModuleInterface, DescribedModule {
 		$screens        = new EditScreens( array( $this, 'section_titles' ), array( new WordPressProjects(), 'profiles' ), $this->links() );
 		$styles         = new PrintStyles( $this->projects(), array( $this, 'is_print_request' ) );
 
+		( $this->add_action )( 'index_section_posts', array( new SectionPostsFilter( array( $this, 'sections' ) ), 'filter' ), 10, 2 );
 		( $this->add_action )( 'admin_init', array( $settings, 'register' ), 10, 0 );
 		( $this->add_action )( 'admin_menu', array( $settings, 'add_menu' ), 10, 0 );
 		( $this->add_action )( 'admin_menu', array( $types, 'add_menu' ), 11, 0 );

@@ -180,6 +180,20 @@ class WP_Post {
     public $post_title;
 
     /**
+     * Status.
+     *
+     * @var string
+     */
+    public $post_status = 'publish';
+
+    /**
+     * Password.
+     *
+     * @var string
+     */
+    public $post_password = '';
+
+    /**
      * Builds a post.
      *
      * @param int    $id        Id.
