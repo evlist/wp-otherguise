@@ -13,13 +13,14 @@ Context: the index of the printed books was designed in [`books.md`](books.md) (
 - **Decided (Eric)**: **first for his travel blog** (printed travel books are mostly photographs, with very little printed text).
 - **Decided (Eric)**: **the locator of an entry is the post**, not a passage: most terms to index are **not in the printed text** and must behave **like tags**. A passage (an `data-index` mark on a word) only refines, when it is printed.
 - **Decided (Eric)**: the entries come from **several kinds of sources**, abstracted behind **one interface**: tags and categories; marks in the text (`data-index`); full-text searches; the start and the end of the GPX track of a post; the photos of a post (their coordinates give place names); the links, **above all the links to Wikipedia** (a link is a sure sign that there is something to index); the birds observed (WhoBIRD).
+- **Decided (Eric, 2026-11-21): the index reads the page as WordPress renders it**, not the post as it is saved in the database. Plugins and themes add what they want to a post (Eric's blog puts the WhoBIRD block **in the templates**, so it is not in the contents of the post at all). Instead of learning how each plugin works, **the plugins put semantic information in their HTML** (data attributes), and the module reads it. See "Reading the rendered page".
 - **Decided (Eric)**: **Wikidata rather than Wikipedia for the identifiers**, with an exception to discuss for the places (OpenStreetMap or Wikidata).
 - **Decided (Eric)**: a **manual mechanism** to link entries that were **not identified automatically or are ambiguous**.
 
 ## What was read in the other plugins (2026-11-21, shallow clones, nothing run)
 
 - **WhoBIRD** (`evlist/wp-whobird`): the observations come from **an export of the app (SQLite)**, table `BirdObservations` (`BirdNET_ID`, `SpeciesName`, `TimeInMillis`); the block shows those of **the day, the week or the month of the publication date of the post or page** (**no observation is stored per post**). The plugin keeps a **mapping table** (`birdnet_id`, `scientific_name`, **`wikidata_qid`**) built from BirdNET, eBird and Wikidata lists, queries Wikidata by SPARQL with a cache and a throttle, and takes the names in the user's language. **So the birds already have Wikidata identifiers**; a source "birds" would read the observations of the date of the post and give `wikidata:Q…` (kind: species).
-- **Trackserver** (a fork, `evlist/wp-plugin-trackserver`): the tracks are in the tables `ts_tracks` and `ts_locations` (`trip_id`, `latitude`, `longitude`, `altitude`, `occurred`, `hidden`); a post shows a track by a **shortcode** with the attributes `track`, `user` or `gpx` (a file). **To check**: how the posts of the blog actually name their tracks (shortcode, block, an attached `.gpx`).
+- **Trackserver** (a fork, `evlist/wp-plugin-trackserver`): the tracks are in the tables `ts_tracks` and `ts_locations`; **Eric does not use it to put the tracks in the posts** (he uses several plugins, at present **GPX Maps**, not read). With the decision above its tables do not matter to the index: the **file** that the page names is what counts.
 - **Media Helper** (`evlist/wp-media-helper`): it knows **GPS files** as a type of media (`gpx`, `kml`, `kmz`, `fit`, `tcx`) that it inserts in a post, and reads the **dates** embedded in the files (`EmbeddedDates`); it **does not read the coordinates of the photos**. The core of WordPress does not keep them either (**from memory, not checked**: its `image_meta` has no GPS keys). **Reading the EXIF of a photo (`exif_read_data`, an optional PHP extension) would be new code**, on the original files (a thumbnail may have lost its EXIF).
 
 ## The model (Proposed)
@@ -28,17 +29,57 @@ Three notions, stored with what the module Triples already gives.
 
 1. **Entry**: a term of a **non-public hierarchical taxonomy** `index_entry` (the hierarchy gives the sub-entries). Its data: a **kind** (place, route, species, person, work, incident…), a **sort key**, **aliases**, **identifiers** (below), a **status** (candidate, approved, refused). The kinds are a short list, with the typography that goes with each.
 2. **Mention**: the statement `(post, index/mentions, entry)` of Triples, qualified by its **source**, its **strength** (main or passing) and, optionally, the **anchor** of a passage. One mention per (post, entry), with **several sources** possible (**to check** in Triples: several qualifications of one kind on a statement).
-3. **Source**: a provider that proposes **candidates** for a post. An interface, and a **registry** that plugins fill through an action (`index_register_sources`, the pattern of `triples_register_predicates`). The module **depends on none of those plugins**; WhoBIRD, Trackserver or Media Helper bring their source, as Media Helper already offers its contract to Otherguise.
+3. **Signal and candidate**: a **signal** is what is found in a page or in the database (a data attribute, a link to Wikipedia, the address of a `.gpx` file, an image, a tag); a **candidate** is what an entry would be made of (label, kind, identifiers, strength, anchor, evidence, confidence). Two stages, both extensible through an action (`index_register_…`, the pattern of `triples_register_predicates`):
 
 ```php
-interface IndexSource {
-	public function id();                  // 'tags', 'marks', 'wikipedia-links', 'gpx-ends', 'photo-places', 'birds'
-	public function label();
-	public function candidates( $post_id ); // Candidate[]: label, kind, identifiers, strength, anchor, evidence, confidence
+interface IndexHarvester {      // reads a page (a string of HTML, no network) or the database
+	public function id();                      // 'attributes', 'wikipedia-links', 'gpx-files', 'images', 'tags'
+	public function signals( $html, $post_id ); // Signal[]: type, value, element id (anchor), evidence
+}
+interface IndexEnricher {       // turns signals into candidates (may call a service)
+	public function handles( $signal );        // 'wikipedia-link', 'gpx-file', 'image', ...
+	public function candidates( $signal );     // Candidate[]
 }
 ```
 
-**The flow.** When a post is saved (or when what a source reads changes), each enabled source gives its candidates; the **resolver** (below) ties each to an entry; the mentions **of that source** that no longer apply are removed and those made by hand are kept. `wp otherguise index rebuild [--source=] [--dry-run]` does it for the whole site, as a **background job** with a report when it is long (the rules of the repository: progress, stop and resume).
+The module **depends on none of the plugins**; a plugin that wants to be indexed only **writes the convention** in its HTML (below), without calling the module.
+
+**The flow.** When a post is saved (or when a page changes without the post changing: new observations, a replaced file), the page is rendered, the harvesters read it, the enrichers make candidates, the **resolver** (below) ties each to an entry; the mentions **of that harvester** that no longer apply are removed and those made by hand are kept. `wp otherguise index rebuild [--source=] [--dry-run]` does it for the whole site, as a **background job** with a report when it is long (the rules of the repository: progress, stop and resume).
+
+## Reading the rendered page (Decided by Eric; the details are Proposed)
+
+**Why.** What a visitor sees is **the contents of the post, the templates, the blocks and the shortcodes** of the theme and of every plugin. Reading the post in the database would mean knowing what each plugin adds and how it is configured; and **some of it is not in the post at all** (the WhoBIRD block of Eric's blog is in the template of the posts, and shows the observations of the date of the post). The page is the one place where everything has been put together.
+
+**How a page is obtained** (Proposed):
+
+- **A request of the site to itself** (a loopback) for the address of the post, in a **background job** (WP-Cron, with progress, stop and resume, a report: the rules of the repository). Books already does the same thing for its PDF: a rendering server asks the site for the page, with **a private link** for a post that is not published (slice 403) and **an internal address of the site** when the public one does not resolve from the server (slice 225): the module reuses those two settings and does not invent others.
+- **The web rendering** (not the print mode): it holds what the print mode hides, and an entry that is not printed must count (the locator is the post).
+- **Not at the moment a visitor loads the page**: a cache plugin may serve the page without PHP, so nothing would run. A job is predictable; its price is time (**to measure**: a few seconds a post, a few hundred posts).
+- **When to render again**: when the post is saved, on demand (`wp otherguise index rebuild`), and **when what a plugin shows has changed without the post changing** (new observations, a replaced file): **Open** (a periodic check by the hash of what was harvested is the simplest).
+- Only **published** posts at first; a draft through its private link is a later option (the Access module).
+- The extraction itself is **a pure function of a string of HTML** (and of the identifier of the post): it is tested without a site and without a network; fetching the page is a separate piece.
+
+**What is read in the page.** The module trusts **explicit markers** everywhere in the page; for what has **no marker** (the generic harvesters) it reads **only the contents of the post** (the region of `core/post-content`, **to check** on the theme of the blog: a block theme wraps it in `wp-block-post-content`), so that a link in the footer, a widget "recent posts" or a menu is not taken for a mention. A list template (a section, an archive) is **not harvested**: it repeats the contents of other posts.
+
+**The convention: `data-index` attributes** (Proposed; a plugin writes them, the module reads them, **neither depends on the other**):
+
+| Attribute | Meaning |
+|---|---|
+| `data-index="wikidata:Q25327"` | this element **mentions that entry**; the value is **an identifier** (`wikidata:`, `osm:node/123`, `geonames:`) **or a label** (`Santiago de Compostela`; `Espagne > Galice` for a sub-entry; `a \| b` for several) |
+| `data-index-kind="species"` | the kind of the entry (place, route, species, person, work, incident) |
+| `data-index-label="Troglodyte mignon"` | the label to show when the value is an identifier (the language of the page) |
+| `data-index-sort`, `data-index-main` | a sort key; a main reference |
+| the `id` of the element | **the anchor of the passage**, when there is one |
+
+- **WhoBIRD** (a plugin of Eric's): the block writes `data-index="wikidata:Q…"` on each observed species, from the `wikidata_qid` it already has. Whatever the block's parameters, **its output carries the identifier**.
+- **A mark made by hand** in the editor is the same attribute on a `span` (see "Marks in the text").
+- **A plugin that is not Eric's** (GPX Maps, a theme) can get the attributes from **a small adapter** of the module on the filters `render_block` or `do_shortcode_tag`, **or** be read by a generic harvester without any adapter:
+  - **`.gpx` files**: every address ending in `.gpx` in an attribute of the page (a `src`, an `href`, a `data-…` of the map). The file is then read (its first and last points, the waypoints) by an enricher. **To check on a real page of the blog**: if GPX Maps puts the track **inline** (JSON in a script), nothing names a file.
+  - **Links to Wikipedia and to Wikidata** in the contents of the post.
+  - **The images of the post** (their addresses, resolved to the original files in the uploads): for the places of the photos (EXIF, new code).
+  - **The tags and categories**: from the database, not the page (a theme does not always show them).
+
+**What is lost, said plainly**: what a script draws in the browser (a map built by JavaScript from a file whose address is **not** in the HTML), what is behind a login or a consent screen, and what a cache or a protection of the site (a firewall that refuses the loopback) hides from the request. A page that is **not reachable** is reported, not silently skipped.
 
 ## Identifiers: Wikidata first (Decided), places to discuss
 
@@ -69,17 +110,16 @@ A candidate carries **keys**: its identifiers, the key of its label (accents and
 
 In the editor, a **panel "Index entries of this post"** lists the mentions with their source and their status, with the same actions for this post.
 
-## Sources: what each needs (Proposed)
+## Harvesters and enrichers: what each needs (Proposed)
 
-| Source | Candidates | Identifiers | Difficulty |
-|---|---|---|---|
-| Tags and categories | one per term **that has a kind** (a term with no kind stays out) | none, or Wikidata by the queue | none |
-| Links to Wikipedia | the title in the address; the language | the Wikidata item through the API | **the kind is unknown**: inferred from "instance of", or set in the queue |
-| Marks `data-index` | the entry named in the attribute | by the resolver | a button in the editor (a text format) |
-| Full-text search | the entry and its variants, searched in the text | by the resolver | **precision**: homonyms, plurals; a screen to validate; it may **write the marks** |
-| Start and end of the GPX | one place per end | OSM or Wikidata through the geocoding | coordinates to a name; which track belongs to the post |
-| Photos of the post | places, aggregated (a minimum of photos, or the first and the last) | idem | **new EXIF code**, noise |
-| Birds | species observed on the date of the post | **already `wikidata_qid`** in WhoBIRD | to read the observations of a date; the period (day, week) is **Open** |
+| What is read | In | Candidates | Identifiers | Difficulty |
+|---|---|---|---|---|
+| `data-index` (WhoBIRD, marks, adapters) | the page | the entry named | in the attribute, or by the resolver | the convention to write in each plugin |
+| Links to Wikipedia / Wikidata | the contents of the post | the title in the address | the Wikidata item (API, cached) | **the kind is unknown**: inferred from "instance of", or set in the queue |
+| `.gpx` files named in the page | the page | one place per end of the track | OSM or Wikidata by the geocoding | coordinates to a name; the file must be found |
+| Images of the post | the contents of the post | places, aggregated (a minimum of photos, or the first and the last) | idem | **new EXIF code**, noise |
+| Tags and categories (with a kind) | the database | one per term that has a kind (the others stay out) | by the queue | none |
+| Full-text search | the contents of the post | the entry and its variants | by the resolver | **precision**: homonyms, plurals; a screen to validate; it may **write the marks** |
 
 The geocoding (coordinates to a place) is the one real decision of the list: an **online service** with a cache and the courtesy it asks for, or an **offline file** (GeoNames, communes); the names vary with the language and need aliases in both cases. **Open (Eric).**
 
@@ -91,17 +131,18 @@ The geocoding (coordinates to a place) is the one real decision of the list: an 
 
 ## Marks in the text (Proposed)
 
-`<span data-index="Santiago de Compostela">Compostelle</span>`: the attribute names the **entry** (a sub-entry by `Espagne > Galice`, several by `|`), the optional `data-index-sort` and `data-index-main`. A mark **also counts as a tag** (a mention of the post) even if its passage is not printed. In the editor: a **button** that opens a field with **auto-completion on the entries that exist**. **To check**: WordPress filters some attributes on saving for the roles that have no `unfiltered_html`. A search source may **write the marks** after the validation (an assistant), which changes the contents of the posts: a command with `--dry-run` and a report, tried on a copy first.
+`<span data-index="Santiago de Compostela">Compostelle</span>`: **the attribute of the convention above** written by hand; it names the **entry** (a label, or an identifier), the optional `data-index-sort` and `data-index-main`. A mark **also counts as a tag** (a mention of the post) even if its passage is not printed. In the editor: a **button** that opens a field with **auto-completion on the entries that exist**. **To check**: WordPress filters some attributes on saving for the roles that have no `unfiltered_html`. A search source may **write the marks** after the validation (an assistant), which changes the contents of the posts: a command with `--dry-run` and a report, tried on a copy first.
 
 ## What is proposed first
 
-1. The **core**: the taxonomy, the statements, the registry of sources, the resolver, `rebuild`, a minimal screen; the source **tags**.
-2. The **web blocks**.
-3. The **integration into Books** (the role `index`, ranges).
-4. The sources **links to Wikipedia** (with the Wikidata client) and **marks**, with the **queue**.
-5. **GPX** and **photos** (the geocoding).
-6. **Birds** (WhoBIRD).
-7. The **assistant** of the search.
+1. The **core**: the taxonomy, the statements, the resolver, `rebuild`, a minimal screen; the harvester of the **tags**.
+2. **The reading of a page**: the pure function over a string of HTML (the `data-index` attributes, the links), **then** the loopback job. Tried first on **one real page of the blog**.
+3. The **web blocks**.
+4. The **integration into Books** (the role `index`, ranges).
+5. The **Wikidata client** and the **queue** (the links to Wikipedia, the manual linking).
+6. The convention **in WhoBIRD**; the **marks** and their button.
+7. **GPX files** and **photos** (the geocoding).
+8. The **assistant** of the search.
 
 ## Open
 
@@ -109,5 +150,7 @@ The geocoding (coordinates to a place) is the one real decision of the list: an 
 - How the **kind** of an entry that comes from Wikipedia is set: inferred ("instance of" through Wikidata, network), set in the queue, or a default kind.
 - Whether the entries **derive from the existing tags** (a tag with a kind gives a linked entry, no double entry) or the tags are **migrated** to the taxonomy.
 - The name `index` for the module and the dependency Books → Index (checked by `ArchitectureTest`); the numbering of the slices.
-- Several **sources on one mention** in Triples; the availability of `Collator`; how the posts of the blog name their tracks.
+- Several **sources on one mention** in Triples; the availability of `Collator`.
+- **What the pages of the blog really contain**: where GPX Maps puts the file (an address in an attribute, or inline), what WhoBIRD prints, the wrapper of the contents of the post in the theme. **A saved copy of the HTML of one post is needed**; nothing of this was looked at.
+- The **time** of rendering every post, the way to **detect a page that changed** without the post changing, and the behaviour of the loopback behind the firewall and the cache of the blog (the internal address of Books may be enough).
 - **Never tried**: everything. No line of this module is written; the three plugins were read, not run.
