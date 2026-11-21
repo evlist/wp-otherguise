@@ -5,7 +5,7 @@
 
 Status: **brief written on 2026-11-09** for a session that works in the new repository `evlist/wp-wikiguise-theme` (created by Eric, empty). Nothing of the theme exists yet. The points are marked **Decided** (said by Eric), **Proposed** (Claude's reading, **to be confirmed with Eric**) or **Open**; do not take a Proposed point for a decision.
 
-**Read first**, in this repository (`evlist/wp-otherguise`, branch `wiki`): `docs/design/wiki.md` ("The instance and the theme", "The model"), the line `Wiki` of `docs/IA.md`, `docs/slices/README.md`; and, for the way the blog's own child theme is built, `evlist/wp-twenty-twenty-five-printable` (`README.md`: "Rules for the templates").
+**Read first**, in this repository (`evlist/wp-otherguise`, branch `main`): `docs/design/wiki.md` ("The instance and the theme", "The model"), the line `Wiki` of `docs/IA.md`, `docs/slices/README.md`; and, for the way the blog's own child theme is built, `evlist/wp-twenty-twenty-five-printable` (`README.md`: "Rules for the templates").
 
 ## Why a theme of its own
 
@@ -66,11 +66,11 @@ One theme, one set of templates, a layout that adapts:
 
 ## How to try it
 
-The theme is tried on **`sb.vli.st`** (Eric's sandbox, a Docker WordPress with the plugin Otherguise on the branch `wiki`, the module Wiki enabled, and the migrated pages: `/Biographie/...`, `/Encyclopédie/...`, `/WikiVlist/...`). A session in the cloud has no access to it: it works on a **scratch WordPress**, as the session that wrote the plugin did:
+The theme is tried on **`sb.vli.st`** (Eric's sandbox, a Docker WordPress with the plugin Otherguise (the module Wiki is merged into `main`; it is off by default, enabled by a switch), and the migrated pages: `/Biographie/...`, `/Encyclopédie/...`, `/WikiVlist/...`). A session in the cloud has no access to it: it works on a **scratch WordPress**, as the session that wrote the plugin did:
 
 1. MariaDB (`apt-get install mariadb-server`), a data directory of its own, started by hand on a port (`mariadbd --no-defaults --datadir=... --socket=... --port=3307 --bind-address=127.0.0.1`), root with an empty password through `mysql_native_password` (`ALTER USER ... IDENTIFIED VIA mysql_native_password USING PASSWORD('')`), a database for the site.
 2. WordPress from `https://wordpress.org/latest.tar.gz` (the proxy lets it through), installed, served by the **PHP built-in server** with a small router script (it hides nginx's behaviour: no `PATH_INFO` there, and the plugin decodes the path itself); pretty permalinks `/%postname%/`.
-3. The plugin: a symlink from `wp-content/plugins/otherguise` to the `plugin/` directory of this repository, branch `wiki`; the option `otherguise_modules` with `wiki` set to true (a switch on the overview of the menu Otherguise). The theme: a symlink in `wp-content/themes/`.
+3. The plugin: a symlink from `wp-content/plugins/otherguise` to the `plugin/` directory of this repository (branch `main`); the option `otherguise_modules` with `wiki` set to true (a switch on the overview of the menu Otherguise). The theme: a symlink in `wp-content/themes/`.
 4. Pages: the plugin's `Tree\Pages::create( $parent, $title, $html, $status )` (the command `wp otherguise tree create` when WP-CLI is there), or the migration tool of `evlist/shared-room` (`tools/wiki-migration/`) with a JSON file of the wiki.
 5. **Playwright and Chromium are installed in the cloud environment**: `require('playwright')`. Take captures at **three widths** (1440, 900 and 390 px), `deviceScaleFactor: 1` for checks, 2 for a capture that Eric will see.
 
@@ -110,7 +110,7 @@ The same as the other repositories of Eric:
 # CLAUDE.md
 
 Instructions for Claude Code sessions working in this repository (the theme of the wiki of Eric's SelfPedia, for the plugin Otherguise).
-The brief is `docs/design/wiki-theme.md` of the repository `evlist/wp-otherguise` (branch `wiki`): read it first.
+The brief is `docs/design/wiki-theme.md` of the repository `evlist/wp-otherguise` (branch `main`): read it first.
 
 ## Language
 - Talk to Eric in **French**; everything stored in the repository is in **English** (the titles of the templates are those of the site).

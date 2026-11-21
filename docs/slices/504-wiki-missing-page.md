@@ -3,7 +3,7 @@
 
 # Slice 504 — Wiki: the page that does not exist
 
-Status: **reworked for the hierarchical model, coded on the branch `wiki` (2026-11-07)**, not merged into `main`. The first version (offer to create `Space:Title`) is kept at the tag `wiki-model-1`. Dependencies: slices 500 to 503. Context: [`../design/wiki.md`](../design/wiki.md), "The page that does not exist".
+Status: **reworked for the hierarchical model, coded on the branch `wiki` (2026-11-07)**, merged into `main` on 2026-11-21 (the module is disabled by default). The first version (offer to create `Space:Title`) is kept at the tag `wiki-model-1`. Dependencies: slices 500 to 503. Context: [`../design/wiki.md`](../design/wiki.md), "The page that does not exist".
 
 ## What it does
 

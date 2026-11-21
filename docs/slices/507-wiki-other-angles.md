@@ -3,7 +3,7 @@
 
 # Slice 507 — Wiki: the other angles of a subject
 
-Status: **rewritten for the hierarchical model and coded on the branch `wiki` (2026-11-07)**, not merged into `main`. Dependencies: slices 501 (`Keys::elsewhere`, the index of the exact title), 502, 505. Context: [`../design/wiki.md`](../design/wiki.md): Eric treats **the same subject from several angles**; in the tree the same title lives under several branches (`Biography/Paris`, `Opinion/Paris`).
+Status: **rewritten for the hierarchical model and coded on the branch `wiki` (2026-11-07)**, merged into `main` on 2026-11-21 (the module is disabled by default). Dependencies: slices 501 (`Keys::elsewhere`, the index of the exact title), 502, 505. Context: [`../design/wiki.md`](../design/wiki.md): Eric treats **the same subject from several angles**; in the tree the same title lives under several branches (`Biography/Paris`, `Opinion/Paris`).
 
 ## What it does
 

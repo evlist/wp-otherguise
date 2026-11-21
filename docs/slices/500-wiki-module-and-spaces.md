@@ -3,7 +3,7 @@
 
 # Slice 500 — Wiki: the module switch and the rules of a branch
 
-Status: **reworked for the hierarchical model, coded on the branch `wiki` (2026-11-07)**, not merged into `main`. The first version (option `wiki_spaces`, a screen of spaces) is kept at the tag `wiki-model-1`. Dependencies: slice 000 (module loader), 233 (menu Otherguise), the module `triples`. Context: [`../design/wiki.md`](../design/wiki.md).
+Status: **reworked for the hierarchical model, coded on the branch `wiki` (2026-11-07)**, merged into `main` on 2026-11-21 (the module is disabled by default). The first version (option `wiki_spaces`, a screen of spaces) is kept at the tag `wiki-model-1`. Dependencies: slice 000 (module loader), 233 (menu Otherguise), the module `triples`. Context: [`../design/wiki.md`](../design/wiki.md).
 
 ## What it does
 

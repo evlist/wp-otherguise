@@ -3,7 +3,7 @@
 
 # Slice 506 — Wiki: the incoming links and the wanted pages
 
-Status: **rewritten for the hierarchical model and coded on the branch `wiki` (2026-11-07)**, not merged into `main`. Dependencies: slices 501, 502, 505 (the links), Triples. Context: [`../design/wiki.md`](../design/wiki.md): "which pages cite this one" is what WordPress does not have, and the equivalent of `Special:WantedPages` that Eric uses to write the autobiography.
+Status: **rewritten for the hierarchical model and coded on the branch `wiki` (2026-11-07)**, merged into `main` on 2026-11-21 (the module is disabled by default). Dependencies: slices 501, 502, 505 (the links), Triples. Context: [`../design/wiki.md`](../design/wiki.md): "which pages cite this one" is what WordPress does not have, and the equivalent of `Special:WantedPages` that Eric uses to write the autobiography.
 
 ## What it does
 

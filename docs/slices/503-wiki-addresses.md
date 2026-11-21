@@ -3,7 +3,7 @@
 
 # Slice 503 — Wiki: the addresses and the routing
 
-Status: **reworked for the hierarchical model, coded on the branch `wiki` (2026-11-07)**, not merged into `main`. The first version (rule `Space:Title`, `Address\Router`) is kept at the tag `wiki-model-1`; its classes are still in the tree but **unwired**. Dependencies: slices 500, 501, 502. Context: [`../design/wiki.md`](../design/wiki.md), "The routing".
+Status: **reworked for the hierarchical model, coded on the branch `wiki` (2026-11-07)**, merged into `main` on 2026-11-21 (the module is disabled by default). The first version (rule `Space:Title`, `Address\Router`) is kept at the tag `wiki-model-1`; its classes are still in the tree but **unwired**. Dependencies: slices 500, 501, 502. Context: [`../design/wiki.md`](../design/wiki.md), "The routing".
 
 ## What it does
 

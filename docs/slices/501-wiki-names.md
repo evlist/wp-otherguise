@@ -3,7 +3,7 @@
 
 # Slice 501 — Wiki: the titles and the index of the tree (rules, keys, service)
 
-Status: **rewritten on 2026-11-07 for the hierarchical model and coded on the branch `wiki`** (not merged into `main`). This slice was first written and coded for the **first model** (spaces, `Space:Title`); that version is kept at the tag `wiki-model-1`. Dependencies: the module `triples` (the registry of the predicates, the statements, the cleanup of slices 100 to 104). Context: [`../design/wiki.md`](../design/wiki.md), "The model".
+Status: **rewritten on 2026-11-07 for the hierarchical model and coded on the branch `wiki`** (merged into `main` on 2026-11-21 (the module is disabled by default)). This slice was first written and coded for the **first model** (spaces, `Space:Title`); that version is kept at the tag `wiki-model-1`. Dependencies: the module `triples` (the registry of the predicates, the statements, the cleanup of slices 100 to 104). Context: [`../design/wiki.md`](../design/wiki.md), "The model".
 
 ## What it does
 

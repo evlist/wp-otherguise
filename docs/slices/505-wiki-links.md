@@ -3,7 +3,7 @@
 
 # Slice 505 — Wiki: the links, the red links, the move of a page
 
-Status: **rewritten for the hierarchical model and coded on the branch `wiki` (2026-11-07)**, not merged into `main`. Dependencies: slices 501 to 504 (a red link leads to the offer of 504). Context: [`../design/wiki.md`](../design/wiki.md), "Linking a page by its name". The earlier versions (a shortcode, then the address `Space:Title`, with `rename-space`) are superseded: there are no spaces any more.
+Status: **rewritten for the hierarchical model and coded on the branch `wiki` (2026-11-07)**, merged into `main` on 2026-11-21 (the module is disabled by default). Dependencies: slices 501 to 504 (a red link leads to the offer of 504). Context: [`../design/wiki.md`](../design/wiki.md), "Linking a page by its name". The earlier versions (a shortcode, then the address `Space:Title`, with `rename-space`) are superseded: there are no spaces any more.
 
 ## What it does
 

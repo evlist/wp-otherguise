@@ -3,7 +3,7 @@
 
 # Slice 502 — Wiki: the pages (the type `page`, the check at saving, the creation)
 
-Status: **rewritten on 2026-11-07 for the hierarchical model and coded on the branch `wiki`** (not merged into `main`). The first-model version (a flat type `wiki_page`, a space meta, a panel and a box) is kept at the tag `wiki-model-1`. Dependencies: slice 501 (the index of the tree: `Tree\Title`, `Tree\Keys`). Context: [`../design/wiki.md`](../design/wiki.md), "The model".
+Status: **rewritten on 2026-11-07 for the hierarchical model and coded on the branch `wiki`** (merged into `main` on 2026-11-21 (the module is disabled by default)). The first-model version (a flat type `wiki_page`, a space meta, a panel and a box) is kept at the tag `wiki-model-1`. Dependencies: slice 501 (the index of the tree: `Tree\Title`, `Tree\Keys`). Context: [`../design/wiki.md`](../design/wiki.md), "The model".
 
 ## What it does
 
