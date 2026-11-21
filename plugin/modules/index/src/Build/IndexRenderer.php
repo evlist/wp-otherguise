@@ -43,9 +43,7 @@ final class IndexRenderer {
 	 * @return string
 	 */
 	public static function to_csv( IndexModel $model ) {
-		$handle = fopen( 'php://temp', 'r+' );
-
-		fputcsv( $handle, array( 'letter', 'label', 'kind', 'posts', 'main' ), ',', '"', '\\' );
+		$rows = array( self::csv_line( array( 'letter', 'label', 'kind', 'posts', 'main' ) ) );
 
 		foreach ( $model->lines() as $line ) {
 			$posts = array();
@@ -59,14 +57,31 @@ final class IndexRenderer {
 				}
 			}
 
-			fputcsv( $handle, array( $line['letter'], $line['label'], $line['kind'], implode( ' ', $posts ), implode( ' ', $main ) ), ',', '"', '\\' );
+			$rows[] = self::csv_line( array( $line['letter'], $line['label'], $line['kind'], implode( ' ', $posts ), implode( ' ', $main ) ) );
 		}
 
-		rewind( $handle );
-		$csv = (string) stream_get_contents( $handle );
-		fclose( $handle );
+		return implode( "\n", $rows ) . "\n";
+	}
 
-		return $csv;
+	/**
+	 * One line of CSV: a field is quoted when it holds a comma, a quote, a backslash, a space, a tab or a line break, and a quote is doubled
+	 * (what `fputcsv()` does; written here because a plugin must not open files, even in memory).
+	 *
+	 * @param array<int, string|int> $fields The fields.
+	 * @return string
+	 */
+	private static function csv_line( array $fields ) {
+		return implode(
+			',',
+			array_map(
+				static function ( $field ) {
+					$field = (string) $field;
+
+					return 1 === preg_match( '/[,"\\\\\s]/', $field ) ? '"' . str_replace( '"', '""', $field ) . '"' : $field;
+				},
+				$fields
+			)
+		);
 	}
 
 	/**

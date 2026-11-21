@@ -348,4 +348,38 @@ class IndexBuildTest extends Otherguise_Test_Database_Case {
 		$this->assertStringContainsString( 'No post id', $fail[3] );
 		$this->assertStringContainsString( 'format', $fail[4] );
 	}
+
+	/**
+	 * The CSV quotes what must be quoted: a backslash, a line break, a tab, a space, a comma and a quote (the same rule as `fputcsv()`); a plain
+	 * field is left as it is.
+	 *
+	 * @return void
+	 */
+	public function test_the_csv_quoting(): void {
+		$lines = array(
+			array(
+				'entry'    => 1,
+				'label'    => 'plain',
+				'kind'     => 'place',
+				'classes'  => array(),
+				'letter'   => 'P',
+				'locators' => array(),
+			),
+			array(
+				'entry'    => 2,
+				'label'    => "a\\b\nc\td",
+				'kind'     => 'other',
+				'classes'  => array(),
+				'letter'   => 'A',
+				'locators' => array(
+					array(
+						'post'     => 7,
+						'strength' => 'main',
+					),
+				),
+			),
+		);
+
+		$this->assertSame( "letter,label,kind,posts,main\nP,plain,place,,\nA,\"a\\b\nc\td\",other,7,7\n", IndexRenderer::to_csv( new \Otherguise\Index\Build\IndexModel( $lines ) ) );
+	}
 }
