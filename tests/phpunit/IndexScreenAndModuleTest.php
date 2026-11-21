@@ -106,6 +106,10 @@ class IndexScreenAndModuleTest extends TestCase {
 	 */
 	public function test_kinds(): void {
 		$this->assertTrue( Kinds::is_kind( 'place' ) );
+		foreach ( array( 'waterway', 'activity', 'season' ) as $kind ) {
+			$this->assertTrue( Kinds::is_kind( $kind ) );
+		}
+
 		$this->assertFalse( Kinds::is_kind( 'nonsense' ) );
 
 		$GLOBALS['otherguise_test_filters']['index_kinds'] = array(

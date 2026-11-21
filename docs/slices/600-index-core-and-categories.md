@@ -27,7 +27,7 @@ A new module `index` (`Otherguise\Index\`, `plugin/modules/index/src/`), **disab
 
 ### The kinds
 
-A short list, **translatable and editable** (`index_kinds`, and the filter `index_kinds`): `place`, `species`, `route`, `person`, `work`, `product`, `event`, `other`. A kind has a label and a CSS class for the typography. The list is only a starting point: **Decided (Eric)** that the kinds are few and editable.
+A short list, **translatable and editable** (`index_kinds`, and the filter `index_kinds`): `place`, `species`, `route`, `waterway` (a river, a lake, a canal), `activity` (hiking, kayaking...), `season` (a series of posts, not a time of year), `person`, `work`, `product`, `event`, `other` (`waterway`, `activity` and `season` were added on Eric's request on 2026-11-21). A kind has a label and a CSS class for the typography. The list is only a starting point: **Decided (Eric)** that the kinds are few and editable.
 
 ### An entry
 

@@ -27,7 +27,10 @@ final class Kinds {
 		$kinds = array(
 			'place'   => __( 'Place', 'otherguise' ),
 			'species' => __( 'Species', 'otherguise' ),
-			'route'   => __( 'Route', 'otherguise' ),
+			'route'    => __( 'Route', 'otherguise' ),
+			'waterway' => __( 'Waterway', 'otherguise' ),
+			'activity' => __( 'Activity', 'otherguise' ),
+			'season'   => __( 'Season (a series)', 'otherguise' ),
 			'person'  => __( 'Person', 'otherguise' ),
 			'work'    => __( 'Work', 'otherguise' ),
 			'product' => __( 'Product', 'otherguise' ),
