@@ -1,34 +1,34 @@
 <!-- SPDX-FileCopyrightText: 2026 Eric van der Vlist <vdv@dyomedea.com> -->
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 
-# Slice 504 — Wiki: the page that does not exist (the 404 that offers to create it)
+# Slice 504 — Wiki: the page that does not exist
 
-Status: **proposed (2026-11-06), not coded**. Dependencies: slices 503 (the 404 keeps the space and the exact title), 501 (`similar`, `elsewhere`), 502 (the creation of a page). Idea of Eric (2026-11-06): the page "404" proposes to create a page that does not exist when the address matches a page of a space. Context: [`../design/wiki.md`](../design/wiki.md).
+Status: **reworked for the hierarchical model, coded on the branch `wiki` (2026-11-07)**, merged into `main` on 2026-11-21 (the module is disabled by default). The first version (offer to create `Space:Title`) is kept at the tag `wiki-model-1`. Dependencies: slices 500 to 503. Context: [`../design/wiki.md`](../design/wiki.md), "The page that does not exist".
 
 ## What it does
 
-When the address is `/<Space>:<Title>` for a **registered space** and **no page has that name**, the answer is a **404** (the right status for a page that does not exist) that **knows what was asked** and offers to create the page.
+A path that does not resolve stays a **404** (slice 503); the router remembers where it stopped (`Router::missing()`: the deepest page that exists, the titles that remain). This slice shows what the visitor can do next. Classes in `Missing\` (same names as before, rewritten): `MissingPage`, `CreateAction`, `Presentation` (unchanged: the block `wiki/missing-page`, the block-theme template `wiki-missing`, the classic-theme file).
 
-- **What the 404 knows** (from slice 503): the registered space, and the exact title after the rules of slice 501 (with the accents: the address is the title). A title the rules refuse (a forbidden character, too long) is an ordinary 404 with the reason, and no offer.
-- **What it shows**, by a **block `wiki/missing-page`** for the template `404` of a block theme, and **a minimal output of its own** when the theme has no such block (so that the module works with any theme, the wiki being probably not on the instance of the blog):
-  - "This page does not exist: `Biography:Sant Llorenç de Morunys`";
-  - **if the user may create it**: a form with a button "Create this page" (a POST, a nonce);
-  - **the other angles**: the pages of the same title in the other spaces (`Names::elsewhere()`), as links;
-  - **similar pages**: the pages of the same space whose folded name is the same (`Names::similar()`): "a page of this space has a similar name: `Sant Llorenc de Morunys`" (an address typed without the accent).
-- **Who may create**: a logged-in user who may create content of the type `wiki_page` (`current_user_can( $type->cap->create_posts )`), with a filter `wiki_may_create( $allowed, $space, $user )` for the rights per space (the reflection of [`../design/capabilities.md`](../design/capabilities.md) is open: one right for all the spaces to begin with). Anybody else gets the normal 404 with the other angles and the similar pages, **no form**, and no way to make a page by asking for addresses (a crawler asks for thousands).
-- **The creation**: a POST handled on `admin-post.php` (`action=wiki_create`, the nonce tied to the pair space and title; the capability checked again; the space looked up again): the name is put through the rules and **claimed** (slice 501: if it was taken in the meantime the user is sent to that page); the page is created as a **draft** of the type `wiki_page`, with the template of the space (slice 500), the title **as it was in the address**, the meta `wiki_space`; the user lands in the editor. The address that led there is the address of the page.
-- **Where the logic and where the look**: the logic (what the address means, who may create, the creation, the lists) is the module's; the look is the theme's: the block and the minimal output give the markup with classes (`wiki-missing`, `wiki-angles`, `wiki-similar`), no style of their own beyond a few CSS variables with a fallback.
-- **No chain of parents to create**: with the level 3 there is no hierarchy, `1958-1968/fr` is one title (this closes the question of the design note about the missing parents).
-- **A red link of slice 505 points to this address** (it is an ordinary link to the address of a page that does not exist yet), so the same page serves both ways to arrive.
+- **What is shown** (markup with classes `wiki-missing`, `wiki-similar`, `wiki-angles`, no style): the path asked; **the approaching paths** ("Did you mean:"); **the same last title elsewhere** (the angles); and, for a user who may create, the form.
+- **Approaching paths** (first version, **Proposed**, to confirm with Eric by use): the remaining titles are read level by level from the deepest page, each title **exact if the page exists, otherwise through the folded keys** (an accent or a case that differs, at any level, several candidates possible); only paths that end on an existing page are listed, **at most 10**, only pages the user may see. The router now also treats as ours a path whose **first title is a first-level title written another way** (`/biography/lutece`), so that it gets this page and not a bare 404.
+- **Creation** (a logged-in user with `create_posts` on `page` and the right to edit the parent; filter `wiki_may_create( $allowed, $parent, $user )`; nobody else sees a form, a crawler makes no page):
+  - **one title remains**: "Create this page", made below the deepest page;
+  - **several remain**: **the chain is listed** (every page that would be made) and the form needs a **ticked box** (`required` in the browser and `wiki_confirm=1` checked by the server); at most **10** titles.
+  - The form posts to `admin-post.php` (action `wiki_create`) with a **nonce tied to the parent and the titles**. The server checks nonce, right, titles (the rules of slice 501, reserved titles included) and the confirmation; pages are created as **drafts**, each under the previous, **never with rules of their own** (they inherit those of the branch, and the starting template of slice 500); the user lands in the editor of the last. A title taken in the meantime: the chain goes on under its holder (the last one taken sends the user to that page). A refusal stops with a message; drafts already made stay.
+- The first-model offer (`Space:Title`) is gone; the module still registers the page type `wiki_page` and its code until the cutover.
 
-## To look at
+- **A first title that nothing has** (`/Encyclopédie/XML` on an empty tree) is offered for creation too, but **only to a user who may create** (slice 503): the chain `Encyclopédie` then `XML` is listed and confirmed as any other.
 
-How the module gives its template to the 404 of a block theme that has none: `register_block_template()` (WordPress 6.7, to check on the version of the site) or a filter on the template of the 404 request.
+## Tests
 
-## Tests (planned)
+`WikiTreeMissingDbTest` (9, real statements): one title, approaching paths (case at two levels, accent), the angles, the chain with its confirmation, no form without the right or for a refused or too long title, the action (one draft; chain refused without confirmation then created; taken title; bad nonce, no right, reserved title, empty, too deep, unknown parent), the link with the router; `WikiTreeRouterDbTest` (the first-level variant). Suite OK (822), `phpcs` clean. The old `WikiMissingDbTest` is removed with the model it tested.
 
-The state of the request (a registered space and a free name; an unknown space is an ordinary 404; a refused title); who sees the form (may create, may not, logged out); the nonce (valid, invalid, tied to another title); the creation (a draft, the title, the space, the template, the claim, the redirect to the editor; the name taken in the meantime; a refused title posted by hand); the lists (other angles, similar pages; a page that the user cannot see is not listed; an unlisted page, slice 402, is not listed); the block and the minimal output; the filter `wiki_may_create`. A Chromium run on a scratch WordPress with pretty permalinks: type an address, see the offer, create, land in the editor.
+## Verification
+
+- **Tried** on the scratch WordPress (`/%postname%/`), as a visitor (404, the message, no form) and as an administrator in Chromium: `/biography/lutece` (404, "Did you mean /Biography/Lutèce" and the offer); `/Biography/Nobody/Deeper` (the two-page chain, the box blocks the submit); ticking it created two drafts under `Biography` and landed in the editor; both addresses then answer 200 for the administrator.
+- **Tried afterwards** (administrator, Chromium): `/Encyclopédie/XML` on a tree without `Encyclopédie` shows the offer and the chain, the creation made both drafts; a visitor, `/hello-world/`, `/feed/`, `/sample-page/` and `/apple-touch-icon.png` are unchanged.
+- **Never tried**: a user with the right but not on that parent; the block in the Site Editor; a classic theme (file template); a **large tree** (the approaching paths read the index level by level: not measured); a page that is a draft or private in the suggestions for a logged-in user; nginx; the blog instance.
 
 ## Not done
 
-The links and the red links (505); the rights per space; the title alone as an address (`/Paris`: a list of the angles).
+The exact definition of an approaching path stays **open** (the first version above); no rules are offered at creation; the links by title (505).

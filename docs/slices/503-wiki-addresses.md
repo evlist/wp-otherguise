@@ -3,46 +3,35 @@
 
 # Slice 503 — Wiki: the addresses and the routing
 
-Status: **proposed (2026-11-06), not coded**. Dependencies: slices 500, 501, 502. Context: [`../design/wiki.md`](../design/wiki.md) (the level 3). **What a scratch test showed (2026-11-06, a throw-away rule, nothing of this slice)**: see "What was checked".
+Status: **reworked for the hierarchical model, coded on the branch `wiki` (2026-11-07)**, merged into `main` on 2026-11-21 (the module is disabled by default). The first version (rule `Space:Title`, `Address\Router`) is kept at the tag `wiki-model-1`; its classes are still in the tree but **unwired**. Dependencies: slices 500, 501, 502. Context: [`../design/wiki.md`](../design/wiki.md), "The routing".
 
 ## What it does
 
-The **address of a page is its space and its exact title**: `https://site/Biography:Sant_Llorenç_de_Morunys` (and `/Biography:1958-1968/fr`), the form of MediaWiki. The module resolves it itself; WordPress is not asked to find a slug.
+The **address of a page is the chain of the exact titles of its ancestors and of the page**: `/Biography/Sant_Llorenç_de_Morunys`. **No rewrite rule of its own.**
 
-### The address
+- **The form** (`Tree\Address::path()`): underscore for the space, every other character percent-encoded in UTF-8 in **upper case** but `: ( ) , ' ! * @` which stay readable, **no trailing slash**, no prefix. `Address::titles()` does the opposite and decodes a segment only when it still holds a `%XX` (nginx hands the path raw, the built-in server of PHP decoded; a title never holds a percent sign).
+- **The routing** (`Tree\Router`, action `parse_request`): the module acts **only** when WordPress produced `pagename`, `name`, `attachment` or the error 404, and none of `feed`, `embed`, `trackback`, `s`, `p`, `page_id`, `attachment_id`, `preview`. The specific routes of WordPress (feeds, search, archives, `/wp-json/`) therefore always win. The path is walked **one level at a time** through the index (`Keys::resolve_path`).
+  - **Found at its canonical address**: served as it is (`page_id`), with no redirect.
+  - **Found through an alias, with a trailing slash, with a lower-case encoding**: **301** to the canonical address, query string kept.
+  - **Not found, and the first title exists** (the path enters the tree): a **404**, WordPress is not asked for a slug; `Router::missing()` returns `{deepest, rest}` for slice 504.
+  - **Not found, and WordPress would find a page of the tree by its slug** (`/biography/paris/`, a title in another case): the same 404. **There is no slug door.**
+  - **Not found, the first title unknown, and the user may create pages** (`create_posts` on `page`; **decided with Eric, 2026-11-07**, after a first test on `sb.vli.st` where `/Encyclopédie/XML` gave the theme's plain 404): when WordPress finds nothing at that address (no page, post or attachment by that slug) and the last title does not look like a file (`.png`...), the same 404 with `missing()`, so slice 504 offers the creation. A visitor or a robot keeps the plain 404 and no form. **Side effect**: for a user who may create, any unknown address of the blog (`/foo/bar`) shows the offer instead of the theme's 404 (the status stays 404).
+  - **Not found and not in the tree** (`/hello-world/`, an unknown path) for anyone else: left to WordPress, untouched.
+- **The preview of a draft** is its own address with `?preview=true` (WordPress builds it from the permalink): it is resolved like the address, `preview` is **not** in the list of variables that make a request someone else's (found on a real site, 2026-11-07: the preview of a draft was a 404). The old preview routes (`p` or `page_id` with `preview`) are left alone.
+- **`redirect_canonical`** (priority 5): turned off for the requests that are ours (otherwise WordPress adds a slash and we remove it: a loop); and, for the others, a redirect that would land on a page of the tree is dropped (WordPress guesses a 404 from the last slug: `/Nowhere/Paris` went to `/Biography/Paris`; it has no filter of its own).
+- **`page_link`**: the permalink is the address, with pretty permalinks. The static front page keeps `/` and is served at its own address too. A page with no key keeps WordPress's link.
+- **Reserved titles of the first level** (`Tree\Reserved`, given to `Keys`): refused when the first rewrite rule that matches the address is not one of those that produce `pagename`, `name` or `attachment`; or it starts with `wp-`; or it is in a short list (`index.php`, `xmlrpc.php`, `robots.txt`, `favicon.ico`, `readme.html`, `license.txt`, `sitemap.xml`); or a file or directory of that name exists at the root of the site. `feed` and `wp-admin` are refused, `Feed`, `category` (a one-segment `/category` is an ordinary page for WordPress) and `Accueil` are not.
+- **The first model is unwired**: no rule `Space:Title` any more, no `query_vars`/`post_type_link` hooks. One flush (option `wiki_rules` at version `2`, on activation or the first request after the update) drops the stored rule. The addresses `Space:Title` of the first model stop working, as does their 404 page, until slice 504 is reworked.
 
-- `<Space>:<Title>`, the space as registered (slice 500), the title as shown (slice 501) with **the underscore for the space**, the slash kept, every other character percent-encoded in UTF-8 (`rawurlencode` of each part, **upper-case** hexadecimal digits), **no trailing slash**. The first colon of the path separates the space; the others belong to the title.
-- Where the module is not at the root of the site: **a prefix**, a setting of the module (empty by default: **the root is safe**, since no slug of WordPress has a colon, a path whose first segment has one is the module's or nobody's). **Open** (Eric): root or prefix.
-- `get_permalink()`, `get_post_permalink()`, the sitemaps and the SEO plugins read the address through the filter `post_type_link`: the module gives the form above for a `wiki_page` that has a current name; a page with none (a draft that was never named) keeps the plain address `?p=<id>`. **To check**: that nothing reads `post_name`.
-- `ModeUrl::build()` (Modes) adds `?mode=print` to such an address as to any other: **to check**.
+## Tests
 
-### The routing
+`WikiTreeAddressTest` (form, decoding, reserved titles with and without rules), `WikiTreeRouterDbTest` (real statements: depth, same title in two branches, nginx-style encoded request, alias and other forms redirected with the query kept, wrong case, slug door closed, other routes untouched, unknown path left alone, the guess, permalink, front page), `WikiModuleTest` (hooks). Suite OK (822 tests), `phpcs` clean.
 
-- **One rewrite rule, at the top**: `^([^/:]+):(.+?)/?$` => `index.php?wiki_space=$matches[1]&wiki_title=$matches[2]`; the two query variables are registered (`query_vars`); the rules are flushed when the module is activated and when the prefix changes (and once after an update: the module keeps a version of its rules in an option).
-- **On `parse_request`** the request is resolved:
-  1. the space is looked up without regard to the case (`Spaces::find()`); an unknown space **is not ours**: the request goes on as the 404 it is;
-  2. the title is put through the rules of slice 501 and looked up (`Names::resolve()`);
-  3. a **current name**: the main query is made to ask for that page (`post_type` `wiki_page`, `p`), so that the template hierarchy, the modes and the variants work as for any post;
-  4. an **alias**: a **301** to the current address of the page;
-  5. **no such name**: a **404** that keeps what was asked (the space and the exact title) for the page that offers to create it (slice 504).
-- **The canonical form is ours**: WordPress's own `redirect_canonical` is **turned off** for these requests (it adds a trailing slash and writes the percent-encoding in lower case: see below), and the module sends a **301** when the path asked for is not the canonical one of the page (another case of the first letter, a space instead of an underscore, a lower-case hexadecimal digit, a space name in another case, a trailing slash).
-- **A page that cannot be seen** (a draft, a private page) follows the usual rules of WordPress for the main query; **the unlisted flag** of the module `access` (slice 402) is not looked at here.
-- No query is made for a request that does not match the rule: the cost is that of one regular expression on every request.
+## Verification
 
-### What was checked (2026-11-06)
-
-A scratch WordPress 7.1.3 with pretty permalinks (`/%postname%/`) behind the built-in server of PHP with a router, and a **throw-away `mu-plugin`** (removed afterwards) that registered that rule and printed what it received:
-
-- the rule reaches `wiki_space` and `wiki_title` for `/Biography:Sant_Llorenç_de_Morunys`, for `/Biography:Sant_Llorenç_de_Morunys/fr`, for `/Biography:1958-1968/fr/` and for the **percent-encoded** form: **the values arrive decoded** (UTF-8), the slash stays in the title;
-- **`redirect_canonical` answers a 301** for these requests, to a form **with a trailing slash and the hexadecimal digits in lower case** (`Sant_Lloren%c3%a7_de_Morunys/`): it must be turned off for them;
-- the rule matches **any** `word:word` (`/biography:sant-llorenc` too): the space has to be checked by the handler, and an unknown space is an ordinary 404 (the path `/about-nothing` is a 404 as usual).
-
-**Not checked**: loading the page from the main query and its template; `get_permalink()` through the filter; the sitemaps and the SEO plugins; `ModeUrl`; a real server (Apache, nginx: the rule only needs the front controller, as for every pretty permalink); the behaviour of a proxy or a CDN with a colon in the path (the colon is valid in a path segment, RFC 3986, except in the **first** segment of a relative reference: the module only writes absolute addresses).
-
-## Tests (planned)
-
-The builder of the address (the encoding, the underscore, the first letter, the prefix, a title with a colon, a slash, an accent, a character to encode) and its inverse; the filter `post_type_link`; the resolution (a current name, an alias, an unknown name, an unknown space, a space in another case, a title with a space or a lower-case first letter): each answer, with the real database; the canonical redirects (301 and its target); `redirect_canonical` off; the rewrite rule and its flush. A Chromium run on a scratch WordPress with pretty permalinks (the router of the spike): the pages, a redirect, a 404.
+- **Tried** on the scratch WordPress (PHP built-in server, `/%postname%/`): `/Biography`, `/Biography/Paris`, `/Biography/Paris/Rue` 200 (body class and status of slice 500, `rel="canonical"` is our address); trailing slash 301; `/Biography/paris` and `/biography/paris/` 404; an accent in upper- and lower-case hexadecimal (200 / 301); a **rename** (the old address 301 to the new one, descendants included); `/Nowhere/Paris` 404 (was 301 before the fix); `/hello-world`, `/feed/`, `/wp-json/`, `/sample-page/` as before; the static front page at `/` and `/Accueil`; `get_permalink()`; the **sitemap of the core lists our addresses**; the creation of `feed` and `wp-admin` at the first level refused through `Tree\Pages::create`.
+- **Never tried**: nginx (the absence of `PATH_INFO` is covered by a unit test and by the earlier first-model finding, not by a request); Apache; a permalink structure with a date; a site in a subdirectory; a page of the trash or a private page for a logged-in user; `ModeUrl` with these addresses (only the query string kept on a redirect); the performance (one lookup per level, nothing cached); the page list of the Site Editor; the blog instance.
 
 ## Not done
 
-The page that offers to create the page (504); the link by name (505).
+The page that offers to create (504); the map of the addresses cache (open); the links by title (505).

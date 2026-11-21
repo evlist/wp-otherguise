@@ -187,7 +187,7 @@ final class StatementValidator {
 		if ( null !== $maximum && ! $definition->is_symmetric() && $this->store->count( $query->with_object( $statement->object() ) ) >= $maximum ) {
 			InvalidStatementException::refuse(
 				InvalidStatementException::TOO_MANY_SUBJECTS,
-				'"' . $statement->predicate() . '" allows ' . $maximum . ' subject(s) per object and ' . $statement->object() . ' has reached it.'
+				'"' . $statement->predicate() . '" allows ' . $maximum . ' subject(s) per object and ' . $this->shown( $statement->object() ) . ' has reached it.'
 			);
 		}
 	}
@@ -302,5 +302,15 @@ final class StatementValidator {
 		if ( false === $this->types->get( $entity->type() )->exists( $entity->id() ) ) {
 			InvalidStatementException::refuse( $code, $entity . ' does not exist.' );
 		}
+	}
+
+	/**
+	 * Writes an object for a message: an entity as `type:id`, a literal between quotes (a literal has no string form).
+	 *
+	 * @param \Otherguise\Triples\Entity\NodeInterface $node Object of a statement.
+	 * @return string
+	 */
+	private function shown( $node ) {
+		return $node instanceof EntityRef ? (string) $node : '"' . $node->key() . '"';
 	}
 }

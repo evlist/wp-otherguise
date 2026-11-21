@@ -10,6 +10,7 @@
 
 namespace Otherguise\Media;
 
+use Otherguise\Core\DescribedModule;
 use Otherguise\Core\ModuleInterface;
 use Otherguise\Core\Modules;
 use Otherguise\Media\Cli\MigrateCommand;
@@ -28,7 +29,7 @@ defined( 'ABSPATH' ) || exit;
  * with a contract it knows, offers Media Helper its attachment method (`otherguise`). It does not make the method the one in use: that is
  * a setting of Media Helper.
  */
-final class Module implements ModuleInterface {
+final class Module implements ModuleInterface, DescribedModule {
 	/**
 	 * The version of the contract of Media Helper this module is written for.
 	 */
@@ -227,5 +228,23 @@ final class Module implements ModuleInterface {
 		$methods[ $method->id() ] = $method;
 
 		return $methods;
+	}
+
+	/**
+	 * The name of the module, for the switches of the overview.
+	 *
+	 * @return string
+	 */
+	public function title() {
+		return __( 'Media', 'otherguise' );
+	}
+
+	/**
+	 * What the module does, for the switches of the overview.
+	 *
+	 * @return string
+	 */
+	public function description() {
+		return __( 'Media items in several posts and modes, with Media Helper.', 'otherguise' );
 	}
 }

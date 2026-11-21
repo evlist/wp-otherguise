@@ -10,6 +10,7 @@
 
 namespace Otherguise\Modes;
 
+use Otherguise\Core\DescribedModule;
 use Otherguise\Core\ModuleInterface;
 use Otherguise\Core\Modules;
 use Otherguise\Modes\Admin\Admin;
@@ -41,7 +42,7 @@ defined( 'ABSPATH' ) || exit;
  * with the action `modes_register_modes`), finds the mode of the request, registers the entity type `mode` and the predicate
  * `modes/mode` in the Triples module, and adds the class `modes-mode-{slug}` to the body. It changes no template yet.
  */
-final class Module implements ModuleInterface {
+final class Module implements ModuleInterface, DescribedModule {
 	/**
 	 * Runs an action: receives the hook name and the argument.
 	 *
@@ -526,5 +527,23 @@ final class Module implements ModuleInterface {
 		$values = filter_input_array( INPUT_GET, $definitions, false );
 
 		return is_array( $values ) ? array_filter( $values, 'is_string' ) : array();
+	}
+
+	/**
+	 * The name of the module, for the switches of the overview.
+	 *
+	 * @return string
+	 */
+	public function title() {
+		return __( 'Modes', 'otherguise' );
+	}
+
+	/**
+	 * What the module does, for the switches of the overview.
+	 *
+	 * @return string
+	 */
+	public function description() {
+		return __( 'The same content in another guise: modes of presentation (web, print…) and the templates chosen for each.', 'otherguise' );
 	}
 }

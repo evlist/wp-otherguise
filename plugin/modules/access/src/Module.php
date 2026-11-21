@@ -20,6 +20,7 @@ use Otherguise\Access\Rest\UnlistedRoutes;
 use Otherguise\Access\Settings\Settings;
 use Otherguise\Access\Unlisted\Filters;
 use Otherguise\Access\Unlisted\Unlisted;
+use Otherguise\Core\DescribedModule;
 use Otherguise\Core\ModuleInterface;
 
 defined( 'ABSPATH' ) || exit;
@@ -29,7 +30,7 @@ defined( 'ABSPATH' ) || exit;
  * shows the post to someone who is not logged in even if it is not published. It has no dependency on the other modules: it can be lifted
  * out of the plugin (the architecture test checks it), and the other modules use it through the function `access_url()`.
  */
-final class Module implements ModuleInterface {
+final class Module implements ModuleInterface, DescribedModule {
 	/**
 	 * Adds an action or a filter.
 	 *
@@ -254,5 +255,23 @@ final class Module implements ModuleInterface {
 		delete_post_meta_by_key( Links::CREATED );
 		delete_post_meta_by_key( Unlisted::META );
 		delete_option( Settings::OPTION );
+	}
+
+	/**
+	 * The name of the module, for the switches of the overview.
+	 *
+	 * @return string
+	 */
+	public function title() {
+		return __( 'Access', 'otherguise' );
+	}
+
+	/**
+	 * What the module does, for the switches of the overview.
+	 *
+	 * @return string
+	 */
+	public function description() {
+		return __( 'Private links to posts that are not published, and posts that are published but unlisted.', 'otherguise' );
 	}
 }

@@ -58,6 +58,7 @@ use Otherguise\Books\Section\WordPressPostStore;
 use Otherguise\Books\Settings\ListItems;
 use Otherguise\Books\Settings\PageFormat;
 use Otherguise\Books\Settings\RendererSettings;
+use Otherguise\Core\DescribedModule;
 use Otherguise\Core\ModuleInterface;
 use Otherguise\Core\AdminMenu;
 use Otherguise\Core\Modules;
@@ -67,7 +68,7 @@ use Otherguise\Triples\Predicate\PredicateDefinition;
 /**
  * Entry point of the books module.
  */
-final class Module implements ModuleInterface {
+final class Module implements ModuleInterface, DescribedModule {
 	/**
 	 * Name of the daily event that deletes the old PDF files.
 	 */
@@ -668,5 +669,23 @@ final class Module implements ModuleInterface {
 		wp_clear_scheduled_hook( self::CLEANUP_EVENT );
 		wp_clear_scheduled_hook( PdfJobs::EVENT );
 		self::store()->remove_all();
+	}
+
+	/**
+	 * The name of the module, for the switches of the overview.
+	 *
+	 * @return string
+	 */
+	public function title() {
+		return __( 'Books', 'otherguise' );
+	}
+
+	/**
+	 * What the module does, for the switches of the overview.
+	 *
+	 * @return string
+	 */
+	public function description() {
+		return __( 'Books assembled from posts: sections, merged print pages, PDFs with their table of contents.', 'otherguise' );
 	}
 }

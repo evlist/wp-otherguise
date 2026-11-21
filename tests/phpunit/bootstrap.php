@@ -311,6 +311,10 @@ class WP_Block_Template {
     }
 }
 
+if ( ! defined( 'MINUTE_IN_SECONDS' ) ) {
+    define( 'MINUTE_IN_SECONDS', 60 );
+}
+
 $GLOBALS['otherguise_test_objects'] = array();
 
 /**
@@ -696,6 +700,93 @@ function wp_add_inline_style() {
  */
 function wp_nonce_field() {
     echo '<input type="hidden" name="nonce-stub" />';
+}
+
+/**
+ * Stub of get_current_user_id().
+ *
+ * @return int
+ */
+function get_current_user_id() {
+    return 1;
+}
+
+/**
+ * Stub of wp_specialchars_decode().
+ *
+ * @param string $text  Text.
+ * @param int    $quote Quote style.
+ * @return string
+ */
+function wp_specialchars_decode( $text, $quote = ENT_NOQUOTES ) {
+    return htmlspecialchars_decode( (string) $text, $quote );
+}
+
+/**
+ * Stub of register_post_meta(): records the call.
+ *
+ * @return bool
+ */
+function register_post_meta() {
+    otherguise_test_record( 'register_post_meta', func_get_args() );
+
+    return true;
+}
+
+/**
+ * Stub of current_user_can(): the user may.
+ *
+ * @return bool
+ */
+function current_user_can() {
+    return true;
+}
+
+/**
+ * Stub of add_rewrite_rule(): records the call.
+ *
+ * @return void
+ */
+function add_rewrite_rule() {
+    otherguise_test_record( 'add_rewrite_rule', func_get_args() );
+}
+
+/**
+ * Stub of flush_rewrite_rules(): records the call.
+ *
+ * @return void
+ */
+function flush_rewrite_rules() {
+    otherguise_test_record( 'flush_rewrite_rules', func_get_args() );
+}
+
+/**
+ * Stub of wp_safe_redirect(): records the call.
+ *
+ * @return bool
+ */
+function wp_safe_redirect() {
+    otherguise_test_record( 'wp_safe_redirect', func_get_args() );
+
+    return true;
+}
+
+/**
+ * Stub of register_block_type(): records the call.
+ *
+ * @return void
+ */
+function register_block_type() {
+    otherguise_test_record( 'register_block_type', func_get_args() );
+}
+
+/**
+ * Stub of register_block_template(): records the call.
+ *
+ * @return void
+ */
+function register_block_template() {
+    otherguise_test_record( 'register_block_template', func_get_args() );
 }
 
 /**
@@ -1098,8 +1189,8 @@ if ( ! class_exists( 'WP_Error' ) ) {
  * @param string $url URL.
  * @return array|false
  */
-function wp_parse_url( $url ) {
-    return parse_url( $url );
+function wp_parse_url( $url, $component = -1 ) {
+    return parse_url( $url, $component );
 }
 
 $GLOBALS['otherguise_test_transients'] = array();

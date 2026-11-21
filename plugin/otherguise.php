@@ -56,33 +56,33 @@ add_action( 'init', 'otherguise_load_textdomain' );
  * @return void
  */
 function otherguise_activate() {
-	$modules = require plugin_dir_path( OTHERGUISE_PLUGIN_FILE ) . 'includes/modules.php';
+	$modules  = require plugin_dir_path( OTHERGUISE_PLUGIN_FILE ) . 'includes/modules.php';
+	$switches = new \Otherguise\Core\ModuleSwitches( $modules );
 
-	( new \Otherguise\Core\ModuleLoader( $modules ) )->activate();
+	( new \Otherguise\Core\ModuleLoader( $modules, $switches->enabled() ) )->activate();
 }
 register_activation_hook( __FILE__, 'otherguise_activate' );
 
 /**
  * Boots the enabled modules, dependencies first.
  *
+ * Which modules are enabled is the choice of the site (the switches of the overview of the menu Otherguise), a module that implements
+ * `DisabledByDefault` being off until it is switched on; the filter `otherguise_enabled_modules` has the last word.
+ *
  * @return void
  */
 function otherguise_bootstrap() {
-	$modules = require plugin_dir_path( OTHERGUISE_PLUGIN_FILE ) . 'includes/modules.php';
-
-	/**
-	 * Filters the identifiers of the enabled modules.
-	 *
-	 * Returning null enables every module. A module cannot be enabled without the modules it depends on.
-	 *
-	 * @param string[]|null $enabled Identifiers of the enabled modules, or null for all.
-	 */
-	$enabled = apply_filters( 'otherguise_enabled_modules', null );
-
-	$loader = new \Otherguise\Core\ModuleLoader( $modules, is_array( $enabled ) ? $enabled : null );
+	$modules  = require plugin_dir_path( OTHERGUISE_PLUGIN_FILE ) . 'includes/modules.php';
+	$switches = new \Otherguise\Core\ModuleSwitches( $modules );
+	$loader   = new \Otherguise\Core\ModuleLoader( $modules, $switches->enabled() );
 
 	\Otherguise\Core\Modules::set( $loader );
-	( new \Otherguise\Core\AdminMenu() )->register();
+
+	if ( is_admin() ) {
+		$switches->register( 'add_action' );
+	}
+
+	( new \Otherguise\Core\AdminMenu( null, null, null, array( $switches, 'render' ) ) )->register();
 	$loader->boot();
 }
 add_action( 'plugins_loaded', 'otherguise_bootstrap' );

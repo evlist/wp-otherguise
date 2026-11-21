@@ -10,6 +10,7 @@
 
 namespace Otherguise\Triples;
 
+use Otherguise\Core\DescribedModule;
 use Otherguise\Core\ModuleInterface;
 use Otherguise\Triples\Admin\Admin;
 use Otherguise\Triples\Admin\Environment;
@@ -44,7 +45,7 @@ defined( 'ABSPATH' ) || exit;
  * It owns the table of the statements: it creates it when the plugin is activated (and on the first request of the other sites of a
  * network), and removes it when the plugin is deleted if the administrator asked for it.
  */
-final class Module implements ModuleInterface {
+final class Module implements ModuleInterface, DescribedModule {
 	/**
 	 * Runs an action: receives the hook name and the registry.
 	 *
@@ -331,5 +332,23 @@ final class Module implements ModuleInterface {
 		);
 
 		return $behaviors;
+	}
+
+	/**
+	 * The name of the module, for the switches of the overview.
+	 *
+	 * @return string
+	 */
+	public function title() {
+		return __( 'Triples', 'otherguise' );
+	}
+
+	/**
+	 * What the module does, for the switches of the overview.
+	 *
+	 * @return string
+	 */
+	public function description() {
+		return __( 'Relations between things: statements about posts, media, terms and users, stored in one table.', 'otherguise' );
 	}
 }
