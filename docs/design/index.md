@@ -139,18 +139,35 @@ What it shows:
 What follows from it:
 
 - **"The lowest level" is not the object found**: it is a **road** or a **nameless house** most of the time. The rule has to be: **the lowest *place-like* level of the address chain** (hamlet, isolated dwelling, locality, village, neighbourhood…), **never a road or a bare building**.
-- **A named place to stay is better still**: the first point is **on a camp site that has a name** (*Camping Tunnel International*), which is exactly where one slept. **Proposed**: a named object of the kind *lodging* (camp site, caravan site, hotel, hostel, guest house, mountain hut, chalet) at the point or within a few tens of metres is a **candidate of its own, with the kind *lodging***, as a sub-entry of the place where it is.
+- **A named place to stay** (the first point is on a camp site that has a name, *Camping Tunnel International*) **is not taken as an entry** (**Decided, Eric**: it is complicated, and in a van one may as well sleep in a car park). The entry is the **place-like level of the address**, whatever the object found.
 - **The names of the levels cannot be trusted**: the key `municipality` is **not** the municipality in France (*Albertville* and *Bonneville* are arrondissements or groups of municipalities, and *Beaufort* is a `village`); *Étroubles* is both `village` and `city`; *Chamonix-Mont-Blanc* is a `town` and *Argentière* a `village` inside it. **The municipality must be recognised by its administrative level and by Wikidata ("instance of" municipality), not by the name of the key.** Only two countries were looked at.
 - **A hamlet has no identifier in the answer**: none of the four objects carried a `wikidata` tag, and the chain gives **names without OpenStreetMap numbers**. The identifier of the municipality (and of the hamlet, if there is one) needs **another call** (a search by name and area, or a reverse at the right zoom); two zooms of the same point gave **different** nearest objects (*Combe* at zoom 14, *Le Créton* at zoom 18). Until there is an identifier, the entry is identified by **its label, its municipality and its country** (a key among its aliases: the manual linking of the section above covers the mistakes).
 
 **Proposed model** (to confirm):
 
+0. **Decided (Eric, 2026-11-21)**: **no rule of its own for the hamlet** (it does not exist everywhere): **the entry is the lowest place-like level that the answer holds**, hamlet or village or town; **the photographs follow the same rule** as the ends of the track; **no lodging**.
 1. **A cache of the whole answer** (derived data, not in Triples, rebuildable): the chain with its names, the object found, the date, the service, keyed by the coordinates rounded to about 100 m, the level asked and the language. It lets the rule change **without calling the service again** (a rate limit), keeps the index **reproducible** when OpenStreetMap changes, and **explains** an entry.
-2. **Entries in a hierarchy**: *municipality > hamlet (> lodging)*. **The mention is attached to the most specific entry**; **the municipality lists the mentions of its descendants** (computed when the index is read, not stored twice), so that **one finds the place under the hamlet and under the municipality**.
+2. **Entries in a hierarchy**: *municipality > hamlet* (the hamlet only when the answer has one). **The mention is attached to the most specific entry**; **the municipality lists the mentions of its descendants** (computed when the index is read, not stored twice), so that **one finds the place under the hamlet and under the municipality**.
 3. **The levels above the municipality** (county, state, country) are kept as **qualifiers** of the entry (to tell homonyms apart: *Beaufort (Savoie)*), **not as entries**: the tags *france*, *espagne*, *galice* already cover them, and the first printed book had a flat index.
 4. **The mention keeps only its provenance**: the source, the coordinates rounded, the level, the key of the cache; and a **role** (`start`, `end`, `photo`): **the end of a day is where one slept**, so an index of "nights" is the entries with the role `end` (and the start of the next day).
 
-**Open**: the list of the kinds of objects that count as *lodging*; the radius; the same rules for **the photographs** (many points, roads: probably the **place-like level only and a minimum number of photos**); the rules by country (France, Italy, Switzerland and Spain are the ones of the blog); whether the hamlet is **always** created or only when the point has no municipality-level name that is enough.
+**Open**: the **minimum number of photographs** for a place to count (see the measure below); the rules by country (France, Italy, Switzerland and Spain are the ones of the blog); the **order of the keys** of the address that count as place-like (`isolated_dwelling`, `hamlet`, `locality`, `neighbourhood`, `quarter`, `suburb`, `village`, `town`, `city`: a first list, taken from the answers seen); online or offline for the volume (below).
+
+
+**The photographs of one day, measured** (the post *Étroubles ⇾ Beaufort*, 2026-10-01; reverse geocoding at zoom 18, the lowest place-like level of each answer, nothing else tried):
+
+- **66 photographs, all with GPS** (the thumbnails of the blog keep it) fall in **35 cells of about 100 m**, which give **15 distinct places** (no photograph without a place-like level; **14 hamlets** and 1 village or town). The same day, after a threshold:
+
+| minimum of photographs for a place | places kept |
+|---|---|
+| 1 | 15 |
+| 2 | 9 |
+| 3 | 7 |
+| 5 | 5 |
+
+- The places with the most photographs are **the ones one remembers**: *Col de la Forclaz* (12), *Les Arberons* in Chamonix (12), *Le Tronchet* (9) and *L'Hospitalet* (8) at Bourg-Saint-Pierre, *La Glirettaz* in Beaufort (8). Six places have one photograph only (*La Villaz*, *Le Plagnolet*…): **noise or a passage**.
+- **Proposed**: a **threshold by default of 2 photographs** (adjustable, with a **report that shows what each setting keeps** on the posts of a book before it is used).
+- **The volume decides online or offline**: **35 calls for one post's photographs**, at one call a second, make about 40 seconds. **A book of 180 days is about two hours of calls; the whole blog, with a few hundred or a thousand posts, is many hours**. The public service of OpenStreetMap asks for no heavy use (**from memory, not checked**: at most one request a second, bulk geocoding discouraged). The cache of the whole answer, shared by the cells that several posts have in common, **softens** it; **an offline file or a service of one's own** is the solution for the photographs; **the ends of the track** (two calls a post) can stay online. **To be decided by Eric.**
 
 **What the geocoding gave** (two calls to Nominatim, zoom 14, on the first and the last point; one call to the search of Wikidata; the courtesy asked by the services was respected):
 
