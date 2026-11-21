@@ -61,8 +61,9 @@ The module Wiki, on the level 3 of the design note (an address of our own); **pr
 |---|---|---|
 | [600](600-index-core-and-categories.md) | Index: the core (entries as terms, mentions as statements, the resolver with aliases) and the categories and the tags that have a kind as the first sources | **coded** (2026-11-21), module off by default; not tried on the real blog |
 | [601](601-index-reading-a-page.md) | Index: reading a rendered page into signals (`data-index`, links to Wikipedia, `.gpx` files, images), a pure function, and `wp otherguise index read` | **coded** (2026-11-21); tried on four saved pages of the blog |
+| [602](602-index-fetching-pages.md) | Index: fetching the pages in the background (loopback job, stored signals, the source `page`: marks and Wikipedia links) | **coded** (2026-11-21); tried on a scratch WordPress, not on the real blog |
 
-Later (not written): 602 the loopback job that fetches the pages; the web blocks; the integration into Books (the role `index` of slice 228); the Wikidata client and the automatic kind; the queue screen; the photographs and the files (with Media Helper, which geolocates the files as they arrive); the marks `data-index` and their button. **Eric's order (2026-11-21): the categories, then the tags, then the links to Wikipedia and the names of birds; the photographs last.**
+Later (not written): the web blocks; the integration into Books (the role `index` of slice 228); the Wikidata client and the automatic kind; the queue screen; the photographs and the files (with Media Helper, which geolocates the files as they arrive); the marks `data-index` and their button. **Eric's order (2026-11-21): the categories, then the tags, then the links to Wikipedia and the names of birds; the photographs last.**
 
 ## Candidates (not planned yet)
 

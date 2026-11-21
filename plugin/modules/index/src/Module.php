@@ -16,6 +16,11 @@ use Otherguise\Core\ModuleInterface;
 use Otherguise\Core\Modules;
 use Otherguise\Index\Admin\TermsScreen;
 use Otherguise\Index\Cli\IndexCommand;
+use Otherguise\Index\Cli\PagesCommand;
+use Otherguise\Index\Harvest\PageFetcher;
+use Otherguise\Index\Harvest\SignalStore;
+use Otherguise\Index\Job\PagesService;
+use Otherguise\Index\Source\Page;
 use Otherguise\Index\Harvest\PageReader;
 use Otherguise\Index\Source\Terms;
 use Otherguise\Triples\Predicate\PredicateDefinition;
@@ -99,6 +104,11 @@ final class Module implements ModuleInterface, DescribedModule, DisabledByDefaul
 		( $this->add_action )( self::BATCH_HOOK, array( $this, 'run_batch' ), 10, 2 );
 		( $this->add_action )( 'cli_init', array( $this, 'register_command' ), 10, 0 );
 
+		// Slice 602: the pages are read in the background, and a saved post is read a little later.
+		( $this->add_action )( PagesService::TICK_HOOK, array( $this->pages(), 'tick' ), 10, 0 );
+		( $this->add_action )( PagesService::SINGLE_HOOK, array( $this->pages(), 'single' ), 10, 1 );
+		( $this->add_action )( 'wp_after_insert_post', array( $this->pages(), 'on_save' ), 30, 1 );
+
 		if ( is_admin() ) {
 			$this->screen()->register( $this->add_action );
 		}
@@ -178,8 +188,9 @@ final class Module implements ModuleInterface, DescribedModule, DisabledByDefaul
 			$sources = array();
 
 			foreach ( array(
-				'categories' => array( Terms::class, 'categories' ),
-				'tags'       => array( Terms::class, 'tags' ),
+				'categories'   => array( Terms::class, 'categories' ),
+				'tags'         => array( Terms::class, 'tags' ),
+				Page::SLUG     => fn() => new Page( new SignalStore() ),
 			) as $slug => $make ) {
 				if ( in_array( $slug, $on, true ) ) {
 					$sources[] = $make();
@@ -197,6 +208,22 @@ final class Module implements ModuleInterface, DescribedModule, DisabledByDefaul
 		}
 
 		return $this->indexer;
+	}
+
+	/**
+	 * The WordPress side of the job that reads the pages (slice 602).
+	 *
+	 * @return PagesService
+	 */
+	public function pages() {
+		return new PagesService(
+			fn() => $this->indexer(),
+			fn() => $this->post_types(),
+			array( $this, 'published_posts' ),
+			new PageFetcher(),
+			new PageReader(),
+			new SignalStore()
+		);
 	}
 
 	/**
@@ -441,6 +468,26 @@ final class Module implements ModuleInterface, DescribedModule, DisabledByDefaul
 				new PageReader()
 			)
 		);
+
+		$this->pages_command();
+	}
+
+	/**
+	 * The commands: `wp otherguise index` and `wp otherguise index pages`.
+	 *
+	 * @return void
+	 */
+	private function pages_command() {
+		$pages = $this->pages();
+
+		\WP_CLI::add_command(
+			'otherguise index pages',
+			new PagesCommand(
+				array( $pages, 'job' ),
+				array( $pages, 'process' ),
+				array( $pages, 'set_source' )
+			)
+		);
 	}
 
 	/**
@@ -451,6 +498,13 @@ final class Module implements ModuleInterface, DescribedModule, DisabledByDefaul
 	 */
 	public function uninstall() {
 		delete_option( self::OPTION );
+		delete_option( PagesService::OPTION );
+		delete_option( 'index_site_address' );
+		delete_post_meta_by_key( SignalStore::SIGNALS );
+		delete_post_meta_by_key( SignalStore::IMAGES );
+		delete_post_meta_by_key( SignalStore::HARVEST );
+		wp_clear_scheduled_hook( PagesService::TICK_HOOK );
+		wp_clear_scheduled_hook( PagesService::SINGLE_HOOK );
 	}
 
 	/**

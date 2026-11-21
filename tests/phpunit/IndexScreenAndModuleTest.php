@@ -76,11 +76,13 @@ class IndexScreenAndModuleTest extends TestCase {
 			array(
 				'init'                        => array( array( 'register_taxonomy', 10, 0 ) ),
 				'triples_register_predicates' => array( array( 'register_predicates', 10, 1 ) ),
-				'wp_after_insert_post'        => array( array( 'queue_post', 20, 1 ) ),
+				'wp_after_insert_post'        => array( array( 'queue_post', 20, 1 ), array( 'on_save', 30, 1 ) ),
 				'set_object_terms'            => array( array( 'queue_post', 10, 1 ) ),
 				'shutdown'                    => array( array( 'flush_queue', 10, 0 ) ),
 				'otherguise_index_batch'      => array( array( 'run_batch', 10, 2 ) ),
 				'cli_init'                    => array( array( 'register_command', 10, 0 ) ),
+				'otherguise_index_pages'      => array( array( 'tick', 10, 0 ) ),
+				'otherguise_index_page'       => array( array( 'single', 10, 1 ) ),
 			),
 			$hooks
 		);

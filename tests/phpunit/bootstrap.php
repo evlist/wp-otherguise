@@ -47,6 +47,7 @@ function otherguise_test_reset() {
     $GLOBALS['otherguise_test_sites']        = null;
     $GLOBALS['otherguise_test_site_options'] = array();
     $GLOBALS['otherguise_test_objects']      = array();
+    $GLOBALS['otherguise_test_statuses']     = array();
     $GLOBALS['otherguise_test_cache']        = array();
     $GLOBALS['otherguise_test_actions']      = array();
     $GLOBALS['otherguise_test_calls']        = array();
@@ -1462,4 +1463,86 @@ function selected( $value, $current = true, $display = true ) {
  */
 function paginate_links( $args = array() ) {
     return 'pages:' . (int) ( $args['total'] ?? 0 );
+}
+
+/**
+ * Stub of is_wp_error().
+ *
+ * @param mixed $thing Value.
+ * @return bool
+ */
+function is_wp_error( $thing ) {
+    return $thing instanceof WP_Error;
+}
+
+/**
+ * Stub of wp_slash(): what `update_post_meta()` expects of a string with backslashes.
+ *
+ * @param mixed $value Value.
+ * @return mixed
+ */
+function wp_slash( $value ) {
+    return is_string( $value ) ? addslashes( $value ) : $value;
+}
+
+/**
+ * Stub of wp_remote_retrieve_response_code(): the response is an array with `response.code`.
+ *
+ * @param array $response Response.
+ * @return int|string
+ */
+function wp_remote_retrieve_response_code( $response ) {
+    return $response['response']['code'] ?? '';
+}
+
+/**
+ * Stub of wp_remote_retrieve_header().
+ *
+ * @param array  $response Response.
+ * @param string $header   Header, lower case.
+ * @return string
+ */
+function wp_remote_retrieve_header( $response, $header ) {
+    return (string) ( $response['headers'][ $header ] ?? '' );
+}
+
+/**
+ * Stub of wp_remote_retrieve_body().
+ *
+ * @param array $response Response.
+ * @return string
+ */
+function wp_remote_retrieve_body( $response ) {
+    return (string) ( $response['body'] ?? '' );
+}
+
+/**
+ * Stub of get_post_status(): `$GLOBALS['otherguise_test_statuses']` by id, `publish` otherwise.
+ *
+ * @param int $id Post.
+ * @return string|false
+ */
+function get_post_status( $id ) {
+    return $GLOBALS['otherguise_test_statuses'][ $id ] ?? 'publish';
+}
+
+/**
+ * Stub of get_post_type(): the type of the `WP_Post` of the stubs, `post` otherwise.
+ *
+ * @param int $id Post.
+ * @return string|false
+ */
+function get_post_type( $id ) {
+    $post = get_post( $id );
+
+    return null === $post ? 'post' : $post->post_type;
+}
+
+/**
+ * Stub of wp_cache_delete().
+ *
+ * @return bool
+ */
+function wp_cache_delete() {
+    return true;
 }

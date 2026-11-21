@@ -100,4 +100,25 @@ final class Signal {
 			'data'     => $this->data,
 		);
 	}
+
+	/**
+	 * Builds a signal from what `to_array()` gave (kept as JSON).
+	 *
+	 * @param mixed $array The array.
+	 * @return Signal|null Null when it is not a signal.
+	 */
+	public static function from_array( $array ) {
+		if ( ! is_array( $array ) || ! isset( $array['type'], $array['value'] ) || ! is_string( $array['type'] ) || ! is_string( $array['value'] ) ) {
+			return null;
+		}
+
+		return new self(
+			$array['type'],
+			$array['value'],
+			is_string( $array['scope'] ?? null ) ? $array['scope'] : 'page',
+			is_string( $array['evidence'] ?? null ) ? $array['evidence'] : '',
+			is_array( $array['data'] ?? null ) ? $array['data'] : array(),
+			is_string( $array['anchor'] ?? null ) ? $array['anchor'] : ''
+		);
+	}
 }
