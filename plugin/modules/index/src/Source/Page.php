@@ -33,12 +33,21 @@ final class Page implements Source {
 	private $store;
 
 	/**
+	 * Whether the links to Wikidata make candidates (they have no label until the enrichment gives them one).
+	 *
+	 * @var bool
+	 */
+	private $with_wikidata;
+
+	/**
 	 * Builds the source.
 	 *
-	 * @param SignalStore $store The store.
+	 * @param SignalStore $store         The store.
+	 * @param bool        $with_wikidata Whether the links to Wikidata make candidates: only when the enrichment is on.
 	 */
-	public function __construct( SignalStore $store ) {
-		$this->store = $store;
+	public function __construct( SignalStore $store, $with_wikidata = false ) {
+		$this->store         = $store;
+		$this->with_wikidata = (bool) $with_wikidata;
 	}
 
 	/**
@@ -69,7 +78,7 @@ final class Page implements Source {
 		$candidates = array();
 
 		foreach ( $this->store->load( (int) $post_id ) as $signal ) {
-			$candidate = Signal::ENTRY === $signal->type ? $this->from_mark( $signal ) : ( Signal::WIKIPEDIA_LINK === $signal->type ? $this->from_wikipedia( $signal ) : null );
+			$candidate = $this->candidate_of( $signal );
 
 			if ( null !== $candidate ) {
 				$candidates[] = $candidate;
@@ -77,6 +86,25 @@ final class Page implements Source {
 		}
 
 		return $candidates;
+	}
+
+	/**
+	 * The candidate of a signal, null for the signals that make none.
+	 *
+	 * @param Signal $signal The signal.
+	 * @return Candidate|null
+	 */
+	private function candidate_of( Signal $signal ) {
+		if ( Signal::ENTRY === $signal->type ) {
+			return $this->from_mark( $signal );
+		}
+
+		if ( Signal::WIKIPEDIA_LINK === $signal->type ) {
+			return $this->from_wikipedia( $signal );
+		}
+
+		// A link to an item: the identifier is all there is, the label comes with the enrichment.
+		return $this->with_wikidata && Signal::WIKIDATA_LINK === $signal->type ? new Candidate( $signal->value, Kinds::OTHER, array( 'wikidata:' . $signal->value ), null, Candidate::PASSING ) : null;
 	}
 
 	/**
@@ -105,7 +133,8 @@ final class Page implements Source {
 			if ( $is_last && ! empty( $signal->data['identifier'] ) ) {
 				// `WIKIDATA:Q1` and `wikidata:Q1` are one key; the label to show is the one the page gives, else the identifier.
 				$keys[] = strtolower( (string) strtok( $label, ':' ) ) . ':' . (string) substr( $label, (int) strpos( $label, ':' ) + 1 );
-				$shown  = isset( $signal->data['label'] ) ? (string) $signal->data['label'] : $label;
+				// With no label on the page, a Wikidata identifier is shown as `Q42` (what the enrichment looks for), not as `wikidata:Q42`.
+				$shown = isset( $signal->data['label'] ) ? (string) $signal->data['label'] : ( 0 === stripos( $label, 'wikidata:' ) ? (string) substr( $label, 9 ) : $label );
 			}
 
 			$parent = new Candidate( $shown, $kind, $keys, $parent, $is_last ? $strength : Candidate::PASSING );

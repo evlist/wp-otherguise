@@ -15,7 +15,9 @@ use Otherguise\Core\DisabledByDefault;
 use Otherguise\Core\ModuleInterface;
 use Otherguise\Core\Modules;
 use Otherguise\Index\Admin\TermsScreen;
+use Otherguise\Index\Cli\EnrichCommand;
 use Otherguise\Index\Cli\IndexCommand;
+use Otherguise\Index\Enrich\EnrichService;
 use Otherguise\Index\Cli\KindsCommand;
 use Otherguise\Index\Cli\BuildCommand;
 use Otherguise\Index\Build\IndexBuilder;
@@ -113,6 +115,8 @@ final class Module implements ModuleInterface, DescribedModule, DisabledByDefaul
 
 		// Slice 602: the pages are read in the background, and a saved post is read a little later.
 		( $this->add_action )( PagesService::TICK_HOOK, array( $this->pages(), 'tick' ), 10, 0 );
+		// Slice 604: the Wikidata enrichment runs in the background only, and only when it was turned on.
+		( $this->add_action )( EnrichService::TICK_HOOK, array( $this->enrich(), 'tick' ), 10, 0 );
 		( $this->add_action )( PagesService::SINGLE_HOOK, array( $this->pages(), 'single' ), 10, 1 );
 		( $this->add_action )( 'wp_after_insert_post', array( $this->pages(), 'on_save' ), 30, 1 );
 
@@ -198,7 +202,7 @@ final class Module implements ModuleInterface, DescribedModule, DisabledByDefaul
 			foreach ( array(
 				'categories'   => array( Terms::class, 'categories' ),
 				'tags'         => array( Terms::class, 'tags' ),
-				Page::SLUG     => fn() => new Page( new SignalStore() ),
+				Page::SLUG     => fn() => new Page( new SignalStore(), '1' === (string) get_option( EnrichService::SWITCH, '' ) ),
 			) as $slug => $make ) {
 				if ( in_array( $slug, $on, true ) ) {
 					$sources[] = $make();
@@ -232,6 +236,15 @@ final class Module implements ModuleInterface, DescribedModule, DisabledByDefaul
 			new PageReader(),
 			new SignalStore()
 		);
+	}
+
+	/**
+	 * The Wikidata enrichment (slice 604).
+	 *
+	 * @return EnrichService
+	 */
+	public function enrich() {
+		return new EnrichService( $this->entries(), $this->mentions() );
 	}
 
 	/**
@@ -477,6 +490,7 @@ final class Module implements ModuleInterface, DescribedModule, DisabledByDefaul
 			)
 		);
 
+		\WP_CLI::add_command( 'otherguise index enrich', new EnrichCommand( $this->enrich() ) );
 		$this->pages_command();
 	}
 
@@ -522,6 +536,10 @@ final class Module implements ModuleInterface, DescribedModule, DisabledByDefaul
 		delete_option( self::OPTION );
 		delete_option( PagesService::OPTION );
 		delete_option( 'index_site_address' );
+		foreach ( array( EnrichService::SWITCH, EnrichService::JOB, 'index_wikidata_contact', 'index_wikidata_last_request', 'index_wikidata_classes', 'index_wikidata_ancestors', 'index_enrich_failures', 'index_enrich_pause_until' ) as $option ) {
+			delete_option( $option );
+		}
+		wp_clear_scheduled_hook( EnrichService::TICK_HOOK );
 		delete_post_meta_by_key( SignalStore::SIGNALS );
 		delete_post_meta_by_key( SignalStore::IMAGES );
 		delete_post_meta_by_key( SignalStore::HARVEST );

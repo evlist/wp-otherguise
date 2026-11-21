@@ -3,7 +3,7 @@
 
 # Slice 604 — Index: the Wikidata enrichment (identifier, label, kind)
 
-Status: **proposed (2026-11-21), not coded.** Dependencies: 600 (entries, resolver, aliases), 602 (the source `page` makes the entries from links to Wikipedia), 603 (kinds with a hierarchy; the built-in kinds are what the table below points to). Context: [`../design/index.md`](../design/index.md), "Identifiers: Wikidata first" and "The kind of an entry". Inspiration: the classes of **whoBIRD** (`WikidataQuery`, `FileLockThrottle`, `SparqlUtils`), adapted, not depended upon.
+Status: **coded (2026-11-21), on `main`; never run against the real services; see "What was built, and what differs from the plan" at the end.** Dependencies: 600 (entries, resolver, aliases), 602 (the source `page` makes the entries from links to Wikipedia), 603 (kinds with a hierarchy; the built-in kinds are what the table below points to). Context: [`../design/index.md`](../design/index.md), "Identifiers: Wikidata first" and "The kind of an entry". Inspiration: the classes of **whoBIRD** (`WikidataQuery`, `FileLockThrottle`, `SparqlUtils`), adapted, not depended upon.
 
 ## Why
 
@@ -76,3 +76,22 @@ Pages read: the User-Agent policy of the Wikimedia Foundation (last edited 27 Ma
 ## Not done
 
 Merging two entries; images, coordinates and other properties (P18, P625: the places are Media Helper's); other languages than the site's for the labels; an editor screen for the table of classes (the command is enough at first); using Wikipedia for the text of an entry (none is kept, by choice).
+
+## What was built, and what differs from the plan (2026-11-21)
+
+Built as proposed: `Wikidata\Client` (the only door to the services, with the rules of good use), `Wikidata\TitleResolver`, `Wikidata\ItemReader`, `Wikidata\ClassTable`, `Wikidata\Options`, `Enrich\Enricher`, `Enrich\EnrichService`, `Cli\EnrichCommand`, the cron event `otherguise_index_enrich`, and the entries' new fields (`set_label`, `enrich_state`, `label_by_hand`). The source `page` makes candidates from the links to Wikidata **only when the enrichment is on**, and a mark `data-index="wikidata:Q…"` with no label is shown as `Q…` (what the enrichment looks for).
+
+What differs or was decided while coding:
+
+- **The commands are `wp otherguise index enrich enable|disable|start|run|status|stop|resume|duplicates|ambiguous|classes|map`**, not `kinds map`. `run --entry=<id>` looks one entry up again whatever its delay (it must still need the item or a label); `run --dry-run` makes the requests and prints, per entry: the state, the item, the label (`old => new`), the kind, the classes with their labels; `enrich classes` prints the table with the label of each class read from Wikidata, **so that every line can be checked by eye**.
+- **The default table of classes is in the code and was not checked against Wikidata.** The slice said the identifiers would not be written before being checked; **no service could be reached to check them** (the egress address of the development machine was already rate limited: the service answered "you are making too many requests", and I did not insist). The 17 lines are the ones their author remembers: Q4022, Q47521, Q355304, Q23397, Q12284 → `waterway`; Q486972, Q8502, Q133056, Q39816, Q6256, Q56061 → `place`; Q16521 → `species`; Q5 → `person`; Q47461344, Q11424 → `work`; Q1656682 → `event`; Q2095 → `product`. **There is no line for `route` or `activity`.** **Run `enrich classes` first and correct the table with `enrich map`.**
+- **`Job\PagesJob` is reused and generalised**: a unit may answer `stop` (the job stops, without a failure) and `processed` (a batch of 50 entries counts for 50). The units are batches of the queue, which shrinks as entries are done.
+- **A failed batch writes nothing**: the three requests are made first, then the entries are written; a failure leaves them in the queue. A refusal that says "wait" pauses (the job stops; `resume` waits for the end of the pause); three other failures in a row stop it.
+- **The ancestors are cached 90 days with a jitter**; the entries that were not resolved wait about 7 days (jitter 20 %); an entry that is `done` is not looked at again.
+- **Uninstall** removes the options of the enrichment (the switch, the job, the contact, the table of classes, the cache, the counters).
+
+### Verification
+
+- **Under automated tests** (PHPUnit, 891 tests in the suite; entries and kinds in memory, the services answered by a double with **handwritten answers of the documented shape**): the User-Agent and the contact, the interval between two requests, 429/503 and `Retry-After`, `maxlag`, a rate limit that comes as text, the batches of 50, the titles (normalised, redirected, missing, disambiguation, no item), only identifiers in a query, the table and its cache and its expiry, the most specific kind, a batch end to end (item, label, kind, old label key kept), what a person decided kept, a duplicate not merged, a dry run, a pause, the back-off, three failures, a failed later request, no contact, the job.
+- **On a scratch WordPress 7.1.4 (the real entries and options), with a fake HTTP answer**: an entry from a Wikipedia link got its item, its label (`Têt`) and its kind (`waterway`); a dry run wrote nothing; a second batch did not ask the ancestors again; the enrichment is off by default and the job refuses to work when it is off.
+- **Never run against the real services**, so the shape of the answers, the queries and the table of classes are **unchecked**; and **WP-CLI was not run**. The first real run is Eric's, on the testing blog: `enrich enable`, set `index_wikidata_contact`, `enrich classes`, `enrich run --entry=<id> --dry-run`, then a batch, then everything.

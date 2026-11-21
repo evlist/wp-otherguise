@@ -61,6 +61,32 @@ interface Entries {
 	public function set_kind( $id, $kind, $by_hand );
 
 	/**
+	 * Changes the label of an entry (its slug and keys stay).
+	 *
+	 * @param int    $id    Entry.
+	 * @param string $label Label.
+	 * @return void
+	 */
+	public function set_label( $id, $label );
+
+	/**
+	 * The state of the Wikidata enrichment of an entry (slice 604): `state`, `date`, `due`, `qid`, `note`; empty when never looked at.
+	 *
+	 * @param int $id Entry.
+	 * @return array<string, mixed>
+	 */
+	public function enrich_state( $id );
+
+	/**
+	 * Keeps the state of the enrichment of an entry.
+	 *
+	 * @param int                  $id    Entry.
+	 * @param array<string, mixed> $state State.
+	 * @return void
+	 */
+	public function set_enrich_state( $id, array $state );
+
+	/**
 	 * Deletes an entry.
 	 *
 	 * @param int $id Entry.
@@ -72,7 +98,7 @@ interface Entries {
 	 * Reads an entry.
 	 *
 	 * @param int $id Entry.
-	 * @return array{id:int,label:string,kind:string,parent:int,status:string,keys:string[],kind_by_hand:bool}|null
+	 * @return array{id:int,label:string,kind:string,parent:int,status:string,keys:string[],kind_by_hand:bool,label_by_hand:bool}|null
 	 */
 	public function get( $id );
 

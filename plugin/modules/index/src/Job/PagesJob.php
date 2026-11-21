@@ -215,14 +215,25 @@ final class PagesJob {
 			$id     = (int) $ids[0];
 			$result = (array) ( $this->process )( $id );
 
+			// A unit that asks to stop (a service that said "wait") stops the job without counting as a failure.
+			if ( ! empty( $result['stop'] ) ) {
+				$state['status']  = self::STOPPED;
+				$state['updated'] = (int) $now;
+				$state['log'][]   = gmdate( 'H:i:s', (int) $now ) . ' stopped: ' . (string) ( $result['message'] ?? '' );
+				break;
+			}
+
+			// A unit may be several items (a batch of entries): `processed` says how many.
+			$units = max( 1, (int) ( $result['processed'] ?? 1 ) );
+
 			if ( ! empty( $result['ok'] ) ) {
-				++$state['ok'];
+				$state['ok'] += $units;
 			} else {
 				$state['failed'][ $id ] = (string) ( $result['message'] ?? 'failed' );
 				$state['log'][]         = gmdate( 'H:i:s', (int) $now ) . ' post ' . $id . ': ' . $state['failed'][ $id ];
 			}
 
-			++$state['offset'];
+			$state['offset'] += $units;
 			$state['updated'] = (int) $now;
 
 			// A stop asked from another request is seen between two posts.

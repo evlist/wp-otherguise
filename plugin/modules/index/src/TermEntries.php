@@ -21,6 +21,8 @@ final class TermEntries implements Entries {
 	public const KEY      = '_index_key';
 	public const KIND     = '_index_kind';
 	public const HAND     = '_index_kind_set_by_hand';
+	public const LABEL_BY_HAND = '_index_label_by_hand';
+	public const ENRICH   = '_index_enrich';
 	public const STATUS   = '_index_status';
 
 	/**
@@ -138,6 +140,40 @@ final class TermEntries implements Entries {
 	}
 
 	/**
+	 * Changes the label of an entry: the name of the term changes, its slug stays.
+	 *
+	 * @param int    $id    Entry.
+	 * @param string $label Label.
+	 * @return void
+	 */
+	public function set_label( $id, $label ) {
+		wp_update_term( (int) $id, self::TAXONOMY, array( 'name' => (string) $label ) );
+	}
+
+	/**
+	 * The state of the enrichment of an entry.
+	 *
+	 * @param int $id Entry.
+	 * @return array<string, mixed>
+	 */
+	public function enrich_state( $id ) {
+		$state = json_decode( (string) get_term_meta( (int) $id, self::ENRICH, true ), true );
+
+		return is_array( $state ) ? $state : array();
+	}
+
+	/**
+	 * Keeps the state of the enrichment of an entry.
+	 *
+	 * @param int                  $id    Entry.
+	 * @param array<string, mixed> $state State.
+	 * @return void
+	 */
+	public function set_enrich_state( $id, array $state ) {
+		update_term_meta( (int) $id, self::ENRICH, wp_slash( (string) wp_json_encode( $state ) ) );
+	}
+
+	/**
 	 * Deletes an entry.
 	 *
 	 * @param int $id Entry.
@@ -168,6 +204,7 @@ final class TermEntries implements Entries {
 			'status'       => (string) get_term_meta( (int) $id, self::STATUS, true ),
 			'keys'         => array_map( 'strval', (array) get_term_meta( (int) $id, self::KEY, false ) ),
 			'kind_by_hand' => '1' === (string) get_term_meta( (int) $id, self::HAND, true ),
+			'label_by_hand' => '1' === (string) get_term_meta( (int) $id, self::LABEL_BY_HAND, true ),
 		);
 	}
 

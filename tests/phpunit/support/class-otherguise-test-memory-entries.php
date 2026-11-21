@@ -67,6 +67,8 @@ final class Otherguise_Test_Memory_Entries implements Entries {
 			'status'       => $status,
 			'keys'         => array_values( array_unique( $keys ) ),
 			'kind_by_hand' => false,
+			'label_by_hand' => false,
+			'enrich'       => array(),
 		);
 
 		$GLOBALS['otherguise_test_objects']['WP_Term'][ $id ] = new WP_Term( $id, $label );
@@ -99,6 +101,38 @@ final class Otherguise_Test_Memory_Entries implements Entries {
 		if ( $by_hand ) {
 			$this->entries[ $id ]['kind_by_hand'] = true;
 		}
+	}
+
+	/**
+	 * Changes a label.
+	 *
+	 * @param int    $id    Entry.
+	 * @param string $label Label.
+	 * @return void
+	 */
+	public function set_label( $id, $label ) {
+		$this->entries[ $id ]['label'] = $label;
+	}
+
+	/**
+	 * The state of the enrichment.
+	 *
+	 * @param int $id Entry.
+	 * @return array<string, mixed>
+	 */
+	public function enrich_state( $id ) {
+		return $this->entries[ $id ]['enrich'] ?? array();
+	}
+
+	/**
+	 * Keeps the state of the enrichment.
+	 *
+	 * @param int                  $id    Entry.
+	 * @param array<string, mixed> $state State.
+	 * @return void
+	 */
+	public function set_enrich_state( $id, array $state ) {
+		$this->entries[ $id ]['enrich'] = $state;
 	}
 
 	/**
