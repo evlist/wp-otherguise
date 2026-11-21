@@ -1,0 +1,355 @@
+<?php
+/**
+ * SPDX-FileCopyrightText: 2026 Eric van der Vlist <vdv@dyomedea.com>
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ *
+ * Turns the HTML of a page into signals.
+ *
+ * @package Otherguise
+ */
+
+namespace Otherguise\Index\Harvest;
+
+defined( 'ABSPATH' ) || exit;
+
+/**
+ * Reads a rendered page (slice 601): a **pure function** of a string, with no fetching, no database and no network.
+ *
+ * The scopes, learnt from three pages of Eric's blog:
+ *
+ * - **the page**: inside the element `main` (the whole document when there is none);
+ * - **the contents of the post**: inside the element of class `wp-block-post-content` or `entry-content` (the page when there is none).
+ *   The generic readers of links read only the contents, so that a menu, a footer or a list of recent posts is not taken for a mention;
+ * - **not read** (links, files, images): `nav`, `header`, `footer`, `aside`, `#comments`, the lists of other posts (`wp-block-query`,
+ *   `wp-block-latest-posts`, `wp-block-comments`);
+ * - **never read at all**: whatever is under an element with `data-index-ignore`.
+ *
+ * Explicit marks (`data-index`) are trusted everywhere except under `data-index-ignore`. The parser is the tag processor of WordPress with
+ * a stack of open elements kept here (the HTML processor of the core refuses some markup and is not in every version): it is tolerant, and
+ * exact for the well-formed markup that WordPress prints.
+ */
+final class PageReader {
+	private const VOID = array( 'area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input', 'link', 'meta', 'param', 'source', 'track', 'wbr' );
+
+	private const SKIPPED_TAGS = array( 'nav', 'header', 'footer', 'aside' );
+
+	private const SKIPPED_CLASSES = array( 'wp-block-query', 'wp-block-latest-posts', 'wp-block-comments', 'wp-block-post-comments-form' );
+
+	private const IMAGE_EXTENSIONS = array( 'jpg', 'jpeg', 'png', 'heic', 'heif', 'webp', 'tif', 'tiff' );
+
+	private const IDENTIFIER = '/^(wikidata|osm|geonames|wikipedia):\S+$/i';
+
+	private const NAMESPACES = '/^(special|spécial|file|fichier|image|category|catégorie|help|aide|wikipedia|wikipédia|portal|portail|template|modèle|talk|discussion|user|utilisateur):/iu';
+
+	/**
+	 * Reads a page.
+	 *
+	 * @param string $html    The HTML of the page (or of a part of it).
+	 * @param int    $post_id The post, 0 when unknown (kept for the signature of the harvesters of the next slices).
+	 * @return Signal[] In the order of the document.
+	 */
+	public function signals( $html, $post_id = 0 ) {
+		unset( $post_id );
+
+		$html = (string) $html;
+
+		if ( '' === $html || ! class_exists( '\WP_HTML_Tag_Processor' ) ) {
+			return array();
+		}
+
+		$has_main    = false !== stripos( $html, '<main' );
+		$has_content = (bool) preg_match( '/class\s*=\s*["\'][^"\']*\b(wp-block-post-content|entry-content)\b/i', $html );
+		$tags        = new \WP_HTML_Tag_Processor( $html );
+		$stack       = array();
+		$signals     = array();
+
+		while ( $tags->next_token() ) {
+			if ( '#tag' !== $tags->get_token_type() ) {
+				continue;
+			}
+
+			$tag = strtolower( (string) $tags->get_tag() );
+
+			if ( $tags->is_tag_closer() ) {
+				$this->close( $stack, $tag );
+
+				continue;
+			}
+
+			$parent = array() === $stack ? array(
+				'ignored' => false,
+				'skipped' => false,
+				'main'    => ! $has_main,
+				'content' => ! $has_content,
+				'image'   => '',
+			) : $stack[ count( $stack ) - 1 ];
+
+			$state = $this->state( $tags, $tag, $parent );
+
+			$this->read( $tags, $tag, $state, $signals );
+
+			if ( ! in_array( $tag, self::VOID, true ) ) {
+				$state['tag'] = $tag;
+				$stack[]      = $state;
+			}
+		}
+
+		return $signals;
+	}
+
+	/**
+	 * The scopes in force inside an element.
+	 *
+	 * @param \WP_HTML_Tag_Processor $tags   The processor, on the element.
+	 * @param string                 $tag    Its name.
+	 * @param array<string, mixed>   $parent The scopes in force around it.
+	 * @return array<string, mixed>
+	 */
+	private function state( $tags, $tag, array $parent ) {
+		$state = $parent;
+
+		if ( null !== $tags->get_attribute( 'data-index-ignore' ) ) {
+			$state['ignored'] = true;
+		}
+
+		if ( in_array( $tag, self::SKIPPED_TAGS, true ) || 'comments' === $tags->get_attribute( 'id' ) ) {
+			$state['skipped'] = true;
+		}
+
+		foreach ( self::SKIPPED_CLASSES as $class ) {
+			if ( $tags->has_class( $class ) ) {
+				$state['skipped'] = true;
+			}
+		}
+
+		if ( 'main' === $tag ) {
+			$state['main'] = true;
+		}
+
+		if ( $tags->has_class( 'wp-block-post-content' ) || $tags->has_class( 'entry-content' ) ) {
+			$state['content'] = true;
+		}
+
+		return $state;
+	}
+
+	/**
+	 * Pops the stack down to the element a closing tag closes (a closing tag that matches nothing is ignored).
+	 *
+	 * @param array<int, array<string, mixed>> $stack The stack.
+	 * @param string                           $tag   The closing tag.
+	 * @return void
+	 */
+	private function close( array &$stack, $tag ) {
+		for ( $i = count( $stack ) - 1; $i >= 0; --$i ) {
+			if ( $stack[ $i ]['tag'] === $tag ) {
+				array_splice( $stack, $i );
+
+				return;
+			}
+		}
+	}
+
+	/**
+	 * Reads the signals of one element.
+	 *
+	 * @param \WP_HTML_Tag_Processor $tags    The processor, on the element.
+	 * @param string                 $tag     Its name.
+	 * @param array<string, mixed>   $state   The scopes in force on it (it is modified: the address of an image link).
+	 * @param Signal[]               $signals Receives the signals.
+	 * @return void
+	 */
+	private function read( $tags, $tag, array &$state, array &$signals ) {
+		if ( $state['ignored'] ) {
+			return;
+		}
+
+		$scope = $state['content'] && $state['main'] ? 'content' : 'page';
+
+		// An explicit mark is trusted wherever it is, except under `data-index-ignore`.
+		$this->read_marks( $tags, $signals );
+
+		if ( $state['skipped'] || ! $state['main'] ) {
+			return;
+		}
+
+		foreach ( $this->addresses( $tags ) as $attribute => $address ) {
+			if ( $this->is_gpx( $address ) ) {
+				$signals[] = new Signal( Signal::GPX_FILE, $address, $scope, $attribute );
+			}
+		}
+
+		if ( 'a' === $tag ) {
+			$href = $tags->get_attribute( 'href' );
+			$href = is_string( $href ) ? trim( $href ) : '';
+
+			if ( '' !== $href && $this->is_image( $href ) && false === strpos( (string) wp_parse_url( $href, PHP_URL_PATH ), '/wiki/' ) ) {
+				$signals[]      = new Signal( Signal::IMAGE, $href, $scope, 'href' );
+				$state['image'] = $href;
+			} elseif ( '' !== $href && $state['content'] ) {
+				$this->read_link( $href, $scope, $signals );
+			}
+		}
+
+		if ( 'img' === $tag && '' === $state['image'] ) {
+			$src = $tags->get_attribute( 'src' );
+			$src = is_string( $src ) ? trim( $src ) : '';
+
+			if ( '' !== $src && 0 !== stripos( $src, 'data:' ) ) {
+				$signals[] = new Signal( Signal::IMAGE, $src, $scope, 'src' );
+			}
+		}
+	}
+
+	/**
+	 * The explicit marks: `data-index` and its companions.
+	 *
+	 * @param \WP_HTML_Tag_Processor $tags    The processor, on the element.
+	 * @param Signal[]               $signals Receives the signals.
+	 * @return void
+	 */
+	private function read_marks( $tags, array &$signals ) {
+		$mark = $tags->get_attribute( 'data-index' );
+
+		if ( ! is_string( $mark ) || '' === trim( $mark ) ) {
+			return;
+		}
+
+		$id    = $tags->get_attribute( 'id' );
+		$extra = array();
+
+		foreach ( array(
+			'kind'  => 'data-index-kind',
+			'label' => 'data-index-label',
+			'sort'  => 'data-index-sort',
+		) as $name => $attribute ) {
+			$value = $tags->get_attribute( $attribute );
+
+			if ( is_string( $value ) && '' !== trim( $value ) ) {
+				$extra[ $name ] = trim( $value );
+			}
+		}
+
+		if ( null !== $tags->get_attribute( 'data-index-main' ) ) {
+			$extra['main'] = true;
+		}
+
+		foreach ( explode( '|', $mark ) as $part ) {
+			$path = array_values( array_filter( array_map( 'trim', explode( '>', $part ) ), 'strlen' ) );
+
+			if ( array() === $path ) {
+				continue;
+			}
+
+			$data               = $extra;
+			$data['path']       = $path;
+			$data['identifier'] = 1 === count( $path ) && 1 === preg_match( self::IDENTIFIER, $path[0] );
+
+			$signals[] = new Signal( Signal::ENTRY, implode( ' > ', $path ), 'page', 'data-index', $data, is_string( $id ) ? $id : '' );
+		}
+	}
+
+	/**
+	 * Reads a link of the contents: Wikipedia, Wikidata, an OpenStreetMap object. The label always comes from the address, never from the
+	 * text of the link.
+	 *
+	 * @param string   $href    The address.
+	 * @param string   $scope   The scope.
+	 * @param Signal[] $signals Receives the signals.
+	 * @return void
+	 */
+	private function read_link( $href, $scope, array &$signals ) {
+		$parts = wp_parse_url( 0 === strpos( $href, '//' ) ? 'https:' . $href : $href );
+		$host  = is_array( $parts ) && isset( $parts['host'] ) ? strtolower( (string) $parts['host'] ) : '';
+		$path  = is_array( $parts ) && isset( $parts['path'] ) ? (string) $parts['path'] : '';
+
+		if ( '' === $host ) {
+			return;
+		}
+
+		if ( 1 === preg_match( '/^(?:([a-z-]+)\.)?(?:m\.)?wikipedia\.org$/', $host, $found ) && '' !== (string) ( $found[1] ?? '' ) ) {
+			$title = '';
+
+			if ( 0 === strpos( $path, '/wiki/' ) ) {
+				$title = substr( $path, 6 );
+			} elseif ( '/w/index.php' === $path && isset( $parts['query'] ) ) {
+				parse_str( (string) $parts['query'], $query );
+				$title = isset( $query['title'] ) && is_string( $query['title'] ) ? $query['title'] : '';
+			}
+
+			$title = trim( str_replace( '_', ' ', rawurldecode( $title ) ) );
+
+			if ( '' !== $title && 1 !== preg_match( self::NAMESPACES, $title ) ) {
+				$signals[] = new Signal( Signal::WIKIPEDIA_LINK, $title, $scope, 'href', array( 'language' => $found[1] ) );
+			}
+
+			return;
+		}
+
+		if ( 1 === preg_match( '/^(?:www\.)?wikidata\.org$/', $host ) && 1 === preg_match( '#^/(?:wiki|entity)/(Q\d+)$#', $path, $found ) ) {
+			$signals[] = new Signal( Signal::WIKIDATA_LINK, $found[1], $scope, 'href' );
+
+			return;
+		}
+
+		if ( 1 === preg_match( '/^(?:www\.)?openstreetmap\.org$/', $host ) && 1 === preg_match( '#^/(node|way|relation)/(\d+)$#', $path, $found ) ) {
+			$signals[] = new Signal( Signal::OSM_OBJECT, $found[1] . '/' . $found[2], $scope, 'href' );
+		}
+	}
+
+	/**
+	 * The addresses an element carries: `href`, `src` and the `data-*` attributes.
+	 *
+	 * @param \WP_HTML_Tag_Processor $tags The processor, on the element.
+	 * @return array<string, string>
+	 */
+	private function addresses( $tags ) {
+		$found = array();
+
+		foreach ( (array) $tags->get_attribute_names_with_prefix( '' ) as $name ) {
+			if ( 'href' !== $name && 'src' !== $name && 0 !== strpos( $name, 'data-' ) ) {
+				continue;
+			}
+
+			$value = $tags->get_attribute( $name );
+
+			if ( is_string( $value ) && '' !== trim( $value ) ) {
+				$found[ $name ] = trim( $value );
+			}
+		}
+
+		return $found;
+	}
+
+	/**
+	 * Whether an address names a GPX file (the query string and the fragment do not count).
+	 *
+	 * @param string $address Address.
+	 * @return bool
+	 */
+	private function is_gpx( $address ) {
+		return 'gpx' === $this->extension( $address );
+	}
+
+	/**
+	 * Whether an address names an image file.
+	 *
+	 * @param string $address Address.
+	 * @return bool
+	 */
+	private function is_image( $address ) {
+		return in_array( $this->extension( $address ), self::IMAGE_EXTENSIONS, true );
+	}
+
+	/**
+	 * The extension of the file an address names, in lower case.
+	 *
+	 * @param string $address Address.
+	 * @return string
+	 */
+	private function extension( $address ) {
+		$path = (string) preg_replace( '/[?#].*$/s', '', $address );
+
+		return strtolower( (string) pathinfo( $path, PATHINFO_EXTENSION ) );
+	}
+}

@@ -3,7 +3,7 @@
 
 # Slice 601 — Index: reading a page (the signals of a rendered page)
 
-Status: **proposed (2026-11-21), not coded.** Dependencies: slice 600 (the module, the resolver, the sources). Context: [`../design/index.md`](../design/index.md), "Reading the rendered page" and "What a real page contains". After the categories and the tags (600), Eric's order is **the links to Wikipedia and the names of birds**; the photographs are later.
+Status: **coded (2026-11-21), on `main`; see "What was built, and what differs from the plan" at the end.** Dependencies: slice 600 (the module, the resolver, the sources). Context: [`../design/index.md`](../design/index.md), "Reading the rendered page" and "What a real page contains". After the categories and the tags (600), Eric's order is **the links to Wikipedia and the names of birds**; the photographs are later.
 
 ## Goal
 
@@ -55,3 +55,21 @@ Fetching a page in the background (**602**: the loopback, the private link and t
 ## To check
 
 Whether the theme of the blog always wraps the contents in `wp-block-post-content` (the three pages did); the HTML API on pages of 250 KB with scripts and styles in the body; whether **WordPress filters `data-` attributes** on saving for the roles with no `unfiltered_html` (it matters for the marks written by hand, not for what a plugin prints).
+
+## What was built, and what differs from the plan (2026-11-21)
+
+Built: `Index\Harvest\PageReader::signals( $html, $post_id )` and `Harvest\Signal` (type, value, scope, evidence, anchor, data), and the command `wp otherguise index read <file-or-address> [--format=table|json]` (an ordinary HTTP request with a timeout, or a local file; nothing is stored, no job).
+
+What differs:
+
+- **The parser is the tag processor of WordPress with a stack of open elements kept in the reader**, not `WP_HTML_Processor`: the HTML processor refuses some markup and is not in every version, while the tag processor never stops. The stack is tolerant (a closing tag pops down to its opening tag; an unclosed `<p>` or `<li>` does not leak out of its parent) and exact on the well-formed markup that WordPress prints. No `DOMDocument` fallback is needed. **A badly broken page** (a `<div>` never closed inside the contents) **would widen a scope**: not seen on the real pages.
+- **Two kinds of exclusion**: `nav`, `header`, `footer`, `aside`, `#comments` and the lists of other posts are not read for **links, files and images**, but an explicit mark `data-index` is trusted there; only `data-index-ignore` hides everything below it.
+- **The images are every `<img src>` and every link to an image file in `<main>`, the external ones included**: the Wikimedia thumbnails that the whoBIRD block shows are signals (page scope). Sorting what is a photograph of the blog is the work of the photographs slice, not of this reader. A link to a Wikipedia page whose title ends in `.jpg` is not an image.
+- **A document with no `<main>` is read whole, and one with no contents region reads its links as the contents**: this is what makes a fragment (the `post_content` of a post) readable.
+- **The names of birds are invisible without the whoBIRD patch**: its Wikipedia links are after the contents, so the reader ignores them on purpose. They come with `data-index="wikidata:Q…"` once that change is made in whoBIRD (not made: that repository is read-only here).
+- A signal of `wikipedia-link` carries the language and the title from the address, never the text of the link.
+
+### Verification
+
+- **Under automated tests** (PHPUnit, 826 tests in the suite): every type of signal and its scope; a Wikipedia link outside the contents ignored; a mark outside the contents kept; the attribution link of a map; `|` and `>` in a mark; entities and percent-encoding; a `.gpx` address with a query string; a nested `data-index-ignore` and unclosed elements; a document of 250 KB read in well under a second; the command (table, JSON, errors). **Fixtures are excerpts cut from three public pages of the blog** (`tests/phpunit/fixtures/index/`: the GPX link and the attribution of `wp-gpx-maps`, the whoBIRD block, a NextGEN gallery) plus one handwritten file of marks. The tests are **skipped, not passed, without `OTHERGUISE_WP_CORE`** (a `wp-includes` directory with `class-wp-token-map.php`).
+- **On the four real pages saved for the design** (on a scratch WordPress 7.1.4, with the real core, not the test loader): *Étroubles ⇾ Beaufort* 66 images, 1 GPX file, 1 Wikipedia link (175 KB, 11 ms); *Plateau de l'Hers* 97 images, 1 GPX file, 3 Wikipedia links; *A Miranda et Cap Ortegal* 150 images, 1 GPX file, 1 Wikipedia link; *Vers le Sud* (NextGEN) 77 images, 1 GPX file. **WP-CLI was not run** (the command class is tested with doubles); **no page behind a cache plugin or a firewall was tried**.

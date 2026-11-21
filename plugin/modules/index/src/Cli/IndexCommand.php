@@ -11,6 +11,7 @@
 namespace Otherguise\Index\Cli;
 
 use Otherguise\Index\Entries;
+use Otherguise\Index\Harvest\PageReader;
 use Otherguise\Index\Indexer;
 use Otherguise\Index\Kinds;
 use Otherguise\Index\Mentions;
@@ -59,6 +60,20 @@ final class IndexCommand {
 	private $set_term_kind;
 
 	/**
+	 * The reader of a page, or null.
+	 *
+	 * @var PageReader|null
+	 */
+	private $page_reader;
+
+	/**
+	 * Loads a page named on the command line: `fn( string $target ): array{html:string,error:string}`.
+	 *
+	 * @var callable
+	 */
+	private $load;
+
+	/**
 	 * Prints a line.
 	 *
 	 * @var callable
@@ -82,16 +97,18 @@ final class IndexCommand {
 	/**
 	 * Builds the command.
 	 *
-	 * @param Entries       $entries       Entries.
-	 * @param Indexer       $indexer       Indexer.
-	 * @param Mentions      $mentions      Mentions.
-	 * @param callable      $posts         Ids of the published posts, by page.
-	 * @param callable      $set_term_kind Sets the kind of a term.
-	 * @param callable|null $log           Default `WP_CLI::log`.
-	 * @param callable|null $success       Default `WP_CLI::success`.
-	 * @param callable|null $fail          Default `WP_CLI::error`.
+	 * @param Entries         $entries       Entries.
+	 * @param Indexer         $indexer       Indexer.
+	 * @param Mentions        $mentions      Mentions.
+	 * @param callable        $posts         Ids of the published posts, by page.
+	 * @param callable        $set_term_kind Sets the kind of a term.
+	 * @param callable|null   $log           Default `WP_CLI::log`.
+	 * @param callable|null   $success       Default `WP_CLI::success`.
+	 * @param callable|null   $fail          Default `WP_CLI::error`.
+	 * @param PageReader|null $page_reader The reader of a page (slice 601).
+	 * @param callable|null   $load          Loads a file or an address; default a local file or an ordinary HTTP request.
 	 */
-	public function __construct( Entries $entries, Indexer $indexer, Mentions $mentions, $posts, $set_term_kind, $log = null, $success = null, $fail = null ) {
+	public function __construct( Entries $entries, Indexer $indexer, Mentions $mentions, $posts, $set_term_kind, $log = null, $success = null, $fail = null, $page_reader = null, $load = null ) {
 		$this->entries       = $entries;
 		$this->indexer       = $indexer;
 		$this->mentions      = $mentions;
@@ -100,6 +117,8 @@ final class IndexCommand {
 		$this->log           = $log ?? array( 'WP_CLI', 'log' );
 		$this->success       = $success ?? array( 'WP_CLI', 'success' );
 		$this->fail          = $fail ?? array( 'WP_CLI', 'error' );
+		$this->page_reader   = $page_reader;
+		$this->load          = $load ?? array( self::class, 'load' );
 	}
 
 	/**
@@ -306,5 +325,114 @@ final class IndexCommand {
 		}
 
 		( $this->success )( 'The key ' . $key . ' is an alias of the entry ' . $entry . '. Run `wp otherguise index rebuild` to make the mentions.' );
+	}
+
+	/**
+	 * Reads a page and prints the signals it holds: what the index would see. Nothing is stored and no job is made: this is the way to try the
+	 * reader on a real page.
+	 *
+	 * ## OPTIONS
+	 *
+	 * <page>
+	 * : A file of HTML, or the address of a public page (an ordinary HTTP request).
+	 *
+	 * [--format=<format>]
+	 * : `table` (default, one line per signal) or `json`.
+	 *
+	 * ## EXAMPLES
+	 *
+	 *     wp otherguise index read https://example.test/2026/10/01/a-day/
+	 *     wp otherguise index read /tmp/page.html --format=json
+	 *
+	 * @param array $args  Positional arguments.
+	 * @param array $assoc Options.
+	 * @return void
+	 */
+	public function read( $args, $assoc ) {
+		$target = (string) ( $args[0] ?? '' );
+		$format = (string) ( $assoc['format'] ?? 'table' );
+
+		if ( null === $this->page_reader || '' === $target || ! in_array( $format, array( 'table', 'json' ), true ) ) {
+			( $this->fail )( 'Give a file or an address, and a format that is table or json.' );
+
+			return;
+		}
+
+		$page = ( $this->load )( $target );
+
+		if ( '' !== (string) $page['error'] ) {
+			( $this->fail )( (string) $page['error'] );
+
+			return;
+		}
+
+		$signals = $this->page_reader->signals( (string) $page['html'] );
+
+		if ( 'json' === $format ) {
+			( $this->log )( (string) wp_json_encode( array_map( static fn( $signal ) => $signal->to_array(), $signals ), JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES ) );
+
+			return;
+		}
+
+		$counts = array();
+
+		foreach ( $signals as $signal ) {
+			$counts[ $signal->type ] = ( $counts[ $signal->type ] ?? 0 ) + 1;
+			$data                    = array() === $signal->data ? '' : (string) wp_json_encode( $signal->data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES );
+
+			( $this->log )( $signal->type . "\t" . $signal->scope . "\t" . $signal->value . ( '' === $signal->anchor ? '' : "\t#" . $signal->anchor ) . ( '' === $data ? '' : "\t" . $data ) );
+		}
+
+		$summary = array();
+
+		foreach ( $counts as $type => $count ) {
+			$summary[] = $type . ': ' . $count;
+		}
+
+		( $this->success )( count( $signals ) . ' signal(s)' . ( array() === $summary ? '.' : ' (' . implode( ', ', $summary ) . ').' ) );
+	}
+
+	/**
+	 * Loads a local file, or a public page by an ordinary request with a timeout.
+	 *
+	 * @param string $target File or address.
+	 * @return array{html:string,error:string}
+	 */
+	public static function load( $target ) {
+		if ( 1 === preg_match( '#^https?://#i', $target ) ) {
+			$response = wp_remote_get( $target, array( 'timeout' => 30 ) );
+
+			if ( is_wp_error( $response ) ) {
+				return array(
+					'html'  => '',
+					'error' => $response->get_error_message(),
+				);
+			}
+
+			$status = (int) wp_remote_retrieve_response_code( $response );
+
+			return 200 === $status ? array(
+				'html'  => (string) wp_remote_retrieve_body( $response ),
+				'error' => '',
+			) : array(
+				'html'  => '',
+				'error' => 'The page answered with the status ' . $status . '.',
+			);
+		}
+
+		if ( ! is_readable( $target ) || is_dir( $target ) ) {
+			return array(
+				'html'  => '',
+				'error' => 'The file cannot be read: ' . $target,
+			);
+		}
+
+		$file = new \SplFileObject( $target, 'r' );
+		$size = $file->getSize();
+
+		return array(
+			'html'  => is_int( $size ) && $size > 0 ? (string) $file->fread( $size ) : '',
+			'error' => '',
+		);
 	}
 }

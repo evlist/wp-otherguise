@@ -16,6 +16,7 @@ use Otherguise\Core\ModuleInterface;
 use Otherguise\Core\Modules;
 use Otherguise\Index\Admin\TermsScreen;
 use Otherguise\Index\Cli\IndexCommand;
+use Otherguise\Index\Harvest\PageReader;
 use Otherguise\Index\Source\Terms;
 use Otherguise\Triples\Predicate\PredicateDefinition;
 
@@ -433,7 +434,11 @@ final class Module implements ModuleInterface, DescribedModule, DisabledByDefaul
 				$this->indexer(),
 				$this->mentions(),
 				array( $this, 'published_posts' ),
-				array( $this, 'set_term_kind' )
+				array( $this, 'set_term_kind' ),
+				null,
+				null,
+				null,
+				new PageReader()
 			)
 		);
 	}
