@@ -55,6 +55,15 @@ The module Wiki, on the level 3 of the design note (an address of our own); **pr
 | [507](507-wiki-other-angles.md) | Wiki: the other angles of a subject (the same title elsewhere in the hierarchy, `wiki/same-subject`, the block) — **rewritten and coded on the branch `wiki`** and merged into `main` on 2026-11-21 |
 | [508](508-wiki-migration-script.md) | Wiki: the migration from the SelfPedia, a throw-away tool in `evlist/shared-room` (`tools/wiki-migration/`) — **rewritten and coded**, only tried on a sample |
 
+## Index (the module of the entries of an index, [design note](../design/index.md))
+
+| Slice | What | Status |
+|---|---|---|
+| [600](600-index-core-and-categories.md) | Index: the core (entries as terms, mentions as statements, the resolver with aliases) and the categories and the tags that have a kind as the first sources | **proposed**, not coded |
+| [601](601-index-reading-a-page.md) | Index: reading a rendered page into signals (`data-index`, links to Wikipedia, `.gpx` files, images), a pure function, and `wp otherguise index read` | **proposed**, not coded |
+
+Later (not written): 602 the loopback job that fetches the pages; the web blocks; the integration into Books (the role `index` of slice 228); the Wikidata client and the automatic kind; the queue screen; the photographs and the files (with Media Helper, which geolocates the files as they arrive); the marks `data-index` and their button. **Eric's order (2026-11-21): the categories, then the tags, then the links to Wikipedia and the names of birds; the photographs last.**
+
 ## Candidates (not planned yet)
 
 Titles only. Each one is to be planned with Eric, from the decisions recorded in [`../design/`](../design/README.md), before any code is written.

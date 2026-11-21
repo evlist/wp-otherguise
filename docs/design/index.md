@@ -276,16 +276,17 @@ The geocoding (coordinates to a place) is the one real decision of the list: an 
 
 `<span data-index="Santiago de Compostela">Compostelle</span>`: **the attribute of the convention above** written by hand; it names the **entry** (a label, or an identifier), the optional `data-index-sort` and `data-index-main`. A mark **also counts as a tag** (a mention of the post) even if its passage is not printed. In the editor: a **button** that opens a field with **auto-completion on the entries that exist**. **To check**: WordPress filters some attributes on saving for the roles that have no `unfiltered_html`. A search source may **write the marks** after the validation (an assistant), which changes the contents of the posts: a command with `--dry-run` and a report, tried on a copy first.
 
-## What is proposed first
+## What is proposed first (Eric's order, 2026-11-21)
 
-1. The **core**: the taxonomy, the statements, the resolver, `rebuild`, a minimal screen; the harvester of the **tags**.
-2. **The reading of a page**: the pure function over a string of HTML (the `data-index` attributes, the links), **then** the loopback job. Tried first on **one real page of the blog**.
-3. The **web blocks**.
-4. The **integration into Books** (the role `index`, ranges).
-5. The **Wikidata client** and the **queue** (the links to Wikipedia, the manual linking).
-6. The convention **in WhoBIRD**; the **marks** and their button.
-7. **GPX files** and **photos** (the geocoding).
-8. The **assistant** of the search.
+**Start with what the blog already holds; the photographs, more complex, come last.**
+
+1. **[Slice 600](../slices/600-index-core-and-categories.md)**: the **core** (entries, mentions, resolver and aliases) and the **categories**, then the **tags** that have a kind.
+2. **[Slice 601](../slices/601-index-reading-a-page.md)**: **reading a page** (a pure function over a string of HTML: the `data-index` attributes, the **links to Wikipedia**, the GPX files, the images) and a command to try it on the real pages.
+3. The **loopback job** that fetches the pages (602), and **WhoBIRD**: the convention in its renderer, so that **the names of the birds** come with their Wikidata identifiers.
+4. The **Wikidata client** (the item of a Wikipedia link, the automatic **kind**) and the **queue screen**.
+5. The **web blocks**, then the **integration into Books** (the role `index`, ranges).
+6. The **marks** `data-index` and their button; the assistant of the search.
+7. **The photographs and the GPX files**, with Media Helper, which reads the coordinates and geocodes as the files arrive (the brief was sent to its session).
 
 ## Open
 
