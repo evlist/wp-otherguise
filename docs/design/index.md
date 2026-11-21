@@ -21,7 +21,7 @@ Context: the index of the printed books was designed in [`books.md`](books.md) (
 
 - **WhoBIRD** (`evlist/wp-whobird`): the observations come from **an export of the app (SQLite)**, table `BirdObservations` (`BirdNET_ID`, `SpeciesName`, `TimeInMillis`); the block shows those of **the day, the week or the month of the publication date of the post or page** (**no observation is stored per post**). The plugin keeps a **mapping table** (`birdnet_id`, `scientific_name`, **`wikidata_qid`**) built from BirdNET, eBird and Wikidata lists, queries Wikidata by SPARQL with a cache and a throttle, and takes the names in the user's language. **So the birds already have Wikidata identifiers**; a source "birds" would read the observations of the date of the post and give `wikidata:Q…` (kind: species).
 - **Trackserver** (a fork, `evlist/wp-plugin-trackserver`): the tracks are in the tables `ts_tracks` and `ts_locations`; **Eric does not use it to put the tracks in the posts** (he uses several plugins, at present **`wp-gpx-maps`**, a plugin of his in a **private** Gitea repository, `gitea.dyomedea.com/Dyomedea/wp-gpx-maps`: the server answers an anonymous request with a 404, so the code was **not read**; **Eric says that it shows a link to download the GPX**, which puts the **address of the file in the HTML of the page**). With the decision above its tables do not matter to the index: the **file** that the page names is what counts.
-- **Media Helper** (`evlist/wp-media-helper`): it knows **GPS files** as a type of media (`gpx`, `kml`, `kmz`, `fit`, `tcx`) that it inserts in a post, and reads the **dates** embedded in the files (`EmbeddedDates`); it **does not read the coordinates of the photos**. The core of WordPress does not keep them either (**from memory, not checked**: its `image_meta` has no GPS keys). **Reading the EXIF of a photo (`exif_read_data`, an optional PHP extension) would be new code**, on the original files (a thumbnail may have lost its EXIF).
+- **Media Helper** (`evlist/wp-media-helper`): it knows **GPS files** as a type of media (`gpx`, `kml`, `kmz`, `fit`, `tcx`) that it inserts in a post, and reads the **dates** embedded in the files (`EmbeddedDates`); it **does not read the coordinates of the photos**. The core of WordPress does not keep them either (**from memory, not checked**: its `image_meta` has no GPS keys). **Reading the EXIF of a photo (`exif_read_data`, an optional PHP extension) would be new code.** The thumbnails of the blog **keep the GPS EXIF** (checked on 8 of 8 samples of one post, see below), so the images named in the page can be read as they are, without finding the originals.
 
 ## The model (Proposed)
 
@@ -81,6 +81,25 @@ The module **depends on none of the plugins**; a plugin that wants to be indexed
 
 **What is lost, said plainly**: what a script draws in the browser (a map built by JavaScript from a file whose address is **not** in the HTML), what is behind a login or a consent screen, and what a cache or a protection of the site (a firewall that refuses the loopback) hides from the request. A page that is **not reachable** is reported, not silently skipped.
 
+## What a real page contains (checked on 2026-11-21: one post of the blog, read from the public address, nothing run on the site)
+
+The post is *Étroubles (Italie) ⇾ Beaufort (France)* of 2026-10-01 (`e.vli.st/2026/10/01/…`), a block theme; the page weighs 175 KB.
+
+- **The GPX file is named in the page**, and **outside the contents of the post**: `wp-gpx-maps` writes `<div id='wpgpxmaps_downloadfile'>Download file: <a href='…/uploads/cumulus/eric/2026/10/01/20261001-vanlife.gpx' target='_new' download>` **before** the element `wp-block-post-content`, inside `<main>`: the map is in the template. **This confirms that the scope of the harvester of files is `<main>`, and that the post in the database would not have shown it.** (A second plugin, `wp-attached-gpx`, adds CSS to the page; it plays no part here.)
+- **The GPX file** (public, 1 MB): an export of **PhoneTrack** (Nextcloud), **3,225 points, one track, no waypoint**, in **chronological order**; the **first point** (06:04, 45.8189 N 7.2297 E) is the start (Étroubles) and the **last** (15:17, 45.7173 N 6.5746 E) the end (Beaufort). The start and the end are to be taken **by the time of the points**, not by the order of the file, and **checked** (the first `<time>` of a GPX is often that of the export).
+- **The images**: 66 distinct addresses in `<main>`, **all thumbnails** in `uploads/thumbnails/cumulus/eric/…/20261001_134828-1024x577.jpg`. **They keep the GPS EXIF**: 8 of 8 samples (480 and 1,024 px) had their coordinates and their date. So the module can read the images **as the page names them**. One post has dozens of photos, **over a distance of tens of kilometres**: places must be **aggregated** (the PHP extensions `exif` and `intl` are there on the machine of this session; **to check on the server of the blog**).
+- **The tags are in the page** too (`rel="tag"`): the category *Vanlife* and the tags *france*, *italie*, *suisse*; the database stays the source (term identifiers).
+- **92 links** in `<main>`, **one to Wikipedia**: `fr.wikipedia.org/wiki/Beaufort_(fromage)`, **the cheese, not the village** that the title names, with the text "Wikipédia". Two lessons: **the label comes from the address, never from the text of the link**, and a link to Wikipedia **is not always a mention of the place of the post**: the kind (a product) comes from Wikidata ("instance of"), and the entry *Beaufort (fromage)* must not be confused with *Beaufort (Savoie)*: this is the case of the queue. The other external links (tourist sites, a press article) are **not** a sure sign and are not harvested.
+- **A link to OpenStreetMap is noise**: the only one is the **attribution of the Leaflet map** (`openstreetmap.org/copyright`). A harvester of OpenStreetMap links must accept only addresses of an **object** (`/node/…`, `/way/…`, `/relation/…`).
+- **No WhoBIRD output** in this page (only its CSS file): no observation that day, or the block is not in this template. **Nothing is known yet of its markup**: a page with observations is needed.
+- **The title has a convention**: `Départ (Pays) ⇾ Arrivée (Pays)`. It gives the **names of the start and of the end** without geocoding (to be searched in Wikidata with the country). **To ask Eric**: do all the daily posts follow it?
+
+**What the geocoding gave** (two calls to Nominatim, zoom 14, on the first and the last point; one call to the search of Wikidata; the courtesy asked by the services was respected):
+
+- the **nearest named object**, not the municipality: *Combe* (an isolated dwelling, in Cerisey, Étroubles) and *La Glirettaz* (a hamlet of Beaufort), with **the chain of the address** (hamlet, municipality, department, region, country) in the answer. The track starts and ends where a van is parked, so **a hamlet is what is found**; **the municipality is a level of the chain to be chosen by a rule**, the hamlet being a **sub-entry** if wanted (`Beaufort > La Glirettaz`).
+- **neither object had a `wikidata` tag**: for the small places OpenStreetMap is indeed **the only identifier** there is, as the rule "Wikidata first, OpenStreetMap as a fallback" supposed.
+- the search of Wikidata for "Étroubles" gives **Q35036, "Italian municipality in the Aosta Valley"**, with a description: **what the queue needs to show to choose**.
+
 ## Identifiers: Wikidata first (Decided), places to discuss
 
 **Proposed rule.** An entry holds **several identifiers** (`wikidata`, `osm`, `geonames`, and `wikipedia` as a *provenance*) and **one canonical**: the Wikidata item if there is one, else the OpenStreetMap object, else GeoNames, else none (the entry is then identified by its label and its aliases).
@@ -116,8 +135,9 @@ In the editor, a **panel "Index entries of this post"** lists the mentions with 
 |---|---|---|---|---|
 | `data-index` (WhoBIRD, marks, adapters) | the page | the entry named | in the attribute, or by the resolver | the convention to write in each plugin |
 | Links to Wikipedia / Wikidata | the contents of the post | the title in the address | the Wikidata item (API, cached) | **the kind is unknown**: inferred from "instance of", or set in the queue |
-| `.gpx` files named in the page | the page | one place per end of the track | OSM or Wikidata by the geocoding | coordinates to a name; the file must be found |
-| Images of the post | the contents of the post | places, aggregated (a minimum of photos, or the first and the last) | idem | **new EXIF code**, noise |
+| `.gpx` files named in the page (all of `<main>`) | the page | one place per end of the track, **by time** | the municipality of the address chain, or the names of the title; OSM or Wikidata | coordinates to a name; the file must be read (public address or disk) |
+| Images of the post | the contents of the post | places, aggregated (a minimum of photos, or the first and the last) | idem | **new EXIF code** (the thumbnails keep the GPS), tens of photos over tens of kilometres: noise |
+| Title `A (Pays) ⇾ B (Pays)` | the title | the start and the end, without geocoding | Wikidata search with the country | a convention of the blog: **to be confirmed** |
 | Tags and categories (with a kind) | the database | one per term that has a kind (the others stay out) | by the queue | none |
 | Full-text search | the contents of the post | the entry and its variants | by the resolver | **precision**: homonyms, plurals; a screen to validate; it may **write the marks** |
 
@@ -151,6 +171,7 @@ The geocoding (coordinates to a place) is the one real decision of the list: an 
 - Whether the entries **derive from the existing tags** (a tag with a kind gives a linked entry, no double entry) or the tags are **migrated** to the taxonomy.
 - The name `index` for the module and the dependency Books → Index (checked by `ArchitectureTest`); the numbering of the slices.
 - Several **sources on one mention** in Triples; the availability of `Collator`.
-- **What the pages of the blog really contain**: where the link to the GPX file of `wp-gpx-maps` is and what its address looks like, what WhoBIRD prints, the wrapper of the contents of the post in the theme. **A saved copy of the HTML of one post is needed**; nothing of this was looked at.
+- **What WhoBIRD prints**: a page with observations is needed. (The link to the GPX file, the wrapper of the contents of the post and the images were looked at: see above.)
+- **Which level of the address** is the entry of a place (the municipality?), and which are the sub-entries. **A saved copy of the HTML of one post is needed**; nothing of this was looked at.
 - The **time** of rendering every post, the way to **detect a page that changed** without the post changing, and the behaviour of the loopback behind the firewall and the cache of the blog (the internal address of Books may be enough).
 - **Never tried**: everything. No line of this module is written; the three plugins were read, not run.
