@@ -104,7 +104,7 @@ class IndexScreenAndModuleTest extends TestCase {
 	}
 
 	/**
-	 * The starter kinds exist; the filter of code adds a kind of its own and cannot replace the kinds of the site; a malformed slug is dropped.
+	 * The built-in kinds exist; the filter of code adds a kind of its own and cannot replace the kinds of the site; a malformed slug is dropped.
 	 *
 	 * @return void
 	 */

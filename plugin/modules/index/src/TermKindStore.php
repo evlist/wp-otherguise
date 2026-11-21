@@ -14,7 +14,7 @@ defined( 'ABSPATH' ) || exit;
 
 /**
  * The kinds kept as terms of the hidden hierarchical taxonomy `index_kind` (slice 603): the slug of the term is the identifier of the kind,
- * its name the label, its parent the broader kind; the term meta hold the CSS suffix and the starter flag.
+ * its name the label, its parent the broader kind; the term meta hold the CSS suffix and the built-in flag.
  */
 final class TermKindStore implements KindStore {
 	public const TAXONOMY = 'index_kind';
@@ -90,7 +90,7 @@ final class TermKindStore implements KindStore {
 	 * @param string $label   Label.
 	 * @param string $parent  Broader kind.
 	 * @param string $css     CSS suffix.
-	 * @param bool   $builtin Starter kind.
+	 * @param bool   $builtin Built-in kind.
 	 * @return true|string
 	 */
 	public function add( $slug, $label, $parent, $css, $builtin ) {

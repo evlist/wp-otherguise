@@ -54,7 +54,7 @@ final class KindsCommand {
 	}
 
 	/**
-	 * Lists the kinds as a tree, with the CSS class, the number of terms and entries that have them, and whether a kind is a starter kind
+	 * Lists the kinds as a tree, with the CSS class, the number of terms and entries that have them, and whether a kind is a built-in kind
 	 * (protected) or comes from code.
 	 *
 	 * @param array $args  Positional arguments.
@@ -69,7 +69,7 @@ final class KindsCommand {
 			$flags = array();
 
 			if ( $row['builtin'] ) {
-				$flags[] = 'starter';
+				$flags[] = 'built-in';
 			}
 
 			if ( 'code' === $row['source'] ) {
@@ -106,7 +106,7 @@ final class KindsCommand {
 	}
 
 	/**
-	 * Changes the label of a kind (a starter kind too).
+	 * Changes the label of a kind (a built-in kind too).
 	 *
 	 * ## OPTIONS
 	 *
@@ -153,7 +153,7 @@ final class KindsCommand {
 	}
 
 	/**
-	 * Moves a kind under another (a starter kind cannot be moved).
+	 * Moves a kind under another (a built-in kind cannot be moved).
 	 *
 	 * ## OPTIONS
 	 *
@@ -174,7 +174,7 @@ final class KindsCommand {
 	}
 
 	/**
-	 * Deletes a kind (not a starter kind, not one that has sub-kinds; one that is used needs `--reassign`).
+	 * Deletes a kind (not a built-in kind, not one that has sub-kinds; one that is used needs `--reassign`).
 	 *
 	 * ## OPTIONS
 	 *

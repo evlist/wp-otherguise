@@ -17,7 +17,7 @@ defined( 'ABSPATH' ) || exit;
 
 /**
  * Otherguise → Index kinds (slice 603): the tree of the kinds with their slug, label, CSS class and use, a form to add a kind and, per row, to
- * edit it, move it and delete it. A starter kind keeps its slug, its place and its life (its label and class can change); a kind that comes
+ * edit it, move it and delete it. A built-in kind keeps its slug, its place and its life (its label and class can change); a kind that comes
  * from code is read-only. Each form posts to `admin-post.php` with the capability and a nonce.
  */
 final class KindsScreen {
@@ -142,7 +142,7 @@ final class KindsScreen {
 	}
 
 	/**
-	 * Saves a kind: its label and CSS class, and its place when it is not a starter kind. Action `admin_post_otherguise_index_kind_save`.
+	 * Saves a kind: its label and CSS class, and its place when it is not a built-in kind. Action `admin_post_otherguise_index_kind_save`.
 	 *
 	 * @return void
 	 */
@@ -231,7 +231,7 @@ final class KindsScreen {
 			echo '<div class="notice notice-success"><p>' . esc_html__( 'Saved.', 'otherguise' ) . '</p></div>';
 		}
 
-		echo '<p>' . esc_html__( 'A kind placed under another is a sort of it: a waterway is a place. The starter kinds cannot be deleted or moved; their name and class can change.', 'otherguise' ) . '</p>';
+		echo '<p>' . esc_html__( 'A kind placed under another is a sort of it: a waterway is a place. The built-in kinds cannot be deleted or moved; their name and class can change.', 'otherguise' ) . '</p>';
 		echo '<table class="widefat striped"><thead><tr><th>' . esc_html__( 'Slug', 'otherguise' ) . '</th><th>' . esc_html__( 'Label', 'otherguise' ) . '</th><th>' . esc_html__( 'Under', 'otherguise' ) . '</th><th>' . esc_html__( 'CSS class', 'otherguise' ) . '</th><th>' . esc_html__( 'Used by', 'otherguise' ) . '</th><th></th></tr></thead><tbody>';
 
 		foreach ( $tree as $row ) {
@@ -263,7 +263,7 @@ final class KindsScreen {
 		echo '<tr><td style="padding-left:' . esc_attr( (string) ( 10 + 16 * (int) $row['depth'] ) ) . 'px"><code>' . esc_html( $slug ) . '</code>';
 
 		if ( $row['builtin'] ) {
-			echo ' <em>' . esc_html__( 'starter', 'otherguise' ) . '</em>';
+			echo ' <em>' . esc_html__( 'built-in', 'otherguise' ) . '</em>';
 		} elseif ( ! $free ) {
 			echo ' <em>' . esc_html__( 'from code', 'otherguise' ) . '</em>';
 		}

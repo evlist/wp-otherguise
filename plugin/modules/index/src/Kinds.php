@@ -15,7 +15,7 @@ defined( 'ABSPATH' ) || exit;
 /**
  * The kinds of entries (slice 603): data of the site, with a hierarchy that means *is a sort of* (a waterway is a place).
  *
- * - **The starter kinds** are created once and are **protected**: they cannot be deleted or moved, and their slug does not change; their label
+ * - **The built-in kinds** are created once and are **protected**: they cannot be deleted or moved, and their slug does not change; their label
  *   and CSS class can be edited. The kinds that a site adds are free.
  * - **Kinds given by code** (the filter `index_kinds`, `slug => label`) are added as roots when no kind of the site has the slug; they are
  *   read-only.
@@ -55,11 +55,11 @@ final class Kinds {
 	}
 
 	/**
-	 * The starter kinds, in the language of the site: slug => array( label, parent ).
+	 * The built-in kinds, in the language of the site: slug => array( label, parent ).
 	 *
 	 * @return array<string, array{0:string,1:string}>
 	 */
-	public static function starters() {
+	public static function builtins() {
 		return array(
 			'place'    => array( __( 'Place', 'otherguise' ), '' ),
 			'waterway' => array( __( 'Waterway', 'otherguise' ), 'place' ),
@@ -76,7 +76,7 @@ final class Kinds {
 	}
 
 	/**
-	 * Creates the starter kinds that are missing (a parent before its children). Cheap when it was done: one option.
+	 * Creates the built-in kinds that are missing (a parent before its children). Cheap when it was done: one option.
 	 *
 	 * @param bool $force Check even when the option says it was done.
 	 * @return int The number of kinds created.
@@ -89,12 +89,12 @@ final class Kinds {
 		$created = 0;
 		$have    = self::store()->all();
 
-		foreach ( self::starters() as $slug => $starter ) {
+		foreach ( self::builtins() as $slug => $default ) {
 			if ( isset( $have[ $slug ] ) ) {
 				continue;
 			}
 
-			if ( true === self::store()->add( $slug, $starter[0], $starter[1], $slug, true ) ) {
+			if ( true === self::store()->add( $slug, $default[0], $default[1], $slug, true ) ) {
 				++$created;
 			}
 		}
@@ -359,7 +359,7 @@ final class Kinds {
 	}
 
 	/**
-	 * Changes the label and the CSS class of a kind (also a starter kind).
+	 * Changes the label and the CSS class of a kind (also a built-in kind).
 	 *
 	 * @param string      $slug  Slug.
 	 * @param string      $label Label.
@@ -381,7 +381,7 @@ final class Kinds {
 	}
 
 	/**
-	 * Moves a kind under another (not a starter kind).
+	 * Moves a kind under another (not a built-in kind).
 	 *
 	 * @param string $slug   Slug.
 	 * @param string $parent New broader kind, '' for none.
@@ -395,7 +395,7 @@ final class Kinds {
 		}
 
 		if ( $record['builtin'] ) {
-			return 'The kind "' . $slug . '" is a starter kind: it cannot be moved.';
+			return 'The kind "' . $slug . '" is a built-in kind: it cannot be moved.';
 		}
 
 		$problem = self::check_parent( (string) $slug, (string) $parent, self::height( (string) $slug ) );
@@ -404,7 +404,7 @@ final class Kinds {
 	}
 
 	/**
-	 * Deletes a kind. A starter kind, a kind that has sub-kinds and a kind that is used (unless another kind takes over) are refused.
+	 * Deletes a kind. A built-in kind, a kind that has sub-kinds and a kind that is used (unless another kind takes over) are refused.
 	 *
 	 * @param string $slug     Slug.
 	 * @param string $reassign The kind that takes over the terms and entries, '' for none.
@@ -419,7 +419,7 @@ final class Kinds {
 		}
 
 		if ( $record['builtin'] ) {
-			return 'The kind "' . $slug . '" is a starter kind: it cannot be deleted.';
+			return 'The kind "' . $slug . '" is a built-in kind: it cannot be deleted.';
 		}
 
 		foreach ( $records as $other ) {

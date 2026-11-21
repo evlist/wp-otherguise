@@ -12,7 +12,7 @@ use Otherguise\Index\KindStore;
 use Otherguise\Index\Kinds;
 
 /**
- * Stands for the taxonomy `index_kind`. `install()` puts a fresh store, with the starter kinds, in `Kinds`.
+ * Stands for the taxonomy `index_kind`. `install()` puts a fresh store, with the built-in kinds, in `Kinds`.
  */
 final class Otherguise_Test_Memory_Kinds implements KindStore {
 	/**
@@ -37,7 +37,7 @@ final class Otherguise_Test_Memory_Kinds implements KindStore {
 	public $reassigned = array();
 
 	/**
-	 * Puts a fresh store with the starter kinds in `Kinds`.
+	 * Puts a fresh store with the built-in kinds in `Kinds`.
 	 *
 	 * @return Otherguise_Test_Memory_Kinds
 	 */
@@ -66,7 +66,7 @@ final class Otherguise_Test_Memory_Kinds implements KindStore {
 	 * @param string $label   Label.
 	 * @param string $parent  Parent.
 	 * @param string $css     CSS suffix.
-	 * @param bool   $builtin Starter kind.
+	 * @param bool   $builtin Built-in kind.
 	 * @return true
 	 */
 	public function add( $slug, $label, $parent, $css, $builtin ) {

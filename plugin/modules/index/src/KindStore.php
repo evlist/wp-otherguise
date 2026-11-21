@@ -14,7 +14,7 @@ defined( 'ABSPATH' ) || exit;
 
 /**
  * The store of the kinds (slice 603). A kind is a record: slug (its identifier), label, parent (the slug of the broader kind, '' for none),
- * the suffix of its CSS class and whether it is a starter kind (protected). The WordPress implementation keeps them as the terms of the
+ * the suffix of its CSS class and whether it is a built-in kind (protected). The WordPress implementation keeps them as the terms of the
  * hidden taxonomy `index_kind`; the tests use one in memory. Every method that writes returns `true` or the reason it failed.
  */
 interface KindStore {
@@ -32,7 +32,7 @@ interface KindStore {
 	 * @param string $label   Label.
 	 * @param string $parent  Slug of the broader kind, '' for none.
 	 * @param string $css     Suffix of the CSS class.
-	 * @param bool   $builtin Whether it is a starter kind.
+	 * @param bool   $builtin Whether it is a built-in kind.
 	 * @return true|string
 	 */
 	public function add( $slug, $label, $parent, $css, $builtin );

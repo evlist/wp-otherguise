@@ -32,7 +32,7 @@ class IndexKindsTest extends TestCase {
 	private $store;
 
 	/**
-	 * Starts with the starter kinds.
+	 * Starts with the built-in kinds.
 	 *
 	 * @return void
 	 */
@@ -43,12 +43,12 @@ class IndexKindsTest extends TestCase {
 	}
 
 	/**
-	 * The starter kinds are created once, with `waterway` under `place`, all protected, and a second seed creates nothing and does not undo a
+	 * The built-in kinds are created once, with `waterway` under `place`, all protected, and a second seed creates nothing and does not undo a
 	 * rename.
 	 *
 	 * @return void
 	 */
-	public function test_the_starter_kinds(): void {
+	public function test_the_built_in_kinds(): void {
 		$this->assertCount( 11, $this->store->kinds );
 		$this->assertSame( 'place', $this->store->kinds['waterway']['parent'] );
 
@@ -153,14 +153,14 @@ class IndexKindsTest extends TestCase {
 	}
 
 	/**
-	 * A starter kind keeps its place and its life; its label can change; a kind of the site can move, but not under itself, and not too deep.
+	 * A built-in kind keeps its place and its life; its label can change; a kind of the site can move, but not under itself, and not too deep.
 	 *
 	 * @return void
 	 */
 	public function test_protection_and_moving(): void {
-		$this->assertStringContainsString( 'starter kind', Kinds::move( 'waterway', '' ) );
-		$this->assertStringContainsString( 'starter kind', Kinds::delete( 'waterway' ) );
-		$this->assertStringContainsString( 'starter kind', Kinds::delete( 'other' ) );
+		$this->assertStringContainsString( 'built-in kind', Kinds::move( 'waterway', '' ) );
+		$this->assertStringContainsString( 'built-in kind', Kinds::delete( 'waterway' ) );
+		$this->assertStringContainsString( 'built-in kind', Kinds::delete( 'other' ) );
 		$this->assertTrue( Kinds::edit( 'waterway', 'Cours d’eau' ) );
 		$this->assertSame( 'waterway', $this->store->kinds['waterway']['slug'] );
 
@@ -242,13 +242,13 @@ class IndexKindsTest extends TestCase {
 		$this->assertContains( 'OK Kind hamlet added.', $log );
 		$this->assertContains( 'OK The class of hamlet is now index-kind-ld.', $log );
 		$this->assertContains( "hamlet\tLieu-dit\tindex-kind-ld\t0 term(s), 0 entr.\t", $log );
-		$this->assertContains( "  waterway\tWaterway\tindex-kind-waterway\t0 term(s), 0 entr.\tstarter", $log );
+		$this->assertContains( "  waterway\tWaterway\tindex-kind-waterway\t0 term(s), 0 entr.\tbuilt-in", $log );
 
 		$cmd->delete( array( 'waterway' ), array() );
 		$cmd->delete( array( 'nowhere' ), array() );
 		$cmd->css( array( 'nowhere', 'x' ), array() );
 
-		$this->assertStringContainsString( 'starter kind', $fail[0] );
+		$this->assertStringContainsString( 'built-in kind', $fail[0] );
 		$this->assertStringContainsString( 'No such kind', $fail[1] );
 		$this->assertStringContainsString( 'No such kind', $fail[2] );
 
@@ -320,7 +320,7 @@ class IndexKindsTest extends TestCase {
 		);
 		$this->screen( true, true, $urls )->save();
 
-		$this->assertSame( 'place', $this->store->kinds['waterway']['parent'], 'A starter kind is not moved by a form.' );
+		$this->assertSame( 'place', $this->store->kinds['waterway']['parent'], 'A built-in kind is not moved by a form.' );
 		$this->assertSame( 'Cours d’eau', $this->store->kinds['waterway']['label'] );
 
 		$this->posted = array( 'slug' => 'waterway' );
@@ -348,7 +348,7 @@ class IndexKindsTest extends TestCase {
 	}
 
 	/**
-	 * The screen prints the tree with a form per kind that can change, the mark of the starter kinds, and nothing for a user who may not.
+	 * The screen prints the tree with a form per kind that can change, the mark of the built-in kinds, and nothing for a user who may not.
 	 *
 	 * @return void
 	 */
@@ -367,7 +367,7 @@ class IndexKindsTest extends TestCase {
 		$html = ob_get_clean();
 
 		$this->assertStringContainsString( 'name="label" value="Hamlet"', $html );
-		$this->assertStringContainsString( 'starter', $html );
+		$this->assertStringContainsString( 'built-in', $html );
 		$this->assertStringContainsString( 'otherguise_index_kind_delete', $html );
 		$this->assertStringContainsString( 'name="reassign"', $html, 'A kind that is used offers where its terms go.' );
 		$this->assertStringContainsString( 'nonce-stub', $html );

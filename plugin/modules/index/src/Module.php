@@ -101,7 +101,7 @@ final class Module implements ModuleInterface, DescribedModule, DisabledByDefaul
 	 */
 	public function boot() {
 		( $this->add_action )( 'init', array( TermEntries::class, 'register_taxonomy' ), 10, 0 );
-		// Slice 603: the kinds are terms of a taxonomy; the starter kinds are created once.
+		// Slice 603: the kinds are terms of a taxonomy; the built-in kinds are created once.
 		( $this->add_action )( 'init', array( TermKindStore::class, 'register_taxonomy' ), 10, 0 );
 		( $this->add_action )( 'init', array( Kinds::class, 'seed' ), 12, 0 );
 		( $this->add_action )( 'triples_register_predicates', array( $this, 'register_predicates' ), 10, 1 );
