@@ -114,6 +114,14 @@ class IndexKindsTest extends TestCase {
 		Kinds::edit( 'waterway', 'Cours d’eau', 'Eau Vive!' );
 
 		$this->assertSame( array( 'index-kind-eauvive', 'index-kind-place' ), Kinds::classes( 'waterway' ) );
+
+		// The whole class typed in the field (the screen shows the prefix next to it): the prefix is dropped, also from what is already stored.
+		Kinds::edit( 'waterway', 'Cours d’eau', 'index-kind-eau' );
+		$this->assertSame( 'eau', $this->store->kinds['waterway']['css'] );
+
+		$this->store->kinds['place']['css'] = 'index-kind-index-kind-lieu';
+		Kinds::use_store( $this->store );
+		$this->assertSame( array( 'index-kind-eau', 'index-kind-lieu' ), Kinds::classes( 'waterway' ) );
 	}
 
 	/**

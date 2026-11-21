@@ -118,6 +118,7 @@ final class Kinds {
 		$records = array();
 
 		foreach ( self::store()->all() as $slug => $record ) {
+			$record['css']    = '' === self::css_suffix( $record['css'] ) ? $slug : self::css_suffix( $record['css'] );
 			$records[ $slug ] = $record + array( 'source' => 'data' );
 		}
 
@@ -474,9 +475,22 @@ final class Kinds {
 	 * @return string
 	 */
 	private static function css_of( $css, $slug ) {
-		$clean = trim( (string) preg_replace( '/[^a-z0-9_-]/', '', strtolower( (string) $css ) ) );
+		$clean = self::css_suffix( $css );
 
 		return '' === $clean ? $slug : $clean;
+	}
+
+	/**
+	 * The suffix of a CSS class, cleaned: lower case, letters, digits, hyphens and underscores, and without the prefix `index-kind-` when the
+	 * whole class was typed (the screen shows the prefix next to the field).
+	 *
+	 * @param string $css Given.
+	 * @return string
+	 */
+	private static function css_suffix( $css ) {
+		$clean = trim( (string) preg_replace( '/[^a-z0-9_-]/', '', strtolower( (string) $css ) ) );
+
+		return (string) preg_replace( '/^(index-kind-)+/', '', $clean );
 	}
 
 	/**
