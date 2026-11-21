@@ -15,6 +15,7 @@ use Otherguise\Index\Resolver;
 use PHPUnit\Framework\TestCase;
 
 require_once __DIR__ . '/support/class-otherguise-test-memory-entries.php';
+require_once __DIR__ . '/support/class-otherguise-test-memory-kinds.php';
 
 /**
  * No database and no WordPress: the entries are in memory.
@@ -46,6 +47,7 @@ class IndexResolverTest extends TestCase {
 	 */
 	protected function setUp(): void {
 		otherguise_test_reset();
+		Otherguise_Test_Memory_Kinds::install();
 
 		$this->entries  = new Otherguise_Test_Memory_Entries();
 		$this->resolver = new Resolver( $this->entries );

@@ -16,6 +16,7 @@ use Otherguise\Index\Source\Terms;
 use PHPUnit\Framework\TestCase;
 
 require_once __DIR__ . '/support/class-otherguise-test-memory-entries.php';
+require_once __DIR__ . '/support/class-otherguise-test-memory-kinds.php';
 
 /**
  * No database and no WordPress: stubs and doubles.
@@ -41,6 +42,7 @@ class IndexScreenAndModuleTest extends TestCase {
 	 */
 	protected function setUp(): void {
 		otherguise_test_reset();
+		Otherguise_Test_Memory_Kinds::install();
 		$this->request = array();
 	}
 
@@ -74,7 +76,7 @@ class IndexScreenAndModuleTest extends TestCase {
 
 		$this->assertSame(
 			array(
-				'init'                        => array( array( 'register_taxonomy', 10, 0 ) ),
+				'init'                        => array( array( 'register_taxonomy', 10, 0 ), array( 'register_taxonomy', 10, 0 ), array( 'seed', 12, 0 ) ),
 				'triples_register_predicates' => array( array( 'register_predicates', 10, 1 ) ),
 				'wp_after_insert_post'        => array( array( 'queue_post', 20, 1 ), array( 'on_save', 30, 1 ) ),
 				'set_object_terms'            => array( array( 'queue_post', 10, 1 ) ),
@@ -102,13 +104,12 @@ class IndexScreenAndModuleTest extends TestCase {
 	}
 
 	/**
-	 * The kinds are a short list; the filter can change it, and a malformed slug is dropped.
+	 * The starter kinds exist; the filter of code adds a kind of its own and cannot replace the kinds of the site; a malformed slug is dropped.
 	 *
 	 * @return void
 	 */
 	public function test_kinds(): void {
-		$this->assertTrue( Kinds::is_kind( 'place' ) );
-		foreach ( array( 'waterway', 'activity', 'season' ) as $kind ) {
+		foreach ( array( 'place', 'waterway', 'activity', 'season', 'other' ) as $kind ) {
 			$this->assertTrue( Kinds::is_kind( $kind ) );
 		}
 
@@ -117,9 +118,15 @@ class IndexScreenAndModuleTest extends TestCase {
 		$GLOBALS['otherguise_test_filters']['index_kinds'] = array(
 			'building' => 'Building',
 			'Bad Slug' => 'Bad',
+			'place'    => 'Not a place',
 		);
+		Kinds::use_store( new Otherguise_Test_Memory_Kinds() );
+		Kinds::seed( true );
 
-		$this->assertSame( array( 'building' => 'Building' ), Kinds::all() );
+		$this->assertTrue( Kinds::is_kind( 'building' ) );
+		$this->assertFalse( Kinds::is_kind( 'bad slug' ) );
+		$this->assertSame( 'Place', Kinds::label( 'place' ), 'A kind of the site wins over a kind of code.' );
+		$this->assertSame( 'code', Kinds::records()['building']['source'] );
 	}
 
 	/**

@@ -132,7 +132,7 @@ final class Resolver {
 	}
 
 	/**
-	 * Whether an entry found by the label alone has a kind that cannot be the candidate's.
+	 * Whether an entry found by the label alone has a kind that cannot be the candidate's (neither is a sort of the other; `other` conflicts with nothing).
 	 *
 	 * @param int       $id        Entry.
 	 * @param Candidate $candidate Candidate.
@@ -141,7 +141,7 @@ final class Resolver {
 	private function conflicts( $id, Candidate $candidate ) {
 		$entry = $this->entries->get( $id );
 
-		return null !== $entry && '' !== $entry['kind'] && Kinds::OTHER !== $entry['kind'] && Kinds::OTHER !== $candidate->kind && $entry['kind'] !== $candidate->kind;
+		return null !== $entry && ! Kinds::compatible( (string) $entry['kind'], $candidate->kind );
 	}
 
 	/**

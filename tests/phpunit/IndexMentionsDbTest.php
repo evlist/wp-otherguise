@@ -19,6 +19,7 @@ use Otherguise\Index\Source\Terms;
 require_once __DIR__ . '/support/class-otherguise-test-database-case.php';
 require_once __DIR__ . '/support/class-otherguise-test-modes-site.php';
 require_once __DIR__ . '/support/class-otherguise-test-memory-entries.php';
+require_once __DIR__ . '/support/class-otherguise-test-memory-kinds.php';
 
 /**
  * The statements are real (MariaDB); the entries are in memory; posts and terms are stubs.
@@ -86,6 +87,7 @@ class IndexMentionsDbTest extends Otherguise_Test_Database_Case {
 	 */
 	protected function setUp(): void {
 		parent::setUp();
+		Otherguise_Test_Memory_Kinds::install();
 
 		otherguise_test_wp_objects( array( new WP_Post( 12 ), new WP_Post( 13 ), new WP_Post( 14 ) ) );
 

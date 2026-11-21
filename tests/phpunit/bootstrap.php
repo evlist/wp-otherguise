@@ -1546,3 +1546,13 @@ function get_post_type( $id ) {
 function wp_cache_delete() {
     return true;
 }
+
+/**
+ * Stub of sanitize_html_class().
+ *
+ * @param string $classname Class.
+ * @return string
+ */
+function sanitize_html_class( $classname ) {
+    return preg_replace( '/[^A-Za-z0-9_-]/', '', (string) $classname );
+}

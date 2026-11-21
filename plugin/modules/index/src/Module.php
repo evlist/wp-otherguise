@@ -16,6 +16,8 @@ use Otherguise\Core\ModuleInterface;
 use Otherguise\Core\Modules;
 use Otherguise\Index\Admin\TermsScreen;
 use Otherguise\Index\Cli\IndexCommand;
+use Otherguise\Index\Cli\KindsCommand;
+use Otherguise\Index\Admin\KindsScreen;
 use Otherguise\Index\Cli\PagesCommand;
 use Otherguise\Index\Harvest\PageFetcher;
 use Otherguise\Index\Harvest\SignalStore;
@@ -97,6 +99,9 @@ final class Module implements ModuleInterface, DescribedModule, DisabledByDefaul
 	 */
 	public function boot() {
 		( $this->add_action )( 'init', array( TermEntries::class, 'register_taxonomy' ), 10, 0 );
+		// Slice 603: the kinds are terms of a taxonomy; the starter kinds are created once.
+		( $this->add_action )( 'init', array( TermKindStore::class, 'register_taxonomy' ), 10, 0 );
+		( $this->add_action )( 'init', array( Kinds::class, 'seed' ), 12, 0 );
 		( $this->add_action )( 'triples_register_predicates', array( $this, 'register_predicates' ), 10, 1 );
 		( $this->add_action )( 'wp_after_insert_post', array( $this, 'queue_post' ), 20, 1 );
 		( $this->add_action )( 'set_object_terms', array( $this, 'queue_post' ), 10, 1 );
@@ -111,6 +116,7 @@ final class Module implements ModuleInterface, DescribedModule, DisabledByDefaul
 
 		if ( is_admin() ) {
 			$this->screen()->register( $this->add_action );
+			( new KindsScreen() )->register( $this->add_action );
 		}
 	}
 
@@ -480,6 +486,7 @@ final class Module implements ModuleInterface, DescribedModule, DisabledByDefaul
 	private function pages_command() {
 		$pages = $this->pages();
 
+		\WP_CLI::add_command( 'otherguise index kinds', new KindsCommand() );
 		\WP_CLI::add_command(
 			'otherguise index pages',
 			new PagesCommand(

@@ -18,6 +18,7 @@ use Otherguise\Index\Resolver;
 require_once __DIR__ . '/support/class-otherguise-test-database-case.php';
 require_once __DIR__ . '/support/class-otherguise-test-modes-site.php';
 require_once __DIR__ . '/support/class-otherguise-test-memory-entries.php';
+require_once __DIR__ . '/support/class-otherguise-test-memory-kinds.php';
 
 /**
  * The statements are real; the entries and the posts are not.
@@ -32,6 +33,7 @@ class IndexCommandDbTest extends Otherguise_Test_Database_Case {
 	 * @return void
 	 */
 	public function test_the_command(): void {
+		Otherguise_Test_Memory_Kinds::install();
 		otherguise_test_wp_objects( array( new WP_Post( 12 ), new WP_Post( 13 ) ) );
 
 		$module     = new IndexModule();

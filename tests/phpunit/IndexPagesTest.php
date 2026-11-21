@@ -17,6 +17,8 @@ use Otherguise\Index\Job\PagesJob;
 use Otherguise\Index\Source\Page;
 use PHPUnit\Framework\TestCase;
 
+require_once __DIR__ . '/support/class-otherguise-test-memory-kinds.php';
+
 /**
  * Stubs and doubles only.
  *
@@ -37,6 +39,7 @@ class IndexPagesTest extends TestCase {
 	 */
 	protected function setUp(): void {
 		otherguise_test_reset();
+		Otherguise_Test_Memory_Kinds::install();
 	}
 
 	/**

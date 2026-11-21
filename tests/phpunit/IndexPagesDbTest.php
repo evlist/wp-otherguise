@@ -21,6 +21,7 @@ use Otherguise\Index\Source\Page;
 require_once __DIR__ . '/support/class-otherguise-test-database-case.php';
 require_once __DIR__ . '/support/class-otherguise-test-modes-site.php';
 require_once __DIR__ . '/support/class-otherguise-test-memory-entries.php';
+require_once __DIR__ . '/support/class-otherguise-test-memory-kinds.php';
 require_once __DIR__ . '/support/class-otherguise-test-html-api.php';
 
 /**
@@ -72,6 +73,7 @@ class IndexPagesDbTest extends Otherguise_Test_Database_Case {
 	 */
 	protected function setUp(): void {
 		parent::setUp();
+		Otherguise_Test_Memory_Kinds::install();
 
 		if ( ! Otherguise_Test_Html_Api::load() ) {
 			$this->markTestSkipped( 'The tag processor is not available (set OTHERGUISE_WP_CORE).' );
