@@ -47,6 +47,8 @@ Data from the table of contents of the first book (a spreadsheet of 215 rows: ti
 
 Eric builds both by hand today and finds them useful features; the index "needs real thinking". **Proposed**, nothing decided.
 
+**2026-11-21: the entries of the index (their sources, their identifiers, their manual linking, the web index) are now designed in [`index.md`](index.md), as a module of their own that Books uses.** What follows keeps the page numbers, the table of contents and the layout; the parts about the sources of entries are superseded by that note.
+
 - **The core difficulty is page numbers.** They exist only after pagination, which happens in the renderer, not in WordPress. A table of contents or index *with page numbers* therefore needs a renderer that can resolve them: a paged-media polyfill such as Paged.js (`target-counter()`), or a two-pass process (render, read the page of each anchor, inject the numbers, render again). Plain browser printing cannot do it. A table of contents *without* page numbers (sections, post titles, dates) is independent of the layout and can come first.
 - **Table of contents.** Derived from the structure of the book: sections and ordered posts (the ordered `contains` statements and the statements about them that give their section). The simpler of the two features.
 - **Where index entries come from** (three sources, which can be combined):

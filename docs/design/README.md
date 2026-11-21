@@ -15,6 +15,7 @@ The reasoning behind the decisions of Otherguise: what was considered, what was 
 | [capabilities.md](capabilities.md) | Rights of access of the screens, the types of content and the tokens: the state of the code and the questions of an overall reflection (**open**) |
 | [wiki.md](wiki.md) | A "Wiki" module: the functions of a wiki (the hierarchy of the pages of WordPress with rules per branch, addresses by exact titles, links by address, incoming links) in WordPress (**open**; merged into `main` on 2026-11-21, disabled by default; **the model changed on 2026-11-07**: the hierarchy of the pages of WordPress and rules per branch, instead of spaces) |
 | [wiki-theme.md](wiki-theme.md) | The theme of the wiki: the brief for the repository `evlist/wp-wikiguise-theme` (structure, responsive, print by CSS, how to try it) |
+| [index.md](index.md) | The Index module: entries, mentions and sources (tags, marks, links, GPX, photos, birds), Wikidata identifiers, manual linking, for the web and for the books (**design, not coded**) |
 | [packaging.md](packaging.md) | One plugin with three modules: reasons and the rules that keep a later split cheap |
 | [rollout.md](https://github.com/evlist/shared-room/blob/main/docs/design/rollout.md) | Moved to `shared-room`: rolling out to the production blog (the loop production, staging, testing; the order of the steps) |
 
