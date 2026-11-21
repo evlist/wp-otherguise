@@ -166,7 +166,22 @@ What follows from it:
 | 5 | 5 |
 
 - The places with the most photographs are **the ones one remembers**: *Col de la Forclaz* (12), *Les Arberons* in Chamonix (12), *Le Tronchet* (9) and *L'Hospitalet* (8) at Bourg-Saint-Pierre, *La Glirettaz* in Beaufort (8). Six places have one photograph only (*La Villaz*, *Le Plagnolet*…): **noise or a passage**.
-- **Proposed**: a **threshold by default of 2 photographs** (adjustable, with a **report that shows what each setting keeps** on the posts of a book before it is used).
+- **What the threshold was for** (Claude's first idea): to **ignore a place where one photograph only was taken**, which is probably a place passed through. It is a rule about **whether a place matters**.
+- **Eric's idea (2026-11-21): group the photographs by time and by distance** (the photographs are ordered by the time they were taken, and **a new group starts when a photograph is more than about 50 m from the previous one**). It is a rule about **redundancy and about the visit**: it gives, for each group, **the number of photographs and how long one stayed**, and **one call to the service per group** instead of one per photograph. The two are **complementary**, not alternatives.
+
+**The same day, ordered by time** (the same 66 photographs; a group starts when a photograph is more than 50, 100 or 200 m from the previous one):
+
+| new group beyond | groups | groups of one photograph |
+|---|---|---|
+| 50 m | 32 | 23 |
+| 100 m | 27 | 17 |
+| 200 m | 20 | 9 |
+
+- **It saves few calls on this day** (32 groups for 66 photographs, against 35 cells of 100 m): the day is a journey and its photographs are **spread along the road**; a **day on foot with long stops** should gain more (**not measured**). What spares the calls is **the cache by cell and the grouping by name after the answer** (*Le Tronchet* is seen in 7 groups, *Les Valettes* in 4, and they are **one place**).
+- **The duration of a stay is a better sign than the number of photographs**: *Les Arberons* **56 minutes** (12 photographs), *Col de la Forclaz* 6 minutes (12), *La Glirettaz* 3 minutes (8, the arrival), *L'Hospitalet* 1 minute (8); *Le Tronchet* has 9 photographs in **under a minute** and *Les Valettes* 4 photographs in a minute: **photographs taken while moving**, which a count alone cannot tell from a stop.
+- **The chain rule drifts** on a slow walk (each photograph is within 50 m of the previous one, the group goes on for hundreds of metres): to be measured on a walking day; the distance to the **first** photograph of the group is the alternative.
+- **To calibrate with Eric, who knows the day**: which of the **14 places** of the list does he want to find in the index? The rule (a number of photographs, a duration, a number of visits, or a combination) is **taken from his answer**, not guessed.
+
 - **The volume decides online or offline**: **35 calls for one post's photographs**, at one call a second, make about 40 seconds. **A book of 180 days is about two hours of calls; the whole blog, with a few hundred or a thousand posts, is many hours**. The public service of OpenStreetMap asks for no heavy use (**from memory, not checked**: at most one request a second, bulk geocoding discouraged). The cache of the whole answer, shared by the cells that several posts have in common, **softens** it; **an offline file or a service of one's own** is the solution for the photographs; **the ends of the track** (two calls a post) can stay online. **To be decided by Eric.**
 
 **What the geocoding gave** (two calls to Nominatim, zoom 14, on the first and the last point; one call to the search of Wikidata; the courtesy asked by the services was respected):
