@@ -123,6 +123,35 @@ What it shows:
 - **Photos by two people** (`cumulus/eric`, `cumulus/gisele`): the place of a photograph does not depend on who took it; **the author may be worth keeping** (the folder) if an index "by photographer" is ever wanted: **Open**, not needed.
 - **WhoBIRD with a single species** (*Pic de Sharpe*): a bird is **a mention of the post at the level of the day**, as for the others.
 
+## Places from coordinates: which level, what is stored (decided in part, 2026-11-21)
+
+**Decided (Eric)**: the purpose of the index of places is above all to **find again the places one remembers, above all where one slept** (the start and the end of the day). **There is no rule about what one remembers**: sometimes the name of the hamlet, sometimes the name of the municipality. So **the entry is the lowest level that the service proposes, the hamlet**, and **the municipality is found in the index as well**.
+
+**What the service really returns at its lowest level** (four calls to Nominatim, zoom 18, 2026-11-21; two ends of the track and two photographs):
+
+| Point | Object found | Address chain |
+|---|---|---|
+| start, Étroubles (Italy) | **`tourism=camp_site`, "Camping Tunnel International"** | road *Rue Chevrières*; **hamlet *Le Créton***; village and city *Étroubles*; state; country |
+| end, Beaufort (France) | **`place=house`, no name** | road *Rue Saint-Maxime*; **hamlet *La Glirettaz***; village *Beaufort*; `municipality` *Albertville*; county *Savoie* |
+| photograph 1 | **a road** (`highway=service`, *Chemin des Velars*) | hamlet *Les Arberons*; village *Argentière*; town *Chamonix-Mont-Blanc*; `municipality` *Bonneville* |
+| photograph 2 | **a road** (`highway=primary`) | village *Les Valettes*; county *Martigny*; state *Valais* |
+
+What follows from it:
+
+- **"The lowest level" is not the object found**: it is a **road** or a **nameless house** most of the time. The rule has to be: **the lowest *place-like* level of the address chain** (hamlet, isolated dwelling, locality, village, neighbourhood…), **never a road or a bare building**.
+- **A named place to stay is better still**: the first point is **on a camp site that has a name** (*Camping Tunnel International*), which is exactly where one slept. **Proposed**: a named object of the kind *lodging* (camp site, caravan site, hotel, hostel, guest house, mountain hut, chalet) at the point or within a few tens of metres is a **candidate of its own, with the kind *lodging***, as a sub-entry of the place where it is.
+- **The names of the levels cannot be trusted**: the key `municipality` is **not** the municipality in France (*Albertville* and *Bonneville* are arrondissements or groups of municipalities, and *Beaufort* is a `village`); *Étroubles* is both `village` and `city`; *Chamonix-Mont-Blanc* is a `town` and *Argentière* a `village` inside it. **The municipality must be recognised by its administrative level and by Wikidata ("instance of" municipality), not by the name of the key.** Only two countries were looked at.
+- **A hamlet has no identifier in the answer**: none of the four objects carried a `wikidata` tag, and the chain gives **names without OpenStreetMap numbers**. The identifier of the municipality (and of the hamlet, if there is one) needs **another call** (a search by name and area, or a reverse at the right zoom); two zooms of the same point gave **different** nearest objects (*Combe* at zoom 14, *Le Créton* at zoom 18). Until there is an identifier, the entry is identified by **its label, its municipality and its country** (a key among its aliases: the manual linking of the section above covers the mistakes).
+
+**Proposed model** (to confirm):
+
+1. **A cache of the whole answer** (derived data, not in Triples, rebuildable): the chain with its names, the object found, the date, the service, keyed by the coordinates rounded to about 100 m, the level asked and the language. It lets the rule change **without calling the service again** (a rate limit), keeps the index **reproducible** when OpenStreetMap changes, and **explains** an entry.
+2. **Entries in a hierarchy**: *municipality > hamlet (> lodging)*. **The mention is attached to the most specific entry**; **the municipality lists the mentions of its descendants** (computed when the index is read, not stored twice), so that **one finds the place under the hamlet and under the municipality**.
+3. **The levels above the municipality** (county, state, country) are kept as **qualifiers** of the entry (to tell homonyms apart: *Beaufort (Savoie)*), **not as entries**: the tags *france*, *espagne*, *galice* already cover them, and the first printed book had a flat index.
+4. **The mention keeps only its provenance**: the source, the coordinates rounded, the level, the key of the cache; and a **role** (`start`, `end`, `photo`): **the end of a day is where one slept**, so an index of "nights" is the entries with the role `end` (and the start of the next day).
+
+**Open**: the list of the kinds of objects that count as *lodging*; the radius; the same rules for **the photographs** (many points, roads: probably the **place-like level only and a minimum number of photos**); the rules by country (France, Italy, Switzerland and Spain are the ones of the blog); whether the hamlet is **always** created or only when the point has no municipality-level name that is enough.
+
 **What the geocoding gave** (two calls to Nominatim, zoom 14, on the first and the last point; one call to the search of Wikidata; the courtesy asked by the services was respected):
 
 - the **nearest named object**, not the municipality: *Combe* (an isolated dwelling, in Cerisey, Étroubles) and *La Glirettaz* (a hamlet of Beaufort), with **the chain of the address** (hamlet, municipality, department, region, country) in the answer. The track starts and ends where a van is parked, so **a hamlet is what is found**; **the municipality is a level of the chain to be chosen by a rule**, the hamlet being a **sub-entry** if wanted (`Beaufort > La Glirettaz`).
