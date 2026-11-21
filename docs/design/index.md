@@ -226,6 +226,14 @@ What follows from it:
 - **Redirects**: Wikidata merges items and leaves a redirect; the resolver must follow it (the old identifier stays an alias).
 - **Network**: a call to Wikidata or Wikipedia needs **a polite client** (a User-Agent that names the site, a throttle, a cache with no expiry and a periodic refresh), as WhoBIRD does; **the module has its own client** and does not borrow that of WhoBIRD.
 
+## The kind of an entry (Decided by Eric, 2026-11-21; the details are Proposed)
+
+The **kind** of an entry says **what it is**: a place, a species, a route, a person, a work, a product, an event or incident, **other**. It serves **the typography of the printed index** (the first book told places, routes and incidents apart by typography), **several indexes** (places, birds), **leaving out** what must not be indexed (a tag with no kind), and **telling homonyms apart** (*Beaufort*, the village, and *Beaufort*, the cheese).
+
+- **Where it comes from**: the geolocation gives **place**; WhoBIRD gives **species**; a **tag** gets its kind from Eric, in bulk; a **link to Wikipedia or Wikidata** does not say what it is.
+- **Decided (Eric)**: for those, **everything is automatic, and corrected afterwards** (not "nothing is decided without a validation"): the module **deduces the kind from Wikidata** ("instance of" and its subclasses, translated to the short list of kinds), the default is **other** when nothing matches, and Eric **corrects in bulk** in the queue ("all these links are plants").
+- **Proposed details**: the translation is a **small table that Eric can edit** (a class of Wikidata, a kind), looked up **along the chain of subclasses**; the class chains are **cached** (a few dozen classes serve thousands of entries) so that the service is asked little; **a kind set by hand is never overwritten** by the automatic one; the list of kinds is **short and editable**. **Not verified**: the quality of the deduction on the real links of the blog (three on the post of the col de Barrancq: a path, a plant, a genus).
+
 ## The resolver and the manual linking (Decided: it must exist; the form is Proposed)
 
 A candidate carries **keys**: its identifiers, the key of its label (accents and case folded), and **keys local to its source** (`tag:123`, `wikipedia:fr:Orange_(Vaucluse)`). The resolver looks for an entry that has one of them **among its aliases**:
@@ -282,8 +290,7 @@ The geocoding (coordinates to a place) is the one real decision of the list: an 
 ## Open
 
 - The **geocoding**: online or offline; the language of the names.
-- How the **kind** of an entry that comes from Wikipedia is set: inferred ("instance of" through Wikidata, network), set in the queue, or a default kind.
-- Whether the entries **derive from the existing tags** (a tag with a kind gives a linked entry, no double entry) or the tags are **migrated** to the taxonomy.
+- The **tags** (Eric: not systematic): the place entries come from the geolocation, and a tag is **linked once** to an entry in the queue; whether a tag **with a kind** also gives an entry of its own when no geolocation has made it: **Open**.
 - The name `index` for the module and the dependency Books → Index (checked by `ArchitectureTest`); the numbering of the slices.
 - Several **sources on one mention** in Triples; the availability of `Collator`.
 - **What WhoBIRD prints**: a page with observations is needed. (The link to the GPX file, the wrapper of the contents of the post and the images were looked at: see above.)
