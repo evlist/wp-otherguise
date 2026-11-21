@@ -1387,3 +1387,79 @@ function WP_Filesystem() {
 
     return true;
 }
+
+/**
+ * Stub of sanitize_key().
+ *
+ * @param string $key Key.
+ * @return string
+ */
+function sanitize_key( $key ) {
+    return preg_replace( '/[^a-z0-9_\-]/', '', strtolower( (string) $key ) );
+}
+
+/**
+ * Stub of wp_unslash().
+ *
+ * @param mixed $value Value.
+ * @return mixed
+ */
+function wp_unslash( $value ) {
+    return $value;
+}
+
+/**
+ * Stub of wp_die(): throws, so that a test sees that the request stopped.
+ *
+ * @param string $message Message.
+ * @throws RuntimeException Always.
+ */
+function wp_die( $message = '' ) {
+    throw new RuntimeException( 'wp_die: ' . $message );
+}
+
+/**
+ * Stub of checked().
+ *
+ * @param mixed $value   Value.
+ * @param mixed $current Current.
+ * @param bool  $display Whether to print.
+ * @return string
+ */
+function checked( $value, $current = true, $display = true ) {
+    $html = (string) $value === (string) $current ? ' checked="checked"' : '';
+
+    if ( $display ) {
+        echo $html;
+    }
+
+    return $html;
+}
+
+/**
+ * Stub of selected().
+ *
+ * @param mixed $value   Value.
+ * @param mixed $current Current.
+ * @param bool  $display Whether to print.
+ * @return string
+ */
+function selected( $value, $current = true, $display = true ) {
+    $html = (string) $value === (string) $current ? ' selected="selected"' : '';
+
+    if ( $display ) {
+        echo $html;
+    }
+
+    return $html;
+}
+
+/**
+ * Stub of paginate_links().
+ *
+ * @param array $args Arguments.
+ * @return string
+ */
+function paginate_links( $args = array() ) {
+    return 'pages:' . (int) ( $args['total'] ?? 0 );
+}
