@@ -258,7 +258,6 @@ final class Module implements ModuleInterface, DescribedModule, DisabledByDefaul
 					'posts_per_page'   => (int) $limit,
 					'fields'           => 'ids',
 					'no_found_rows'    => true,
-					'suppress_filters' => true,
 				)
 			)
 		);
