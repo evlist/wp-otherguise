@@ -192,7 +192,7 @@ class IndexMentionsDbTest extends Otherguise_Test_Database_Case {
 		$entry = array_key_first( $mentions );
 
 		$this->assertSame( 'Beaufort', $this->entries->get( $entry )['label'] );
-		$this->assertSame( array( 'categories' ), $mentions[ $entry ]['sources'] );
+		$this->assertSame( array( 'post/category' ), $mentions[ $entry ]['sources'] );
 		$this->assertSame( 'passing', $mentions[ $entry ]['strength'] );
 	}
 
@@ -277,7 +277,7 @@ class IndexMentionsDbTest extends Otherguise_Test_Database_Case {
 
 		$entry = array_key_first( $this->mentions->of_post( 12 ) );
 
-		$this->mentions->sync( 12, 'tags', array( $entry => 'main' ) );
+		$this->mentions->sync( 12, 'post/tag', array( $entry => 'main' ) );
 		$this->mentions->add_by_hand( 12, $entry );
 
 		$this->categorize( 12, array() );
@@ -285,10 +285,10 @@ class IndexMentionsDbTest extends Otherguise_Test_Database_Case {
 
 		$found = $this->mentions->of_post( 12 );
 
-		$this->assertSame( array( 'hand', 'tags' ), $found[ $entry ]['sources'] );
+		$this->assertSame( array( 'hand', 'post/tag' ), $found[ $entry ]['sources'] );
 		$this->assertSame( 'main', $found[ $entry ]['strength'], 'The strongest strength said wins.' );
 
-		$this->mentions->sync( 12, 'tags', array() );
+		$this->mentions->sync( 12, 'post/tag', array() );
 		$this->assertSame( array( 'hand' ), $this->mentions->of_post( 12 )[ $entry ]['sources'] );
 
 		$this->mentions->remove_by_hand( 12, $entry );
@@ -357,6 +357,15 @@ class IndexMentionsDbTest extends Otherguise_Test_Database_Case {
 			 */
 			public function id() {
 				return 'test';
+			}
+
+			/**
+			 * The source of its mentions.
+			 *
+			 * @return string[]
+			 */
+			public function mention_sources() {
+				return array( 'post/link' );
 			}
 
 			/**

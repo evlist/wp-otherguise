@@ -19,6 +19,7 @@ use Otherguise\Index\Cli\EnrichCommand;
 use Otherguise\Index\Cli\IndexCommand;
 use Otherguise\Index\Enrich\EnrichService;
 use Otherguise\Index\Cli\KindsCommand;
+use Otherguise\Index\Cli\SourcesCommand;
 use Otherguise\Index\Cli\BuildCommand;
 use Otherguise\Index\Build\IndexBuilder;
 use Otherguise\Index\Admin\KindsScreen;
@@ -141,7 +142,7 @@ final class Module implements ModuleInterface, DescribedModule, DisabledByDefaul
 					'inverse_label' => __( 'Is mentioned by', 'otherguise' ),
 					'subject_types' => array( 'post' ),
 					'object_types'  => array( 'term' ),
-					'qualified_by'  => array( Mentions::SOURCE, Mentions::STRENGTH, Mentions::ROLE, Mentions::ANCHOR ),
+					'qualified_by'  => array( Mentions::SOURCE, Mentions::STRENGTH, Mentions::ROLE, Mentions::ANCHOR, Mentions::VIA, Mentions::VISIBLE ),
 				)
 			)
 		);
@@ -151,6 +152,8 @@ final class Module implements ModuleInterface, DescribedModule, DisabledByDefaul
 			Mentions::STRENGTH => __( 'Strength', 'otherguise' ),
 			Mentions::ROLE     => __( 'Role', 'otherguise' ),
 			Mentions::ANCHOR   => __( 'Anchor', 'otherguise' ),
+			Mentions::VIA      => __( 'Produced by', 'otherguise' ),
+			Mentions::VISIBLE  => __( 'Shown in the mode', 'otherguise' ),
 		) as $slug => $label ) {
 			$predicates->register(
 				PredicateDefinition::from_array(
@@ -503,6 +506,7 @@ final class Module implements ModuleInterface, DescribedModule, DisabledByDefaul
 		$pages = $this->pages();
 
 		\WP_CLI::add_command( 'otherguise index kinds', new KindsCommand() );
+		\WP_CLI::add_command( 'otherguise index sources', new SourcesCommand( $this->mentions() ) );
 		\WP_CLI::add_command(
 			'otherguise index build',
 			new BuildCommand(

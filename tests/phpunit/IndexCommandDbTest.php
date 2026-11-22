@@ -68,6 +68,15 @@ class IndexCommandDbTest extends Otherguise_Test_Database_Case {
 			}
 
 			/**
+			 * The source of its mentions.
+			 *
+			 * @return string[]
+			 */
+			public function mention_sources() {
+				return array( 'post/category' );
+			}
+
+			/**
 			 * Sure.
 			 *
 			 * @return bool
@@ -150,6 +159,6 @@ class IndexCommandDbTest extends Otherguise_Test_Database_Case {
 
 		$log = array();
 		$command->show( array( '12' ), array() );
-		$this->assertSame( array( $beaufort . "\tBeaufort\tpassing\tcategories" ), $log );
+		$this->assertSame( array( $beaufort . "\tBeaufort\tpassing\tpost/category" ), $log );
 	}
 }

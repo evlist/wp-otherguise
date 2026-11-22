@@ -143,10 +143,12 @@ class IndexBuildTest extends Otherguise_Test_Database_Case {
 				array(
 					'post'     => 1,
 					'strength' => 'passing',
+					'sources'  => array( 'testarberons' ),
 				),
 				array(
 					'post'     => 3,
 					'strength' => 'main',
+					'sources'  => array( 'testarberons' ),
 				),
 			),
 			$by['Les Arberons (Beaufort)']['locators']

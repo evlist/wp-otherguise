@@ -13,6 +13,7 @@ namespace Otherguise\Index\Source;
 use Otherguise\Index\Candidate;
 use Otherguise\Index\Kinds;
 use Otherguise\Index\Source;
+use Otherguise\Index\Sources;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -60,17 +61,26 @@ final class Terms implements Source {
 	private $kind_of;
 
 	/**
+	 * The source of the mentions it makes (a path of slice 605).
+	 *
+	 * @var string
+	 */
+	private $leaf;
+
+	/**
 	 * Builds the source.
 	 *
-	 * @param string   $taxonomy Taxonomy.
-	 * @param string   $slug     Source slug (`categories`, `tags`).
-	 * @param callable $terms_of Terms of a post.
-	 * @param callable $term     A term by id.
-	 * @param callable $kind_of  Kind of a term.
+	 * @param string      $taxonomy Taxonomy.
+	 * @param string      $slug     Harvester slug (`categories`, `tags`): what the option and the commands call it.
+	 * @param callable    $terms_of Terms of a post.
+	 * @param callable    $term     A term by id.
+	 * @param callable    $kind_of  Kind of a term.
+	 * @param string|null $leaf     The source of its mentions (`post/category`, `post/tag`); by default the one of the taxonomy.
 	 */
-	public function __construct( $taxonomy, $slug, $terms_of, $term, $kind_of ) {
+	public function __construct( $taxonomy, $slug, $terms_of, $term, $kind_of, $leaf = null ) {
 		$this->taxonomy = (string) $taxonomy;
 		$this->slug     = (string) $slug;
+		$this->leaf     = null !== $leaf ? (string) $leaf : ( 'post_tag' === $taxonomy ? Sources::TAG : Sources::CATEGORY );
 		$this->terms_of = $terms_of;
 		$this->term     = $term;
 		$this->kind_of  = $kind_of;
@@ -134,6 +144,15 @@ final class Terms implements Source {
 	 */
 	public function id() {
 		return $this->slug;
+	}
+
+	/**
+	 * The one source of its mentions.
+	 *
+	 * @return string[]
+	 */
+	public function mention_sources() {
+		return array( $this->leaf );
 	}
 
 	/**

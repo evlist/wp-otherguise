@@ -234,6 +234,18 @@ final class PageReader {
 			$extra['main'] = true;
 		}
 
+		// The modes in which the mark is shown (slice 605), as slugs; absent: every mode.
+		$modes = $tags->get_attribute( 'data-index-modes' );
+
+		if ( is_string( $modes ) ) {
+			$words = preg_split( '/[\s,]+/', strtolower( $modes ) );
+			$slugs = array_values( array_filter( false === $words ? array() : $words, static fn( $slug ) => 1 === preg_match( '/^[a-z0-9_-]{1,40}$/', $slug ) ) );
+
+			if ( array() !== $slugs ) {
+				$extra['modes'] = array_values( array_unique( $slugs ) );
+			}
+		}
+
 		foreach ( explode( '|', $mark ) as $part ) {
 			$path = array_values( array_filter( array_map( 'trim', explode( '>', $part ) ), 'strlen' ) );
 

@@ -95,7 +95,8 @@ final class Indexer {
 				continue;
 			}
 
-			$wanted = array();
+			$leaves = $source->mention_sources();
+			$wanted = array_fill_keys( $leaves, array() );
 
 			foreach ( $published ? $source->candidates( (int) $post_id ) : array() as $candidate ) {
 				$done = $this->resolver->resolve( $candidate, $source->is_sure(), $dry );
@@ -104,8 +105,10 @@ final class Indexer {
 				// The entries created for the broader terms count as created, not as resolved.
 				$report['created'] += $done['new'] - ( Resolver::CREATED === $done['result'] ? 1 : 0 );
 
-				if ( $done['entry'] > 0 && ( ! isset( $wanted[ $done['entry'] ] ) || Candidate::MAIN === $candidate->strength ) ) {
-					$wanted[ $done['entry'] ] = $candidate->strength;
+				if ( $done['entry'] > 0 ) {
+					$leaf = null !== $candidate->source && '' !== $candidate->source ? $candidate->source : $leaves[0];
+
+					$wanted[ $leaf ][ $done['entry'] ] = $this->merged( $wanted[ $leaf ][ $done['entry'] ] ?? null, $candidate, $leaf );
 				}
 			}
 
@@ -113,12 +116,53 @@ final class Indexer {
 				continue;
 			}
 
-			$synced = $this->mentions->sync( (int) $post_id, $slug, $wanted );
+			foreach ( $wanted as $leaf => $entries ) {
+				$synced = $this->mentions->sync(
+					(int) $post_id,
+					$leaf,
+					array_map(
+						static fn( $what ) => array(
+							'strength' => $what['strength'],
+							'via'      => $what['via'],
+							'visible'  => $what['visible'] ?? array(),
+						),
+						$entries
+					)
+				);
 
-			$report['added']   += $synced['added'];
-			$report['removed'] += $synced['removed'];
+				$report['added']   += $synced['added'];
+				$report['removed'] += $synced['removed'];
+			}
 		}
 
 		return $report;
+	}
+
+	/**
+	 * What a mention wants once a candidate is added to what was already wanted for the same entry and source: the strongest strength, every
+	 * `via`, and the modes in which it is shown (**every mode** as soon as one candidate is shown everywhere).
+	 *
+	 * @param array<string, mixed>|null $before    What was wanted, or null.
+	 * @param Candidate                 $candidate The candidate.
+	 * @param string                    $leaf      Its source.
+	 * @return array{strength:string,via:string[],visible:?array}
+	 */
+	private function merged( $before, Candidate $candidate, $leaf ) {
+		$modes = array() !== $candidate->modes ? $candidate->modes : Sources::default_visibility( $leaf );
+		$modes = array() === $modes ? null : $modes;
+
+		if ( null === $before ) {
+			return array(
+				'strength' => $candidate->strength,
+				'via'      => $candidate->via,
+				'visible'  => $modes,
+			);
+		}
+
+		return array(
+			'strength' => Candidate::MAIN === $before['strength'] || Candidate::MAIN === $candidate->strength ? Candidate::MAIN : Candidate::PASSING,
+			'via'      => array_values( array_unique( array_merge( $before['via'], $candidate->via ) ) ),
+			'visible'  => null === $before['visible'] || null === $modes ? null : array_values( array_unique( array_merge( $before['visible'], $modes ) ) ),
+		);
 	}
 }

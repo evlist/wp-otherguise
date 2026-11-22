@@ -230,6 +230,19 @@ class IndexPageReaderTest extends TestCase {
 	}
 
 	/**
+	 * The modes in which a mark is shown (slice 605): slugs separated by spaces or commas, cleaned; none given or none valid means every mode.
+	 *
+	 * @return void
+	 */
+	public function test_the_modes_of_a_mark(): void {
+		$signals = $this->reader->signals( '<main><span id="a" data-index="Doron" data-index-modes="Print, web  Bad!Mode x"></span><span data-index="Merle" data-index-modes="!!"></span><span data-index="Beaufort"></span></main>' );
+
+		$this->assertSame( array( 'print', 'web', 'x' ), $signals[0]->data['modes'] );
+		$this->assertArrayNotHasKey( 'modes', $signals[1]->data );
+		$this->assertArrayNotHasKey( 'modes', $signals[2]->data );
+	}
+
+	/**
 	 * Entities in an attribute are decoded, and a title is percent-decoded.
 	 *
 	 * @return void

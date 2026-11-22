@@ -12,6 +12,7 @@ namespace Otherguise\Index\Cli;
 
 use Otherguise\Index\Build\IndexBuilder;
 use Otherguise\Index\Build\IndexRenderer;
+use Otherguise\Index\Build\Selection;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -82,11 +83,11 @@ final class BuildCommand {
 	 * [--posts=<ids>]
 	 * : Post ids separated by commas, in the order of the book. Instead of `--section`.
 	 *
-	 * [--include=<kinds>]
-	 * : Kinds that are in, separated by commas (with their sub-kinds); every kind by default.
+	 * [--include=<tokens>]
+	 * : What is in: tokens `kind:place`, `source:image`, `visibility:print` separated by spaces or commas (a bare word is a kind). A value stands for its sub-kinds or sub-sources; inside one dimension the tokens are alternatives, across dimensions all are required. Everything by default.
 	 *
-	 * [--exclude=<kinds>]
-	 * : Kinds that are out, separated by commas (with their sub-kinds); wins over `--include`.
+	 * [--exclude=<tokens>]
+	 * : What is out (the same tokens); wins over `--include`.
 	 *
 	 * [--format=<format>]
 	 * : `json` (default), `csv` or `html`.
@@ -97,7 +98,7 @@ final class BuildCommand {
 	 * ## EXAMPLES
 	 *
 	 *     wp otherguise index build --section=58840 --format=csv > index.csv
-	 *     wp otherguise index build --posts=12,15,19 --include=place --exclude=waterway --format=html
+	 *     wp otherguise index build --posts=12,15,19 --include="kind:place visibility:print" --exclude=kind:waterway --format=html
 	 *
 	 * @param array $args  Positional arguments.
 	 * @param array $assoc Options.
@@ -118,6 +119,14 @@ final class BuildCommand {
 
 		if ( ! is_array( $posts ) ) {
 			( $this->fail )( (string) $posts );
+
+			return;
+		}
+
+		$selection = Selection::parse( (string) ( $assoc['include'] ?? '' ), (string) ( $assoc['exclude'] ?? '' ) );
+
+		if ( array() !== $selection->errors() ) {
+			( $this->fail )( implode( ' ', $selection->errors() ) );
 
 			return;
 		}

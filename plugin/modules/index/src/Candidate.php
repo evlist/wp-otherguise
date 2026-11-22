@@ -55,6 +55,27 @@ final class Candidate {
 	public $strength;
 
 	/**
+	 * The source of the mention (a path of slice 605: `post/link`), null for the one of the harvester.
+	 *
+	 * @var string|null
+	 */
+	public $source = null;
+
+	/**
+	 * What produced the mention (`link:fr:Têt (fleuve)`, `image:<hash>`), several values allowed.
+	 *
+	 * @var string[]
+	 */
+	public $via = array();
+
+	/**
+	 * The modes in which the mention is shown, empty for every mode.
+	 *
+	 * @var string[]
+	 */
+	public $modes = array();
+
+	/**
 	 * Builds a candidate.
 	 *
 	 * @param string         $label    Label.
@@ -69,5 +90,21 @@ final class Candidate {
 		$this->keys     = array_values( array_unique( array_filter( array_map( 'strval', $keys ), 'strlen' ) ) );
 		$this->parent   = $parent;
 		$this->strength = self::MAIN === $strength ? self::MAIN : self::PASSING;
+	}
+
+	/**
+	 * Gives the candidate its source, what produced it and the modes in which it is shown.
+	 *
+	 * @param string   $source The source (a path).
+	 * @param string[] $via    What produced it.
+	 * @param string[] $modes  The modes in which it is shown, empty for every mode.
+	 * @return static
+	 */
+	public function from( $source, array $via = array(), array $modes = array() ) {
+		$this->source = (string) $source;
+		$this->via    = array_values( array_unique( array_filter( array_map( 'strval', $via ), 'strlen' ) ) );
+		$this->modes  = array_values( array_unique( array_filter( array_map( 'strval', $modes ), 'strlen' ) ) );
+
+		return $this;
 	}
 }

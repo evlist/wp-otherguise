@@ -208,7 +208,7 @@ class IndexPagesDbTest extends Otherguise_Test_Database_Case {
 
 		$entry = array_key_first( $this->mentions->of_post( 12 ) );
 
-		$this->assertSame( array( 'page' ), $this->mentions->of_post( 12 )[ $entry ]['sources'] );
+		$this->assertSame( array( 'post/mark' ), $this->mentions->of_post( 12 )[ $entry ]['sources'], 'What is left is the mark, which is a source of its own.' );
 	}
 
 	/**

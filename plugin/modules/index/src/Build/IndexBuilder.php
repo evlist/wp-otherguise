@@ -75,39 +75,44 @@ final class IndexBuilder {
 	 * Builds the index of some posts.
 	 *
 	 * @param int[]                $post_ids The posts, in the order of the book.
-	 * @param array<string, mixed> $options  `include` and `exclude` (lists of kinds, with their sub-kinds), `context` (the broader entry in parentheses, true by default).
+	 * @param array<string, mixed> $options  `include` and `exclude` (the tokens of `Selection`: `kind:place source:post/tag visibility:print`; a bare word is a kind), `context` (the broader entry in parentheses, true by default).
 	 * @return IndexModel
 	 */
 	public function build( array $post_ids, array $options = array() ) {
-		$include = $this->kinds( $options['include'] ?? array() );
-		$exclude = $this->kinds( $options['exclude'] ?? array() );
-		$context = ! array_key_exists( 'context', $options ) || (bool) $options['context'];
-		$lines   = array();
+		$selection = Selection::parse( $options['include'] ?? '', $options['exclude'] ?? '' );
+		$context   = ! array_key_exists( 'context', $options ) || (bool) $options['context'];
+		$lines     = array();
 
 		foreach ( array_values( array_unique( array_map( 'intval', $post_ids ) ) ) as $post ) {
 			foreach ( $this->mentions->of_post( $post ) as $id => $mention ) {
 				if ( ! isset( $lines[ $id ] ) ) {
-					$line = $this->line( (int) $id, $include, $exclude, $context );
-
-					if ( null === $line ) {
-						$lines[ $id ] = false;
-
-						continue;
-					}
-
-					$lines[ $id ] = $line;
+					$lines[ $id ] = $this->line( (int) $id, $context ) ?? false;
 				}
 
-				if ( false !== $lines[ $id ] ) {
+				if ( false === $lines[ $id ] ) {
+					continue;
+				}
+
+				// The selection is tested on each source of the mention: it keeps the sources that pass, and drops the mention when none does.
+				$passing = array();
+
+				foreach ( $mention['details'] as $source => $detail ) {
+					if ( $selection->passes( $lines[ $id ]['kind'], (string) $source, $detail['visible'] ) ) {
+						$passing[] = (string) $source;
+					}
+				}
+
+				if ( array() !== $passing ) {
 					$lines[ $id ]['locators'][] = array(
 						'post'     => $post,
 						'strength' => $mention['strength'],
+						'sources'  => $passing,
 					);
 				}
 			}
 		}
 
-		$lines = array_values( array_filter( $lines ) );
+		$lines = array_values( array_filter( $lines, static fn( $line ) => false !== $line && array() !== $line['locators'] ) );
 
 		usort( $lines, fn( $a, $b ) => $this->order( $a['sort'], $b['sort'] ) );
 
@@ -124,27 +129,20 @@ final class IndexBuilder {
 	}
 
 	/**
-	 * The line of an entry, or null when it is not in the index.
+	 * The line of an entry, or null when it is not in the index (not approved).
 	 *
-	 * @param int      $id      Entry.
-	 * @param string[] $include Kinds that are in (with their sub-kinds), empty for all.
-	 * @param string[] $exclude Kinds that are out.
-	 * @param bool     $context Whether the broader entry is shown.
+	 * @param int  $id      Entry.
+	 * @param bool $context Whether the broader entry is shown.
 	 * @return array<string, mixed>|null
 	 */
-	private function line( $id, array $include, array $exclude, $context ) {
+	private function line( $id, $context ) {
 		$entry = $this->entries->get( $id );
 
 		if ( null === $entry || Entries::APPROVED !== $entry['status'] ) {
 			return null;
 		}
 
-		$kind = (string) $entry['kind'];
-
-		if ( ( array() !== $include && ! in_array( $kind, $include, true ) ) || in_array( $kind, $exclude, true ) ) {
-			return null;
-		}
-
+		$kind  = (string) $entry['kind'];
 		$label = (string) $entry['label'];
 		$above = $context && $entry['parent'] > 0 ? $this->entries->get( (int) $entry['parent'] ) : null;
 
@@ -157,27 +155,6 @@ final class IndexBuilder {
 			'locators' => array(),
 			'sort'     => Folding::key( $label ),
 		);
-	}
-
-	/**
-	 * The kinds of a list, each with its sub-kinds.
-	 *
-	 * @param mixed $kinds A list of kinds, or a string of kinds separated by commas.
-	 * @return string[]
-	 */
-	private function kinds( $kinds ) {
-		$kinds = is_string( $kinds ) ? explode( ',', $kinds ) : (array) $kinds;
-		$found = array();
-
-		foreach ( $kinds as $kind ) {
-			$kind = trim( (string) $kind );
-
-			if ( '' !== $kind ) {
-				$found = array_merge( $found, Kinds::descendants( $kind ) );
-			}
-		}
-
-		return array_values( array_unique( $found ) );
 	}
 
 	/**

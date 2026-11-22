@@ -3,7 +3,7 @@
 
 # Slice 605 — Index: the sources as a hierarchy, visibility, and the filter `include` / `exclude`
 
-Status: **proposed (2026-11-22), not coded.** Dependencies: 600 (mentions), 602 (the source `page`), 603 (kinds with descendants), 610 (the builder). Needed by 611 (the block of a book) and 612 (the markers). Context: [`../design/index.md`](../design/index.md), "Vocabulary and the dimensions of an index".
+Status: **coded (2026-11-22), on `main`; see "What was built, and what differs from the plan" at the end.** Dependencies: 600 (mentions), 602 (the source `page`), 603 (kinds with descendants), 610 (the builder). Needed by 611 (the block of a book) and 612 (the markers). Context: [`../design/index.md`](../design/index.md), "Vocabulary and the dimensions of an index".
 
 ## Decided (Eric, 2026-11-22)
 
@@ -40,3 +40,22 @@ The registry (the paths, `is_a`, descendants, the filter that adds a source, a p
 ## Not done
 
 **Measuring the visibility by rendering every mode** (it multiplies the requests of the job; 612 gives the print part for free); the sources of images and traces (**the photographs slice**); the editor of the marks; renaming the code (after 611).
+
+## What was built, and what differs from the plan (2026-11-22)
+
+Built as proposed: `Index\Sources` (the registry, `is_a`, `descendants`, the tree, the filter `index_sources_registry`, a default visibility per source), the qualifiers `index/via` and `index/visible`, `Build\Selection` (the tokens, the descendants, the three dimensions), the selection in `IndexBuilder` and `wp otherguise index build --include/--exclude`, `data-index-modes` on a mark, and `wp otherguise index sources list|migrate|check`.
+
+What differs or was decided while coding:
+
+- **The harvesters keep their names** (`categories`, `tags`, `page`: what the option `index_sources` and `--source=` call them); **the sources of the mentions are the paths**. **`Source::mention_sources()` is new in the interface**: the sources (paths) a harvester can make, so that the indexer brings **each** of them in line with the post (a link that disappears leaves the mark of the same page). `Candidate::from( $source, $via, $modes )` gives a candidate its source, what produced it and its modes; `Source\Terms` makes `post/category` or `post/tag`, `Source\Page` makes `post/link` (a link to Wikipedia or to Wikidata) and `post/mark`. **A plugin that implements `Source` must add the method.**
+- **The unit tested by the selection is a topic, a post and one source of the mention** (not the mention as a whole): a mention made by a tag and by a link is two units; **it is kept with the sources that pass and dropped when none does**; the locators the builder gives carry the **`sources` that passed**. This makes `source:image` give the photographs of a topic without the tag that also mentions it, and `exclude source:post/tag` leave the other sources of the same mention.
+- **The values of `via` and `visible` are stored as `<source>|<value>`** so that each source owns its values (a sync replaces its own and withdrawing a source takes them); a value longer than 191 bytes keeps its beginning and a short hash. A candidate shown in no particular mode is **shown in every mode**, also when another candidate of the same topic and source names modes (**every mode wins**); a mention with no `index/visible` matches every `visibility:` token (Eric: every mode by default). The registry may give a source a default visibility; none does yet.
+- **`sources migrate` renames `categories` → `post/category` and `tags` → `post/tag`, and drops `page`** (it is two sources now: a mention with no source left is deleted); **`wp otherguise index rebuild --source=page` then makes the links and marks again from the signals that slice 602 stored: no request**. Run twice it finds nothing to do.
+- **`sources check`** lists the sources the mentions hold (flagging those that are not in the registry, and the old names) and the modes of the visibilities; it flags an unknown mode only when the filter **`index_known_modes`** answers (**nothing answers it yet**: the Modes module has no adapter, so the modes are listed but not judged).
+- **A bare word in `include` or `exclude` is still a kind** (slice 610's form); a malformed token is refused by the command with the reason (the unknown dimension, kind or source).
+
+### Verification
+
+- **Under automated tests** (PHPUnit, 908 tests in the suite): the registry (paths, hierarchy, tree, the filter), the tokens and each dimension, `include` across dimensions, `exclude` winning, the qualifiers (several sources on a mention, a sync replacing only its own, withdrawing a source, nothing written twice, a long value), renaming and dropping a source, the `page` source making links and marks with their `via` and modes, candidates for one topic merging, **Eric's three indexes of a small book** (visible in print, general, photographs), the command with tokens and its refusals, the command of the sources.
+- **On a scratch WordPress 7.1.4 holding mentions of the earlier slices**: `sources check` flagged the four old names, `migrate` changed 16 qualifications and a second run none, a reindex made `post/link` and `post/mark` again (no request), and the builder selected by `source:post/category` (8 lines), `source:post/tag` (2) and `kind:waterway` (3). **WP-CLI was not run** (the commands are tested with doubles).
+- **Never tried**: on the real blog; the photographs and tracks as sources (slice 606); the block of a book (611).

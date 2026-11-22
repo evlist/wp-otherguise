@@ -24,6 +24,14 @@ interface Source {
 	public function id();
 
 	/**
+	 * The sources (paths of slice 605) of the mentions this harvester makes: the indexer brings **each** of them in line with the post, so that a
+	 * mention that no longer applies is withdrawn. The first one is the default source of a candidate that names none.
+	 *
+	 * @return string[]
+	 */
+	public function mention_sources();
+
+	/**
 	 * Whether what it says is sure: a new entry is then approved at once.
 	 *
 	 * @return bool

@@ -15,6 +15,7 @@ use Otherguise\Index\Harvest\Signal;
 use Otherguise\Index\Harvest\SignalStore;
 use Otherguise\Index\Kinds;
 use Otherguise\Index\Source;
+use Otherguise\Index\Sources;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -57,6 +58,15 @@ final class Page implements Source {
 	 */
 	public function id() {
 		return self::SLUG;
+	}
+
+	/**
+	 * The sources of its mentions: the links and the marks.
+	 *
+	 * @return string[]
+	 */
+	public function mention_sources() {
+		return array( Sources::LINK, Sources::MARK );
 	}
 
 	/**
@@ -104,7 +114,7 @@ final class Page implements Source {
 		}
 
 		// A link to an item: the identifier is all there is, the label comes with the enrichment.
-		return $this->with_wikidata && Signal::WIKIDATA_LINK === $signal->type ? new Candidate( $signal->value, Kinds::OTHER, array( 'wikidata:' . $signal->value ), null, Candidate::PASSING ) : null;
+		return $this->with_wikidata && Signal::WIKIDATA_LINK === $signal->type ? ( new Candidate( $signal->value, Kinds::OTHER, array( 'wikidata:' . $signal->value ), null, Candidate::PASSING ) )->from( Sources::LINK, array( 'link:wikidata:' . $signal->value ) ) : null;
 	}
 
 	/**
@@ -140,7 +150,9 @@ final class Page implements Source {
 			$parent = new Candidate( $shown, $kind, $keys, $parent, $is_last ? $strength : Candidate::PASSING );
 		}
 
-		return $parent;
+		$modes = is_array( $signal->data['modes'] ?? null ) ? array_map( 'strval', $signal->data['modes'] ) : array();
+
+		return null === $parent ? null : $parent->from( Sources::MARK, array( 'mark:' . ( '' !== $signal->anchor ? '#' . $signal->anchor : implode( ' > ', $path ) ) ), $modes );
 	}
 
 	/**
@@ -152,6 +164,6 @@ final class Page implements Source {
 	private function from_wikipedia( Signal $signal ) {
 		$language = (string) ( $signal->data['language'] ?? '' );
 
-		return new Candidate( $signal->value, Kinds::OTHER, array( 'wikipedia:' . $language . ':' . $signal->value ), null, Candidate::PASSING );
+		return ( new Candidate( $signal->value, Kinds::OTHER, array( 'wikipedia:' . $language . ':' . $signal->value ), null, Candidate::PASSING ) )->from( Sources::LINK, array( 'link:' . $language . ':' . $signal->value ) );
 	}
 }
