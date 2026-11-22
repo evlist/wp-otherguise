@@ -25,10 +25,13 @@ use Otherguise\Index\Build\IndexBuilder;
 use Otherguise\Index\Build\Selection;
 use Otherguise\Index\Admin\KindsScreen;
 use Otherguise\Index\Cli\PagesCommand;
+use Otherguise\Index\Cli\PhotosCommand;
 use Otherguise\Index\Harvest\MentionElements;
 use Otherguise\Index\Harvest\PageFetcher;
 use Otherguise\Index\Harvest\SignalStore;
 use Otherguise\Index\Job\PagesService;
+use Otherguise\Index\Photo\PhotosService;
+use Otherguise\Index\Source\Photos;
 use Otherguise\Index\Source\Page;
 use Otherguise\Index\Harvest\PageReader;
 use Otherguise\Index\Source\Terms;
@@ -64,6 +67,13 @@ final class Module implements ModuleInterface, DescribedModule, DisabledByDefaul
 	 * @var Indexer|null
 	 */
 	private $indexer = null;
+
+	/**
+	 * The photographs and the tracks as sources, built when needed (slice 606).
+	 *
+	 * @var PhotosService|null
+	 */
+	private $photos = null;
 
 	/**
 	 * Builds the module.
@@ -125,6 +135,9 @@ final class Module implements ModuleInterface, DescribedModule, DisabledByDefaul
 		( $this->add_action )( PagesService::TICK_HOOK, array( $this->pages(), 'tick' ), 10, 0 );
 		// Slice 604: the Wikidata enrichment runs in the background only, and only when it was turned on.
 		( $this->add_action )( EnrichService::TICK_HOOK, array( $this->enrich(), 'tick' ), 10, 0 );
+		// Slice 606: the places of the photographs, asked again without network, when Media Helper says it has new ones and hourly while some wait.
+		( $this->add_action )( PhotosService::TICK_HOOK, array( $this->photos(), 'tick' ), 10, 0 );
+		( $this->add_action )( 'wp_media_helper_places_updated', array( $this->photos(), 'tick' ), 10, 0 );
 		( $this->add_action )( PagesService::SINGLE_HOOK, array( $this->pages(), 'single' ), 10, 1 );
 		( $this->add_action )( 'wp_after_insert_post', array( $this->pages(), 'on_save' ), 30, 1 );
 
@@ -213,6 +226,7 @@ final class Module implements ModuleInterface, DescribedModule, DisabledByDefaul
 				'categories'   => array( Terms::class, 'categories' ),
 				'tags'         => array( Terms::class, 'tags' ),
 				Page::SLUG     => fn() => new Page( new SignalStore(), '1' === (string) get_option( EnrichService::SWITCH, '' ) ),
+				Photos::SLUG   => fn() => $this->photos()->source(),
 			) as $slug => $make ) {
 				if ( in_array( $slug, $on, true ) ) {
 					$sources[] = $make();
@@ -244,8 +258,22 @@ final class Module implements ModuleInterface, DescribedModule, DisabledByDefaul
 			array( $this, 'published_posts' ),
 			new PageFetcher(),
 			new PageReader(),
-			new SignalStore()
+			new SignalStore(),
+			fn( $id, $signals ) => $this->photos()->process( $id, $signals )
 		);
+	}
+
+	/**
+	 * The photographs and the tracks as sources of places (slice 606).
+	 *
+	 * @return PhotosService
+	 */
+	public function photos() {
+		if ( null === $this->photos ) {
+			$this->photos = new PhotosService( fn() => $this->indexer() );
+		}
+
+		return $this->photos;
 	}
 
 	/**
@@ -570,6 +598,32 @@ final class Module implements ModuleInterface, DescribedModule, DisabledByDefaul
 				}
 			)
 		);
+		$photos = $this->photos();
+
+		\WP_CLI::add_command(
+			'otherguise index photos',
+			new PhotosCommand(
+				array( $photos, 'set_source' ),
+				static function ( $post, $dry ) use ( $pages, $photos ) {
+					if ( ! $dry ) {
+						return $pages->process( $post );
+					}
+
+					$read = $pages->read( $post );
+
+					return '' !== $read['error'] ? array(
+						'ok'      => false,
+						'message' => $read['error'],
+					) : array(
+						'ok'       => true,
+						'message'  => 'Dry run: nothing was written.',
+						'analysis' => $photos->explain( $post, $read['signals'] ),
+					);
+				},
+				array( $photos, 'tick' ),
+				array( $photos, 'status' )
+			)
+		);
 		\WP_CLI::add_command(
 			'otherguise index pages',
 			new PagesCommand(
@@ -595,6 +649,11 @@ final class Module implements ModuleInterface, DescribedModule, DisabledByDefaul
 			delete_option( $option );
 		}
 		wp_clear_scheduled_hook( EnrichService::TICK_HOOK );
+		wp_clear_scheduled_hook( PhotosService::TICK_HOOK );
+		foreach ( array( PhotosService::SETTINGS, PhotosService::LAST, PhotosService::WAITING ) as $option ) {
+			delete_option( $option );
+		}
+		delete_post_meta_by_key( PhotosService::PENDING );
 		delete_post_meta_by_key( SignalStore::SIGNALS );
 		delete_post_meta_by_key( SignalStore::IMAGES );
 		delete_post_meta_by_key( SignalStore::HARVEST );

@@ -12,6 +12,7 @@ namespace Otherguise\Index\Job;
 
 use Otherguise\Index\Harvest\PageFetcher;
 use Otherguise\Index\Harvest\PageReader;
+use Otherguise\Index\Harvest\Signal;
 use Otherguise\Index\Harvest\SignalStore;
 use Otherguise\Index\Source\Page;
 
@@ -71,16 +72,25 @@ final class PagesService {
 	private $store;
 
 	/**
+	 * What to do with the signals of a page that was read: `fn( int $post_id, Signal[] $signals ): void` (slice 606: the photographs).
+	 *
+	 * @var callable|null
+	 */
+	private $on_read;
+
+	/**
 	 * Builds the service.
 	 *
-	 * @param callable    $indexer    Returns the indexer.
-	 * @param callable    $post_types Returns the post types.
-	 * @param callable    $posts      Ids of the published posts, by page.
-	 * @param PageFetcher $fetcher    The fetcher.
-	 * @param PageReader  $reader     The reader.
-	 * @param SignalStore $store      The store.
+	 * @param callable      $indexer    Returns the indexer.
+	 * @param callable      $post_types Returns the post types.
+	 * @param callable      $posts      Ids of the published posts, by page.
+	 * @param PageFetcher   $fetcher    The fetcher.
+	 * @param PageReader    $reader     The reader.
+	 * @param SignalStore   $store      The store.
+	 * @param callable|null $on_read  Receives the signals of a page that was read.
 	 */
-	public function __construct( $indexer, $post_types, $posts, PageFetcher $fetcher, PageReader $reader, SignalStore $store ) {
+	public function __construct( $indexer, $post_types, $posts, PageFetcher $fetcher, PageReader $reader, SignalStore $store, $on_read = null ) {
+		$this->on_read    = $on_read;
 		$this->indexer    = $indexer;
 		$this->post_types = $post_types;
 		$this->posts      = $posts;
@@ -139,9 +149,28 @@ final class PagesService {
 		$indexer = ( $this->indexer )();
 		$indexer->index_post( (int) $post_id, array( Page::SLUG ) );
 
+		if ( null !== $this->on_read ) {
+			( $this->on_read )( (int) $post_id, $signals );
+		}
+
 		return array(
 			'ok'      => true,
 			'message' => count( $signals ) . ' signal(s)',
+		);
+	}
+
+	/**
+	 * What the page of a post says, without keeping anything (the dry run of slice 606).
+	 *
+	 * @param int $post_id Post.
+	 * @return array{signals:Signal[],error:string}
+	 */
+	public function read( $post_id ) {
+		$page = $this->fetcher->fetch( (int) $post_id );
+
+		return array(
+			'signals' => '' === $page['error'] ? $this->reader->signals( $page['html'], (int) $post_id ) : array(),
+			'error'   => (string) $page['error'],
 		);
 	}
 

@@ -87,6 +87,8 @@ class IndexScreenAndModuleTest extends TestCase {
 				'index_mention_elements'      => array( array( 'mention_elements_for_filter', 10, 2 ) ),
 				'otherguise_index_pages'      => array( array( 'tick', 10, 0 ) ),
 				'otherguise_index_enrich'     => array( array( 'tick', 10, 0 ) ),
+				'otherguise_index_photos'     => array( array( 'tick', 10, 0 ) ),
+				'wp_media_helper_places_updated' => array( array( 'tick', 10, 0 ) ),
 				'otherguise_index_page'       => array( array( 'single', 10, 1 ) ),
 			),
 			$hooks

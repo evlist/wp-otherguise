@@ -10,6 +10,8 @@
 
 namespace Otherguise\Index;
 
+use Otherguise\Index\Source\Partial;
+
 defined( 'ABSPATH' ) || exit;
 
 /**
@@ -92,6 +94,11 @@ final class Indexer {
 
 		foreach ( $this->sources as $slug => $source ) {
 			if ( null !== $only && ! in_array( $slug, $only, true ) ) {
+				continue;
+			}
+
+			// A source that does not know the post leaves its mentions as they are (slice 606).
+			if ( $source instanceof Partial && ! $source->knows( (int) $post_id ) ) {
 				continue;
 			}
 
