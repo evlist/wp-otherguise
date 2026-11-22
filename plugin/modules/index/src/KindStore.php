@@ -65,19 +65,19 @@ interface KindStore {
 	public function delete( $slug );
 
 	/**
-	 * How many terms (categories, tags) and entries have a kind.
+	 * How many terms (categories, tags) and topics have a kind.
 	 *
 	 * @param string $slug Slug.
-	 * @return array{terms:int,entries:int}
+	 * @return array{terms:int,topics:int}
 	 */
 	public function usage( $slug );
 
 	/**
-	 * Gives the terms and the entries of a kind to another.
+	 * Gives the terms and the topics of a kind to another.
 	 *
 	 * @param string $from Slug.
 	 * @param string $to   Slug.
-	 * @return int The number of terms and entries changed.
+	 * @return int The number of terms and topics changed.
 	 */
 	public function reassign( $from, $to );
 }

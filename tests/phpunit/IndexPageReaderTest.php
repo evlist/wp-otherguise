@@ -17,7 +17,7 @@ use Otherguise\Index\Harvest\Signal;
 use PHPUnit\Framework\TestCase;
 
 require_once __DIR__ . '/support/class-otherguise-test-html-api.php';
-require_once __DIR__ . '/support/class-otherguise-test-memory-entries.php';
+require_once __DIR__ . '/support/class-otherguise-test-memory-topics.php';
 
 /**
  * No database and no WordPress: the tag processor of the core (`OTHERGUISE_WP_CORE`) and excerpts of public pages of the blog.
@@ -186,23 +186,23 @@ class IndexPageReaderTest extends TestCase {
 		$signals = $this->read( 'whobird-block.html' );
 
 		$this->assertSame( array( 'content:Chemin de la Mâture', 'content:Lathraea clandestina' ), $this->of( $signals, Signal::WIKIPEDIA_LINK ) );
-		$this->assertSame( array( 'page:wikidata:Q1234' ), $this->of( $signals, Signal::ENTRY ) );
+		$this->assertSame( array( 'page:wikidata:Q1234' ), $this->of( $signals, Signal::TOPIC ) );
 
-		$entry = array_values(
+		$topic = array_values(
 			array_filter(
 				$signals,
-				static fn( $signal ) => Signal::ENTRY === $signal->type
+				static fn( $signal ) => Signal::TOPIC === $signal->type
 			)
 		)[0];
 
-		$this->assertSame( 'species', $entry->data['kind'] );
-		$this->assertSame( 'Mésange bleue', $entry->data['label'] );
-		$this->assertTrue( $entry->data['identifier'] );
-		$this->assertSame( 'data-index', $entry->evidence );
+		$this->assertSame( 'species', $topic->data['kind'] );
+		$this->assertSame( 'Mésange bleue', $topic->data['label'] );
+		$this->assertTrue( $topic->data['identifier'] );
+		$this->assertSame( 'data-index', $topic->evidence );
 	}
 
 	/**
-	 * The marks in every form: identifier, path, several entries, the main flag, the anchor, a mark in a footer, an empty mark and what is
+	 * The marks in every form: identifier, path, several topics, the main flag, the anchor, a mark in a footer, an empty mark and what is
 	 * under `data-index-ignore`. A document with no `<main>` and no contents is read whole.
 	 *
 	 * @return void
@@ -212,7 +212,7 @@ class IndexPageReaderTest extends TestCase {
 
 		$this->assertSame(
 			array( 'page:wikidata:Q12', 'page:Beaufort > Les Arberons', 'page:Doron', 'page:Beaufort', 'page:Marked in a footer' ),
-			$this->of( $signals, Signal::ENTRY )
+			$this->of( $signals, Signal::TOPIC )
 		);
 		$this->assertSame( array( 'content:No Main Link' ), $this->of( $signals, Signal::WIKIPEDIA_LINK ) );
 		$this->assertSame( array( 'content:/wp-content/uploads/a.jpg' ), $this->of( $signals, Signal::IMAGE ) );
@@ -248,7 +248,7 @@ class IndexPageReaderTest extends TestCase {
 	 * @return void
 	 */
 	public function test_entities_and_percent_encoding(): void {
-		$signals = $this->reader->signals( '<main><div class="entry-content"><a href="https://fr.wikipedia.org/wiki/Fontintes_%28Liddes%29?a=1&amp;b=2#x">a</a><a href="//de.wikipedia.org/wiki/Z%C3%BCrich">b</a></div></main>' );
+		$signals = $this->reader->signals( '<main><div class="topic-content"><a href="https://fr.wikipedia.org/wiki/Fontintes_%28Liddes%29?a=1&amp;b=2#x">a</a><a href="//de.wikipedia.org/wiki/Z%C3%BCrich">b</a></div></main>' );
 
 		$this->assertSame( array( 'content:Fontintes (Liddes)', 'content:Zürich' ), $this->of( $signals, Signal::WIKIPEDIA_LINK ) );
 	}
@@ -262,7 +262,7 @@ class IndexPageReaderTest extends TestCase {
 		$link = '<a href="https://fr.wikipedia.org/wiki/Test">t</a>';
 
 		$this->assertSame( array( 'content:Test' ), $this->of( $this->reader->signals( '<main>' . $link . '</main>' ), Signal::WIKIPEDIA_LINK ) );
-		$this->assertSame( array(), $this->of( $this->reader->signals( '<main>' . $link . '<div class="entry-content"></div></main>' ), Signal::WIKIPEDIA_LINK ) );
+		$this->assertSame( array(), $this->of( $this->reader->signals( '<main>' . $link . '<div class="topic-content"></div></main>' ), Signal::WIKIPEDIA_LINK ) );
 		$this->assertSame( array(), $this->of( $this->reader->signals( '<div id="comments">' . $link . '</div>' ), Signal::WIKIPEDIA_LINK ) );
 		$this->assertSame( array(), $this->of( $this->reader->signals( '<nav>' . $link . '</nav><main></main>' ), Signal::WIKIPEDIA_LINK ) );
 	}
@@ -273,7 +273,7 @@ class IndexPageReaderTest extends TestCase {
 	 * @return void
 	 */
 	public function test_nesting_and_unclosed_elements(): void {
-		$html = '<main><div class="entry-content"><div data-index-ignore><div><p>one<p>two</div><a href="https://fr.wikipedia.org/wiki/Hidden">h</a></div><a href="https://fr.wikipedia.org/wiki/Shown">s</a></div></main>';
+		$html = '<main><div class="topic-content"><div data-index-ignore><div><p>one<p>two</div><a href="https://fr.wikipedia.org/wiki/Hidden">h</a></div><a href="https://fr.wikipedia.org/wiki/Shown">s</a></div></main>';
 
 		$this->assertSame( array( 'content:Shown' ), $this->of( $this->reader->signals( $html ), Signal::WIKIPEDIA_LINK ) );
 	}
@@ -337,12 +337,12 @@ class IndexPageReaderTest extends TestCase {
 	 * @return IndexCommand
 	 */
 	private function command( array &$log, array &$fail, $load = null ): IndexCommand {
-		$entries  = new Otherguise_Test_Memory_Entries();
+		$topics  = new Otherguise_Test_Memory_Topics();
 		$mentions = new Mentions( static fn() => null );
 
 		return new IndexCommand(
-			$entries,
-			new Indexer( new Resolver( $entries ), $mentions, array(), static fn() => true ),
+			$topics,
+			new Indexer( new Resolver( $topics ), $mentions, array(), static fn() => true ),
 			$mentions,
 			static fn() => array(),
 			static fn() => true,
@@ -373,8 +373,8 @@ class IndexPageReaderTest extends TestCase {
 
 		$this->assertSame( array(), $fail );
 		$this->assertSame( "wikipedia-link\tcontent\tChemin de la Mâture\t{\"language\":\"fr\"}", $log[0] );
-		$this->assertStringContainsString( "entry\tpage\twikidata:Q1234", implode( "\n", $log ) );
-		$this->assertSame( 'OK 4 signal(s) (wikipedia-link: 2, image: 1, entry: 1).', end( $log ) );
+		$this->assertStringContainsString( "topic\tpage\twikidata:Q1234", implode( "\n", $log ) );
+		$this->assertSame( 'OK 4 signal(s) (wikipedia-link: 2, image: 1, topic: 1).', end( $log ) );
 	}
 
 	/**
@@ -389,7 +389,7 @@ class IndexPageReaderTest extends TestCase {
 			'html'  => '',
 			'error' => 'nothing',
 		) : array(
-			'html'  => '<main><div class="entry-content"><a href="https://fr.wikipedia.org/wiki/Test">t</a></div></main>',
+			'html'  => '<main><div class="topic-content"><a href="https://fr.wikipedia.org/wiki/Test">t</a></div></main>',
 			'error' => '',
 		);
 

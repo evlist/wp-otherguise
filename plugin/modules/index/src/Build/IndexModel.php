@@ -14,7 +14,7 @@ defined( 'ABSPATH' ) || exit;
 
 /**
  * What the builder makes (slice 610): the lines of an index, sorted, and their groups by letter. A line is
- * `array{entry:int,label:string,kind:string,classes:string[],letter:string,locators:array<int, array{post:int,strength:string}>}`.
+ * `array{topic:int,label:string,kind:string,classes:string[],letter:string,locators:array<int, array{post:int,strength:string}>}`.
  */
 final class IndexModel {
 	/**

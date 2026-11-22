@@ -147,7 +147,7 @@ final class TermsScreen {
 	}
 
 	/**
-	 * Adds the entry to the menu. Action `admin_menu`.
+	 * Adds the topic to the menu. Action `admin_menu`.
 	 *
 	 * @return void
 	 */

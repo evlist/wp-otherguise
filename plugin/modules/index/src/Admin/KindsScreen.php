@@ -3,7 +3,7 @@
  * SPDX-FileCopyrightText: 2026 Eric van der Vlist <vdv@dyomedea.com>
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * The screen of the kinds of entries.
+ * The screen of the kinds of topics.
  *
  * @package Otherguise
  */
@@ -110,7 +110,7 @@ final class KindsScreen {
 		$screens   = is_array( $screens ) ? $screens : array();
 		$screens[] = array(
 			'title'       => __( 'Index kinds', 'otherguise' ),
-			'description' => __( 'The kinds of entries (places, species, routes...), and which is a sort of which.', 'otherguise' ),
+			'description' => __( 'The kinds of topics (places, species, routes...), and which is a sort of which.', 'otherguise' ),
 			'capability'  => $this->capability(),
 			'page'        => self::PAGE,
 			'group'       => 'settings',
@@ -121,7 +121,7 @@ final class KindsScreen {
 	}
 
 	/**
-	 * Adds the entry to the menu. Action `admin_menu`.
+	 * Adds the topic to the menu. Action `admin_menu`.
 	 *
 	 * @return void
 	 */
@@ -165,7 +165,7 @@ final class KindsScreen {
 	}
 
 	/**
-	 * Deletes a kind, the terms and entries that have it going to another kind when one is chosen. Action `admin_post_otherguise_index_kind_delete`.
+	 * Deletes a kind, the terms and topics that have it going to another kind when one is chosen. Action `admin_post_otherguise_index_kind_delete`.
 	 *
 	 * @return void
 	 */
@@ -271,7 +271,7 @@ final class KindsScreen {
 		echo '</td>';
 
 		if ( ! $free ) {
-			echo '<td>' . esc_html( (string) $row['label'] ) . '</td><td></td><td><code>index-kind-' . esc_html( (string) $row['css'] ) . '</code></td><td>' . esc_html( $usage['terms'] . ' / ' . $usage['entries'] ) . '</td><td></td></tr>';
+			echo '<td>' . esc_html( (string) $row['label'] ) . '</td><td></td><td><code>index-kind-' . esc_html( (string) $row['css'] ) . '</code></td><td>' . esc_html( $usage['terms'] . ' / ' . $usage['topics'] ) . '</td><td></td></tr>';
 
 			return;
 		}
@@ -290,7 +290,7 @@ final class KindsScreen {
 		}
 
 		echo '</td><td>index-kind-<input form="' . esc_attr( $id ) . '" name="css" value="' . esc_attr( (string) $row['css'] ) . '" size="12" /></td>';
-		echo '<td>' . esc_html( sprintf( /* translators: 1: number of terms, 2: number of entries. */ __( '%1$d term(s), %2$d entries', 'otherguise' ), $usage['terms'], $usage['entries'] ) ) . '</td><td>';
+		echo '<td>' . esc_html( sprintf( /* translators: 1: number of terms, 2: number of topics. */ __( '%1$d term(s), %2$d topics', 'otherguise' ), $usage['terms'], $usage['topics'] ) ) . '</td><td>';
 		echo '<button form="' . esc_attr( $id ) . '" class="button">' . esc_html__( 'Save', 'otherguise' ) . '</button>';
 
 		if ( ! $row['builtin'] ) {
@@ -298,7 +298,7 @@ final class KindsScreen {
 			wp_nonce_field( self::NONCE );
 			echo '<input type="hidden" name="action" value="' . esc_attr( self::DELETE ) . '" />';
 
-			if ( $usage['terms'] + $usage['entries'] > 0 ) {
+			if ( $usage['terms'] + $usage['topics'] > 0 ) {
 				echo '<select name="reassign"><option value="">' . esc_html__( '— give them to —', 'otherguise' ) . '</option>';
 				$this->print_parents( '', $slug );
 				echo '</select> ';

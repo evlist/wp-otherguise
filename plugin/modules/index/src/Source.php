@@ -32,7 +32,7 @@ interface Source {
 	public function mention_sources();
 
 	/**
-	 * Whether what it says is sure: a new entry is then approved at once.
+	 * Whether what it says is sure: a new topic is then approved at once.
 	 *
 	 * @return bool
 	 */

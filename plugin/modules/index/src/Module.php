@@ -3,7 +3,7 @@
  * SPDX-FileCopyrightText: 2026 Eric van der Vlist <vdv@dyomedea.com>
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * The index: entries, mentions, sources.
+ * The index: topics, mentions, sources.
  *
  * @package Otherguise
  */
@@ -92,7 +92,7 @@ final class Module implements ModuleInterface, DescribedModule, DisabledByDefaul
 	}
 
 	/**
-	 * Nothing to create: the entries are terms, the mentions are statements.
+	 * Nothing to create: the topics are terms, the mentions are statements.
 	 *
 	 * @return void
 	 */
@@ -104,7 +104,9 @@ final class Module implements ModuleInterface, DescribedModule, DisabledByDefaul
 	 * @return void
 	 */
 	public function boot() {
-		( $this->add_action )( 'init', array( TermEntries::class, 'register_taxonomy' ), 10, 0 );
+		// The topics were the terms of `index_entry` until 2026-11-22: the taxonomy is renamed before it is registered under its new name.
+		( $this->add_action )( 'init', array( TopicsMigration::class, 'run' ), 5, 0 );
+		( $this->add_action )( 'init', array( TermTopics::class, 'register_taxonomy' ), 10, 0 );
 		// Slice 603: the kinds are terms of a taxonomy; the built-in kinds are created once.
 		( $this->add_action )( 'init', array( TermKindStore::class, 'register_taxonomy' ), 10, 0 );
 		( $this->add_action )( 'init', array( Kinds::class, 'seed' ), 12, 0 );
@@ -131,7 +133,7 @@ final class Module implements ModuleInterface, DescribedModule, DisabledByDefaul
 	}
 
 	/**
-	 * Registers the predicates: `index/mentions` (a post, an entry) and its qualifiers. Action `triples_register_predicates`.
+	 * Registers the predicates: `index/mentions` (a post, a topic) and its qualifiers. Action `triples_register_predicates`.
 	 *
 	 * @param \Otherguise\Triples\Predicate\PredicateRegistry $predicates Predicates.
 	 * @return void
@@ -173,12 +175,12 @@ final class Module implements ModuleInterface, DescribedModule, DisabledByDefaul
 	}
 
 	/**
-	 * The store of the entries.
+	 * The store of the topics.
 	 *
-	 * @return Entries
+	 * @return Topics
 	 */
-	public function entries() {
-		return new TermEntries();
+	public function topics() {
+		return new TermTopics();
 	}
 
 	/**
@@ -216,7 +218,7 @@ final class Module implements ModuleInterface, DescribedModule, DisabledByDefaul
 			}
 
 			$this->indexer = new Indexer(
-				new Resolver( $this->entries() ),
+				new Resolver( $this->topics() ),
 				$this->mentions(),
 				$sources,
 				static function ( $post_id ) {
@@ -263,7 +265,7 @@ final class Module implements ModuleInterface, DescribedModule, DisabledByDefaul
 			return null;
 		}
 
-		$model = ( new IndexBuilder( $this->entries(), $this->mentions() ) )->build( array_map( 'intval', (array) $post_ids ), $options );
+		$model = ( new IndexBuilder( $this->topics(), $this->mentions() ) )->build( array_map( 'intval', (array) $post_ids ), $options );
 
 		return array(
 			'groups'      => $model->groups(),
@@ -277,7 +279,7 @@ final class Module implements ModuleInterface, DescribedModule, DisabledByDefaul
 	 * @return EnrichService
 	 */
 	public function enrich() {
-		return new EnrichService( $this->entries(), $this->mentions() );
+		return new EnrichService( $this->topics(), $this->mentions() );
 	}
 
 	/**
@@ -511,7 +513,7 @@ final class Module implements ModuleInterface, DescribedModule, DisabledByDefaul
 		\WP_CLI::add_command(
 			'otherguise index',
 			new IndexCommand(
-				$this->entries(),
+				$this->topics(),
 				$this->indexer(),
 				$this->mentions(),
 				array( $this, 'published_posts' ),
@@ -540,7 +542,7 @@ final class Module implements ModuleInterface, DescribedModule, DisabledByDefaul
 		\WP_CLI::add_command(
 			'otherguise index build',
 			new BuildCommand(
-				new IndexBuilder( $this->entries(), $this->mentions() ),
+				new IndexBuilder( $this->topics(), $this->mentions() ),
 				// The posts of a section come from the module that has sections (Books answers this filter): this module does not know it.
 				static fn( $section ) => apply_filters( 'index_section_posts', array(), (int) $section ),
 				static function ( $post, $strength ) {
@@ -569,6 +571,7 @@ final class Module implements ModuleInterface, DescribedModule, DisabledByDefaul
 	public function uninstall() {
 		delete_option( self::OPTION );
 		delete_option( PagesService::OPTION );
+		delete_option( TopicsMigration::OPTION );
 		delete_option( 'index_site_address' );
 		foreach ( array( EnrichService::SWITCH, EnrichService::JOB, 'index_wikidata_contact', 'index_wikidata_last_request', 'index_wikidata_classes', 'index_wikidata_ancestors', 'index_enrich_failures', 'index_enrich_pause_until' ) as $option ) {
 			delete_option( $option );
@@ -596,6 +599,6 @@ final class Module implements ModuleInterface, DescribedModule, DisabledByDefaul
 	 * @return string
 	 */
 	public function description() {
-		return __( 'Entries of an index (places, species, routes...) and the posts that mention them, from the categories and the tags.', 'otherguise' );
+		return __( 'Topics of an index (places, species, routes...) and the posts that mention them, from the categories and the tags.', 'otherguise' );
 	}
 }

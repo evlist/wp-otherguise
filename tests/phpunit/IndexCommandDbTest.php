@@ -17,18 +17,18 @@ use Otherguise\Index\Resolver;
 
 require_once __DIR__ . '/support/class-otherguise-test-database-case.php';
 require_once __DIR__ . '/support/class-otherguise-test-modes-site.php';
-require_once __DIR__ . '/support/class-otherguise-test-memory-entries.php';
+require_once __DIR__ . '/support/class-otherguise-test-memory-topics.php';
 require_once __DIR__ . '/support/class-otherguise-test-memory-kinds.php';
 
 /**
- * The statements are real; the entries and the posts are not.
+ * The statements are real; the topics and the posts are not.
  *
  * @covers \Otherguise\Index\Cli\IndexCommand
  */
 class IndexCommandDbTest extends Otherguise_Test_Database_Case {
 
 	/**
-	 * The command: kind, rebuild with a dry run, entries, link and show.
+	 * The command: kind, rebuild with a dry run, topics, link and show.
 	 *
 	 * @return void
 	 */
@@ -52,7 +52,7 @@ class IndexCommandDbTest extends Otherguise_Test_Database_Case {
 				return $statements;
 			}
 		);
-		$entries    = new Otherguise_Test_Memory_Entries();
+		$topics    = new Otherguise_Test_Memory_Topics();
 		$log        = array();
 		$fail       = array();
 		$set        = array();
@@ -99,8 +99,8 @@ class IndexCommandDbTest extends Otherguise_Test_Database_Case {
 		};
 
 		$command = new IndexCommand(
-			$entries,
-			new Indexer( new Resolver( $entries ), $mentions, array( $source ), fn() => true ),
+			$topics,
+			new Indexer( new Resolver( $topics ), $mentions, array( $source ), fn() => true ),
 			$mentions,
 			static fn( $offset ) => 0 === $offset ? array( 12, 13 ) : array(),
 			static function ( $taxonomy, $term, $kind ) use ( &$set ) {
@@ -120,11 +120,11 @@ class IndexCommandDbTest extends Otherguise_Test_Database_Case {
 		);
 
 		$command->rebuild( array(), array( 'dry-run' => true ) );
-		$this->assertSame( array(), $entries->entries );
+		$this->assertSame( array(), $topics->topics );
 		$this->assertContains( '  created: 4', $log, 'Two posts, each reporting Beaufort and France as new (nothing is written).' );
 
 		$command->rebuild( array(), array() );
-		$this->assertCount( 2, $entries->entries );
+		$this->assertCount( 2, $topics->topics );
 		$this->assertContains( '  added: 2', $log );
 
 		$log = array();
@@ -145,17 +145,17 @@ class IndexCommandDbTest extends Otherguise_Test_Database_Case {
 		$this->assertSame( 'No such term: missing.', $fail[2] );
 
 		$log = array();
-		$command->entries( array(), array( 'status' => 'approved' ) );
+		$command->topics( array(), array( 'status' => 'approved' ) );
 		$this->assertCount( 2, $log );
 
-		$ambiguous = $entries->create( 'Beaufort?', 'place', 0, 'candidate', array( 'ambiguous:wikidata:Q9' ) );
+		$ambiguous = $topics->create( 'Beaufort?', 'place', 0, 'candidate', array( 'ambiguous:wikidata:Q9' ) );
 		$beaufort  = array_key_first( $mentions->of_post( 12 ) );
 		$command->link( array( 'wikidata:Q9', (string) $beaufort ), array() );
-		$this->assertNull( $entries->get( $ambiguous ) );
-		$this->assertContains( 'wikidata:Q9', $entries->get( $beaufort )['keys'] );
+		$this->assertNull( $topics->get( $ambiguous ) );
+		$this->assertContains( 'wikidata:Q9', $topics->get( $beaufort )['keys'] );
 
 		$command->link( array( 'wikidata:Q9', '999' ), array() );
-		$this->assertStringContainsString( 'existing entry', $fail[3] );
+		$this->assertStringContainsString( 'existing topic', $fail[3] );
 
 		$log = array();
 		$command->show( array( '12' ), array() );

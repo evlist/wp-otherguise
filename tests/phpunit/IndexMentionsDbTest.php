@@ -18,11 +18,11 @@ use Otherguise\Index\Source\Terms;
 
 require_once __DIR__ . '/support/class-otherguise-test-database-case.php';
 require_once __DIR__ . '/support/class-otherguise-test-modes-site.php';
-require_once __DIR__ . '/support/class-otherguise-test-memory-entries.php';
+require_once __DIR__ . '/support/class-otherguise-test-memory-topics.php';
 require_once __DIR__ . '/support/class-otherguise-test-memory-kinds.php';
 
 /**
- * The statements are real (MariaDB); the entries are in memory; posts and terms are stubs.
+ * The statements are real (MariaDB); the topics are in memory; posts and terms are stubs.
  *
  * @covers \Otherguise\Index\Mentions
  * @covers \Otherguise\Index\Indexer
@@ -32,11 +32,11 @@ require_once __DIR__ . '/support/class-otherguise-test-memory-kinds.php';
 class IndexMentionsDbTest extends Otherguise_Test_Database_Case {
 
 	/**
-	 * The entries.
+	 * The topics.
 	 *
-	 * @var Otherguise_Test_Memory_Entries
+	 * @var Otherguise_Test_Memory_Topics
 	 */
-	private $entries;
+	private $topics;
 
 	/**
 	 * The mentions.
@@ -81,7 +81,7 @@ class IndexMentionsDbTest extends Otherguise_Test_Database_Case {
 	private $indexer;
 
 	/**
-	 * Wires the statements, the entries and a source of categories.
+	 * Wires the statements, the topics and a source of categories.
 	 *
 	 * @return void
 	 */
@@ -103,7 +103,7 @@ class IndexMentionsDbTest extends Otherguise_Test_Database_Case {
 		);
 		$statements = $site->statements;
 
-		$this->entries  = new Otherguise_Test_Memory_Entries();
+		$this->topics  = new Otherguise_Test_Memory_Topics();
 		$this->mentions = new Mentions(
 			static function () use ( $statements ) {
 				return $statements;
@@ -147,7 +147,7 @@ class IndexMentionsDbTest extends Otherguise_Test_Database_Case {
 		);
 
 		$this->indexer = new Indexer(
-			new Resolver( $this->entries ),
+			new Resolver( $this->topics ),
 			$this->mentions,
 			array( $categories ),
 			function ( $post_id ) {
@@ -173,7 +173,7 @@ class IndexMentionsDbTest extends Otherguise_Test_Database_Case {
 	}
 
 	/**
-	 * A category with a kind is mentioned, its parent is an entry, and a category with no kind is left out.
+	 * A category with a kind is mentioned, its parent is a topic, and a category with no kind is left out.
 	 *
 	 * @return void
 	 */
@@ -189,11 +189,11 @@ class IndexMentionsDbTest extends Otherguise_Test_Database_Case {
 
 		$this->assertCount( 1, $mentions );
 
-		$entry = array_key_first( $mentions );
+		$topic = array_key_first( $mentions );
 
-		$this->assertSame( 'Beaufort', $this->entries->get( $entry )['label'] );
-		$this->assertSame( array( 'post/category' ), $mentions[ $entry ]['sources'] );
-		$this->assertSame( 'passing', $mentions[ $entry ]['strength'] );
+		$this->assertSame( 'Beaufort', $this->topics->get( $topic )['label'] );
+		$this->assertSame( array( 'post/category' ), $mentions[ $topic ]['sources'] );
+		$this->assertSame( 'passing', $mentions[ $topic ]['strength'] );
 	}
 
 	/**
@@ -215,7 +215,7 @@ class IndexMentionsDbTest extends Otherguise_Test_Database_Case {
 	}
 
 	/**
-	 * A category taken off the post withdraws the mention; the entry stays.
+	 * A category taken off the post withdraws the mention; the topic stays.
 	 *
 	 * @return void
 	 */
@@ -228,7 +228,7 @@ class IndexMentionsDbTest extends Otherguise_Test_Database_Case {
 
 		$this->assertSame( 1, $report['removed'] );
 		$this->assertSame( array(), $this->mentions->of_post( 12 ) );
-		$this->assertCount( 2, $this->entries->entries );
+		$this->assertCount( 2, $this->topics->topics );
 	}
 
 	/**
@@ -275,32 +275,32 @@ class IndexMentionsDbTest extends Otherguise_Test_Database_Case {
 		$this->categorize( 12, array( 2 ) );
 		$this->indexer->index_post( 12 );
 
-		$entry = array_key_first( $this->mentions->of_post( 12 ) );
+		$topic = array_key_first( $this->mentions->of_post( 12 ) );
 
-		$this->mentions->sync( 12, 'post/tag', array( $entry => 'main' ) );
-		$this->mentions->add_by_hand( 12, $entry );
+		$this->mentions->sync( 12, 'post/tag', array( $topic => 'main' ) );
+		$this->mentions->add_by_hand( 12, $topic );
 
 		$this->categorize( 12, array() );
 		$this->indexer->index_post( 12 );
 
 		$found = $this->mentions->of_post( 12 );
 
-		$this->assertSame( array( 'hand', 'post/tag' ), $found[ $entry ]['sources'] );
-		$this->assertSame( 'main', $found[ $entry ]['strength'], 'The strongest strength said wins.' );
+		$this->assertSame( array( 'hand', 'post/tag' ), $found[ $topic ]['sources'] );
+		$this->assertSame( 'main', $found[ $topic ]['strength'], 'The strongest strength said wins.' );
 
 		$this->mentions->sync( 12, 'post/tag', array() );
-		$this->assertSame( array( 'hand' ), $this->mentions->of_post( 12 )[ $entry ]['sources'] );
+		$this->assertSame( array( 'hand' ), $this->mentions->of_post( 12 )[ $topic ]['sources'] );
 
-		$this->mentions->remove_by_hand( 12, $entry );
+		$this->mentions->remove_by_hand( 12, $topic );
 		$this->assertSame( array(), $this->mentions->of_post( 12 ) );
 	}
 
 	/**
-	 * The posts that mention an entry, and the posts that mention an entry below it when rolled up.
+	 * The posts that mention a topic, and the posts that mention a topic below it when rolled up.
 	 *
 	 * @return void
 	 */
-	public function test_the_posts_of_an_entry_roll_up(): void {
+	public function test_the_posts_of_an_topic_roll_up(): void {
 		$this->categorize( 12, array( 2 ) );
 		$this->categorize( 13, array( 1 ) );
 
@@ -308,14 +308,14 @@ class IndexMentionsDbTest extends Otherguise_Test_Database_Case {
 		$this->indexer->index_post( 13 );
 
 		$beaufort = array_key_first( $this->mentions->of_post( 12 ) );
-		$france   = $this->entries->get( $beaufort )['parent'];
+		$france   = $this->topics->get( $beaufort )['parent'];
 
-		$this->assertSame( array( 13 ), array_keys( $this->mentions->of_entry( $france ) ) );
-		$this->assertSame( array( 12, 13 ), array_keys( $this->mentions->of_entry( $france, array( $beaufort ) ) ) );
+		$this->assertSame( array( 13 ), array_keys( $this->mentions->of_topic( $france ) ) );
+		$this->assertSame( array( 12, 13 ), array_keys( $this->mentions->of_topic( $france, array( $beaufort ) ) ) );
 	}
 
 	/**
-	 * A dry run writes no entry and no statement.
+	 * A dry run writes no topic and no statement.
 	 *
 	 * @return void
 	 */
@@ -325,7 +325,7 @@ class IndexMentionsDbTest extends Otherguise_Test_Database_Case {
 		$report = $this->indexer->index_post( 12, null, true );
 
 		$this->assertSame( 2, $report['created'] );
-		$this->assertSame( array(), $this->entries->entries );
+		$this->assertSame( array(), $this->topics->topics );
 		$this->assertSame( array(), $this->mentions->of_post( 12 ) );
 	}
 
@@ -344,7 +344,7 @@ class IndexMentionsDbTest extends Otherguise_Test_Database_Case {
 	}
 
 	/**
-	 * A strong mention wins over a passing one of the same entry in one source.
+	 * A strong mention wins over a passing one of the same topic in one source.
 	 *
 	 * @return void
 	 */
@@ -378,7 +378,7 @@ class IndexMentionsDbTest extends Otherguise_Test_Database_Case {
 			}
 
 			/**
-			 * Two candidates for one entry.
+			 * Two candidates for one topic.
 			 *
 			 * @param int $post_id Post.
 			 * @return Candidate[]
@@ -393,7 +393,7 @@ class IndexMentionsDbTest extends Otherguise_Test_Database_Case {
 			}
 		};
 
-		$indexer = new Indexer( new Resolver( $this->entries ), $this->mentions, array( $source ), fn() => true );
+		$indexer = new Indexer( new Resolver( $this->topics ), $this->mentions, array( $source ), fn() => true );
 		$indexer->index_post( 12 );
 
 		$this->assertSame( 'main', array_values( $this->mentions->of_post( 12 ) )[0]['strength'] );

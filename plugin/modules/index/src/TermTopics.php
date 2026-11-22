@@ -3,7 +3,7 @@
  * SPDX-FileCopyrightText: 2026 Eric van der Vlist <vdv@dyomedea.com>
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * The entries as terms of a taxonomy.
+ * The topics as terms of a taxonomy.
  *
  * @package Otherguise
  */
@@ -13,11 +13,11 @@ namespace Otherguise\Index;
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Entries kept as terms of the hidden hierarchical taxonomy `index_entry`. The keys of an entry are rows `_index_key` of the term meta (one
+ * Topics kept as terms of the hidden hierarchical taxonomy `index_topic`. The keys of a topic are rows `_index_key` of the term meta (one
  * row per key, so that a lookup is one query); the kind, the status and the "kind set by hand" flag are term meta too.
  */
-final class TermEntries implements Entries {
-	public const TAXONOMY = 'index_entry';
+final class TermTopics implements Topics {
+	public const TAXONOMY = 'index_topic';
 	public const KEY      = '_index_key';
 	public const KIND     = '_index_kind';
 	public const HAND     = '_index_kind_set_by_hand';
@@ -36,8 +36,8 @@ final class TermEntries implements Entries {
 			array(),
 			array(
 				'labels'            => array(
-					'name'          => __( 'Index entries', 'otherguise' ),
-					'singular_name' => __( 'Index entry', 'otherguise' ),
+					'name'          => __( 'Index topics', 'otherguise' ),
+					'singular_name' => __( 'Index topic', 'otherguise' ),
 				),
 				'public'            => false,
 				'hierarchical'      => true,
@@ -51,7 +51,7 @@ final class TermEntries implements Entries {
 	}
 
 	/**
-	 * The ids of the entries that hold a key.
+	 * The ids of the topics that hold a key.
 	 *
 	 * @param string $key Key.
 	 * @return int[]
@@ -72,11 +72,11 @@ final class TermEntries implements Entries {
 	}
 
 	/**
-	 * Creates an entry.
+	 * Creates a topic.
 	 *
 	 * @param string   $label  Label.
 	 * @param string   $kind   Kind.
-	 * @param int      $parent Parent entry, 0 for none.
+	 * @param int      $parent Parent topic, 0 for none.
 	 * @param string   $status Status.
 	 * @param string[] $keys   Keys.
 	 * @return int The id, 0 when WordPress refuses.
@@ -87,7 +87,7 @@ final class TermEntries implements Entries {
 			self::TAXONOMY,
 			array(
 				'parent' => (int) $parent,
-				// A distinct slug lets two entries of one name share a parent (two unlinked homonyms).
+				// A distinct slug lets two topics of one name share a parent (two unlinked homonyms).
 				'slug'   => sanitize_title( $label ) . '-' . substr( md5( $label . '|' . (int) $parent . '|' . implode( '|', $keys ) ), 0, 8 ),
 			)
 		);
@@ -106,9 +106,9 @@ final class TermEntries implements Entries {
 	}
 
 	/**
-	 * Adds keys to an entry.
+	 * Adds keys to a topic.
 	 *
-	 * @param int      $id   Entry.
+	 * @param int      $id   Topic.
 	 * @param string[] $keys Keys.
 	 * @return void
 	 */
@@ -124,9 +124,9 @@ final class TermEntries implements Entries {
 	}
 
 	/**
-	 * Sets the kind of an entry.
+	 * Sets the kind of a topic.
 	 *
-	 * @param int    $id      Entry.
+	 * @param int    $id      Topic.
 	 * @param string $kind    Kind.
 	 * @param bool   $by_hand Whether a person chose it.
 	 * @return void
@@ -140,9 +140,9 @@ final class TermEntries implements Entries {
 	}
 
 	/**
-	 * Changes the label of an entry: the name of the term changes, its slug stays.
+	 * Changes the label of a topic: the name of the term changes, its slug stays.
 	 *
-	 * @param int    $id    Entry.
+	 * @param int    $id    Topic.
 	 * @param string $label Label.
 	 * @return void
 	 */
@@ -151,9 +151,9 @@ final class TermEntries implements Entries {
 	}
 
 	/**
-	 * The state of the enrichment of an entry.
+	 * The state of the enrichment of a topic.
 	 *
-	 * @param int $id Entry.
+	 * @param int $id Topic.
 	 * @return array<string, mixed>
 	 */
 	public function enrich_state( $id ) {
@@ -163,9 +163,9 @@ final class TermEntries implements Entries {
 	}
 
 	/**
-	 * Keeps the state of the enrichment of an entry.
+	 * Keeps the state of the enrichment of a topic.
 	 *
-	 * @param int                  $id    Entry.
+	 * @param int                  $id    Topic.
 	 * @param array<string, mixed> $state State.
 	 * @return void
 	 */
@@ -174,9 +174,9 @@ final class TermEntries implements Entries {
 	}
 
 	/**
-	 * Deletes an entry.
+	 * Deletes a topic.
 	 *
-	 * @param int $id Entry.
+	 * @param int $id Topic.
 	 * @return void
 	 */
 	public function delete( $id ) {
@@ -184,9 +184,9 @@ final class TermEntries implements Entries {
 	}
 
 	/**
-	 * Reads an entry.
+	 * Reads a topic.
 	 *
-	 * @param int $id Entry.
+	 * @param int $id Topic.
 	 * @return array<string, mixed>|null
 	 */
 	public function get( $id ) {
@@ -209,7 +209,7 @@ final class TermEntries implements Entries {
 	}
 
 	/**
-	 * The entries, filtered.
+	 * The topics, filtered.
 	 *
 	 * @param array<string, mixed> $filters `kind`, `status`, `parent`.
 	 * @return array<int, array<string, mixed>>
@@ -244,16 +244,16 @@ final class TermEntries implements Entries {
 			$args['meta_query'] = $meta;
 		}
 
-		$entries = array();
+		$topics = array();
 
 		foreach ( (array) get_terms( $args ) as $id ) {
-			$entry = $this->get( (int) $id );
+			$topic = $this->get( (int) $id );
 
-			if ( null !== $entry ) {
-				$entries[ (int) $id ] = $entry;
+			if ( null !== $topic ) {
+				$topics[ (int) $id ] = $topic;
 			}
 		}
 
-		return $entries;
+		return $topics;
 	}
 }

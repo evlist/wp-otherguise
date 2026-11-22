@@ -16,7 +16,7 @@ defined( 'ABSPATH' ) || exit;
  * A signal read in the HTML of a page (slice 601): a type, a value, where it was met, and what else the reader learnt about it.
  */
 final class Signal {
-	public const ENTRY          = 'entry';
+	public const TOPIC          = 'topic';
 	public const WIKIPEDIA_LINK = 'wikipedia-link';
 	public const WIKIDATA_LINK  = 'wikidata-link';
 	public const OSM_OBJECT     = 'osm-object';
@@ -31,7 +31,7 @@ final class Signal {
 	public $type;
 
 	/**
-	 * The value: an identifier or a label (`entry`), a title (`wikipedia-link`), `Q42` (`wikidata-link`), `node/123` (`osm-object`), an
+	 * The value: an identifier or a label (`topic`), a title (`wikipedia-link`), `Q42` (`wikidata-link`), `node/123` (`osm-object`), an
 	 * address (`gpx-file`, `image`).
 	 *
 	 * @var string
@@ -112,8 +112,9 @@ final class Signal {
 			return null;
 		}
 
+		// Signals kept before 2026-11-22 call a mark `entry`: the concept is a topic now.
 		return new self(
-			$array['type'],
+			'entry' === $array['type'] ? self::TOPIC : $array['type'],
 			$array['value'],
 			is_string( $array['scope'] ?? null ) ? $array['scope'] : 'page',
 			is_string( $array['evidence'] ?? null ) ? $array['evidence'] : '',

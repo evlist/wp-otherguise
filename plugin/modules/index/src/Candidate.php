@@ -13,7 +13,7 @@ namespace Otherguise\Index;
 defined( 'ABSPATH' ) || exit;
 
 /**
- * A candidate: a label, a kind, the label of the broader entry, the keys that identify it, and how strongly the post speaks of it.
+ * A candidate: a label, a kind, the label of the broader topic, the keys that identify it, and how strongly the post speaks of it.
  */
 final class Candidate {
 	public const MAIN    = 'main';

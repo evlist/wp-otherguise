@@ -9,16 +9,16 @@
  */
 
 use Otherguise\Index\Candidate;
-use Otherguise\Index\Entries;
+use Otherguise\Index\Topics;
 use Otherguise\Index\Folding;
 use Otherguise\Index\Resolver;
 use PHPUnit\Framework\TestCase;
 
-require_once __DIR__ . '/support/class-otherguise-test-memory-entries.php';
+require_once __DIR__ . '/support/class-otherguise-test-memory-topics.php';
 require_once __DIR__ . '/support/class-otherguise-test-memory-kinds.php';
 
 /**
- * No database and no WordPress: the entries are in memory.
+ * No database and no WordPress: the topics are in memory.
  *
  * @covers \Otherguise\Index\Resolver
  * @covers \Otherguise\Index\Candidate
@@ -27,11 +27,11 @@ require_once __DIR__ . '/support/class-otherguise-test-memory-kinds.php';
 class IndexResolverTest extends TestCase {
 
 	/**
-	 * The entries.
+	 * The topics.
 	 *
-	 * @var Otherguise_Test_Memory_Entries
+	 * @var Otherguise_Test_Memory_Topics
 	 */
-	private $entries;
+	private $topics;
 
 	/**
 	 * The resolver.
@@ -41,7 +41,7 @@ class IndexResolverTest extends TestCase {
 	private $resolver;
 
 	/**
-	 * Starts with no entry.
+	 * Starts with no topic.
 	 *
 	 * @return void
 	 */
@@ -49,8 +49,8 @@ class IndexResolverTest extends TestCase {
 		otherguise_test_reset();
 		Otherguise_Test_Memory_Kinds::install();
 
-		$this->entries  = new Otherguise_Test_Memory_Entries();
-		$this->resolver = new Resolver( $this->entries );
+		$this->topics  = new Otherguise_Test_Memory_Topics();
+		$this->resolver = new Resolver( $this->topics );
 	}
 
 	/**
@@ -64,35 +64,35 @@ class IndexResolverTest extends TestCase {
 	}
 
 	/**
-	 * A candidate no entry holds creates an approved entry that holds its keys and its label key.
+	 * A candidate no topic holds creates an approved topic that holds its keys and its label key.
 	 *
 	 * @return void
 	 */
-	public function test_a_new_candidate_creates_an_entry(): void {
+	public function test_a_new_candidate_creates_an_topic(): void {
 		$done = $this->resolver->resolve( new Candidate( 'Beaufort', 'place', array( 'term:category:7' ) ) );
 
 		$this->assertSame( Resolver::CREATED, $done['result'] );
 
-		$entry = $this->entries->get( $done['entry'] );
+		$topic = $this->topics->get( $done['topic'] );
 
-		$this->assertSame( 'Beaufort', $entry['label'] );
-		$this->assertSame( Entries::APPROVED, $entry['status'] );
-		$this->assertSame( array( 'term:category:7', 'label:0/beaufort' ), $entry['keys'] );
+		$this->assertSame( 'Beaufort', $topic['label'] );
+		$this->assertSame( Topics::APPROVED, $topic['status'] );
+		$this->assertSame( array( 'term:category:7', 'label:0/beaufort' ), $topic['keys'] );
 	}
 
 	/**
-	 * A source that is not sure creates a candidate entry.
+	 * A source that is not sure creates a candidate topic.
 	 *
 	 * @return void
 	 */
 	public function test_a_source_that_is_not_sure_creates_a_candidate(): void {
 		$done = $this->resolver->resolve( new Candidate( 'Beaufort', 'place', array( 'x:1' ) ), false );
 
-		$this->assertSame( Entries::CANDIDATE, $this->entries->get( $done['entry'] )['status'] );
+		$this->assertSame( Topics::CANDIDATE, $this->topics->get( $done['topic'] )['status'] );
 	}
 
 	/**
-	 * Resolving twice gives the same entry and creates nothing.
+	 * Resolving twice gives the same topic and creates nothing.
 	 *
 	 * @return void
 	 */
@@ -101,51 +101,51 @@ class IndexResolverTest extends TestCase {
 		$second = $this->resolver->resolve( new Candidate( 'Beaufort', 'place', array( 'term:category:7' ) ) );
 
 		$this->assertSame( Resolver::RESOLVED, $second['result'] );
-		$this->assertSame( $first['entry'], $second['entry'] );
-		$this->assertCount( 1, $this->entries->entries );
+		$this->assertSame( $first['topic'], $second['topic'] );
+		$this->assertCount( 1, $this->topics->topics );
 	}
 
 	/**
-	 * A tag and a category of the same name and kind are one entry, and each keeps its own key for later.
+	 * A tag and a category of the same name and kind are one topic, and each keeps its own key for later.
 	 *
 	 * @return void
 	 */
-	public function test_a_category_and_a_tag_of_one_label_share_an_entry(): void {
+	public function test_a_category_and_a_tag_of_one_label_share_an_topic(): void {
 		$a = $this->resolver->resolve( new Candidate( 'Étroubles', 'place', array( 'term:category:7' ) ) );
 		$b = $this->resolver->resolve( new Candidate( 'etroubles', 'place', array( 'term:post_tag:99' ) ) );
 
-		$this->assertSame( $a['entry'], $b['entry'] );
-		$this->assertContains( 'term:post_tag:99', $this->entries->get( $a['entry'] )['keys'] );
+		$this->assertSame( $a['topic'], $b['topic'] );
+		$this->assertContains( 'term:post_tag:99', $this->topics->get( $a['topic'] )['keys'] );
 	}
 
 	/**
-	 * Renaming the term does not lose the entry: the key of the term finds it.
+	 * Renaming the term does not lose the topic: the key of the term finds it.
 	 *
 	 * @return void
 	 */
-	public function test_a_renamed_term_keeps_its_entry(): void {
+	public function test_a_renamed_term_keeps_its_topic(): void {
 		$a = $this->resolver->resolve( new Candidate( 'Beaufort', 'place', array( 'term:category:7' ) ) );
 		$b = $this->resolver->resolve( new Candidate( 'Beaufort-sur-Doron', 'place', array( 'term:category:7' ) ) );
 
-		$this->assertSame( $a['entry'], $b['entry'] );
-		$this->assertCount( 1, $this->entries->entries );
+		$this->assertSame( $a['topic'], $b['topic'] );
+		$this->assertCount( 1, $this->topics->topics );
 	}
 
 	/**
-	 * Two homonyms with two parents are two entries.
+	 * Two homonyms with two parents are two topics.
 	 *
 	 * @return void
 	 */
-	public function test_homonyms_under_two_parents_are_two_entries(): void {
+	public function test_homonyms_under_two_parents_are_two_topics(): void {
 		$fr = new Candidate( 'France', 'place', array( 'term:category:1' ) );
 		$it = new Candidate( 'Italie', 'place', array( 'term:category:2' ) );
 
 		$a = $this->resolver->resolve( new Candidate( 'Saint-Rhémy', 'place', array( 'term:category:3' ), $fr ) );
 		$b = $this->resolver->resolve( new Candidate( 'Saint-Rhémy', 'place', array( 'term:category:4' ), $it ) );
 
-		$this->assertNotSame( $a['entry'], $b['entry'] );
-		$this->assertNotSame( $this->entries->get( $a['entry'] )['parent'], $this->entries->get( $b['entry'] )['parent'] );
-		$this->assertCount( 4, $this->entries->entries );
+		$this->assertNotSame( $a['topic'], $b['topic'] );
+		$this->assertNotSame( $this->topics->get( $a['topic'] )['parent'], $this->topics->get( $b['topic'] )['parent'] );
+		$this->assertCount( 4, $this->topics->topics );
 	}
 
 	/**
@@ -153,45 +153,45 @@ class IndexResolverTest extends TestCase {
 	 *
 	 * @return void
 	 */
-	public function test_the_parent_is_an_entry_too(): void {
+	public function test_the_parent_is_an_topic_too(): void {
 		$done = $this->resolver->resolve( new Candidate( 'Beaufort', 'place', array( 'term:category:7' ), new Candidate( 'France', 'place', array( 'term:category:1' ) ) ) );
-		$up   = $this->entries->get( $this->entries->get( $done['entry'] )['parent'] );
+		$up   = $this->topics->get( $this->topics->get( $done['topic'] )['parent'] );
 
 		$this->assertSame( 'France', $up['label'] );
 	}
 
 	/**
-	 * Two entries hold the key: the candidate is ambiguous, nothing is mentioned, and it is recorded once as a candidate.
+	 * Two topics hold the key: the candidate is ambiguous, nothing is mentioned, and it is recorded once as a candidate.
 	 *
 	 * @return void
 	 */
-	public function test_a_key_held_by_two_entries_is_ambiguous(): void {
-		$one = $this->entries->create( 'A', 'place', 0, Entries::APPROVED, array( 'wikidata:Q1' ) );
-		$two = $this->entries->create( 'B', 'place', 0, Entries::APPROVED, array( 'wikidata:Q1' ) );
+	public function test_a_key_held_by_two_topics_is_ambiguous(): void {
+		$one = $this->topics->create( 'A', 'place', 0, Topics::APPROVED, array( 'wikidata:Q1' ) );
+		$two = $this->topics->create( 'B', 'place', 0, Topics::APPROVED, array( 'wikidata:Q1' ) );
 
 		$done = $this->resolver->resolve( new Candidate( 'C', 'place', array( 'wikidata:Q1' ) ) );
 		$this->resolver->resolve( new Candidate( 'C', 'place', array( 'wikidata:Q1' ) ) );
 
 		$this->assertSame( Resolver::AMBIGUOUS, $done['result'] );
-		$this->assertSame( 0, $done['entry'] );
-		$this->assertCount( 1, $this->entries->all( array( 'status' => Entries::CANDIDATE ) ) );
+		$this->assertSame( 0, $done['topic'] );
+		$this->assertCount( 1, $this->topics->all( array( 'status' => Topics::CANDIDATE ) ) );
 		$this->assertNotEmpty( array( $one, $two ) );
 	}
 
 	/**
-	 * Linking is adding a key to an entry: the key then decides, and the candidate is resolved.
+	 * Linking is adding a key to a topic: the key then decides, and the candidate is resolved.
 	 *
 	 * @return void
 	 */
 	public function test_linking_a_key_settles_the_candidate(): void {
-		$paris = $this->entries->create( 'Paris', 'place', 0, Entries::APPROVED, array( 'label:0/paris' ) );
-		$this->entries->create( 'Paris', 'species', 0, Entries::APPROVED, array( 'label:0/paris-x' ) );
+		$paris = $this->topics->create( 'Paris', 'place', 0, Topics::APPROVED, array( 'label:0/paris' ) );
+		$this->topics->create( 'Paris', 'species', 0, Topics::APPROVED, array( 'label:0/paris-x' ) );
 
-		$this->entries->add_keys( $paris, array( 'term:post_tag:5' ) );
+		$this->topics->add_keys( $paris, array( 'term:post_tag:5' ) );
 
 		$done = $this->resolver->resolve( new Candidate( 'Paris (tag)', 'species', array( 'term:post_tag:5' ) ) );
 
-		$this->assertSame( $paris, $done['entry'] );
+		$this->assertSame( $paris, $done['topic'] );
 	}
 
 	/**
@@ -210,17 +210,17 @@ class IndexResolverTest extends TestCase {
 	}
 
 	/**
-	 * A refused entry is never found again: the candidate gets a new one.
+	 * A refused topic is never found again: the candidate gets a new one.
 	 *
 	 * @return void
 	 */
-	public function test_a_refused_entry_is_ignored(): void {
-		$refused = $this->entries->create( 'Repos', 'other', 0, Entries::REFUSED, array( 'term:category:9', 'label:0/repos' ) );
+	public function test_a_refused_topic_is_ignored(): void {
+		$refused = $this->topics->create( 'Repos', 'other', 0, Topics::REFUSED, array( 'term:category:9', 'label:0/repos' ) );
 
 		$done = $this->resolver->resolve( new Candidate( 'Repos', 'other', array( 'term:category:9' ) ) );
 
 		$this->assertSame( Resolver::CREATED, $done['result'] );
-		$this->assertNotSame( $refused, $done['entry'] );
+		$this->assertNotSame( $refused, $done['topic'] );
 	}
 
 	/**
@@ -232,6 +232,6 @@ class IndexResolverTest extends TestCase {
 		$done = $this->resolver->resolve( new Candidate( 'Beaufort', 'place', array( 'term:category:7' ), new Candidate( 'France', 'place', array( 'term:category:1' ) ) ), true, true );
 
 		$this->assertSame( Resolver::CREATED, $done['result'] );
-		$this->assertSame( array(), $this->entries->entries );
+		$this->assertSame( array(), $this->topics->topics );
 	}
 }

@@ -3,7 +3,7 @@
  * SPDX-FileCopyrightText: 2026 Eric van der Vlist <vdv@dyomedea.com>
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * Tests of the Wikidata enrichment of the entries (slice 604), without the network.
+ * Tests of the Wikidata enrichment of the topics (slice 604), without the network.
  *
  * The answers of the services are **handwritten from their documented shape**: they prove the code, not the services.
  *
@@ -11,7 +11,7 @@
  */
 
 use Otherguise\Index\Enrich\Enricher;
-use Otherguise\Index\Entries;
+use Otherguise\Index\Topics;
 use Otherguise\Index\Job\PagesJob;
 use Otherguise\Index\Wikidata\ClassTable;
 use Otherguise\Index\Wikidata\Client;
@@ -20,11 +20,11 @@ use Otherguise\Index\Wikidata\Options;
 use Otherguise\Index\Wikidata\TitleResolver;
 use PHPUnit\Framework\TestCase;
 
-require_once __DIR__ . '/support/class-otherguise-test-memory-entries.php';
+require_once __DIR__ . '/support/class-otherguise-test-memory-topics.php';
 require_once __DIR__ . '/support/class-otherguise-test-memory-kinds.php';
 
 /**
- * Entries and kinds in memory, the services answered by a double.
+ * Topics and kinds in memory, the services answered by a double.
  *
  * @covers \Otherguise\Index\Enrich\Enricher
  * @covers \Otherguise\Index\Job\PagesJob
@@ -32,11 +32,11 @@ require_once __DIR__ . '/support/class-otherguise-test-memory-kinds.php';
 class IndexEnrichTest extends TestCase {
 
 	/**
-	 * The entries.
+	 * The topics.
 	 *
-	 * @var Otherguise_Test_Memory_Entries
+	 * @var Otherguise_Test_Memory_Topics
 	 */
-	private $entries;
+	private $topics;
 
 	/**
 	 * The options.
@@ -67,14 +67,14 @@ class IndexEnrichTest extends TestCase {
 	private $time = 1700000000.0;
 
 	/**
-	 * The entries that a published post mentions.
+	 * The topics that a published post mentions.
 	 *
 	 * @var int[]
 	 */
 	private $mentioned = array();
 
 	/**
-	 * The ids of the entries by name.
+	 * The ids of the topics by name.
 	 *
 	 * @var array<string, int>
 	 */
@@ -88,7 +88,7 @@ class IndexEnrichTest extends TestCase {
 	private $enricher;
 
 	/**
-	 * Wires the enricher on doubles, with five entries that come from links to Wikipedia.
+	 * Wires the enricher on doubles, with five topics that come from links to Wikipedia.
 	 *
 	 * @return void
 	 */
@@ -99,7 +99,7 @@ class IndexEnrichTest extends TestCase {
 		$this->stored    = array( 'index_wikidata_contact' => 'me@example.test' );
 		$this->requests  = array();
 		$this->time      = 1700000000.0;
-		$this->entries   = new Otherguise_Test_Memory_Entries();
+		$this->topics   = new Otherguise_Test_Memory_Topics();
 		$this->mentioned = array();
 
 		$this->answers = array(
@@ -153,7 +153,7 @@ class IndexEnrichTest extends TestCase {
 		);
 
 		$this->enricher = new Enricher(
-			$this->entries,
+			$this->topics,
 			new TitleResolver( $client ),
 			new ItemReader( $client, static fn() => 'https://query.test/sparql' ),
 			new ClassTable( $options, fn() => (int) $this->time, static fn( $min ) => $min ),
@@ -171,7 +171,7 @@ class IndexEnrichTest extends TestCase {
 			'missing'  => 'Page inexistante',
 			'unlisted' => 'Sans article',
 		) as $name => $title ) {
-			$this->id[ $name ] = $this->entries->create( $title, 'other', 0, Entries::APPROVED, array( 'wikipedia:fr:' . $title, Otherguise\Index\Resolver::label_key( 0, $title ) ) );
+			$this->id[ $name ] = $this->topics->create( $title, 'other', 0, Topics::APPROVED, array( 'wikipedia:fr:' . $title, Otherguise\Index\Resolver::label_key( 0, $title ) ) );
 		}
 
 		$this->mentioned = array( $this->id['tet'], $this->id['col'], $this->id['paris'], $this->id['missing'] );
@@ -207,7 +207,7 @@ class IndexEnrichTest extends TestCase {
 	}
 
 	/**
-	 * The queue is the approved entries with a Wikipedia key and no Wikidata key that a published post mentions.
+	 * The queue is the approved topics with a Wikipedia key and no Wikidata key that a published post mentions.
 	 *
 	 * @return void
 	 */
@@ -215,18 +215,18 @@ class IndexEnrichTest extends TestCase {
 		$this->assertSame( array( $this->id['tet'], $this->id['col'], $this->id['paris'], $this->id['missing'] ), $this->enricher->pending() );
 		$this->assertCount( 2, $this->enricher->pending( 2 ) );
 
-		$this->entries->create( 'Candidate', 'other', 0, Entries::CANDIDATE, array( 'wikipedia:fr:Candidate' ) );
-		$this->entries->create( 'Without any key', 'other', 0, Entries::APPROVED, array( 'term:category:5' ) );
-		$this->entries->create( 'Done', 'other', 0, Entries::APPROVED, array( 'wikipedia:fr:Done', 'wikidata:Q1' ) );
+		$this->topics->create( 'Candidate', 'other', 0, Topics::CANDIDATE, array( 'wikipedia:fr:Candidate' ) );
+		$this->topics->create( 'Without any key', 'other', 0, Topics::APPROVED, array( 'term:category:5' ) );
+		$this->topics->create( 'Done', 'other', 0, Topics::APPROVED, array( 'wikipedia:fr:Done', 'wikidata:Q1' ) );
 
-		$this->mentioned = array_keys( $this->entries->entries );
+		$this->mentioned = array_keys( $this->topics->topics );
 
-		$this->assertCount( 5, $this->enricher->pending(), 'Only the five entries that wait.' );
+		$this->assertCount( 5, $this->enricher->pending(), 'Only the five topics that wait.' );
 	}
 
 	/**
 	 * A batch: the item is the key, the label is the one of Wikidata (the old label key stays), the kind comes from the classes and their
-	 * ancestors; a disambiguation page and a missing page are told apart; an entry that no post mentions is left alone; three requests.
+	 * ancestors; a disambiguation page and a missing page are told apart; a topic that no post mentions is left alone; three requests.
 	 *
 	 * @return void
 	 */
@@ -238,7 +238,7 @@ class IndexEnrichTest extends TestCase {
 		$this->assertSame( 4, $done['processed'] );
 		$this->assertSame( array( 'wikipedia', 'items', 'ancestors' ), array_column( $this->requests, 0 ) );
 
-		$tet = $this->entries->get( $this->id['tet'] );
+		$tet = $this->topics->get( $this->id['tet'] );
 
 		$this->assertSame( 'Têt', $tet['label'] );
 		$this->assertSame( 'waterway', $tet['kind'] );
@@ -246,22 +246,22 @@ class IndexEnrichTest extends TestCase {
 		$this->assertContains( 'wikipedia:fr:Têt (fleuve)', $tet['keys'] );
 		$this->assertContains( 'label:0/tet (fleuve)', $tet['keys'], 'The old label key stays.' );
 		$this->assertContains( 'label:0/tet', $tet['keys'] );
-		$this->assertSame( 'done', $this->entries->enrich_state( $this->id['tet'] )['state'] );
+		$this->assertSame( 'done', $this->topics->enrich_state( $this->id['tet'] )['state'] );
 
-		$col = $this->entries->get( $this->id['col'] );
+		$col = $this->topics->get( $this->id['col'] );
 
 		$this->assertSame( 'Col de la Perche', $col['label'] );
 		$this->assertSame( 'place', $col['kind'] );
 
-		$this->assertSame( 'ambiguous', $this->entries->enrich_state( $this->id['paris'] )['state'] );
-		$this->assertSame( 'missing', $this->entries->enrich_state( $this->id['missing'] )['state'] );
-		$this->assertSame( 'Paris (homonymie)', $this->entries->get( $this->id['paris'] )['label'], 'An ambiguous entry is not changed.' );
-		$this->assertSame( array(), $this->entries->enrich_state( $this->id['unlisted'] ) );
+		$this->assertSame( 'ambiguous', $this->topics->enrich_state( $this->id['paris'] )['state'] );
+		$this->assertSame( 'missing', $this->topics->enrich_state( $this->id['missing'] )['state'] );
+		$this->assertSame( 'Paris (homonymie)', $this->topics->get( $this->id['paris'] )['label'], 'An ambiguous topic is not changed.' );
+		$this->assertSame( array(), $this->topics->enrich_state( $this->id['unlisted'] ) );
 		$this->assertSame( array( 'Paris (homonymie)' ), array_column( $this->enricher->with_state( 'ambiguous' ), 'label' ) );
 	}
 
 	/**
-	 * The entries that were not resolved are not asked again for about a week (a jitter of 20 %), and a second batch asks only what it needs: the
+	 * The topics that were not resolved are not asked again for about a week (a jitter of 20 %), and a second batch asks only what it needs: the
 	 * ancestors of the classes are in the cache.
 	 *
 	 * @return void
@@ -276,7 +276,7 @@ class IndexEnrichTest extends TestCase {
 		$this->assertSame( 'Nothing to enrich.', $again['message'] );
 		$this->assertCount( $count, $this->requests );
 
-		$due = $this->entries->enrich_state( $this->id['paris'] )['due'];
+		$due = $this->topics->enrich_state( $this->id['paris'] )['due'];
 
 		$this->assertGreaterThanOrEqual( (int) $this->time + (int) ( 7 * 86400 * 0.8 ), $due );
 		$this->assertLessThanOrEqual( (int) $this->time + (int) ( 7 * 86400 * 1.2 ), $due );
@@ -292,15 +292,15 @@ class IndexEnrichTest extends TestCase {
 	 * @return void
 	 */
 	public function test_what_a_person_decided_is_kept(): void {
-		$this->entries->entries[ $this->id['tet'] ]['kind']          = 'route';
-		$this->entries->entries[ $this->id['tet'] ]['kind_by_hand']  = true;
-		$this->entries->entries[ $this->id['col'] ]['kind']          = 'person';
-		$this->entries->entries[ $this->id['col'] ]['label_by_hand'] = true;
+		$this->topics->topics[ $this->id['tet'] ]['kind']          = 'route';
+		$this->topics->topics[ $this->id['tet'] ]['kind_by_hand']  = true;
+		$this->topics->topics[ $this->id['col'] ]['kind']          = 'person';
+		$this->topics->topics[ $this->id['col'] ]['label_by_hand'] = true;
 
 		$this->enricher->run_batch();
 
-		$tet = $this->entries->get( $this->id['tet'] );
-		$col = $this->entries->get( $this->id['col'] );
+		$tet = $this->topics->get( $this->id['tet'] );
+		$col = $this->topics->get( $this->id['col'] );
 
 		$this->assertSame( 'route', $tet['kind'] );
 		$this->assertSame( 'Têt', $tet['label'] );
@@ -310,25 +310,25 @@ class IndexEnrichTest extends TestCase {
 	}
 
 	/**
-	 * An item that another entry already holds is not merged: the entry is a duplicate, unchanged, listed, with the other entry in its note.
+	 * An item that another topic already holds is not merged: the topic is a duplicate, unchanged, listed, with the other topic in its note.
 	 *
 	 * @return void
 	 */
 	public function test_a_duplicate_is_not_merged(): void {
-		$other = $this->entries->create( 'Têt', 'waterway', 0, Entries::APPROVED, array( 'wikidata:Q4040' ) );
+		$other = $this->topics->create( 'Têt', 'waterway', 0, Topics::APPROVED, array( 'wikidata:Q4040' ) );
 
 		$this->enricher->run_batch();
 
-		$tet = $this->entries->get( $this->id['tet'] );
+		$tet = $this->topics->get( $this->id['tet'] );
 
 		$this->assertSame( 'Têt (fleuve)', $tet['label'] );
 		$this->assertNotContains( 'wikidata:Q4040', $tet['keys'] );
-		$this->assertSame( 'duplicate', $this->entries->enrich_state( $this->id['tet'] )['state'] );
-		$this->assertSame( 'The entry ' . $other . ' has Q4040 too.', $this->enricher->with_state( 'duplicate' )[ $this->id['tet'] ]['note'] );
+		$this->assertSame( 'duplicate', $this->topics->enrich_state( $this->id['tet'] )['state'] );
+		$this->assertSame( 'The topic ' . $other . ' has Q4040 too.', $this->enricher->with_state( 'duplicate' )[ $this->id['tet'] ]['note'] );
 	}
 
 	/**
-	 * A dry run makes the requests and reports the item, the label, the classes and the kind, and writes nothing on the entries.
+	 * A dry run makes the requests and reports the item, the label, the classes and the kind, and writes nothing on the topics.
 	 *
 	 * @return void
 	 */
@@ -341,48 +341,48 @@ class IndexEnrichTest extends TestCase {
 		$this->assertSame( 'Têt', $report['new'] );
 		$this->assertSame( 'waterway', $report['kind'] );
 		$this->assertSame( array( 'Q4022' => 'cours d\'eau' ), $report['classes'] );
-		$this->assertSame( 'Têt (fleuve)', $this->entries->get( $this->id['tet'] )['label'] );
-		$this->assertSame( array(), $this->entries->enrich_state( $this->id['tet'] ) );
+		$this->assertSame( 'Têt (fleuve)', $this->topics->get( $this->id['tet'] )['label'] );
+		$this->assertSame( array(), $this->topics->enrich_state( $this->id['tet'] ) );
 		$this->assertCount( 3, $this->requests );
 	}
 
 	/**
-	 * One entry, asked for by its id, whatever its state.
+	 * One topic, asked for by its id, whatever its state.
 	 *
 	 * @return void
 	 */
-	public function test_one_entry(): void {
+	public function test_one_topic(): void {
 		$this->enricher->run_batch();
 		$this->mentioned = array();
 
 		$again = $this->enricher->run_batch( true, $this->id['paris'] );
 
-		$this->assertSame( 1, $again['processed'], 'An entry asked for by its id is looked at again even if its delay has not passed and nobody mentions it.' );
+		$this->assertSame( 1, $again['processed'], 'A topic asked for by its id is looked at again even if its delay has not passed and nobody mentions it.' );
 		$this->assertSame( 'Nothing to enrich.', $this->enricher->run_batch( true )['message'] );
 
 		$done = $this->enricher->run_batch( true, $this->id['tet'] );
 
-		$this->assertSame( 0, $done['processed'], 'An entry that has its item and its label has nothing left to ask.' );
+		$this->assertSame( 0, $done['processed'], 'A topic that has its item and its label has nothing left to ask.' );
 	}
 
 	/**
-	 * An entry that has an item and no label of its own (a link to Wikidata) gets its label and kind without a title to resolve.
+	 * A topic that has an item and no label of its own (a link to Wikidata) gets its label and kind without a title to resolve.
 	 *
 	 * @return void
 	 */
-	public function test_an_entry_that_has_only_an_identifier(): void {
-		$q = $this->entries->create( 'Q4040', 'other', 0, Entries::APPROVED, array( 'wikidata:Q4040' ) );
+	public function test_an_topic_that_has_only_an_identifier(): void {
+		$q = $this->topics->create( 'Q4040', 'other', 0, Topics::APPROVED, array( 'wikidata:Q4040' ) );
 
 		$this->mentioned = array( $q );
 		$this->enricher->run_batch();
 
-		$this->assertSame( 'Têt', $this->entries->get( $q )['label'] );
-		$this->assertSame( 'waterway', $this->entries->get( $q )['kind'] );
+		$this->assertSame( 'Têt', $this->topics->get( $q )['label'] );
+		$this->assertSame( 'waterway', $this->topics->get( $q )['kind'] );
 		$this->assertSame( array( 'items', 'ancestors' ), array_column( $this->requests, 0 ), 'No Wikipedia request: there was no title.' );
 	}
 
 	/**
-	 * A service that says "wait" pauses the enrichment until the time given, nothing is written, the entries stay in the queue, and nothing is
+	 * A service that says "wait" pauses the enrichment until the time given, nothing is written, the topics stay in the queue, and nothing is
 	 * asked while it is paused.
 	 *
 	 * @return void
@@ -397,7 +397,7 @@ class IndexEnrichTest extends TestCase {
 		$this->assertStringContainsString( 'Paused until', $first['message'] );
 		$this->assertSame( (int) $this->time + 600, $this->enricher->paused_until() );
 		$this->assertSame( array( $this->id['tet'], $this->id['col'], $this->id['paris'], $this->id['missing'] ), $this->enricher->pending() );
-		$this->assertSame( 'Têt (fleuve)', $this->entries->get( $this->id['tet'] )['label'] );
+		$this->assertSame( 'Têt (fleuve)', $this->topics->get( $this->id['tet'] )['label'] );
 
 		$count  = count( $this->requests );
 		$paused = $this->enricher->run_batch();
@@ -454,7 +454,7 @@ class IndexEnrichTest extends TestCase {
 
 		$this->assertTrue( $three['stop'] );
 		$this->assertStringContainsString( 'Stopped after 3 failure(s) in a row', $three['message'] );
-		$this->assertSame( array(), $this->entries->enrich_state( $this->id['tet'] ) );
+		$this->assertSame( array(), $this->topics->enrich_state( $this->id['tet'] ) );
 
 		$this->answers['wikipedia'] = $this->ok( '{"query":{"pages":[]}}' );
 		$this->assertTrue( $this->enricher->run_batch()['ok'] );
@@ -472,8 +472,8 @@ class IndexEnrichTest extends TestCase {
 		$done = $this->enricher->run_batch();
 
 		$this->assertFalse( $done['ok'] );
-		$this->assertSame( 'Têt (fleuve)', $this->entries->get( $this->id['tet'] )['label'] );
-		$this->assertSame( array(), $this->entries->enrich_state( $this->id['tet'] ) );
+		$this->assertSame( 'Têt (fleuve)', $this->topics->get( $this->id['tet'] )['label'] );
+		$this->assertSame( array(), $this->topics->enrich_state( $this->id['tet'] ) );
 	}
 
 	/**
@@ -486,7 +486,7 @@ class IndexEnrichTest extends TestCase {
 
 		$client = new Client( new Options( fn( $name, $default_value = false ) => $this->stored[ $name ] ?? $default_value, static function () {} ), static fn() => $this->fail( 'A request was made.' ), static fn() => '', '1.0' );
 		$enrich = new Enricher(
-			$this->entries,
+			$this->topics,
 			new TitleResolver( $client ),
 			new ItemReader( $client ),
 			new ClassTable( new Options( fn( $n, $d = false ) => $this->stored[ $n ] ?? $d, static function () {} ) ),
@@ -507,7 +507,7 @@ class IndexEnrichTest extends TestCase {
 	}
 
 	/**
-	 * The job takes the stop of a unit without counting a failure, and counts the entries of a batch.
+	 * The job takes the stop of a unit without counting a failure, and counts the topics of a batch.
 	 *
 	 * @return void
 	 */

@@ -20,23 +20,23 @@ use Otherguise\Index\Source\Page;
 
 require_once __DIR__ . '/support/class-otherguise-test-database-case.php';
 require_once __DIR__ . '/support/class-otherguise-test-modes-site.php';
-require_once __DIR__ . '/support/class-otherguise-test-memory-entries.php';
+require_once __DIR__ . '/support/class-otherguise-test-memory-topics.php';
 require_once __DIR__ . '/support/class-otherguise-test-memory-kinds.php';
 require_once __DIR__ . '/support/class-otherguise-test-html-api.php';
 
 /**
- * The statements are real; the page is a string, the entries are in memory, posts and meta are stubs.
+ * The statements are real; the page is a string, the topics are in memory, posts and meta are stubs.
  *
  * @covers \Otherguise\Index\Job\PagesService
  */
 class IndexPagesDbTest extends Otherguise_Test_Database_Case {
 
 	/**
-	 * The entries.
+	 * The topics.
 	 *
-	 * @var Otherguise_Test_Memory_Entries
+	 * @var Otherguise_Test_Memory_Topics
 	 */
-	private $entries;
+	private $topics;
 
 	/**
 	 * The mentions.
@@ -103,7 +103,7 @@ class IndexPagesDbTest extends Otherguise_Test_Database_Case {
 		);
 		$statements = $site->statements;
 
-		$this->entries  = new Otherguise_Test_Memory_Entries();
+		$this->topics  = new Otherguise_Test_Memory_Topics();
 		$this->mentions = new Mentions(
 			static function () use ( $statements ) {
 				return $statements;
@@ -121,7 +121,7 @@ class IndexPagesDbTest extends Otherguise_Test_Database_Case {
 		);
 
 		$indexer = new Indexer(
-			new Resolver( $this->entries ),
+			new Resolver( $this->topics ),
 			$this->mentions,
 			$on ? array( new Page( $store ) ) : array(),
 			static fn( $id ) => 'publish' === get_post_status( $id )
@@ -157,7 +157,7 @@ class IndexPagesDbTest extends Otherguise_Test_Database_Case {
 	}
 
 	/**
-	 * The labels of the entries a post mentions.
+	 * The labels of the topics a post mentions.
 	 *
 	 * @param int $post Post.
 	 * @return string[]
@@ -166,7 +166,7 @@ class IndexPagesDbTest extends Otherguise_Test_Database_Case {
 		$labels = array();
 
 		foreach ( array_keys( $this->mentions->of_post( $post ) ) as $id ) {
-			$labels[] = $this->entries->get( $id )['label'];
+			$labels[] = $this->topics->get( $id )['label'];
 		}
 
 		sort( $labels );
@@ -181,7 +181,7 @@ class IndexPagesDbTest extends Otherguise_Test_Database_Case {
 	 * @return void
 	 */
 	public function test_from_the_page_to_the_mentions(): void {
-		$with_link = '<header><a href="https://fr.wikipedia.org/wiki/Menu">m</a></header><main><div class="entry-content"><a href="https://fr.wikipedia.org/wiki/Beaufort_(fromage)">w</a> <span data-index="wikidata:Q9" data-index-kind="species" data-index-label="Merle noir">x</span></div></main>';
+		$with_link = '<header><a href="https://fr.wikipedia.org/wiki/Menu">m</a></header><main><div class="topic-content"><a href="https://fr.wikipedia.org/wiki/Beaufort_(fromage)">w</a> <span data-index="wikidata:Q9" data-index-kind="species" data-index-label="Merle noir">x</span></div></main>';
 
 		$this->pages['https://e.vli.st/post-12/'] = $this->page( $with_link );
 
@@ -194,30 +194,30 @@ class IndexPagesDbTest extends Otherguise_Test_Database_Case {
 		);
 		$this->assertSame( array( 'Beaufort (fromage)', 'Merle noir' ), $this->mentioned( 12 ) );
 		$this->assertStringStartsWith( '1700000000 ', $this->meta[12]['_index_harvest'] );
-		$this->assertCount( 2, $this->entries->entries );
+		$this->assertCount( 2, $this->topics->topics );
 
 		$count = count( $this->wpdb->get_results( 'SELECT id FROM `' . $this->table() . '`' ) );
 		$this->service->process( 12 );
 		$this->assertSame( $count, count( $this->wpdb->get_results( 'SELECT id FROM `' . $this->table() . '`' ) ) );
-		$this->assertCount( 2, $this->entries->entries );
+		$this->assertCount( 2, $this->topics->topics );
 
-		$this->pages['https://e.vli.st/post-12/'] = $this->page( '<main><div class="entry-content"><span data-index="wikidata:Q9" data-index-label="Merle noir">x</span></div></main>' );
+		$this->pages['https://e.vli.st/post-12/'] = $this->page( '<main><div class="topic-content"><span data-index="wikidata:Q9" data-index-label="Merle noir">x</span></div></main>' );
 		$this->service->process( 12 );
 
 		$this->assertSame( array( 'Merle noir' ), $this->mentioned( 12 ) );
 
-		$entry = array_key_first( $this->mentions->of_post( 12 ) );
+		$topic = array_key_first( $this->mentions->of_post( 12 ) );
 
-		$this->assertSame( array( 'post/mark' ), $this->mentions->of_post( 12 )[ $entry ]['sources'], 'What is left is the mark, which is a source of its own.' );
+		$this->assertSame( array( 'post/mark' ), $this->mentions->of_post( 12 )[ $topic ]['sources'], 'What is left is the mark, which is a source of its own.' );
 	}
 
 	/**
-	 * Two posts that link to one page share one entry, and a key learnt by another source finds it.
+	 * Two posts that link to one page share one topic, and a key learnt by another source finds it.
 	 *
 	 * @return void
 	 */
-	public function test_two_posts_share_an_entry(): void {
-		$html = '<main><div class="entry-content"><a href="https://fr.wikipedia.org/wiki/Cap_Ortegal">c</a></div></main>';
+	public function test_two_posts_share_an_topic(): void {
+		$html = '<main><div class="topic-content"><a href="https://fr.wikipedia.org/wiki/Cap_Ortegal">c</a></div></main>';
 
 		$this->pages['https://e.vli.st/post-12/'] = $this->page( $html );
 		$this->pages['https://e.vli.st/post-13/'] = $this->page( $html );
@@ -225,8 +225,8 @@ class IndexPagesDbTest extends Otherguise_Test_Database_Case {
 		$this->service->process( 12 );
 		$this->service->process( 13 );
 
-		$this->assertCount( 1, $this->entries->entries );
-		$this->assertSame( array( 12, 13 ), array_keys( $this->mentions->of_entry( array_key_first( $this->entries->entries ) ) ) );
+		$this->assertCount( 1, $this->topics->topics );
+		$this->assertSame( array( 12, 13 ), array_keys( $this->mentions->of_topic( array_key_first( $this->topics->topics ) ) ) );
 	}
 
 	/**
@@ -245,7 +245,7 @@ class IndexPagesDbTest extends Otherguise_Test_Database_Case {
 
 		$this->assertFalse( $draft['ok'] );
 		$this->assertStringContainsString( 'not published', $draft['message'] );
-		$this->assertSame( array(), $this->entries->entries );
+		$this->assertSame( array(), $this->topics->topics );
 		$this->assertSame( array(), $this->meta );
 	}
 

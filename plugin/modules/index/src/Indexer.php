@@ -13,7 +13,7 @@ namespace Otherguise\Index;
 defined( 'ABSPATH' ) || exit;
 
 /**
- * For a post: each enabled source says what it speaks of, the resolver ties it to entries, `Mentions::sync()` writes. A post that is not
+ * For a post: each enabled source says what it speaks of, the resolver ties it to topics, `Mentions::sync()` writes. A post that is not
  * published has no mention (its mentions are withdrawn).
  */
 final class Indexer {
@@ -102,13 +102,13 @@ final class Indexer {
 				$done = $this->resolver->resolve( $candidate, $source->is_sure(), $dry );
 
 				++$report[ $done['result'] ];
-				// The entries created for the broader terms count as created, not as resolved.
+				// The topics created for the broader terms count as created, not as resolved.
 				$report['created'] += $done['new'] - ( Resolver::CREATED === $done['result'] ? 1 : 0 );
 
-				if ( $done['entry'] > 0 ) {
+				if ( $done['topic'] > 0 ) {
 					$leaf = null !== $candidate->source && '' !== $candidate->source ? $candidate->source : $leaves[0];
 
-					$wanted[ $leaf ][ $done['entry'] ] = $this->merged( $wanted[ $leaf ][ $done['entry'] ] ?? null, $candidate, $leaf );
+					$wanted[ $leaf ][ $done['topic'] ] = $this->merged( $wanted[ $leaf ][ $done['topic'] ] ?? null, $candidate, $leaf );
 				}
 			}
 
@@ -116,7 +116,7 @@ final class Indexer {
 				continue;
 			}
 
-			foreach ( $wanted as $leaf => $entries ) {
+			foreach ( $wanted as $leaf => $topics ) {
 				$synced = $this->mentions->sync(
 					(int) $post_id,
 					$leaf,
@@ -126,7 +126,7 @@ final class Indexer {
 							'via'      => $what['via'],
 							'visible'  => $what['visible'] ?? array(),
 						),
-						$entries
+						$topics
 					)
 				);
 
@@ -139,7 +139,7 @@ final class Indexer {
 	}
 
 	/**
-	 * What a mention wants once a candidate is added to what was already wanted for the same entry and source: the strongest strength, every
+	 * What a mention wants once a candidate is added to what was already wanted for the same topic and source: the strongest strength, every
 	 * `via`, and the modes in which it is shown (**every mode** as soon as one candidate is shown everywhere).
 	 *
 	 * @param array<string, mixed>|null $before    What was wanted, or null.

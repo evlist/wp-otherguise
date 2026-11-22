@@ -10,7 +10,7 @@
 
 namespace Otherguise\Index\Cli;
 
-use Otherguise\Index\Entries;
+use Otherguise\Index\Topics;
 use Otherguise\Index\Harvest\PageReader;
 use Otherguise\Index\Indexer;
 use Otherguise\Index\Kinds;
@@ -19,17 +19,17 @@ use Otherguise\Index\Mentions;
 defined( 'ABSPATH' ) || exit;
 
 /**
- * `wp otherguise index rebuild|kind|entries|show|link` (slice 600). Every command that writes can be run twice; `rebuild` has `--dry-run`.
+ * `wp otherguise index rebuild|kind|topics|show|link` (slice 600). Every command that writes can be run twice; `rebuild` has `--dry-run`.
  */
 final class IndexCommand {
 	public const BATCH = 100;
 
 	/**
-	 * The store of the entries.
+	 * The store of the topics.
 	 *
-	 * @var Entries
+	 * @var Topics
 	 */
-	private $entries;
+	private $topics;
 
 	/**
 	 * The indexer.
@@ -97,7 +97,7 @@ final class IndexCommand {
 	/**
 	 * Builds the command.
 	 *
-	 * @param Entries         $entries       Entries.
+	 * @param Topics          $topics       Topics.
 	 * @param Indexer         $indexer       Indexer.
 	 * @param Mentions        $mentions      Mentions.
 	 * @param callable        $posts         Ids of the published posts, by page.
@@ -108,8 +108,8 @@ final class IndexCommand {
 	 * @param PageReader|null $page_reader The reader of a page (slice 601).
 	 * @param callable|null   $load          Loads a file or an address; default a local file or an ordinary HTTP request.
 	 */
-	public function __construct( Entries $entries, Indexer $indexer, Mentions $mentions, $posts, $set_term_kind, $log = null, $success = null, $fail = null, $page_reader = null, $load = null ) {
-		$this->entries       = $entries;
+	public function __construct( Topics $topics, Indexer $indexer, Mentions $mentions, $posts, $set_term_kind, $log = null, $success = null, $fail = null, $page_reader = null, $load = null ) {
+		$this->topics       = $topics;
 		$this->indexer       = $indexer;
 		$this->mentions      = $mentions;
 		$this->posts         = $posts;
@@ -238,7 +238,7 @@ final class IndexCommand {
 	}
 
 	/**
-	 * Lists the entries.
+	 * Lists the topics.
 	 *
 	 * ## OPTIONS
 	 *
@@ -252,7 +252,7 @@ final class IndexCommand {
 	 * @param array $assoc Options.
 	 * @return void
 	 */
-	public function entries( $args, $assoc ) {
+	public function topics( $args, $assoc ) {
 		unset( $args );
 
 		$filters = array();
@@ -263,13 +263,32 @@ final class IndexCommand {
 			}
 		}
 
-		foreach ( $this->entries->all( $filters ) as $entry ) {
-			( $this->log )( $entry['id'] . "\t" . $entry['status'] . "\t" . $entry['kind'] . "\t" . $entry['label'] . ( $entry['parent'] > 0 ? ' (under ' . $entry['parent'] . ')' : '' ) . "\t" . implode( ' ', $entry['keys'] ) );
+		foreach ( $this->topics->all( $filters ) as $topic ) {
+			( $this->log )( $topic['id'] . "\t" . $topic['status'] . "\t" . $topic['kind'] . "\t" . $topic['label'] . ( $topic['parent'] > 0 ? ' (under ' . $topic['parent'] . ')' : '' ) . "\t" . implode( ' ', $topic['keys'] ) );
 		}
 	}
 
 	/**
-	 * Shows the entries a post mentions.
+	 * Deprecated: the old name of `topics` (the topics were called entries until 2026-11-22).
+	 *
+	 * ## OPTIONS
+	 *
+	 * [--status=<status>]
+	 * : `approved`, `candidate` or `refused`.
+	 *
+	 * [--kind=<kind>]
+	 * : Only this kind.
+	 *
+	 * @param array $args  Positional arguments.
+	 * @param array $assoc Options.
+	 * @return void
+	 */
+	public function entries( $args, $assoc ) {
+		$this->topics( $args, $assoc );
+	}
+
+	/**
+	 * Shows the topics a post mentions.
 	 *
 	 * ## OPTIONS
 	 *
@@ -284,14 +303,14 @@ final class IndexCommand {
 		unset( $assoc );
 
 		foreach ( $this->mentions->of_post( (int) ( $args[0] ?? 0 ) ) as $id => $mention ) {
-			$entry = $this->entries->get( $id );
+			$topic = $this->topics->get( $id );
 
-			( $this->log )( $id . "\t" . ( null === $entry ? '?' : $entry['label'] ) . "\t" . $mention['strength'] . "\t" . implode( ',', $mention['sources'] ) );
+			( $this->log )( $id . "\t" . ( null === $topic ? '?' : $topic['label'] ) . "\t" . $mention['strength'] . "\t" . implode( ',', $mention['sources'] ) );
 		}
 	}
 
 	/**
-	 * Links a key to an entry: the key is added to the aliases of the entry, so the sources will find it there. Settles an ambiguous
+	 * Links a key to a topic: the key is added to the aliases of the topic, so the sources will find it there. Settles an ambiguous
 	 * candidate. Can be run twice.
 	 *
 	 * ## OPTIONS
@@ -299,8 +318,8 @@ final class IndexCommand {
 	 * <key>
 	 * : The key (`term:post_tag:12`, `wikidata:Q42`...).
 	 *
-	 * <entry>
-	 * : The id of the entry.
+	 * <topic>
+	 * : The id of the topic.
 	 *
 	 * @param array $args  Positional arguments.
 	 * @param array $assoc Options.
@@ -310,21 +329,21 @@ final class IndexCommand {
 		unset( $assoc );
 
 		$key   = (string) ( $args[0] ?? '' );
-		$entry = (int) ( $args[1] ?? 0 );
+		$topic = (int) ( $args[1] ?? 0 );
 
-		if ( '' === $key || null === $this->entries->get( $entry ) ) {
-			( $this->fail )( 'Give a key and the id of an existing entry.' );
+		if ( '' === $key || null === $this->topics->get( $topic ) ) {
+			( $this->fail )( 'Give a key and the id of an existing topic.' );
 
 			return;
 		}
 
-		$this->entries->add_keys( $entry, array( $key ) );
+		$this->topics->add_keys( $topic, array( $key ) );
 
-		foreach ( $this->entries->with_key( 'ambiguous:' . $key ) as $pending ) {
-			$this->entries->delete( $pending );
+		foreach ( $this->topics->with_key( 'ambiguous:' . $key ) as $pending ) {
+			$this->topics->delete( $pending );
 		}
 
-		( $this->success )( 'The key ' . $key . ' is an alias of the entry ' . $entry . '. Run `wp otherguise index rebuild` to make the mentions.' );
+		( $this->success )( 'The key ' . $key . ' is an alias of the topic ' . $topic . '. Run `wp otherguise index rebuild` to make the mentions.' );
 	}
 
 	/**

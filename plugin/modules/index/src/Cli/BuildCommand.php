@@ -93,7 +93,7 @@ final class BuildCommand {
 	 * : `json` (default), `csv` or `html`.
 	 *
 	 * [--no-context]
-	 * : Do not show the broader entry in parentheses after a label.
+	 * : Do not show the broader topic in parentheses after a label.
 	 *
 	 * ## EXAMPLES
 	 *

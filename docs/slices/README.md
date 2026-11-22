@@ -55,6 +55,8 @@ The module Wiki, on the level 3 of the design note (an address of our own); **pr
 | [507](507-wiki-other-angles.md) | Wiki: the other angles of a subject (the same title elsewhere in the hierarchy, `wiki/same-subject`, the block) — **rewritten and coded on the branch `wiki`** and merged into `main` on 2026-11-21 |
 | [508](508-wiki-migration-script.md) | Wiki: the migration from the SelfPedia, a throw-away tool in `evlist/shared-room` (`tools/wiki-migration/`) — **rewritten and coded**, only tried on a sample |
 
+> **Vocabulary (2026-11-22).** The slices 600 to 612 were written when a concept of the index was called an *entry*. **The code says *topic* since 2026-11-22**: `Entries` → `Topics`, `TermEntries` → `TermTopics`, the taxonomy `index_entry` → `index_topic` (migrated once, automatically), `Module::entries()` → `topics()`, `wp otherguise index entries` → `topics` (the old name is a deprecated alias). *Entry* now means **a printed line of an index**. Read *entry* as *topic* in those slices.
+
 ## Index (the module of the entries of an index, [design note](../design/index.md))
 
 | Slice | What | Status |

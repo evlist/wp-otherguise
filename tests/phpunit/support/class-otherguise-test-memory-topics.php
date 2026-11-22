@@ -3,23 +3,23 @@
  * SPDX-FileCopyrightText: 2026 Eric van der Vlist <vdv@dyomedea.com>
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * The entries of the index, in memory.
+ * The topics of the index, in memory.
  *
  * @package Otherguise
  */
 
-use Otherguise\Index\Entries;
+use Otherguise\Index\Topics;
 
 /**
- * Stands for the taxonomy `index_entry`. Each entry created is also declared as a `WP_Term` of the stubs, so that a mention can point at it.
+ * Stands for the taxonomy `index_topic`. Each topic created is also declared as a `WP_Term` of the stubs, so that a mention can point at it.
  */
-final class Otherguise_Test_Memory_Entries implements Entries {
+final class Otherguise_Test_Memory_Topics implements Topics {
 	/**
-	 * The entries by id.
+	 * The topics by id.
 	 *
 	 * @var array<int, array<string, mixed>>
 	 */
-	public $entries = array();
+	public $topics = array();
 
 	/**
 	 * The last id given.
@@ -29,7 +29,7 @@ final class Otherguise_Test_Memory_Entries implements Entries {
 	private $last = 100;
 
 	/**
-	 * The ids of the entries that hold a key.
+	 * The ids of the topics that hold a key.
 	 *
 	 * @param string $key Key.
 	 * @return int[]
@@ -37,8 +37,8 @@ final class Otherguise_Test_Memory_Entries implements Entries {
 	public function with_key( $key ) {
 		$ids = array();
 
-		foreach ( $this->entries as $id => $entry ) {
-			if ( in_array( $key, $entry['keys'], true ) ) {
+		foreach ( $this->topics as $id => $topic ) {
+			if ( in_array( $key, $topic['keys'], true ) ) {
 				$ids[] = $id;
 			}
 		}
@@ -47,7 +47,7 @@ final class Otherguise_Test_Memory_Entries implements Entries {
 	}
 
 	/**
-	 * Creates an entry.
+	 * Creates a topic.
 	 *
 	 * @param string   $label  Label.
 	 * @param string   $kind   Kind.
@@ -59,7 +59,7 @@ final class Otherguise_Test_Memory_Entries implements Entries {
 	public function create( $label, $kind, $parent, $status, array $keys ) {
 		$id = ++$this->last;
 
-		$this->entries[ $id ] = array(
+		$this->topics[ $id ] = array(
 			'id'           => $id,
 			'label'        => $label,
 			'kind'         => $kind,
@@ -79,94 +79,94 @@ final class Otherguise_Test_Memory_Entries implements Entries {
 	/**
 	 * Adds keys.
 	 *
-	 * @param int      $id   Entry.
+	 * @param int      $id   Topic.
 	 * @param string[] $keys Keys.
 	 * @return void
 	 */
 	public function add_keys( $id, array $keys ) {
-		$this->entries[ $id ]['keys'] = array_values( array_unique( array_merge( $this->entries[ $id ]['keys'], $keys ) ) );
+		$this->topics[ $id ]['keys'] = array_values( array_unique( array_merge( $this->topics[ $id ]['keys'], $keys ) ) );
 	}
 
 	/**
 	 * Sets a kind.
 	 *
-	 * @param int    $id      Entry.
+	 * @param int    $id      Topic.
 	 * @param string $kind    Kind.
 	 * @param bool   $by_hand By hand.
 	 * @return void
 	 */
 	public function set_kind( $id, $kind, $by_hand ) {
-		$this->entries[ $id ]['kind'] = $kind;
+		$this->topics[ $id ]['kind'] = $kind;
 
 		if ( $by_hand ) {
-			$this->entries[ $id ]['kind_by_hand'] = true;
+			$this->topics[ $id ]['kind_by_hand'] = true;
 		}
 	}
 
 	/**
 	 * Changes a label.
 	 *
-	 * @param int    $id    Entry.
+	 * @param int    $id    Topic.
 	 * @param string $label Label.
 	 * @return void
 	 */
 	public function set_label( $id, $label ) {
-		$this->entries[ $id ]['label'] = $label;
+		$this->topics[ $id ]['label'] = $label;
 	}
 
 	/**
 	 * The state of the enrichment.
 	 *
-	 * @param int $id Entry.
+	 * @param int $id Topic.
 	 * @return array<string, mixed>
 	 */
 	public function enrich_state( $id ) {
-		return $this->entries[ $id ]['enrich'] ?? array();
+		return $this->topics[ $id ]['enrich'] ?? array();
 	}
 
 	/**
 	 * Keeps the state of the enrichment.
 	 *
-	 * @param int                  $id    Entry.
+	 * @param int                  $id    Topic.
 	 * @param array<string, mixed> $state State.
 	 * @return void
 	 */
 	public function set_enrich_state( $id, array $state ) {
-		$this->entries[ $id ]['enrich'] = $state;
+		$this->topics[ $id ]['enrich'] = $state;
 	}
 
 	/**
-	 * Deletes an entry.
+	 * Deletes a topic.
 	 *
-	 * @param int $id Entry.
+	 * @param int $id Topic.
 	 * @return void
 	 */
 	public function delete( $id ) {
-		unset( $this->entries[ $id ], $GLOBALS['otherguise_test_objects']['WP_Term'][ $id ] );
+		unset( $this->topics[ $id ], $GLOBALS['otherguise_test_objects']['WP_Term'][ $id ] );
 	}
 
 	/**
-	 * Reads an entry.
+	 * Reads a topic.
 	 *
-	 * @param int $id Entry.
+	 * @param int $id Topic.
 	 * @return array<string, mixed>|null
 	 */
 	public function get( $id ) {
-		return $this->entries[ $id ] ?? null;
+		return $this->topics[ $id ] ?? null;
 	}
 
 	/**
-	 * The entries, filtered.
+	 * The topics, filtered.
 	 *
 	 * @param array<string, mixed> $filters Filters.
 	 * @return array<int, array<string, mixed>>
 	 */
 	public function all( array $filters = array() ) {
 		return array_filter(
-			$this->entries,
-			static function ( $entry ) use ( $filters ) {
+			$this->topics,
+			static function ( $topic ) use ( $filters ) {
 				foreach ( array( 'kind', 'status', 'parent' ) as $name ) {
-					if ( isset( $filters[ $name ] ) && (string) $entry[ $name ] !== (string) $filters[ $name ] ) {
+					if ( isset( $filters[ $name ] ) && (string) $topic[ $name ] !== (string) $filters[ $name ] ) {
 						return false;
 					}
 				}

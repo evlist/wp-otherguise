@@ -23,7 +23,7 @@ final class Otherguise_Test_Memory_Kinds implements KindStore {
 	public $kinds = array();
 
 	/**
-	 * What `usage()` answers, by slug: `array( terms, entries )`.
+	 * What `usage()` answers, by slug: `array( terms, topics )`.
 	 *
 	 * @var array<string, array{0:int,1:int}>
 	 */
@@ -122,15 +122,15 @@ final class Otherguise_Test_Memory_Kinds implements KindStore {
 	}
 
 	/**
-	 * How many terms and entries use a kind.
+	 * How many terms and topics use a kind.
 	 *
 	 * @param string $slug Slug.
-	 * @return array{terms:int,entries:int}
+	 * @return array{terms:int,topics:int}
 	 */
 	public function usage( $slug ) {
 		return array(
 			'terms'   => $this->used[ $slug ][0] ?? 0,
-			'entries' => $this->used[ $slug ][1] ?? 0,
+			'topics'  => $this->used[ $slug ][1] ?? 0,
 		);
 	}
 

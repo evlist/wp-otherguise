@@ -10,7 +10,7 @@
 
 namespace Otherguise\Index\Enrich;
 
-use Otherguise\Index\Entries;
+use Otherguise\Index\Topics;
 use Otherguise\Index\Job\PagesJob;
 use Otherguise\Index\Mentions;
 use Otherguise\Index\Wikidata\Client;
@@ -22,7 +22,7 @@ use Otherguise\Index\Wikidata\TitleResolver;
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Builds the pieces of the enrichment on WordPress (slice 604): the client with its rules of good use, the enricher on the entries and the
+ * Builds the pieces of the enrichment on WordPress (slice 604): the client with its rules of good use, the enricher on the topics and the
  * mentions, the job on the option and the cron, and the switch. **Off until enabled** (`index_enrich`): a site that did not ask sends nothing.
  */
 final class EnrichService {
@@ -31,11 +31,11 @@ final class EnrichService {
 	public const JOB       = 'index_enrich_job';
 
 	/**
-	 * The entries.
+	 * The topics.
 	 *
-	 * @var Entries
+	 * @var Topics
 	 */
-	private $entries;
+	private $topics;
 
 	/**
 	 * The mentions.
@@ -47,11 +47,11 @@ final class EnrichService {
 	/**
 	 * Builds the service.
 	 *
-	 * @param Entries  $entries  The entries.
+	 * @param Topics   $topics  The topics.
 	 * @param Mentions $mentions The mentions.
 	 */
-	public function __construct( Entries $entries, Mentions $mentions ) {
-		$this->entries  = $entries;
+	public function __construct( Topics $topics, Mentions $mentions ) {
+		$this->topics  = $topics;
 		$this->mentions = $mentions;
 	}
 
@@ -112,12 +112,12 @@ final class EnrichService {
 		$client = $this->client();
 
 		return new Enricher(
-			$this->entries,
+			$this->topics,
 			new TitleResolver( $client ),
 			new ItemReader( $client ),
 			$this->classes(),
 			new Options(),
-			fn( $id ) => array() !== $this->mentions->of_entry( (int) $id ),
+			fn( $id ) => array() !== $this->mentions->of_topic( (int) $id ),
 			substr( (string) get_locale(), 0, 2 )
 		);
 	}
@@ -151,7 +151,7 @@ final class EnrichService {
 	}
 
 	/**
-	 * The job, on the option and the cron: its units are batches of the queue, which changes as entries are done.
+	 * The job, on the option and the cron: its units are batches of the queue, which changes as topics are done.
 	 *
 	 * @param bool $foreground Whether it runs in the foreground: it schedules nothing.
 	 * @return PagesJob

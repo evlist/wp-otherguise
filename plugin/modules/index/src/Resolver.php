@@ -3,7 +3,7 @@
  * SPDX-FileCopyrightText: 2026 Eric van der Vlist <vdv@dyomedea.com>
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * Ties candidates to entries.
+ * Ties candidates to topics.
  *
  * @package Otherguise
  */
@@ -13,16 +13,16 @@ namespace Otherguise\Index;
 defined( 'ABSPATH' ) || exit;
 
 /**
- * The resolver (slice 600). A candidate is looked up **by its keys** among the keys of the entries:
+ * The resolver (slice 600). A candidate is looked up **by its keys** among the keys of the topics:
  *
  * - the keys are tried most reliable first, the label key last: the **first key that matches** decides;
- * - one entry: it is that entry (the other keys of the candidate are added to it, so that a later source finds it by any of them);
- * - none: an entry is created, `approved` when the source is sure, `candidate` otherwise;
- * - several entries: the candidate is **ambiguous**, recorded as a `candidate` entry that carries its keys, and not mentioned until a
- *   person links it (adding a key to an entry is what linking is).
+ * - one topic: it is that topic (the other keys of the candidate are added to it, so that a later source finds it by any of them);
+ * - none: a topic is created, `approved` when the source is sure, `candidate` otherwise;
+ * - several topics: the candidate is **ambiguous**, recorded as a `candidate` topic that carries its keys, and not mentioned until a
+ *   person links it (adding a key to a topic is what linking is).
  *
- * The label key (`label:<folded label>`) is a key of every entry, scoped by the parent (`label:<parent id>/<folded label>`), so that two
- * homonyms with two parents stay two entries. A candidate with no key at all is looked up by its label key only.
+ * The label key (`label:<folded label>`) is a key of every topic, scoped by the parent (`label:<parent id>/<folded label>`), so that two
+ * homonyms with two parents stay two topics. A candidate with no key at all is looked up by its label key only.
  */
 final class Resolver {
 	public const RESOLVED  = 'resolved';
@@ -32,26 +32,26 @@ final class Resolver {
 	/**
 	 * The store.
 	 *
-	 * @var Entries
+	 * @var Topics
 	 */
-	private $entries;
+	private $topics;
 
 	/**
 	 * Builds the resolver.
 	 *
-	 * @param Entries $entries The store.
+	 * @param Topics $topics The store.
 	 */
-	public function __construct( Entries $entries ) {
-		$this->entries = $entries;
+	public function __construct( Topics $topics ) {
+		$this->topics = $topics;
 	}
 
 	/**
 	 * Resolves a candidate.
 	 *
 	 * @param Candidate $candidate The candidate.
-	 * @param bool      $sure      Whether its source is sure (a new entry is then approved).
-	 * @param bool      $dry       Write nothing: say what would happen (an entry that would be created has the id 0).
-	 * @return array{result:string,entry:int,new:int} `entry` is 0 when ambiguous; `new` counts the entries created, the broader ones included.
+	 * @param bool      $sure      Whether its source is sure (a new topic is then approved).
+	 * @param bool      $dry       Write nothing: say what would happen (a topic that would be created has the id 0).
+	 * @return array{result:string,topic:int,new:int} `topic` is 0 when ambiguous; `new` counts the topics created, the broader ones included.
 	 */
 	public function resolve( Candidate $candidate, $sure = true, $dry = false ) {
 		$parent = 0;
@@ -59,13 +59,13 @@ final class Resolver {
 
 		if ( null !== $candidate->parent ) {
 			$above  = $this->resolve( $candidate->parent, $sure, $dry );
-			$parent = $above['entry'];
+			$parent = $above['topic'];
 
 			// An ambiguous parent makes the child ambiguous; a parent that would be created makes the child new.
 			if ( self::AMBIGUOUS === $above['result'] || ( $dry && 0 === $parent ) ) {
 				return array(
 					'result' => self::AMBIGUOUS === $above['result'] ? self::AMBIGUOUS : self::CREATED,
-					'entry'  => 0,
+					'topic'  => 0,
 					'new'    => $above['new'] + ( self::AMBIGUOUS === $above['result'] ? 0 : 1 ),
 				);
 			}
@@ -77,7 +77,7 @@ final class Resolver {
 
 		// The first key that matches decides: the keys come most reliable first and the label comes last.
 		foreach ( $keys as $key ) {
-			$found = $this->without_refused( $this->entries->with_key( $key ) );
+			$found = $this->without_refused( $this->topics->with_key( $key ) );
 
 			if ( array() !== $found ) {
 				if ( $key === $label && 1 === count( $found ) && $this->conflicts( (int) reset( $found ), $candidate ) ) {
@@ -95,7 +95,7 @@ final class Resolver {
 
 			return array(
 				'result' => self::AMBIGUOUS,
-				'entry'  => 0,
+				'topic'  => 0,
 				'new'    => $above['new'],
 			);
 		}
@@ -104,12 +104,12 @@ final class Resolver {
 			$id = (int) reset( $found );
 
 			if ( ! $dry ) {
-				$this->entries->add_keys( $id, $keys );
+				$this->topics->add_keys( $id, $keys );
 			}
 
 			return array(
 				'result' => self::RESOLVED,
-				'entry'  => $id,
+				'topic'  => $id,
 				'new'    => $above['new'],
 			);
 		}
@@ -117,37 +117,37 @@ final class Resolver {
 		if ( $dry ) {
 			return array(
 				'result' => self::CREATED,
-				'entry'  => 0,
+				'topic'  => 0,
 				'new'    => $above['new'] + 1,
 			);
 		}
 
-		$id = $this->entries->create( $candidate->label, $candidate->kind, $parent, $sure ? Entries::APPROVED : Entries::CANDIDATE, $keys );
+		$id = $this->topics->create( $candidate->label, $candidate->kind, $parent, $sure ? Topics::APPROVED : Topics::CANDIDATE, $keys );
 
 		return array(
 			'result' => self::CREATED,
-			'entry'  => $id,
+			'topic'  => $id,
 			'new'    => $above['new'] + 1,
 		);
 	}
 
 	/**
-	 * Whether an entry found by the label alone has a kind that cannot be the candidate's (neither is a sort of the other; `other` conflicts with nothing).
+	 * Whether a topic found by the label alone has a kind that cannot be the candidate's (neither is a sort of the other; `other` conflicts with nothing).
 	 *
-	 * @param int       $id        Entry.
+	 * @param int       $id        Topic.
 	 * @param Candidate $candidate Candidate.
 	 * @return bool
 	 */
 	private function conflicts( $id, Candidate $candidate ) {
-		$entry = $this->entries->get( $id );
+		$topic = $this->topics->get( $id );
 
-		return null !== $entry && ! Kinds::compatible( (string) $entry['kind'], $candidate->kind );
+		return null !== $topic && ! Kinds::compatible( (string) $topic['kind'], $candidate->kind );
 	}
 
 	/**
 	 * The key of a label under a parent.
 	 *
-	 * @param int    $parent Parent entry.
+	 * @param int    $parent Parent topic.
 	 * @param string $label  Label.
 	 * @return string
 	 */
@@ -156,9 +156,9 @@ final class Resolver {
 	}
 
 	/**
-	 * Drops the refused entries.
+	 * Drops the refused topics.
 	 *
-	 * @param int[] $ids Entries.
+	 * @param int[] $ids Topics.
 	 * @return int[]
 	 */
 	private function without_refused( array $ids ) {
@@ -166,26 +166,26 @@ final class Resolver {
 			array_filter(
 				$ids,
 				function ( $id ) {
-					$entry = $this->entries->get( $id );
+					$topic = $this->topics->get( $id );
 
-					return null !== $entry && Entries::REFUSED !== $entry['status'];
+					return null !== $topic && Topics::REFUSED !== $topic['status'];
 				}
 			)
 		);
 	}
 
 	/**
-	 * Records an ambiguous candidate once: a `candidate` entry that holds the keys it was met with, found again by its first key.
+	 * Records an ambiguous candidate once: a `candidate` topic that holds the keys it was met with, found again by its first key.
 	 *
 	 * @param Candidate $candidate The candidate.
-	 * @param int       $parent    Parent entry.
+	 * @param int       $parent    Parent topic.
 	 * @return void
 	 */
 	private function record_ambiguous( Candidate $candidate, $parent ) {
 		$marker = 'ambiguous:' . ( $candidate->keys[0] ?? self::label_key( $parent, $candidate->label ) );
 
-		if ( array() === $this->entries->with_key( $marker ) ) {
-			$this->entries->create( $candidate->label, $candidate->kind, 0, Entries::CANDIDATE, array( $marker ) );
+		if ( array() === $this->topics->with_key( $marker ) ) {
+			$this->topics->create( $candidate->label, $candidate->kind, 0, Topics::CANDIDATE, array( $marker ) );
 		}
 	}
 }

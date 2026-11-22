@@ -3,7 +3,7 @@
  * SPDX-FileCopyrightText: 2026 Eric van der Vlist <vdv@dyomedea.com>
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * The mentions: which post speaks of which entry.
+ * The mentions: which post speaks of which topic.
  *
  * @package Otherguise
  */
@@ -17,7 +17,7 @@ use Otherguise\Triples\Statements;
 defined( 'ABSPATH' ) || exit;
 
 /**
- * A mention is the statement `(post, index/mentions, entry term)`, one per pair, qualified by the statements `index/source` (one per source
+ * A mention is the statement `(post, index/mentions, topic term)`, one per pair, qualified by the statements `index/source` (one per source
  * that says it, so that two sources agree on one mention) and `index/strength` (`main` or `passing`; `main` wins).
  *
  * A source brings **its own** mentions of a post in line (`sync`): it adds the missing ones and withdraws only its own qualification; a
@@ -54,7 +54,7 @@ final class Mentions {
 	 *
 	 * @param int                                                                        $post_id Post.
 	 * @param string                                                                     $source  The source (a path of slice 605: `post/tag`).
-	 * @param array<int, string|array{strength?:string,via?:string[],visible?:string[]}> $wanted  Entry id => strength (`main` or `passing`), or an
+	 * @param array<int, string|array{strength?:string,via?:string[],visible?:string[]}> $wanted  Topic id => strength (`main` or `passing`), or an
 	 *        array with the strength, what produced the mention (`via`) and the modes in which it is shown (`visible`, empty for every mode).
 	 * @return array{added:int,removed:int} Nothing is written when both are 0.
 	 */
@@ -67,23 +67,23 @@ final class Mentions {
 			function () use ( $statements, $post, $source, $wanted ) {
 				$existing = $statements->match( $post, self::MENTIONS );
 				$about    = $statements->qualifications_of( $existing );
-				$by_entry = array();
+				$by_topic = array();
 				$added    = 0;
 				$removed  = 0;
 
 				foreach ( $existing as $statement ) {
-					$by_entry[ (int) $statement->object()->id() ] = $statement;
+					$by_topic[ (int) $statement->object()->id() ] = $statement;
 				}
 
-				foreach ( $wanted as $entry => $what ) {
-					$entry    = (int) $entry;
+				foreach ( $wanted as $topic => $what ) {
+					$topic    = (int) $topic;
 					$what     = is_array( $what ) ? $what : array( 'strength' => $what );
 					$strength = Candidate::MAIN === ( $what['strength'] ?? '' ) ? Candidate::MAIN : Candidate::PASSING;
-					$mention  = $by_entry[ $entry ] ?? null;
+					$mention  = $by_topic[ $topic ] ?? null;
 					$known    = null === $mention ? array() : $about[ $mention->id() ] ?? array();
 
 					if ( null === $mention ) {
-						$mention = $statements->triple( $post, self::MENTIONS, Ref::term( $entry ) );
+						$mention = $statements->triple( $post, self::MENTIONS, Ref::term( $topic ) );
 						++$added;
 					}
 
@@ -96,8 +96,8 @@ final class Mentions {
 					$this->keep_values( $mention, $known, self::VISIBLE, $source, (array) ( $what['visible'] ?? array() ) );
 				}
 
-				foreach ( $by_entry as $entry => $mention ) {
-					if ( isset( $wanted[ $entry ] ) || ! $this->has( $about[ $mention->id() ] ?? array(), self::SOURCE, $source ) ) {
+				foreach ( $by_topic as $topic => $mention ) {
+					if ( isset( $wanted[ $topic ] ) || ! $this->has( $about[ $mention->id() ] ?? array(), self::SOURCE, $source ) ) {
 						continue;
 					}
 
@@ -264,10 +264,10 @@ final class Mentions {
 	}
 
 	/**
-	 * The entries a post mentions, with their sources and strength.
+	 * The topics a post mentions, with their sources and strength.
 	 *
 	 * @param int $post_id Post.
-	 * @return array<int, array{sources:string[],strength:string,details:array<string,array{via:string[],visible:?array}>}> By entry id.
+	 * @return array<int, array{sources:string[],strength:string,details:array<string,array{via:string[],visible:?array}>}> By topic id.
 	 */
 	public function of_post( $post_id ) {
 		$mentions = $this->statements()->match( Ref::post( (int) $post_id ), self::MENTIONS );
@@ -276,16 +276,16 @@ final class Mentions {
 	}
 
 	/**
-	 * The posts that mention an entry, and with `$rolled_up` those that mention an entry below it.
+	 * The posts that mention a topic, and with `$rolled_up` those that mention a topic below it.
 	 *
-	 * @param int   $entry     Entry.
-	 * @param int[] $below     Ids of the descendants of the entry, when rolled up.
+	 * @param int   $topic     Topic.
+	 * @param int[] $below     Ids of the descendants of the topic, when rolled up.
 	 * @return array<int, array{sources:string[],strength:string,details:array}> By post id.
 	 */
-	public function of_entry( $entry, array $below = array() ) {
+	public function of_topic( $topic, array $below = array() ) {
 		$found = array();
 
-		foreach ( array_merge( array( (int) $entry ), $below ) as $id ) {
+		foreach ( array_merge( array( (int) $topic ), $below ) as $id ) {
 			$mentions = $this->statements()->match( null, self::MENTIONS, Ref::term( (int) $id ) );
 
 			foreach ( $this->describe( $mentions, 'subject' ) as $post => $what ) {
@@ -302,45 +302,45 @@ final class Mentions {
 	 * Adds a mention made by a person.
 	 *
 	 * @param int $post_id Post.
-	 * @param int $entry   Entry.
+	 * @param int $topic   Topic.
 	 * @return void
 	 */
-	public function add_by_hand( $post_id, $entry ) {
-		$this->sync_hand( (int) $post_id, (int) $entry, true );
+	public function add_by_hand( $post_id, $topic ) {
+		$this->sync_hand( (int) $post_id, (int) $topic, true );
 	}
 
 	/**
 	 * Removes a mention made by a person.
 	 *
 	 * @param int $post_id Post.
-	 * @param int $entry   Entry.
+	 * @param int $topic   Topic.
 	 * @return void
 	 */
-	public function remove_by_hand( $post_id, $entry ) {
-		$this->sync_hand( (int) $post_id, (int) $entry, false );
+	public function remove_by_hand( $post_id, $topic ) {
+		$this->sync_hand( (int) $post_id, (int) $topic, false );
 	}
 
 	/**
 	 * Adds or withdraws the `hand` source on a mention.
 	 *
 	 * @param int  $post_id Post.
-	 * @param int  $entry   Entry.
+	 * @param int  $topic   Topic.
 	 * @param bool $add     Add or withdraw.
 	 * @return void
 	 */
-	private function sync_hand( $post_id, $entry, $add ) {
+	private function sync_hand( $post_id, $topic, $add ) {
 		$statements = $this->statements();
 		$hand       = new Literal( 'string', self::HAND );
 
 		if ( $add ) {
-			$mention = $statements->triple( Ref::post( $post_id ), self::MENTIONS, Ref::term( $entry ) );
+			$mention = $statements->triple( Ref::post( $post_id ), self::MENTIONS, Ref::term( $topic ) );
 			$statements->triple( $mention->as_entity(), self::SOURCE, $hand );
 			$this->strengthen( $mention, Candidate::MAIN );
 
 			return;
 		}
 
-		$mention = $statements->find_by_triple( Ref::post( $post_id ), self::MENTIONS, Ref::term( $entry ) );
+		$mention = $statements->find_by_triple( Ref::post( $post_id ), self::MENTIONS, Ref::term( $topic ) );
 
 		if ( null === $mention ) {
 			return;
@@ -394,7 +394,7 @@ final class Mentions {
 	 * Describes mentions with their sources and strength, keyed by the id of the end that is asked.
 	 *
 	 * @param \Otherguise\Triples\Storage\Statement[] $mentions Mentions.
-	 * @param string                                  $end      `object` (the entry) or `subject` (the post).
+	 * @param string                                  $end      `object` (the topic) or `subject` (the post).
 	 * @return array<int, array{sources:string[],strength:string}>
 	 */
 	private function describe( array $mentions, $end ) {
@@ -451,7 +451,7 @@ final class Mentions {
 	}
 
 	/**
-	 * Two descriptions of one mention found through two entries.
+	 * Two descriptions of one mention found through two topics.
 	 *
 	 * @param array $a First.
 	 * @param array $b Second.

@@ -74,7 +74,7 @@ final class EnrichCommand {
 	}
 
 	/**
-	 * Turns the enrichment on: the entries will be looked up on Wikipedia and Wikidata, from the background job or this command only. The User-Agent
+	 * Turns the enrichment on: the topics will be looked up on Wikipedia and Wikidata, from the background job or this command only. The User-Agent
 	 * names the plugin and the contact of the option `index_wikidata_contact` (the address of the site when there is none).
 	 *
 	 * @param array $args  Positional arguments.
@@ -120,20 +120,20 @@ final class EnrichCommand {
 
 		$state = $this->service->job( false )->start( (int) ( $this->now )() );
 
-		( $this->success )( 'Started: ' . $state['total'] . ' entr' . ( 1 === $state['total'] ? 'y' : 'ies' ) . ' to look up by WP-Cron.' );
+		( $this->success )( 'Started: ' . $state['total'] . ' topic' . ( 1 === $state['total'] ? '' : 's' ) . ' to look up by WP-Cron.' );
 	}
 
 	/**
-	 * Enriches here, now: one batch of 50 entries at a time, one request at a time, until there is nothing left, a service says to wait or three
+	 * Enriches here, now: one batch of 50 topics at a time, one request at a time, until there is nothing left, a service says to wait or three
 	 * requests fail in a row.
 	 *
 	 * ## OPTIONS
 	 *
-	 * [--entry=<id>]
-	 * : Only this entry (whatever its state).
+	 * [--topic=<id>]
+	 * : Only this topic (whatever its state).
 	 *
 	 * [--dry-run]
-	 * : Make the requests, print what would be written (item, label, classes, kind), write nothing on the entries.
+	 * : Make the requests, print what would be written (item, label, classes, kind), write nothing on the topics.
 	 *
 	 * [--resume]
 	 * : Go on from where the job stopped.
@@ -153,8 +153,8 @@ final class EnrichCommand {
 
 		$dry = ! empty( $assoc['dry-run'] );
 
-		if ( $dry || isset( $assoc['entry'] ) ) {
-			$this->single( $dry, isset( $assoc['entry'] ) ? (int) $assoc['entry'] : null );
+		if ( $dry || isset( $assoc['topic'] ) ) {
+			$this->single( $dry, isset( $assoc['topic'] ) ? (int) $assoc['topic'] : null );
 
 			return;
 		}
@@ -180,14 +180,14 @@ final class EnrichCommand {
 	}
 
 	/**
-	 * One batch, or one entry, with the report of each entry.
+	 * One batch, or one topic, with the report of each topic.
 	 *
 	 * @param bool     $dry   Dry run.
-	 * @param int|null $entry The entry.
+	 * @param int|null $topic The topic.
 	 * @return void
 	 */
-	private function single( $dry, $entry ) {
-		$done = $this->service->enricher()->run_batch( $dry, $entry );
+	private function single( $dry, $topic ) {
+		$done = $this->service->enricher()->run_batch( $dry, $topic );
 
 		foreach ( $done['report'] as $id => $line ) {
 			$classes = array();
@@ -205,7 +205,7 @@ final class EnrichCommand {
 			return;
 		}
 
-		( $this->success )( $done['message'] . ( $dry ? ' Dry run: nothing was written on the entries.' : '' ) );
+		( $this->success )( $done['message'] . ( $dry ? ' Dry run: nothing was written on the topics.' : '' ) );
 	}
 
 	/**
@@ -264,7 +264,7 @@ final class EnrichCommand {
 	}
 
 	/**
-	 * Lists the entries that hold the same Wikidata item as another entry: they were not merged, a person decides.
+	 * Lists the topics that hold the same Wikidata item as another topic: they were not merged, a person decides.
 	 *
 	 * @param array $args  Positional arguments.
 	 * @param array $assoc Options.
@@ -277,7 +277,7 @@ final class EnrichCommand {
 	}
 
 	/**
-	 * Lists the entries whose Wikipedia page is a disambiguation page: no item was chosen for them.
+	 * Lists the topics whose Wikipedia page is a disambiguation page: no item was chosen for them.
 	 *
 	 * @param array $args  Positional arguments.
 	 * @param array $assoc Options.
@@ -290,7 +290,7 @@ final class EnrichCommand {
 	}
 
 	/**
-	 * Prints the entries in a state.
+	 * Prints the topics in a state.
 	 *
 	 * @param string $state State.
 	 * @return void

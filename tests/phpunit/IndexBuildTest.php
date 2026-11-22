@@ -11,18 +11,18 @@
 use Otherguise\Index\Build\IndexBuilder;
 use Otherguise\Index\Build\IndexRenderer;
 use Otherguise\Index\Cli\BuildCommand;
-use Otherguise\Index\Entries;
+use Otherguise\Index\Topics;
 use Otherguise\Index\Kinds;
 use Otherguise\Index\Mentions;
 use Otherguise\Index\Module as IndexModule;
 
 require_once __DIR__ . '/support/class-otherguise-test-database-case.php';
 require_once __DIR__ . '/support/class-otherguise-test-modes-site.php';
-require_once __DIR__ . '/support/class-otherguise-test-memory-entries.php';
+require_once __DIR__ . '/support/class-otherguise-test-memory-topics.php';
 require_once __DIR__ . '/support/class-otherguise-test-memory-kinds.php';
 
 /**
- * The statements are real; the entries and the kinds are in memory, the posts are stubs.
+ * The statements are real; the topics and the kinds are in memory, the posts are stubs.
  *
  * @covers \Otherguise\Index\Build\IndexBuilder
  * @covers \Otherguise\Index\Build\IndexModel
@@ -32,11 +32,11 @@ require_once __DIR__ . '/support/class-otherguise-test-memory-kinds.php';
 class IndexBuildTest extends Otherguise_Test_Database_Case {
 
 	/**
-	 * The entries.
+	 * The topics.
 	 *
-	 * @var Otherguise_Test_Memory_Entries
+	 * @var Otherguise_Test_Memory_Topics
 	 */
-	private $entries;
+	private $topics;
 
 	/**
 	 * The mentions.
@@ -53,14 +53,14 @@ class IndexBuildTest extends Otherguise_Test_Database_Case {
 	private $builder;
 
 	/**
-	 * Ids of the entries by name.
+	 * Ids of the topics by name.
 	 *
 	 * @var array<string, int>
 	 */
 	private $id = array();
 
 	/**
-	 * Wires the statements, and a small book: five posts, six entries of several kinds.
+	 * Wires the statements, and a small book: five posts, six topics of several kinds.
 	 *
 	 * @return void
 	 */
@@ -84,24 +84,24 @@ class IndexBuildTest extends Otherguise_Test_Database_Case {
 		);
 		$statements = $site->statements;
 
-		$this->entries  = new Otherguise_Test_Memory_Entries();
+		$this->topics  = new Otherguise_Test_Memory_Topics();
 		$this->mentions = new Mentions(
 			static function () use ( $statements ) {
 				return $statements;
 			}
 		);
-		$this->builder  = new IndexBuilder( $this->entries, $this->mentions );
+		$this->builder  = new IndexBuilder( $this->topics, $this->mentions );
 
-		$this->id['beaufort'] = $this->entries->create( 'Beaufort', 'place', 0, Entries::APPROVED, array() );
-		$this->id['arberons'] = $this->entries->create( 'Les Arberons', 'hamlet', $this->id['beaufort'], Entries::APPROVED, array() );
-		$this->id['doron']    = $this->entries->create( 'Doron', 'waterway', 0, Entries::APPROVED, array() );
-		$this->id['merle']    = $this->entries->create( 'Étourneau', 'species', 0, Entries::APPROVED, array() );
-		$this->id['eglise']   = $this->entries->create( 'église Saint-Jacques', 'other', 0, Entries::APPROVED, array() );
-		$this->id['404']      = $this->entries->create( '1958', 'event', 0, Entries::APPROVED, array() );
-		$this->id['pending']  = $this->entries->create( 'Pending', 'place', 0, Entries::CANDIDATE, array() );
-		$this->id['refused']  = $this->entries->create( 'Refused', 'place', 0, Entries::REFUSED, array() );
+		$this->id['beaufort'] = $this->topics->create( 'Beaufort', 'place', 0, Topics::APPROVED, array() );
+		$this->id['arberons'] = $this->topics->create( 'Les Arberons', 'hamlet', $this->id['beaufort'], Topics::APPROVED, array() );
+		$this->id['doron']    = $this->topics->create( 'Doron', 'waterway', 0, Topics::APPROVED, array() );
+		$this->id['merle']    = $this->topics->create( 'Étourneau', 'species', 0, Topics::APPROVED, array() );
+		$this->id['eglise']   = $this->topics->create( 'église Saint-Jacques', 'other', 0, Topics::APPROVED, array() );
+		$this->id['404']      = $this->topics->create( '1958', 'event', 0, Topics::APPROVED, array() );
+		$this->id['pending']  = $this->topics->create( 'Pending', 'place', 0, Topics::CANDIDATE, array() );
+		$this->id['refused']  = $this->topics->create( 'Refused', 'place', 0, Topics::REFUSED, array() );
 
-		$say = fn( $post, $entry, $strength = 'passing' ) => $this->mentions->sync( $post, 'test' . $entry, array( $this->id[ $entry ] => $strength ) );
+		$say = fn( $post, $topic, $strength = 'passing' ) => $this->mentions->sync( $post, 'test' . $topic, array( $this->id[ $topic ] => $strength ) );
 
 		$say( 1, 'arberons' );
 		$say( 1, 'doron' );
@@ -126,12 +126,12 @@ class IndexBuildTest extends Otherguise_Test_Database_Case {
 	}
 
 	/**
-	 * One line per entry, sorted without regard to accents or case, the candidate and the refused entries left out, the broader entry in
+	 * One line per topic, sorted without regard to accents or case, the candidate and the refused topics left out, the broader topic in
 	 * parentheses, and the locators in the order of the posts given.
 	 *
 	 * @return void
 	 */
-	public function test_one_line_per_entry_sorted(): void {
+	public function test_one_line_per_topic_sorted(): void {
 		$lines = $this->builder->build( array( 1, 2, 3, 4, 5 ) )->lines();
 
 		$this->assertSame( array( '1958', 'Beaufort', 'Doron', 'église Saint-Jacques', 'Étourneau', 'Les Arberons (Beaufort)' ), $this->labels( $lines ) );
@@ -169,7 +169,7 @@ class IndexBuildTest extends Otherguise_Test_Database_Case {
 	}
 
 	/**
-	 * A post that is not in the book leaves no trace, and an entry that no post of the book mentions is not listed.
+	 * A post that is not in the book leaves no trace, and a topic that no post of the book mentions is not listed.
 	 *
 	 * @return void
 	 */
@@ -227,7 +227,7 @@ class IndexBuildTest extends Otherguise_Test_Database_Case {
 	 * @return void
 	 */
 	public function test_a_comparison_and_the_groups(): void {
-		$reverse = new IndexBuilder( $this->entries, $this->mentions, static fn( $a, $b ) => strcmp( $b, $a ) );
+		$reverse = new IndexBuilder( $this->topics, $this->mentions, static fn( $a, $b ) => strcmp( $b, $a ) );
 		$model   = $reverse->build( array( 1, 2, 3, 4 ) );
 
 		$this->assertSame( 'Les Arberons (Beaufort)', $model->lines()[0]['label'] );
@@ -240,7 +240,7 @@ class IndexBuildTest extends Otherguise_Test_Database_Case {
 	 * @return void
 	 */
 	public function test_the_outputs(): void {
-		$this->entries->entries[ $this->id['doron'] ]['label'] = 'Le "Doron" <de Beaufort>, rivière';
+		$this->topics->topics[ $this->id['doron'] ]['label'] = 'Le "Doron" <de Beaufort>, rivière';
 
 		$model = $this->builder->build( array( 1, 3 ) );
 
@@ -360,7 +360,7 @@ class IndexBuildTest extends Otherguise_Test_Database_Case {
 	public function test_the_csv_quoting(): void {
 		$lines = array(
 			array(
-				'entry'    => 1,
+				'topic'    => 1,
 				'label'    => 'plain',
 				'kind'     => 'place',
 				'classes'  => array(),
@@ -368,7 +368,7 @@ class IndexBuildTest extends Otherguise_Test_Database_Case {
 				'locators' => array(),
 			),
 			array(
-				'entry'    => 2,
+				'topic'    => 2,
 				'label'    => "a\\b\nc\td",
 				'kind'     => 'other',
 				'classes'  => array(),
@@ -400,8 +400,8 @@ class IndexBuildTest extends Otherguise_Test_Database_Case {
 			$this->builder->build( array( 1, 2, 3, 4 ) )->attribution()
 		);
 
-		$this->entries->add_keys( $this->id['merle'], array( 'wikidata:Q1234' ) );
-		$this->entries->add_keys( $this->id['doron'], array( 'wikipedia:fr:Doron' ) );
+		$this->topics->add_keys( $this->id['merle'], array( 'wikidata:Q1234' ) );
+		$this->topics->add_keys( $this->id['doron'], array( 'wikipedia:fr:Doron' ) );
 
 		$this->assertSame(
 			array(

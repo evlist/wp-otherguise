@@ -3,14 +3,14 @@
  * SPDX-FileCopyrightText: 2026 Eric van der Vlist <vdv@dyomedea.com>
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * Gives the entries an identifier, a label and a kind from Wikidata.
+ * Gives the topics an identifier, a label and a kind from Wikidata.
  *
  * @package Otherguise
  */
 
 namespace Otherguise\Index\Enrich;
 
-use Otherguise\Index\Entries;
+use Otherguise\Index\Topics;
 use Otherguise\Index\Resolver;
 use Otherguise\Index\Wikidata\ClassTable;
 use Otherguise\Index\Wikidata\ItemReader;
@@ -20,16 +20,16 @@ use Otherguise\Index\Wikidata\TitleResolver;
 defined( 'ABSPATH' ) || exit;
 
 /**
- * The enrichment (slice 604), one batch of up to 50 entries at a time:
+ * The enrichment (slice 604), one batch of up to 50 topics at a time:
  *
  * 1. the titles of Wikipedia are resolved to items (one request per language);
  * 2. the label and the classes of the items are read (one request); the ancestors of the classes not yet known (one request per 50);
- * 3. **only when every request worked**, the entries are written: the key `wikidata:Q…` (a key that another entry already holds is a
+ * 3. **only when every request worked**, the topics are written: the key `wikidata:Q…` (a key that another topic already holds is a
  *    `duplicate`, not a merge), the label of Wikidata (unless a person changed it; the old label key stays an alias), the kind (unless a person
  *    set it or it is already something other than `other`).
  *
  * A refusal that says "wait" pauses the enrichment until the date given (never less than an exponential delay, 5 minutes at most); three
- * failures in a row stop it. Nothing is written for a failed batch: the entries stay in the queue.
+ * failures in a row stop it. Nothing is written for a failed batch: the topics stay in the queue.
  */
 final class Enricher {
 	public const BATCH       = 50;
@@ -38,11 +38,11 @@ final class Enricher {
 	public const MAX_BACKOFF = 300;
 
 	/**
-	 * The entries.
+	 * The topics.
 	 *
-	 * @var Entries
+	 * @var Topics
 	 */
-	private $entries;
+	private $topics;
 
 	/**
 	 * Resolves the titles.
@@ -73,7 +73,7 @@ final class Enricher {
 	private $options;
 
 	/**
-	 * Tells whether a published post mentions an entry: `fn( int $entry ): bool`.
+	 * Tells whether a published post mentions a topic: `fn( int $topic ): bool`.
 	 *
 	 * @var callable
 	 */
@@ -103,18 +103,18 @@ final class Enricher {
 	/**
 	 * Builds the enricher.
 	 *
-	 * @param Entries       $entries      The entries.
+	 * @param Topics        $topics      The topics.
 	 * @param TitleResolver $titles       The resolver of titles.
 	 * @param ItemReader    $items        The reader of items.
 	 * @param ClassTable    $classes      The table of classes.
 	 * @param Options       $options      The options.
-	 * @param callable      $has_mentions Whether a published post mentions an entry.
+	 * @param callable      $has_mentions Whether a published post mentions a topic.
 	 * @param string        $language     Language of the labels (`fr`).
 	 * @param callable|null $now          Default `time`.
 	 * @param callable|null $random       Default `wp_rand`.
 	 */
-	public function __construct( Entries $entries, TitleResolver $titles, ItemReader $items, ClassTable $classes, Options $options, $has_mentions, $language, $now = null, $random = null ) {
-		$this->entries      = $entries;
+	public function __construct( Topics $topics, TitleResolver $titles, ItemReader $items, ClassTable $classes, Options $options, $has_mentions, $language, $now = null, $random = null ) {
+		$this->topics      = $topics;
 		$this->titles       = $titles;
 		$this->items        = $items;
 		$this->classes      = $classes;
@@ -126,7 +126,7 @@ final class Enricher {
 	}
 
 	/**
-	 * The entries that wait for the enrichment: approved, mentioned by a published post, with a Wikipedia key and no Wikidata key (or a
+	 * The topics that wait for the enrichment: approved, mentioned by a published post, with a Wikipedia key and no Wikidata key (or a
 	 * Wikidata key and no label of their own), and not looked at too recently.
 	 *
 	 * @param int $limit At most this many.
@@ -136,12 +136,12 @@ final class Enricher {
 		$found = array();
 		$now   = (int) ( $this->now )();
 
-		foreach ( $this->entries->all() as $id => $entry ) {
+		foreach ( $this->topics->all() as $id => $topic ) {
 			if ( count( $found ) >= $limit ) {
 				break;
 			}
 
-			if ( Entries::APPROVED !== $entry['status'] || (int) ( $this->entries->enrich_state( $id )['due'] ?? 0 ) > $now || null === $this->source_of( $entry ) ) {
+			if ( Topics::APPROVED !== $topic['status'] || (int) ( $this->topics->enrich_state( $id )['due'] ?? 0 ) > $now || null === $this->source_of( $topic ) ) {
 				continue;
 			}
 
@@ -165,7 +165,7 @@ final class Enricher {
 	}
 
 	/**
-	 * The entries that are in a state (`duplicate`, `ambiguous`, `missing`, `none`) with their label and note.
+	 * The topics that are in a state (`duplicate`, `ambiguous`, `missing`, `none`) with their label and note.
 	 *
 	 * @param string $state State.
 	 * @return array<int, array{label:string,note:string}>
@@ -173,12 +173,12 @@ final class Enricher {
 	public function with_state( $state ) {
 		$found = array();
 
-		foreach ( $this->entries->all() as $id => $entry ) {
-			$kept = $this->entries->enrich_state( $id );
+		foreach ( $this->topics->all() as $id => $topic ) {
+			$kept = $this->topics->enrich_state( $id );
 
 			if ( ( $kept['state'] ?? '' ) === $state ) {
 				$found[ (int) $id ] = array(
-					'label' => (string) $entry['label'],
+					'label' => (string) $topic['label'],
 					'note'  => (string) ( $kept['note'] ?? '' ),
 				);
 			}
@@ -191,7 +191,7 @@ final class Enricher {
 	 * Enriches one batch.
 	 *
 	 * @param bool     $dry   Report what would be written and write nothing (the requests are made).
-	 * @param int|null $only  Only this entry (looked at again whatever its state).
+	 * @param int|null $only  Only this topic (looked at again whatever its state).
 	 * @return array{ok:bool,stop:bool,message:string,processed:int,report:array<int,array<string,mixed>>}
 	 */
 	public function run_batch( $dry = false, $only = null ) {
@@ -210,8 +210,8 @@ final class Enricher {
 		$sources = array();
 
 		foreach ( $ids as $id ) {
-			$entry = $this->entries->get( $id );
-			$found = null === $entry ? null : $this->source_of( $entry );
+			$topic = $this->topics->get( $id );
+			$found = null === $topic ? null : $this->source_of( $topic );
 
 			if ( null !== $found ) {
 				$sources[ $id ] = $found;
@@ -258,21 +258,21 @@ final class Enricher {
 			$report[ $id ] = $this->apply( (int) $id, $outcome, $items[ $outcome['qid'] ] ?? null, $dry );
 		}
 
-		return $this->result( true, false, count( $report ) . ' entr' . ( 1 === count( $report ) ? 'y' : 'ies' ) . ' looked at.', $report );
+		return $this->result( true, false, count( $report ) . ' topic' . ( 1 === count( $report ) ? '' : 's' ) . ' looked at.', $report );
 	}
 
 	/**
-	 * Where the identifier of an entry comes from: its Wikipedia key, or its Wikidata key when it has no label of its own; null when the
-	 * entry does not need the enrichment.
+	 * Where the identifier of a topic comes from: its Wikipedia key, or its Wikidata key when it has no label of its own; null when the
+	 * topic does not need the enrichment.
 	 *
-	 * @param array<string, mixed> $entry The entry.
+	 * @param array<string, mixed> $topic The topic.
 	 * @return array{type:string,language:string,title:string,qid:string}|null
 	 */
-	private function source_of( array $entry ) {
+	private function source_of( array $topic ) {
 		$wikipedia = null;
 		$wikidata  = '';
 
-		foreach ( $entry['keys'] as $key ) {
+		foreach ( $topic['keys'] as $key ) {
 			if ( null === $wikipedia && 0 === strpos( $key, 'wikipedia:' ) ) {
 				$parts = explode( ':', $key, 3 );
 
@@ -290,7 +290,7 @@ final class Enricher {
 		}
 
 		if ( '' !== $wikidata ) {
-			return ItemReader::valid_id( (string) $entry['label'] ) ? array(
+			return ItemReader::valid_id( (string) $topic['label'] ) ? array(
 				'type'     => 'wikidata',
 				'language' => '',
 				'title'    => '',
@@ -302,9 +302,9 @@ final class Enricher {
 	}
 
 	/**
-	 * Resolves the titles of the entries, one request per language.
+	 * Resolves the titles of the topics, one request per language.
 	 *
-	 * @param array<int, array<string, string>> $sources By entry.
+	 * @param array<int, array<string, string>> $sources By topic.
 	 * @return array{items:array<int,array<string,string>>}|array{failure:array}
 	 */
 	private function resolve_titles( array $sources ) {
@@ -341,19 +341,19 @@ final class Enricher {
 	}
 
 	/**
-	 * Writes what was learnt about an entry (or reports it, when it is a dry run).
+	 * Writes what was learnt about a topic (or reports it, when it is a dry run).
 	 *
-	 * @param int                       $id      Entry.
+	 * @param int                       $id      Topic.
 	 * @param array<string, string>     $outcome The state and item found for its title.
 	 * @param array<string, mixed>|null $item    The label and classes of the item.
 	 * @param bool                      $dry     Dry run.
 	 * @return array<string, mixed> What happened.
 	 */
 	private function apply( $id, array $outcome, $item, $dry ) {
-		$entry  = (array) $this->entries->get( $id );
+		$topic  = (array) $this->topics->get( $id );
 		$qid    = (string) $outcome['qid'];
 		$report = array(
-			'label'   => (string) $entry['label'],
+			'label'   => (string) $topic['label'],
 			'state'   => (string) $outcome['state'],
 			'qid'     => $qid,
 			'classes' => array(),
@@ -368,19 +368,19 @@ final class Enricher {
 			return $this->keep( $id, $report, $dry );
 		}
 
-		$others = array_values( array_diff( $this->entries->with_key( 'wikidata:' . $qid ), array( $id ) ) );
+		$others = array_values( array_diff( $this->topics->with_key( 'wikidata:' . $qid ), array( $id ) ) );
 
-		if ( array() !== $others && ! in_array( 'wikidata:' . $qid, $entry['keys'], true ) ) {
+		if ( array() !== $others && ! in_array( 'wikidata:' . $qid, $topic['keys'], true ) ) {
 			$report['state'] = 'duplicate';
-			$report['note']  = 'The entry ' . $others[0] . ' has ' . $qid . ' too.';
+			$report['note']  = 'The topic ' . $others[0] . ' has ' . $qid . ' too.';
 
 			return $this->keep( $id, $report, $dry );
 		}
 
 		$report['classes'] = $item['classes'];
 		$deduced           = $this->classes->kind_for( array_keys( $item['classes'] ) );
-		$new_label         = '' !== $item['label'] && ! $entry['label_by_hand'] && $item['label'] !== $entry['label'] ? $item['label'] : '';
-		$new_kind          = null !== $deduced && ! $entry['kind_by_hand'] && in_array( (string) $entry['kind'], array( '', 'other' ), true ) && $deduced !== $entry['kind'] ? $deduced : '';
+		$new_label         = '' !== $item['label'] && ! $topic['label_by_hand'] && $item['label'] !== $topic['label'] ? $item['label'] : '';
+		$new_kind          = null !== $deduced && ! $topic['kind_by_hand'] && in_array( (string) $topic['kind'], array( '', 'other' ), true ) && $deduced !== $topic['kind'] ? $deduced : '';
 
 		$report['state'] = 'done';
 		$report['kind']  = $new_kind;
@@ -390,24 +390,24 @@ final class Enricher {
 			$keys = array( 'wikidata:' . $qid );
 
 			if ( '' !== $new_label ) {
-				$this->entries->set_label( $id, $new_label );
-				$keys[] = Resolver::label_key( (int) $entry['parent'], $new_label );
+				$this->topics->set_label( $id, $new_label );
+				$keys[] = Resolver::label_key( (int) $topic['parent'], $new_label );
 			}
 
 			if ( '' !== $new_kind ) {
-				$this->entries->set_kind( $id, $new_kind, false );
+				$this->topics->set_kind( $id, $new_kind, false );
 			}
 
-			$this->entries->add_keys( $id, $keys );
+			$this->topics->add_keys( $id, $keys );
 		}
 
 		return $this->keep( $id, $report, $dry );
 	}
 
 	/**
-	 * Keeps the state of an entry and the date until which it is not looked at again.
+	 * Keeps the state of a topic and the date until which it is not looked at again.
 	 *
-	 * @param int                  $id     Entry.
+	 * @param int                  $id     Topic.
 	 * @param array<string, mixed> $report What happened.
 	 * @param bool                 $dry    Dry run.
 	 * @return array<string, mixed> The report.
@@ -417,7 +417,7 @@ final class Enricher {
 		$due = 'done' === $report['state'] ? 0 : $now + (int) ( $this->random )( (int) ( self::RETRY_DAYS * 86400 * 0.8 ), (int) ( self::RETRY_DAYS * 86400 * 1.2 ) );
 
 		if ( ! $dry ) {
-			$this->entries->set_enrich_state(
+			$this->topics->set_enrich_state(
 				$id,
 				array(
 					'state' => $report['state'],
@@ -465,7 +465,7 @@ final class Enricher {
 	 * @param bool                            $ok      Whether the batch worked.
 	 * @param bool                            $stop    Whether the job must stop.
 	 * @param string                          $message Message.
-	 * @param array<int, array<string,mixed>> $report  What happened to each entry.
+	 * @param array<int, array<string,mixed>> $report  What happened to each topic.
 	 * @return array{ok:bool,stop:bool,message:string,processed:int,report:array}
 	 */
 	private function result( $ok, $stop, $message, array $report ) {

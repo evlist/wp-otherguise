@@ -79,7 +79,7 @@ final class Page implements Source {
 	}
 
 	/**
-	 * What the page says, in the order of the page; one candidate for an entry met twice, the strongest strength kept.
+	 * What the page says, in the order of the page; one candidate for a topic met twice, the strongest strength kept.
 	 *
 	 * @param int $post_id Post.
 	 * @return Candidate[]
@@ -105,7 +105,7 @@ final class Page implements Source {
 	 * @return Candidate|null
 	 */
 	private function candidate_of( Signal $signal ) {
-		if ( Signal::ENTRY === $signal->type ) {
+		if ( Signal::TOPIC === $signal->type ) {
 			return $this->from_mark( $signal );
 		}
 

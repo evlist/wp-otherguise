@@ -3,7 +3,7 @@
  * SPDX-FileCopyrightText: 2026 Eric van der Vlist <vdv@dyomedea.com>
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * WP-CLI: the kinds of entries.
+ * WP-CLI: the kinds of topics.
  *
  * @package Otherguise
  */
@@ -54,7 +54,7 @@ final class KindsCommand {
 	}
 
 	/**
-	 * Lists the kinds as a tree, with the CSS class, the number of terms and entries that have them, and whether a kind is a built-in kind
+	 * Lists the kinds as a tree, with the CSS class, the number of terms and topics that have them, and whether a kind is a built-in kind
 	 * (protected) or comes from code.
 	 *
 	 * @param array $args  Positional arguments.
@@ -76,7 +76,7 @@ final class KindsCommand {
 				$flags[] = 'code';
 			}
 
-			( $this->log )( str_repeat( '  ', (int) $row['depth'] ) . $row['slug'] . "\t" . $row['label'] . "\tindex-kind-" . $row['css'] . "\t" . $usage['terms'] . ' term(s), ' . $usage['entries'] . " entr.\t" . implode( ',', $flags ) );
+			( $this->log )( str_repeat( '  ', (int) $row['depth'] ) . $row['slug'] . "\t" . $row['label'] . "\tindex-kind-" . $row['css'] . "\t" . $usage['terms'] . ' term(s), ' . $usage['topics'] . " topic(s)\t" . implode( ',', $flags ) );
 		}
 	}
 
@@ -182,7 +182,7 @@ final class KindsCommand {
 	 * : The kind.
 	 *
 	 * [--reassign=<slug>]
-	 * : The kind that takes over the terms and entries that have this one.
+	 * : The kind that takes over the terms and topics that have this one.
 	 *
 	 * @param array $args  Positional arguments.
 	 * @param array $assoc Options.

@@ -181,20 +181,20 @@ final class TermKindStore implements KindStore {
 	}
 
 	/**
-	 * How many terms and entries have a kind.
+	 * How many terms and topics have a kind.
 	 *
 	 * @param string $slug Slug.
-	 * @return array{terms:int,entries:int}
+	 * @return array{terms:int,topics:int}
 	 */
 	public function usage( $slug ) {
 		$usage = array(
 			'terms'   => 0,
-			'entries' => 0,
+			'topics' => 0,
 		);
 
 		foreach ( $this->holders( $slug ) as $row ) {
-			if ( TermEntries::TAXONOMY === $row['taxonomy'] ) {
-				++$usage['entries'];
+			if ( TermTopics::TAXONOMY === $row['taxonomy'] ) {
+				++$usage['topics'];
 			} else {
 				++$usage['terms'];
 			}
@@ -204,7 +204,7 @@ final class TermKindStore implements KindStore {
 	}
 
 	/**
-	 * Gives the terms and entries of a kind to another.
+	 * Gives the terms and topics of a kind to another.
 	 *
 	 * @param string $from Slug.
 	 * @param string $to   Slug.
@@ -214,7 +214,7 @@ final class TermKindStore implements KindStore {
 		$rows = $this->holders( $from );
 
 		foreach ( $rows as $row ) {
-			update_term_meta( (int) $row['term_id'], TermEntries::KIND, $to );
+			update_term_meta( (int) $row['term_id'], TermTopics::KIND, $to );
 		}
 
 		return count( $rows );
@@ -233,7 +233,7 @@ final class TermKindStore implements KindStore {
 	}
 
 	/**
-	 * The terms and entries that have a kind.
+	 * The terms and topics that have a kind.
 	 *
 	 * @param string $slug Slug.
 	 * @return array<int, array{term_id:int,taxonomy:string}>
@@ -244,7 +244,7 @@ final class TermKindStore implements KindStore {
 		$rows = $wpdb->get_results(
 			$wpdb->prepare(
 				"SELECT m.term_id, t.taxonomy FROM {$wpdb->termmeta} m INNER JOIN {$wpdb->term_taxonomy} t ON t.term_id = m.term_id WHERE m.meta_key = %s AND m.meta_value = %s",
-				TermEntries::KIND,
+				TermTopics::KIND,
 				(string) $slug
 			),
 			ARRAY_A

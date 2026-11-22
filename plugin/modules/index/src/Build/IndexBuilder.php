@@ -10,7 +10,7 @@
 
 namespace Otherguise\Index\Build;
 
-use Otherguise\Index\Entries;
+use Otherguise\Index\Topics;
 use Otherguise\Index\Folding;
 use Otherguise\Index\Kinds;
 use Otherguise\Index\Mentions;
@@ -19,16 +19,16 @@ use Otherguise\Index\Sources;
 defined( 'ABSPATH' ) || exit;
 
 /**
- * The builder (slice 610): the posts are given in the order of the book; the mentions of each give its entries; the lines are one per entry,
+ * The builder (slice 610): the posts are given in the order of the book; the mentions of each give its topics; the lines are one per topic,
  * with the posts that mention it as locators, sorted according to the language and grouped by letter. A flat index: nothing is rolled up.
  */
 final class IndexBuilder {
 	/**
-	 * The entries.
+	 * The topics.
 	 *
-	 * @var Entries
+	 * @var Topics
 	 */
-	private $entries;
+	private $topics;
 
 	/**
 	 * The mentions.
@@ -47,12 +47,12 @@ final class IndexBuilder {
 	/**
 	 * Builds the builder.
 	 *
-	 * @param Entries       $entries  The entries.
+	 * @param Topics        $topics  The topics.
 	 * @param Mentions      $mentions The mentions.
 	 * @param callable|null $compare  The comparison of two labels; default `Collator` with the locale of the site, else the folded labels.
 	 */
-	public function __construct( Entries $entries, Mentions $mentions, $compare = null ) {
-		$this->entries  = $entries;
+	public function __construct( Topics $topics, Mentions $mentions, $compare = null ) {
+		$this->topics  = $topics;
 		$this->mentions = $mentions;
 		$this->compare  = $compare ?? self::language_comparison();
 	}
@@ -76,7 +76,7 @@ final class IndexBuilder {
 	 * Builds the index of some posts.
 	 *
 	 * @param int[]                $post_ids The posts, in the order of the book.
-	 * @param array<string, mixed> $options  `include` and `exclude` (the tokens of `Selection`: `kind:place source:post/tag visibility:print`; a bare word is a kind), `context` (the broader entry in parentheses, true by default).
+	 * @param array<string, mixed> $options  `include` and `exclude` (the tokens of `Selection`: `kind:place source:post/tag visibility:print`; a bare word is a kind), `context` (the broader topic in parentheses, true by default).
 	 * @return IndexModel
 	 */
 	public function build( array $post_ids, array $options = array() ) {
@@ -147,37 +147,37 @@ final class IndexBuilder {
 	}
 
 	/**
-	 * The line of an entry, or null when it is not in the index (not approved).
+	 * The line of a topic, or null when it is not in the index (not approved).
 	 *
-	 * @param int  $id      Entry.
-	 * @param bool $context Whether the broader entry is shown.
+	 * @param int  $id      Topic.
+	 * @param bool $context Whether the broader topic is shown.
 	 * @return array<string, mixed>|null
 	 */
 	private function line( $id, $context ) {
-		$entry = $this->entries->get( $id );
+		$topic = $this->topics->get( $id );
 
-		if ( null === $entry || Entries::APPROVED !== $entry['status'] ) {
+		if ( null === $topic || Topics::APPROVED !== $topic['status'] ) {
 			return null;
 		}
 
-		$kind  = (string) $entry['kind'];
-		$label = (string) $entry['label'];
-		$above = $context && $entry['parent'] > 0 ? $this->entries->get( (int) $entry['parent'] ) : null;
+		$kind  = (string) $topic['kind'];
+		$label = (string) $topic['label'];
+		$above = $context && $topic['parent'] > 0 ? $this->topics->get( (int) $topic['parent'] ) : null;
 
 		return array(
-			'entry'    => $id,
+			'topic'    => $id,
 			'label'    => null === $above ? $label : $label . ' (' . $above['label'] . ')',
 			'kind'     => $kind,
 			'classes'  => Kinds::classes( $kind ),
 			'letter'   => $this->letter( $label ),
 			'locators' => array(),
 			'sort'     => Folding::key( $label ),
-			'wiki'     => $this->from_wikimedia( (array) $entry['keys'] ),
+			'wiki'     => $this->from_wikimedia( (array) $topic['keys'] ),
 		);
 	}
 
 	/**
-	 * Whether an entry has an identifier of Wikidata or a link to Wikipedia among its keys: it owes something to the Wikimedia projects.
+	 * Whether a topic has an identifier of Wikidata or a link to Wikipedia among its keys: it owes something to the Wikimedia projects.
 	 *
 	 * @param string[] $keys Keys.
 	 * @return bool
@@ -193,7 +193,7 @@ final class IndexBuilder {
 	}
 
 	/**
-	 * The letter an entry is filed under: the first letter of its folded label, in capitals; digits and signs go under `#`.
+	 * The letter a topic is filed under: the first letter of its folded label, in capitals; digits and signs go under `#`.
 	 *
 	 * @param string $label Label.
 	 * @return string

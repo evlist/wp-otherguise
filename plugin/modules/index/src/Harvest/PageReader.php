@@ -18,7 +18,7 @@ defined( 'ABSPATH' ) || exit;
  * The scopes, learnt from three pages of Eric's blog:
  *
  * - **the page**: inside the element `main` (the whole document when there is none);
- * - **the contents of the post**: inside the element of class `wp-block-post-content` or `entry-content` (the page when there is none).
+ * - **the contents of the post**: inside the element of class `wp-block-post-content` or `topic-content` (the page when there is none).
  *   The generic readers of links read only the contents, so that a menu, a footer or a list of recent posts is not taken for a mention;
  * - **not read** (links, files, images): `nav`, `header`, `footer`, `aside`, `#comments`, the lists of other posts (`wp-block-query`,
  *   `wp-block-latest-posts`, `wp-block-comments`);
@@ -58,7 +58,7 @@ final class PageReader {
 		}
 
 		$has_main    = false !== stripos( $html, '<main' );
-		$has_content = (bool) preg_match( '/class\s*=\s*["\'][^"\']*\b(wp-block-post-content|entry-content)\b/i', $html );
+		$has_content = (bool) preg_match( '/class\s*=\s*["\'][^"\']*\b(wp-block-post-content|topic-content)\b/i', $html );
 		$tags        = new \WP_HTML_Tag_Processor( $html );
 		$stack       = array();
 		$signals     = array();
@@ -126,7 +126,7 @@ final class PageReader {
 			$state['main'] = true;
 		}
 
-		if ( $tags->has_class( 'wp-block-post-content' ) || $tags->has_class( 'entry-content' ) ) {
+		if ( $tags->has_class( 'wp-block-post-content' ) || $tags->has_class( 'topic-content' ) ) {
 			$state['content'] = true;
 		}
 
@@ -257,7 +257,7 @@ final class PageReader {
 			$data['path']       = $path;
 			$data['identifier'] = 1 === count( $path ) && 1 === preg_match( self::IDENTIFIER, $path[0] );
 
-			$signals[] = new Signal( Signal::ENTRY, implode( ' > ', $path ), 'page', 'data-index', $data, is_string( $id ) ? $id : '' );
+			$signals[] = new Signal( Signal::TOPIC, implode( ' > ', $path ), 'page', 'data-index', $data, is_string( $id ) ? $id : '' );
 		}
 	}
 

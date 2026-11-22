@@ -223,7 +223,7 @@ final class PagesJob {
 				break;
 			}
 
-			// A unit may be several items (a batch of entries): `processed` says how many.
+			// A unit may be several items (a batch of topics): `processed` says how many.
 			$units = max( 1, (int) ( $result['processed'] ?? 1 ) );
 
 			if ( ! empty( $result['ok'] ) ) {

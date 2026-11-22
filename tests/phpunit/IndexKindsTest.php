@@ -103,7 +103,7 @@ class IndexKindsTest extends TestCase {
 	}
 
 	/**
-	 * An entry carries the classes of its kind and of its ancestors, the most specific first; the class can be changed.
+	 * A topic carries the classes of its kind and of its ancestors, the most specific first; the class can be changed.
 	 *
 	 * @return void
 	 */
@@ -188,7 +188,7 @@ class IndexKindsTest extends TestCase {
 	}
 
 	/**
-	 * A kind that has sub-kinds is refused; a kind that is used needs another to take over, and the terms and entries go there.
+	 * A kind that has sub-kinds is refused; a kind that is used needs another to take over, and the terms and topics go there.
 	 *
 	 * @return void
 	 */
@@ -203,7 +203,7 @@ class IndexKindsTest extends TestCase {
 
 		$refused = Kinds::delete( 'hamlet' );
 
-		$this->assertStringContainsString( '3 term(s) and 2 entries', $refused );
+		$this->assertStringContainsString( '3 term(s) and 2 topics', $refused );
 		$this->assertStringContainsString( 'take them over', $refused );
 		$this->assertStringContainsString( 'take them over', Kinds::delete( 'hamlet', 'hamlet' ) );
 		$this->assertStringContainsString( 'take them over', Kinds::delete( 'hamlet', 'nowhere' ) );
@@ -249,8 +249,8 @@ class IndexKindsTest extends TestCase {
 		$this->assertSame( array(), $fail );
 		$this->assertContains( 'OK Kind hamlet added.', $log );
 		$this->assertContains( 'OK The class of hamlet is now index-kind-ld.', $log );
-		$this->assertContains( "hamlet\tLieu-dit\tindex-kind-ld\t0 term(s), 0 entr.\t", $log );
-		$this->assertContains( "  waterway\tWaterway\tindex-kind-waterway\t0 term(s), 0 entr.\tbuilt-in", $log );
+		$this->assertContains( "hamlet\tLieu-dit\tindex-kind-ld\t0 term(s), 0 topic(s)\t", $log );
+		$this->assertContains( "  waterway\tWaterway\tindex-kind-waterway\t0 term(s), 0 topic(s)\tbuilt-in", $log );
 
 		$cmd->delete( array( 'waterway' ), array() );
 		$cmd->delete( array( 'nowhere' ), array() );

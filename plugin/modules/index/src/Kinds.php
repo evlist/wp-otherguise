@@ -3,7 +3,7 @@
  * SPDX-FileCopyrightText: 2026 Eric van der Vlist <vdv@dyomedea.com>
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * The kinds of entries.
+ * The kinds of topics.
  *
  * @package Otherguise
  */
@@ -13,13 +13,13 @@ namespace Otherguise\Index;
 defined( 'ABSPATH' ) || exit;
 
 /**
- * The kinds of entries (slice 603): data of the site, with a hierarchy that means *is a sort of* (a waterway is a place).
+ * The kinds of topics (slice 603): data of the site, with a hierarchy that means *is a sort of* (a waterway is a place).
  *
  * - **The built-in kinds** are created once and are **protected**: they cannot be deleted or moved, and their slug does not change; their label
  *   and CSS class can be edited. The kinds that a site adds are free.
  * - **Kinds given by code** (the filter `index_kinds`, `slug => label`) are added as roots when no kind of the site has the slug; they are
  *   read-only.
- * - The slug of a kind is its identifier: it is what the terms and the entries keep.
+ * - The slug of a kind is its identifier: it is what the terms and the topics keep.
  *
  * The store is a static piece (the kinds are read everywhere, in loops): `use_store()` replaces it, for the tests.
  */
@@ -269,7 +269,7 @@ final class Kinds {
 	}
 
 	/**
-	 * Whether two kinds can be one entry: one is a sort of the other. A kind that is unknown, empty or `other` conflicts with nothing.
+	 * Whether two kinds can be one topic: one is a sort of the other. A kind that is unknown, empty or `other` conflicts with nothing.
 	 *
 	 * @param string $a Kind.
 	 * @param string $b Kind.
@@ -305,10 +305,10 @@ final class Kinds {
 	}
 
 	/**
-	 * How many terms and entries have a kind.
+	 * How many terms and topics have a kind.
 	 *
 	 * @param string $slug Slug.
-	 * @return array{terms:int,entries:int}
+	 * @return array{terms:int,topics:int}
 	 */
 	public static function usage( $slug ) {
 		return self::store()->usage( (string) $slug );
@@ -408,7 +408,7 @@ final class Kinds {
 	 * Deletes a kind. A built-in kind, a kind that has sub-kinds and a kind that is used (unless another kind takes over) are refused.
 	 *
 	 * @param string $slug     Slug.
-	 * @param string $reassign The kind that takes over the terms and entries, '' for none.
+	 * @param string $reassign The kind that takes over the terms and topics, '' for none.
 	 * @return true|string
 	 */
 	public static function delete( $slug, $reassign = '' ) {
@@ -431,9 +431,9 @@ final class Kinds {
 
 		$usage = self::usage( (string) $slug );
 
-		if ( $usage['terms'] + $usage['entries'] > 0 ) {
+		if ( $usage['terms'] + $usage['topics'] > 0 ) {
 			if ( '' === (string) $reassign || (string) $reassign === $slug || ! isset( $records[ (string) $reassign ] ) ) {
-				return 'The kind "' . $slug . '" is used by ' . $usage['terms'] . ' term(s) and ' . $usage['entries'] . ' entr' . ( 1 === $usage['entries'] ? 'y' : 'ies' ) . ': give another kind to take them over.';
+				return 'The kind "' . $slug . '" is used by ' . $usage['terms'] . ' term(s) and ' . $usage['topics'] . ' topic' . ( 1 === $usage['topics'] ? '' : 's' ) . ': give another kind to take them over.';
 			}
 
 			self::store()->reassign( (string) $slug, (string) $reassign );

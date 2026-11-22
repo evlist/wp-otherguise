@@ -12,7 +12,7 @@ use Otherguise\Index\Build\IndexBuilder;
 use Otherguise\Index\Candidate;
 use Otherguise\Index\Cli\BuildCommand;
 use Otherguise\Index\Cli\SourcesCommand;
-use Otherguise\Index\Entries;
+use Otherguise\Index\Topics;
 use Otherguise\Index\Harvest\Signal;
 use Otherguise\Index\Harvest\SignalStore;
 use Otherguise\Index\Indexer;
@@ -23,11 +23,11 @@ use Otherguise\Index\Source\Page;
 
 require_once __DIR__ . '/support/class-otherguise-test-database-case.php';
 require_once __DIR__ . '/support/class-otherguise-test-modes-site.php';
-require_once __DIR__ . '/support/class-otherguise-test-memory-entries.php';
+require_once __DIR__ . '/support/class-otherguise-test-memory-topics.php';
 require_once __DIR__ . '/support/class-otherguise-test-memory-kinds.php';
 
 /**
- * The statements are real; the entries and the kinds are in memory, the posts are stubs.
+ * The statements are real; the topics and the kinds are in memory, the posts are stubs.
  *
  * @covers \Otherguise\Index\Mentions
  * @covers \Otherguise\Index\Indexer
@@ -38,11 +38,11 @@ require_once __DIR__ . '/support/class-otherguise-test-memory-kinds.php';
 class IndexSourcesDbTest extends Otherguise_Test_Database_Case {
 
 	/**
-	 * The entries.
+	 * The topics.
 	 *
-	 * @var Otherguise_Test_Memory_Entries
+	 * @var Otherguise_Test_Memory_Topics
 	 */
-	private $entries;
+	private $topics;
 
 	/**
 	 * The mentions.
@@ -52,7 +52,7 @@ class IndexSourcesDbTest extends Otherguise_Test_Database_Case {
 	private $mentions;
 
 	/**
-	 * Ids of the entries by name.
+	 * Ids of the topics by name.
 	 *
 	 * @var array<string, int>
 	 */
@@ -81,16 +81,16 @@ class IndexSourcesDbTest extends Otherguise_Test_Database_Case {
 		);
 		$statements = $site->statements;
 
-		$this->entries  = new Otherguise_Test_Memory_Entries();
+		$this->topics  = new Otherguise_Test_Memory_Topics();
 		$this->mentions = new Mentions(
 			static function () use ( $statements ) {
 				return $statements;
 			}
 		);
 
-		$this->id['beaufort'] = $this->entries->create( 'Beaufort', 'place', 0, Entries::APPROVED, array() );
-		$this->id['merle']    = $this->entries->create( 'Merle noir', 'species', 0, Entries::APPROVED, array() );
-		$this->id['doron']    = $this->entries->create( 'Doron', 'waterway', 0, Entries::APPROVED, array() );
+		$this->id['beaufort'] = $this->topics->create( 'Beaufort', 'place', 0, Topics::APPROVED, array() );
+		$this->id['merle']    = $this->topics->create( 'Merle noir', 'species', 0, Topics::APPROVED, array() );
+		$this->id['doron']    = $this->topics->create( 'Doron', 'waterway', 0, Topics::APPROVED, array() );
 	}
 
 	/**
@@ -254,7 +254,7 @@ class IndexSourcesDbTest extends Otherguise_Test_Database_Case {
 			array(
 				new Signal( Signal::WIKIPEDIA_LINK, 'Beaufort', 'content', 'href', array( 'language' => 'fr' ) ),
 				new Signal(
-					Signal::ENTRY,
+					Signal::TOPIC,
 					'wikidata:Q9',
 					'page',
 					'data-index',
@@ -270,14 +270,14 @@ class IndexSourcesDbTest extends Otherguise_Test_Database_Case {
 			)
 		);
 
-		$indexer = new Indexer( new Resolver( $this->entries ), $this->mentions, array( new Page( $store ) ), static fn() => true );
+		$indexer = new Indexer( new Resolver( $this->topics ), $this->mentions, array( new Page( $store ) ), static fn() => true );
 		$report  = $indexer->index_post( 1 );
 
 		$this->assertSame( 2, $report['added'] );
 
 		$found = $this->mentions->of_post( 1 );
-		$link  = $this->entries->with_key( 'wikipedia:fr:Beaufort' )[0];
-		$mark  = $this->entries->with_key( 'wikidata:Q9' )[0];
+		$link  = $this->topics->with_key( 'wikipedia:fr:Beaufort' )[0];
+		$mark  = $this->topics->with_key( 'wikidata:Q9' )[0];
 
 		$this->assertSame( array( 'post/link' ), $found[ $link ]['sources'] );
 		$this->assertSame( array( 'link:fr:Beaufort' ), $found[ $link ]['details']['post/link']['via'] );
@@ -292,7 +292,7 @@ class IndexSourcesDbTest extends Otherguise_Test_Database_Case {
 			1,
 			array(
 				new Signal(
-					Signal::ENTRY,
+					Signal::TOPIC,
 					'wikidata:Q9',
 					'page',
 					'data-index',
@@ -364,7 +364,7 @@ class IndexSourcesDbTest extends Otherguise_Test_Database_Case {
 			}
 		};
 
-		( new Indexer( new Resolver( $this->entries ), $this->mentions, array( $source ), static fn() => true ) )->index_post( 1 );
+		( new Indexer( new Resolver( $this->topics ), $this->mentions, array( $source ), static fn() => true ) )->index_post( 1 );
 
 		$mention = array_values( $this->mentions->of_post( 1 ) )[0];
 		$via     = $mention['details']['post/link']['via'];
@@ -382,14 +382,14 @@ class IndexSourcesDbTest extends Otherguise_Test_Database_Case {
 	 * @return IndexBuilder
 	 */
 	private function book(): IndexBuilder {
-		$say = fn( $post, $entry, $source, $visible = array(), $strength = 'passing' ) => $this->mentions->sync(
+		$say = fn( $post, $topic, $source, $visible = array(), $strength = 'passing' ) => $this->mentions->sync(
 			$post,
 			$source,
 			array(
-				$this->id[ $entry ] => array(
+				$this->id[ $topic ] => array(
 					'strength' => $strength,
 					'visible'  => $visible,
-					'via'      => array( 'v:' . $post . $entry ),
+					'via'      => array( 'v:' . $post . $topic ),
 				),
 			)
 		);
@@ -401,7 +401,7 @@ class IndexSourcesDbTest extends Otherguise_Test_Database_Case {
 		$say( 3, 'merle', 'post/link', array( 'print' ) );
 		$say( 3, 'doron', 'post/category', array(), 'main' );
 
-		return new IndexBuilder( $this->entries, $this->mentions );
+		return new IndexBuilder( $this->topics, $this->mentions );
 	}
 
 	/**

@@ -186,7 +186,7 @@ class IndexPagesTest extends TestCase {
 			5,
 			array(
 				new Signal(
-					Signal::ENTRY,
+					Signal::TOPIC,
 					'wikidata:Q1234',
 					'page',
 					'data-index',
@@ -199,7 +199,7 @@ class IndexPagesTest extends TestCase {
 					)
 				),
 				new Signal(
-					Signal::ENTRY,
+					Signal::TOPIC,
 					'Beaufort > Les Arberons',
 					'page',
 					'data-index',
