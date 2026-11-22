@@ -148,6 +148,13 @@ final class MergedPrint {
 	private $rows = array();
 
 	/**
+	 * The marks of the mentions in the units, in order (slice 612).
+	 *
+	 * @var array<int, array>
+	 */
+	private $marks = array();
+
+	/**
 	 * The tables of contents that blocks asked for: `levels`, `numbered`, in the order of the markers (slice 228).
 	 *
 	 * @var array<int, array{levels:int, numbered:bool}>
@@ -421,7 +428,7 @@ final class MergedPrint {
 	 * @return string
 	 */
 	private function tables( $page, array $rows, $units ) {
-		$pages = $this->pages();
+		$pages = $this->record->pages( (string) ( ( (array) ( $this->request )() )['pages'] ?? '' ) );
 
 		if ( array() !== $this->tocs && false !== strpos( $page, self::TOC_MARKER ) ) {
 			foreach ( $this->tocs as $index => $toc ) {
@@ -430,17 +437,7 @@ final class MergedPrint {
 			}
 		}
 
-		return $this->indexes->fill( $page, '' === $units ? array() : array_map( static fn( $unit ) => (int) $unit['id'], $this->unit_list ), $rows, $pages );
-	}
-
-	/**
-	 * The page of each heading (`<post>#<n>`) that the address gives (`books_pages`: the map that the first pass of the job saved); none when it
-	 * gives nothing: the numbers are then placeholders.
-	 *
-	 * @return array<string, int>
-	 */
-	private function pages() {
-		return $this->record->pages( (string) ( ( (array) ( $this->request )() )['pages'] ?? '' ) );
+		return $this->indexes->fill( $page, '' === $units ? array() : array_map( static fn( $unit ) => (int) $unit['id'], $this->unit_list ), $rows, $pages, $this->marks );
 	}
 
 	/**
@@ -459,6 +456,7 @@ final class MergedPrint {
 				'units'    => $this->unit_list,
 				'tocs'     => count( array_filter( $this->tocs, static fn( $toc ) => $toc['numbered'] ) ) + $this->indexes->numbered(),
 				'headings' => array_merge( $before, $this->rows, $after ),
+				'marks'    => $this->marks,
 			)
 		);
 	}
@@ -529,6 +527,7 @@ final class MergedPrint {
 		$this->busy    = true;
 		$this->started = microtime( true );
 		$this->rows    = array();
+		$this->marks   = array();
 		$this->unit_list = array();
 		$queries       = get_num_queries();
 
@@ -671,7 +670,7 @@ final class MergedPrint {
 				'id'    => (int) $id,
 				'depth' => (int) $depth,
 			);
-			$out .= '<div class="books-merge-unit" data-post="' . (int) $id . '" data-depth="' . (int) $depth . '">' . Headings::unit( $html, (int) $id, $this->rows, (int) $depth ) . '</div>';
+			$out .= '<div class="books-merge-unit" data-post="' . (int) $id . '" data-depth="' . (int) $depth . '">' . Headings::unit( MentionMarks::unit( $html, (int) $id, $this->marks ), (int) $id, $this->rows, (int) $depth ) . '</div>';
 
 			$this->log->write(
 				'unit',

@@ -104,7 +104,7 @@ final class Page implements Source {
 	 * @param Signal $signal The signal.
 	 * @return Candidate|null
 	 */
-	private function candidate_of( Signal $signal ) {
+	public function candidate_of( Signal $signal ) {
 		if ( Signal::TOPIC === $signal->type ) {
 			return $this->from_mark( $signal );
 		}

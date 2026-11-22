@@ -96,10 +96,12 @@ final class IndexBuilder {
 
 				// The selection is tested on each source of the mention: it keeps the sources that pass, and drops the mention when none does.
 				$passing = array();
+				$via     = array();
 
 				foreach ( $mention['details'] as $source => $detail ) {
 					if ( $selection->passes( $lines[ $id ]['kind'], (string) $source, $detail['visible'] ) ) {
 						$passing[] = (string) $source;
+						$via       = array_merge( $via, $detail['via'] );
 					}
 				}
 
@@ -108,6 +110,7 @@ final class IndexBuilder {
 						'post'     => $post,
 						'strength' => $mention['strength'],
 						'sources'  => $passing,
+						'via'      => array_values( array_unique( $via ) ),
 					);
 				}
 			}

@@ -42,9 +42,10 @@ final class IndexTable {
 	 * @param callable                                                                     $link    Receives a post id, returns its address.
 	 * @param callable                                                                     $title   Receives a post id, returns its title.
 	 * @param array<string, mixed>                                                         $options `title` and `attribution` (`auto`, `yes`, `no`).
+	 * @param array<int, array<string, int[]>>                                             $marks   The marks of the mentions by post and by `via` (slice 612): their pages are in `$pages` under `m:<post>#<n>`.
 	 * @return string An empty string when there is no line.
 	 */
-	public static function render( array $data, $numbered, array $first, array $pages, $link, $title, array $options = array() ) {
+	public static function render( array $data, $numbered, array $first, array $pages, $link, $title, array $options = array(), array $marks = array() ) {
 		$groups = (array) ( $data['groups'] ?? array() );
 
 		if ( array() === $groups ) {
@@ -62,7 +63,7 @@ final class IndexTable {
 
 			foreach ( (array) $lines as $line ) {
 				$classes  = array_map( 'sanitize_html_class', array_merge( array( 'books-index__entry' ), (array) ( $line['classes'] ?? array() ) ) );
-				$locators = $numbered ? self::pages_of( (array) $line['locators'], $first, $pages ) : self::links_of( (array) $line['locators'], $link, $title );
+				$locators = $numbered ? self::pages_of( (array) $line['locators'], $first, $pages, $marks ) : self::links_of( (array) $line['locators'], $link, $title );
 				$html    .= '<li class="' . esc_attr( implode( ' ', $classes ) ) . '"><span class="books-index__label">' . esc_html( (string) $line['label'] ) . '</span> <span class="books-index__locators">' . $locators . '</span></li>';
 			}
 
@@ -75,12 +76,16 @@ final class IndexTable {
 	/**
 	 * The page numbers of a line: its pages in order, the consecutive ones collapsed, a main page in bold.
 	 *
-	 * @param array<int, array{post:int,strength:string}> $locators The locators.
-	 * @param array<int, string>                          $first    The key of the first heading of each post.
-	 * @param array<string, int>                          $pages    The pages; empty until known.
+	 * The page of a locator is the page of the marker of the element that shows the topic (slice 612); a locator with no marker is the page of its post
+	 * (its first heading). When the merge has marks, the two kinds of runs are in a span (`index-locator-element`, `index-locator-post`) that a book can style.
+	 *
+	 * @param array<int, array{post:int,strength:string,via?:string[]}> $locators The locators.
+	 * @param array<int, string>                                        $first    The key of the first heading of each post.
+	 * @param array<string, int>                                        $pages    The pages; empty until known.
+	 * @param array<int, array<string, int[]>>                          $marks    The marks by post and by `via`.
 	 * @return string
 	 */
-	private static function pages_of( array $locators, array $first, array $pages ) {
+	private static function pages_of( array $locators, array $first, array $pages, array $marks = array() ) {
 		if ( array() === $pages ) {
 			return esc_html( self::PLACEHOLDER );
 		}
@@ -88,11 +93,33 @@ final class IndexTable {
 		$found = array();
 
 		foreach ( $locators as $locator ) {
-			$key = $first[ (int) $locator['post'] ] ?? '';
+			$post   = (int) $locator['post'];
+			$main   = 'main' === $locator['strength'];
+			$own    = array();
+			$kind   = 'element';
+			$numbers = array();
 
-			if ( '' !== $key && isset( $pages[ $key ] ) ) {
-				$page           = (int) $pages[ $key ];
-				$found[ $page ] = ( $found[ $page ] ?? false ) || 'main' === $locator['strength'];
+			foreach ( (array) ( $locator['via'] ?? array() ) as $via ) {
+				$numbers = array_merge( $numbers, $marks[ $post ][ (string) $via ] ?? array() );
+			}
+
+			foreach ( $numbers as $number ) {
+				if ( isset( $pages[ 'm:' . $post . '#' . $number ] ) ) {
+					$own[] = (int) $pages[ 'm:' . $post . '#' . $number ];
+				}
+			}
+
+			if ( array() === $own ) {
+				$kind = 'post';
+				$key  = $first[ $post ] ?? '';
+
+				if ( '' !== $key && isset( $pages[ $key ] ) ) {
+					$own[] = (int) $pages[ $key ];
+				}
+			}
+
+			foreach ( $own as $page ) {
+				$found[ $page ][ $kind ] = ( $found[ $page ][ $kind ] ?? false ) || $main;
 			}
 		}
 
@@ -104,27 +131,33 @@ final class IndexTable {
 
 		$runs = array();
 
-		foreach ( $found as $page => $main ) {
-			$last = array() === $runs ? null : $runs[ count( $runs ) - 1 ];
+		foreach ( $found as $page => $kinds ) {
+			foreach ( $kinds as $kind => $main ) {
+				$last = array() === $runs ? null : $runs[ count( $runs ) - 1 ];
 
-			if ( null !== $last && $last['to'] + 1 === $page && $last['main'] === $main ) {
-				$runs[ count( $runs ) - 1 ]['to'] = $page;
-			} else {
-				$runs[] = array(
-					'from' => $page,
-					'to'   => $page,
-					'main' => $main,
-				);
+				if ( null !== $last && $last['to'] + 1 === $page && $last['main'] === $main && $last['kind'] === $kind ) {
+					$runs[ count( $runs ) - 1 ]['to'] = $page;
+				} else {
+					$runs[] = array(
+						'from' => $page,
+						'to'   => $page,
+						'main' => $main,
+						'kind' => $kind,
+					);
+				}
 			}
 		}
+
+		$classed = array() !== $marks;
 
 		return implode(
 			', ',
 			array_map(
-				static function ( $run ) {
-					$text = $run['from'] === $run['to'] ? (string) $run['from'] : $run['from'] . '–' . $run['to'];
+				static function ( $run ) use ( $classed ) {
+					$text = esc_html( $run['from'] === $run['to'] ? (string) $run['from'] : $run['from'] . '–' . $run['to'] );
+					$text = $run['main'] ? '<strong class="books-index__main">' . $text . '</strong>' : $text;
 
-					return $run['main'] ? '<strong class="books-index__main">' . esc_html( $text ) . '</strong>' : esc_html( $text );
+					return $classed ? '<span class="index-locator-' . $run['kind'] . '">' . $text . '</span>' : $text;
 				},
 				$runs
 			)

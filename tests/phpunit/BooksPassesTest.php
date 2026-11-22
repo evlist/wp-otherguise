@@ -302,4 +302,26 @@ class BooksPassesTest extends TestCase {
 		$this->assertSame( array( '' ), $given, 'Not numbered: no seed.' );
 		$this->assertNull( $made['map'] );
 	}
+
+	/**
+	 * The marks of the mentions are in the map with the key `m:<post>#<n>`, next to those of the headings (slice 612).
+	 *
+	 * @return void
+	 */
+	public function test_the_marks_of_the_mentions_are_in_the_map(): void {
+		$same  = $this->pdf( array( $this->manifest(), 'heading/1/1', 'mention/1/1' ), array( 'mention/1/2', 'heading/1/2' ) );
+		$given = array();
+		$made  = $this->passes( array( $same, $same ), true, $given );
+
+		$this->assertSame(
+			array(
+				'1#1'   => 1,
+				'1#2'   => 2,
+				'm:1#1' => 1,
+				'm:1#2' => 2,
+			),
+			$made['map']
+		);
+		$this->assertTrue( $made['stable'] );
+	}
 }

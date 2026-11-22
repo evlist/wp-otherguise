@@ -96,10 +96,11 @@ final class IndexSlots {
 	 * @param string             $page  A piece of the page.
 	 * @param int[]              $units The posts of the merge, in order.
 	 * @param array<int, array>  $rows  The headings of the merge, in the order of the document.
-	 * @param array<string, int> $pages The page of each heading, empty until known.
+	 * @param array<string, int> $pages The page of each heading (`<post>#<n>`) and of each mark (`m:<post>#<n>`), empty until known.
+	 * @param array<int, array>  $marks The marks of the mentions in the units (slice 612).
 	 * @return string
 	 */
-	public function fill( $page, array $units, array $rows, array $pages ) {
+	public function fill( $page, array $units, array $rows, array $pages, array $marks = array() ) {
 		if ( array() === $this->slots || false === strpos( $page, self::MARKER ) ) {
 			return $page;
 		}
@@ -127,7 +128,7 @@ final class IndexSlots {
 					'context' => ! array_key_exists( 'context', $slot['options'] ) || (bool) $slot['options']['context'],
 				)
 			);
-			$html = is_array( $data ) ? IndexTable::render( $data, $slot['numbered'], $first, $pages, $this->link, $this->title, $slot['options'] ) : '';
+			$html = is_array( $data ) ? IndexTable::render( $data, $slot['numbered'], $first, $pages, $this->link, $this->title, $slot['options'], MentionMarks::by_post( $marks ) ) : '';
 			$page = str_replace( self::MARKER . $index . ' -->', $html, $page );
 		}
 

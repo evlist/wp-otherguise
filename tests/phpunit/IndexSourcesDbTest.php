@@ -13,6 +13,8 @@ use Otherguise\Index\Candidate;
 use Otherguise\Index\Cli\BuildCommand;
 use Otherguise\Index\Cli\SourcesCommand;
 use Otherguise\Index\Topics;
+use Otherguise\Index\Harvest\MentionElements;
+use Otherguise\Index\Harvest\PageReader;
 use Otherguise\Index\Harvest\Signal;
 use Otherguise\Index\Harvest\SignalStore;
 use Otherguise\Index\Indexer;
@@ -566,5 +568,58 @@ class IndexSourcesDbTest extends Otherguise_Test_Database_Case {
 		$cmd->migrate( array(), array() );
 		$this->assertContains( 'OK 0 qualification(s) changed.', $log, 'Run twice: nothing more.' );
 		$this->assertSame( array( 'post/category' ), $this->mentions->of_post( 1 )[ $this->id['beaufort'] ]['sources'] );
+	}
+
+	/**
+	 * The elements that stand for a stored mention are marked with what produced it (slice 612): a link to Wikipedia and a mark, not a link that
+	 * made no mention, and the builder gives that `via` to the locators so that the pages of the elements can be found.
+	 *
+	 * @return void
+	 */
+	public function test_the_elements_of_the_mentions_are_marked(): void {
+		if ( ! Otherguise_Test_Html_Api::load() ) {
+			$this->markTestSkipped( 'The tag processor is not available.' );
+		}
+
+		$html  = '<main><div class="wp-block-post-content"><p>Voir <a href="https://fr.wikipedia.org/wiki/Beaufort">Beaufort</a>, <span id="obs1" data-index="wikidata:Q9" data-index-label="Merle noir" data-index-kind="species">le merle</span> et <a href="https://example.org/x">un lien</a> et <a href="https://fr.wikipedia.org/wiki/Autre">Autre</a>.</p></div></main>';
+		$meta  = array();
+		$store = new SignalStore(
+			static function ( $id, $key ) use ( &$meta ) {
+				return $meta[ $id ][ $key ] ?? '';
+			},
+			static function ( $id, $key, $value ) use ( &$meta ) {
+				$meta[ $id ][ $key ] = is_string( $value ) ? stripslashes( $value ) : $value;
+			},
+			static fn() => 1700000000
+		);
+		$page   = new Page( $store );
+		$reader = new PageReader();
+
+		// The job stored the signals of the page; the link to « Autre » is then taken out of the stored mentions by hand: it made none.
+		$store->save( 1, array_values( array_filter( $reader->signals( $html, 1 ), static fn( $signal ) => 'Autre' !== $signal->value ) ) );
+		( new Indexer( new Resolver( $this->topics ), $this->mentions, array( $page ), static fn() => true ) )->index_post( 1 );
+
+		$marked = ( new MentionElements( $reader, $page, $this->mentions ) )->mark( $html, 1 );
+
+		$this->assertStringContainsString( '<a data-index-mention="link:fr:Beaufort"', $marked );
+		$this->assertStringContainsString( 'data-index-mention="mark:#obs1"', $marked );
+		$this->assertSame( 2, substr_count( $marked, 'data-index-mention' ), 'The link to another site and the link that made no mention are left alone.' );
+		$this->assertStringNotContainsString( 'data-index-sig', $marked );
+
+		$line = ( new IndexBuilder( $this->topics, $this->mentions ) )->build( array( 1 ) )->groups();
+		$vias = array();
+
+		foreach ( $line as $lines ) {
+			foreach ( $lines as $one ) {
+				foreach ( $one['locators'] as $locator ) {
+					$vias = array_merge( $vias, $locator['via'] );
+				}
+			}
+		}
+
+		sort( $vias );
+
+		$this->assertSame( array( 'link:fr:Beaufort', 'mark:#obs1' ), $vias );
+		$this->assertSame( '<p>Rien</p>', ( new MentionElements( $reader, $page, $this->mentions ) )->mark( '<p>Rien</p>', 2 ), 'A post with no mention is left as it is.' );
 	}
 }

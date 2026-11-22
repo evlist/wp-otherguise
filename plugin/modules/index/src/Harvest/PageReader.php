@@ -51,10 +51,32 @@ final class PageReader {
 	public function signals( $html, $post_id = 0 ) {
 		unset( $post_id );
 
-		$html = (string) $html;
+		return $this->scan( (string) $html, false )['signals'];
+	}
 
+	/**
+	 * Reads a page and stamps the elements that carry signals (slice 612): each gets `data-index-sig`, the positions of its signals in the list.
+	 *
+	 * @param string $html The HTML of the page (or of a part of it).
+	 * @return array{html:string, signals:Signal[]}
+	 */
+	public function stamped( $html ) {
+		return $this->scan( (string) $html, true );
+	}
+
+	/**
+	 * Reads a page, and stamps the elements when asked.
+	 *
+	 * @param string $html  The HTML.
+	 * @param bool   $stamp Whether to stamp the elements that carry signals.
+	 * @return array{html:string, signals:Signal[]}
+	 */
+	private function scan( $html, $stamp ) {
 		if ( '' === $html || ! class_exists( '\WP_HTML_Tag_Processor' ) ) {
-			return array();
+			return array(
+				'html'    => $html,
+				'signals' => array(),
+			);
 		}
 
 		$has_main    = false !== stripos( $html, '<main' );
@@ -86,7 +108,13 @@ final class PageReader {
 
 			$state = $this->state( $tags, $tag, $parent );
 
+			$before = count( $signals );
+
 			$this->read( $tags, $tag, $state, $signals );
+
+			if ( $stamp && count( $signals ) > $before ) {
+				$tags->set_attribute( 'data-index-sig', implode( ',', range( $before, count( $signals ) - 1 ) ) );
+			}
 
 			if ( ! in_array( $tag, self::VOID, true ) ) {
 				$state['tag'] = $tag;
@@ -94,7 +122,10 @@ final class PageReader {
 			}
 		}
 
-		return $signals;
+		return array(
+			'html'    => $stamp ? $tags->get_updated_html() : $html,
+			'signals' => $signals,
+		);
 	}
 
 	/**

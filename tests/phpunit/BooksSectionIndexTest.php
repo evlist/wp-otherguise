@@ -256,4 +256,123 @@ class BooksSectionIndexTest extends TestCase {
 		$this->assertSame( 'x  y', $slots->fill( 'x ' . $one . ' y', array(), $rows, $pages ), 'No units: the marker goes away.' );
 		$this->assertSame( 'plain', $slots->fill( 'plain', array( 1 ), $rows, $pages ) );
 	}
+
+	/**
+	 * The page of a locator is the page of the marker of its element (slice 612); without a marker it is the page of its post. When the merge has
+	 * marks both are in a span that a book can style; without marks the output is the one of slice 611.
+	 *
+	 * @return void
+	 */
+	public function test_the_pages_of_the_elements(): void {
+		list( $first, $pages ) = $this->pages();
+
+		$data = array(
+			'groups'      => array(
+				'M' => array(
+					array(
+						'label'    => 'Merle noir',
+						'kind'     => 'species',
+						'classes'  => array(),
+						'locators' => array(
+							array(
+								'post'     => 1,
+								'strength' => 'passing',
+								'via'      => array( 'link:fr:Merle' ),
+							),
+							array(
+								'post'     => 2,
+								'strength' => 'main',
+								'via'      => array( 'mark:#obs' ),
+							),
+							array(
+								'post'     => 3,
+								'strength' => 'passing',
+								'via'      => array( 'link:fr:Absent' ),
+							),
+						),
+					),
+				),
+			),
+		);
+		$marks = array(
+			1 => array( 'link:fr:Merle' => array( 1, 2 ) ),
+			2 => array( 'mark:#obs' => array( 1 ) ),
+		);
+
+		// The post 1 shows the topic on the pages 30 and 31, the post 2 on the page 40; the post 3 has no marker: it falls back to its post (the pages are in numeric order).
+		$pages += array(
+			'm:1#1' => 30,
+			'm:1#2' => 31,
+			'm:2#1' => 40,
+		);
+
+		$html = IndexTable::render( $data, true, $first, $pages, static fn() => '', static fn() => '', array(), $marks );
+
+		$this->assertStringContainsString( '<span class="index-locator-post">14</span>, <span class="index-locator-element">30–31</span>, <span class="index-locator-element"><strong class="books-index__main">40</strong></span>', $html );
+
+		$plain = IndexTable::render( $data, true, $first, $pages, static fn() => '', static fn() => '', array() );
+
+		$this->assertStringContainsString( '<span class="books-index__locators">12, <strong class="books-index__main">13</strong>, 14</span>', $plain, 'Without marks every locator is the page of its post, with no span.' );
+	}
+
+	/**
+	 * The slots pass the marks of the merge on to the index.
+	 *
+	 * @return void
+	 */
+	public function test_the_slots_use_the_marks(): void {
+		$slots = new IndexSlots( static fn() => '', static fn( $id ) => 'Day ' . $id, fn() => $this->data_with_via() );
+		$one   = $slots->slot( array(), true );
+
+		list( $first, $pages ) = $this->pages();
+
+		$pages['m:1#1'] = 50;
+		$filled         = $slots->fill(
+			$one,
+			array( 1 ),
+			array(
+				array(
+					'unit' => 1,
+					'n'    => 1,
+				),
+			),
+			$pages,
+			array(
+				array(
+					'unit'  => 1,
+					'n'     => 1,
+					'type'  => 'link',
+					'value' => 'link:fr:Merle',
+				),
+			)
+		);
+
+		$this->assertStringContainsString( '<span class="index-locator-element">50</span>', $filled );
+	}
+
+	/**
+	 * The data of an index whose only locator was made by a link.
+	 *
+	 * @return array<string, mixed>
+	 */
+	private function data_with_via(): array {
+		return array(
+			'groups' => array(
+				'M' => array(
+					array(
+						'label'    => 'Merle',
+						'kind'     => 'species',
+						'classes'  => array(),
+						'locators' => array(
+							array(
+								'post'     => 1,
+								'strength' => 'passing',
+								'via'      => array( 'link:fr:Merle' ),
+							),
+						),
+					),
+				),
+			),
+		);
+	}
 }

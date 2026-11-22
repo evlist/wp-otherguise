@@ -3,7 +3,7 @@
 
 # Slice 612 — Books: PDF markers for the mentions that are visible in the text
 
-Status: **proposed (2026-11-22), not coded.** Dependencies: 611 (the block), 605 (`index/via`), slice 227 of Books (the markers of the headings, the manifest, `PdfMarkers`, the pagination map). Context: [`../design/index.md`](../design/index.md), "Vocabulary and the dimensions of an index".
+Status: **coded on 2026-11-22** for the links and the marks (photographs and GPX files are not a source yet: slice 606). See "As coded" at the end. Dependencies: 611 (the block), 605 (`index/via`), slice 227 of Books (the markers of the headings, the manifest, `PdfMarkers`, the pagination map). Context: [`../design/index.md`](../design/index.md), "Vocabulary and the dimensions of an index".
 
 ## Decided (Eric, 2026-11-22)
 
@@ -40,3 +40,12 @@ The marks (an image, a link, a `data-index` mark; an element with no mention get
 ## Not done
 
 **Photographs as a source** (the photographs slice must exist: until then this slice marks links and marks); a marker for a **region** of the page (a map); the **web** index with anchors; the renaming of the code.
+
+## As coded (2026-11-22)
+
+- **Which elements** (Index): the filter `index_mention_elements( $html, $post_id )`, answered by `Module::mention_elements_for_filter`, reads the page with **the same reader as the source `page`** (`PageReader::stamped()` stamps the elements that carry signals; `Page::candidate_of()` turns a signal into a candidate) and puts **`data-index-mention="<via>"`** on every element whose candidate has a `via` that **the post's stored mentions hold** (compared in its stored form, so a `via` shortened to 191 bytes still matches). A link that made no mention gets nothing. Without the Index module the filter gives the HTML back and nothing is marked: **no class of one module is named in the other**.
+- **The markers** (Books): `MentionMarks::unit()` puts the marker `https://marker.invalid/mention/<post>/<n>` (inline, one pixel) **in front of each marked element**, in the order of the page; scripts, styles, comments and text areas are left alone. The units only (not the page of the section), in the merge, which is the print mode.
+- **Manifest**: key `marks` (`unit`, `n`, `type`, `value`); **map of the pages**: `Passes` reads `mention/<post>/<n>` into the key `m:<post>#<n>`; the passes are unchanged.
+- **Locators**: the builder gives each locator **the `via` of the sources that pass the selection**; `IndexTable` takes **the pages of the marks whose value is one of them**, else **the page of the post** (first heading). When the merge has marks, the runs are wrapped in `index-locator-element` or `index-locator-post` (a book can set the second in italics); **without marks the output is the one of slice 611**. A run is broken where the boldness or the kind changes.
+- **Report**: `wp otherguise books pagination --check` lists the marks of the manifest that the PDF does not hold (the print template hides the element: the locator falls back to the post) and the marks found on several pages.
+- **Tried**: PHPUnit (927 tests); a scratch WordPress (real posts: the link to Wikipedia and the mark of two posts are marked, the posts whose mentions are tags or categories have no mark). **Not tried**: a PDF made by Chromium and Gotenberg (the measures of the section above are still to be made: some 12,000 markers, the size of the manifest, whether the markers survive), the real blog.

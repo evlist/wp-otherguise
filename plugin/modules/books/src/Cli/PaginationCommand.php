@@ -162,6 +162,7 @@ final class PaginationCommand {
 
 		$headings = array();
 		$repeats  = array();
+		$mentions = array();
 		$manifest = null;
 
 		foreach ( $read['markers'] as $name => $pages ) {
@@ -170,6 +171,12 @@ final class PaginationCommand {
 
 				if ( count( $pages ) > 1 ) {
 					$repeats[ $found[1] . '#' . $found[2] ] = $pages;
+				}
+			} elseif ( 1 === preg_match( '#^mention/(\d+)/(\d+)$#', $name, $found ) ) {
+				$mentions[ $found[1] . '#' . $found[2] ] = $pages[0];
+
+				if ( count( $pages ) > 1 ) {
+					$repeats[ 'mention ' . $found[1] . '#' . $found[2] ] = $pages;
 				}
 			} elseif ( 1 === preg_match( '#^manifest/([0-9a-f]{32})$#', $name, $found ) ) {
 				$manifest = $this->manifest( $found[1] );
@@ -268,7 +275,15 @@ final class PaginationCommand {
 
 		foreach ( $repeats as $name => $pages ) {
 			++$problems;
-			( $this->warning )( 'The marker of the heading ' . $name . ' is on several pages: ' . implode( ', ', $pages ) . '.' );
+			( $this->warning )( 'The marker of the ' . ( 0 === strpos( $name, 'mention ' ) ? '' : 'heading ' ) . $name . ' is on several pages: ' . implode( ', ', $pages ) . '.' );
+		}
+
+		// A mention that the merge marked and the PDF does not hold (the print template hides the element): its locator falls back to the page of its post (slice 612).
+		foreach ( $manifest['marks'] ?? array() as $mark ) {
+			if ( ! isset( $mentions[ $mark ] ) ) {
+				++$problems;
+				( $this->warning )( 'The mention ' . $mark . ' has no marker in the PDF (the element is not printed): its locator is the page of its post.' );
+			}
 		}
 
 		foreach ( array_diff( array_keys( $starts ), $expected, array( $section ) ) as $id ) {
@@ -293,7 +308,7 @@ final class PaginationCommand {
 	 * Reads the manifest of a PDF: the headings by unit and by number, with their level, their text and whether a table of contents lists them.
 	 *
 	 * @param string $key Key of the manifest.
-	 * @return array{headings:array<int, array<int, array>>, units:int[]}|null `headings` by unit and by number, `units`: the ids of the units that were merged; null when there is none or it is not readable.
+	 * @return array{headings:array<int, array<int, array>>, units:int[], marks:string[]}|null `headings` by unit and by number, `units`: the ids of the units that were merged, `marks`: the mentions that were marked (`<post>#<n>`); null when there is none or it is not readable.
 	 */
 	private function manifest( $key ) {
 		$json = ( $this->manifest )( $key );
@@ -324,9 +339,18 @@ final class PaginationCommand {
 			}
 		}
 
+		$marks = array();
+
+		foreach ( (array) ( $data['marks'] ?? array() ) as $mark ) {
+			if ( is_array( $mark ) && isset( $mark['unit'], $mark['n'] ) ) {
+				$marks[] = (int) $mark['unit'] . '#' . (int) $mark['n'];
+			}
+		}
+
 		return array(
 			'headings' => $by_unit,
 			'units'    => $units,
+			'marks'    => $marks,
 		);
 	}
 

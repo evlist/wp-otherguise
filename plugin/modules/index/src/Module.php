@@ -25,6 +25,7 @@ use Otherguise\Index\Build\IndexBuilder;
 use Otherguise\Index\Build\Selection;
 use Otherguise\Index\Admin\KindsScreen;
 use Otherguise\Index\Cli\PagesCommand;
+use Otherguise\Index\Harvest\MentionElements;
 use Otherguise\Index\Harvest\PageFetcher;
 use Otherguise\Index\Harvest\SignalStore;
 use Otherguise\Index\Job\PagesService;
@@ -118,6 +119,7 @@ final class Module implements ModuleInterface, DescribedModule, DisabledByDefaul
 		( $this->add_action )( 'cli_init', array( $this, 'register_command' ), 10, 0 );
 		// Slice 611: a consumer (the block of a book) asks for the lines of an index through this filter, without knowing the classes of this module.
 		( $this->add_action )( 'index_build', array( $this, 'build_for_filter' ), 10, 3 );
+		( $this->add_action )( 'index_mention_elements', array( $this, 'mention_elements_for_filter' ), 10, 2 );
 
 		// Slice 602: the pages are read in the background, and a saved post is read a little later.
 		( $this->add_action )( PagesService::TICK_HOOK, array( $this->pages(), 'tick' ), 10, 0 );
@@ -271,6 +273,22 @@ final class Module implements ModuleInterface, DescribedModule, DisabledByDefaul
 			'groups'      => $model->groups(),
 			'attribution' => $model->attribution(),
 		);
+	}
+
+	/**
+	 * Marks the elements of a post that stand for a mention (slice 612): `data-index-mention` on each, with the `via` that the mention holds. Filter
+	 * `index_mention_elements`, which the merge of the books applies to the HTML of a unit.
+	 *
+	 * @param mixed $html    The HTML of the post.
+	 * @param mixed $post_id The post.
+	 * @return mixed The HTML, marked.
+	 */
+	public function mention_elements_for_filter( $html, $post_id = 0 ) {
+		if ( ! is_string( $html ) ) {
+			return $html;
+		}
+
+		return ( new MentionElements( new PageReader(), new Page( new SignalStore(), '1' === (string) get_option( EnrichService::SWITCH, '' ) ), $this->mentions() ) )->mark( $html, (int) $post_id );
 	}
 
 	/**

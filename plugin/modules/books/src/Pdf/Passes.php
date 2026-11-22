@@ -129,6 +129,8 @@ final class Passes {
 				$tocs     = is_array( $manifest ) ? (int) ( $manifest['tocs'] ?? 0 ) : 0;
 			} elseif ( 1 === preg_match( '#^heading/(\d+)/(\d+)$#', $name, $found ) ) {
 				$map[ $found[1] . '#' . $found[2] ] = $pages[0];
+			} elseif ( 1 === preg_match( '#^mention/(\d+)/(\d+)$#', $name, $found ) ) {
+				$map[ 'm:' . $found[1] . '#' . $found[2] ] = $pages[0];
 			}
 		}
 
