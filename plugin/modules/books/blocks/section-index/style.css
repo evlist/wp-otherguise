@@ -1,0 +1,36 @@
+/**
+ * SPDX-FileCopyrightText: 2026 Eric van der Vlist <vdv@dyomedea.com>
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ *
+ * The index of a section (block books/section-index): the entries in columns, under their letters; the kind of a topic is a class of its entry
+ * (index-kind-<kind>, then those of its ancestors), so that a book can set places, species or routes apart.
+ */
+.books-index__group {
+	break-inside: avoid;
+}
+
+.books-index__letter {
+	margin: 0.6em 0 0.2em;
+}
+
+.books-index__entries {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	column-count: 2;
+	column-gap: 1.5em;
+}
+
+.books-index__entry {
+	break-inside: avoid;
+	margin: 0;
+}
+
+.books-index__locators {
+	font-variant-numeric: tabular-nums;
+}
+
+.books-index__attribution {
+	margin-top: 1em;
+	font-size: 0.8em;
+}

@@ -281,7 +281,7 @@ The geocoding (coordinates to a place) is the one real decision of the list: an 
 ## Consumers
 
 - **The API of the module**: the entries of a scope (the whole site, a date range, **the units of a section of Books**), sorted according to the language (`Collator` if the extension `intl` is there, a fallback otherwise: **to check**), with their mentions (post, strength, anchor) and **no page number**.
-- **Books** (the module depends on Index, not the reverse): the locators become **pages** by the pagination map (slice 227: the page of a unit is the page of its first heading); the **ranges** (12-14), the main references in bold and the layout are Books' business (the role `index` of slice 228). **Where a passage is printed** and has a marker, the page is the one of the passage; **otherwise the page of the post**, and the report lists the mentions that fell back to the post.
+- **Books** (**coupled to Index by filters, in both directions, with no class of one named in the other**: a declared dependency would have switched Index on wherever Books is on; slice 611): the locators become **pages** by the pagination map (slice 227: the page of a unit is the page of its first heading); the **ranges** (12-14), the main references in bold and the layout are Books' business (the role `index` of slice 228). **Where a passage is printed** and has a marker, the page is the one of the passage; **otherwise the page of the post**, and the report lists the mentions that fell back to the post.
 - **The web**: a block of **alphabetical index** (letters, the kinds as filters), a **page per entry** that lists its posts (a public archive of the taxonomy, an option), a block **"Index entries of this post"**.
 
 ## Attribution (Decided by Eric, 2026-11-21)

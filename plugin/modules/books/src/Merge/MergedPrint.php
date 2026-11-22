@@ -127,6 +127,13 @@ final class MergedPrint {
 	public const TOC_MARKER = '<!-- books-section-toc:';
 
 	/**
+	 * The indexes that the blocks of the page asked for (slice 611).
+	 *
+	 * @var IndexSlots
+	 */
+	private $indexes;
+
+	/**
 	 * Whether the block left the marker in the page.
 	 *
 	 * @var bool
@@ -162,18 +169,11 @@ final class MergedPrint {
 	private $unit_list = array();
 
 	/**
-	 * Writes a manifest: receives its key (32 hexadecimal digits) and its JSON, returns whether it was written.
+	 * What the merge writes down for the job and reads back from it (the manifest and the map of the pages).
 	 *
-	 * @var callable|null
+	 * @var MergeRecord
 	 */
-	private $manifest_writer;
-
-	/**
-	 * Reads a map of the pages: receives its key, returns its JSON or null.
-	 *
-	 * @var callable|null
-	 */
-	private $pages_reader;
+	private $record;
 
 	/**
 	 * Id of the section whose block asked for the merge (the headings of its own page are marked with it).
@@ -244,9 +244,9 @@ final class MergedPrint {
 	 * @param callable|null $pages    Reads a map of the pages (key): its JSON or null; none by default: the numbers of the tables are placeholders.
 	 */
 	public function __construct( Sections $sections, MergeAccess $access, MergeLog $log, $request = null, $render = null, $post_of = null, $manifest = null, $pages = null ) {
-		$this->manifest_writer = $manifest;
-		$this->pages_reader    = $pages;
+		$this->record          = new MergeRecord( $manifest, $pages );
 		$this->link            = static fn( $id ) => (string) get_permalink( (int) $id );
+		$this->indexes         = new IndexSlots( $this->link );
 		$this->sections = $sections;
 		$this->access   = $access;
 		$this->log      = $log;
@@ -309,24 +309,53 @@ final class MergedPrint {
 	 * @return string
 	 */
 	public function toc_slot( $post_id, $levels, $numbered ) {
+		if ( $this->slot_section( $post_id ) <= 0 ) {
+			return '';
+		}
+
+		$this->tocs[] = array(
+			'levels'   => max( 0, (int) $levels ),
+			'numbered' => (bool) $numbered,
+		);
+
+		return self::TOC_MARKER . ( count( $this->tocs ) - 1 ) . ' -->';
+	}
+
+	/**
+	 * Asks for an index (slice 611): returns the marker to leave where it goes, under the same conditions as a table of contents. The index is
+	 * made when the page is placed, from the posts of the merge, by the module of the index (the filter `index_build`).
+	 *
+	 * @param int                  $post_id  Id of the post of the block, 0 when unknown.
+	 * @param array<string, mixed> $options  `include`, `exclude`, `context`, `title`, `attribution`.
+	 * @param bool                 $numbered Whether the entries have page numbers (print) or links.
+	 * @return string
+	 */
+	public function index_slot( $post_id, array $options, $numbered ) {
+		return $this->slot_section( $post_id ) <= 0 ? '' : $this->indexes->slot( $options, $numbered );
+	}
+
+	/**
+	 * The section a block that asks for a table or an index is in: the single section of the page, when it may be merged and holds posts; 0 when
+	 * the page is not that of a section, a merge is going on, or the block is in another post. It is the section of the merge from then on.
+	 *
+	 * @param int $post_id Id of the post of the block, 0 when unknown.
+	 * @return int
+	 */
+	private function slot_section( $post_id ) {
 		$request = (array) ( $this->request )();
 		$section = (int) ( $request['section'] ?? 0 );
 
 		if ( $this->busy || $section <= 0 || ( $post_id > 0 && (int) $post_id !== $section ) ) {
-			return '';
+			return 0;
 		}
 
 		if ( ! $this->access->allowed( $section ) || array() === $this->sections->order( $section ) ) {
-			return '';
+			return 0;
 		}
 
-		$this->tocs[]     = array(
-			'levels'   => max( 0, (int) $levels ),
-			'numbered' => (bool) $numbered,
-		);
 		$this->section_id = $section;
 
-		return self::TOC_MARKER . ( count( $this->tocs ) - 1 ) . ' -->';
+		return $section;
 	}
 
 	/**
@@ -392,43 +421,30 @@ final class MergedPrint {
 	 * @return string
 	 */
 	private function tables( $page, array $rows, $units ) {
-		if ( array() === $this->tocs || false === strpos( $page, self::TOC_MARKER ) ) {
-			return $page;
-		}
-
 		$pages = $this->pages();
 
-		foreach ( $this->tocs as $index => $toc ) {
-			$html = '' === $units ? '' : TableOfContents::render( TableOfContents::entries( $rows, $toc['levels'] ), $toc['numbered'], $pages, $this->link );
-			$page = str_replace( self::TOC_MARKER . $index . ' -->', $html, $page );
+		if ( array() !== $this->tocs && false !== strpos( $page, self::TOC_MARKER ) ) {
+			foreach ( $this->tocs as $index => $toc ) {
+				$html = '' === $units ? '' : TableOfContents::render( TableOfContents::entries( $rows, $toc['levels'] ), $toc['numbered'], $pages, $this->link );
+				$page = str_replace( self::TOC_MARKER . $index . ' -->', $html, $page );
+			}
 		}
 
-		return $page;
+		return $this->indexes->fill( $page, '' === $units ? array() : array_map( static fn( $unit ) => (int) $unit['id'], $this->unit_list ), $rows, $pages );
 	}
 
 	/**
 	 * The page of each heading (`<post>#<n>`) that the address gives (`books_pages`: the map that the first pass of the job saved); none when it
-	 * gives nothing, the map is not found or it is not readable: the numbers are then placeholders.
+	 * gives nothing: the numbers are then placeholders.
 	 *
 	 * @return array<string, int>
 	 */
 	private function pages() {
-		$request = (array) ( $this->request )();
-		$key     = (string) ( $request['pages'] ?? '' );
-
-		if ( '' === $key || null === $this->pages_reader ) {
-			return array();
-		}
-
-		$data = json_decode( (string) ( $this->pages_reader )( $key ), true );
-
-		return is_array( $data ) ? array_map( 'intval', array_filter( $data, 'is_numeric' ) ) : array();
+		return $this->record->pages( (string) ( ( (array) ( $this->request )() )['pages'] ?? '' ) );
 	}
 
 	/**
-	 * Writes the manifest of the merge (the headings of the page of the section and of the units, in the order of the document, with their level,
-	 * their text and the depth of their unit) and returns the marker that names it, to put in front of the units; an empty string when there
-	 * are no units, no place to write it, or it could not be written.
+	 * Writes the manifest of the merge and returns the marker that names it, to put in front of the units (an empty string when it cannot be).
 	 *
 	 * @param string            $html   The units.
 	 * @param array<int, array> $before The headings of the page of the section before the units.
@@ -436,26 +452,15 @@ final class MergedPrint {
 	 * @return string
 	 */
 	private function manifest( $html, array $before, array $after ) {
-		if ( '' === $html || null === $this->manifest_writer ) {
-			return '';
-		}
-
-		$json = wp_json_encode(
+		return $this->record->manifest(
+			$html,
 			array(
 				'section'  => $this->section_id,
 				'units'    => $this->unit_list,
-				'tocs'     => count( array_filter( $this->tocs, static fn( $toc ) => $toc['numbered'] ) ),
+				'tocs'     => count( array_filter( $this->tocs, static fn( $toc ) => $toc['numbered'] ) ) + $this->indexes->numbered(),
 				'headings' => array_merge( $before, $this->rows, $after ),
 			)
 		);
-
-		if ( ! is_string( $json ) ) {
-			return '';
-		}
-
-		$key = md5( $json );
-
-		return true === ( $this->manifest_writer )( $key, $json ) ? Headings::manifest_marker( $key ) : '';
 	}
 
 	/**

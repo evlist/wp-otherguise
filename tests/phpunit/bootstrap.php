@@ -473,8 +473,11 @@ function otherguise_test_record( $name, array $arguments ) {
  * @param mixed  $value Value.
  * @return mixed
  */
-function apply_filters( $hook, $value ) {
-    return $GLOBALS['otherguise_test_filters'][ $hook ] ?? $value;
+function apply_filters( $hook, $value, ...$args ) {
+    $set = $GLOBALS['otherguise_test_filters'][ $hook ] ?? $value;
+
+    // A test may answer with a closure, which receives the value and the other arguments of the filter.
+    return $set instanceof Closure ? $set( $value, ...$args ) : $set;
 }
 
 /**
@@ -1569,4 +1572,16 @@ function wp_cache_delete() {
  */
 function sanitize_html_class( $classname ) {
     return preg_replace( '/[^A-Za-z0-9_-]/', '', (string) $classname );
+}
+
+/**
+ * Stub of get_the_title(): the title of the `WP_Post` of the stubs, an empty string when there is none.
+ *
+ * @param int $id Post.
+ * @return string
+ */
+function get_the_title( $id = 0 ) {
+    $post = get_post( $id );
+
+    return null === $post ? '' : (string) $post->post_title;
 }

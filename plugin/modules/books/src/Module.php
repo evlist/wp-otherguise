@@ -28,6 +28,7 @@ use Otherguise\Books\Images\PrintPixelRatio;
 use Otherguise\Books\Images\PrintSrcset;
 use Otherguise\Books\Merge\MergeAccess;
 use Otherguise\Books\Block\ModeFilter;
+use Otherguise\Books\Block\SectionIndexBlock;
 use Otherguise\Books\Block\SectionListBlock;
 use Otherguise\Books\Block\SectionMergeBlock;
 use Otherguise\Books\Block\SectionTocBlock;
@@ -204,6 +205,7 @@ final class Module implements ModuleInterface, DescribedModule {
 		$this->section_blocks = array(
 			'section-merge' => new SectionMergeBlock( $merged, null, $choices ),
 			'section-toc'   => new SectionTocBlock( $merged, null, $choices ),
+			'section-index' => new SectionIndexBlock( $merged, null, $choices ),
 			'section-list'  => new SectionListBlock( null, null, $choices, new ListItems() ),
 		);
 		( $this->add_action )( 'redirect_canonical', array( new InternalHost( $renderer ), 'filter' ), 5, 1 );

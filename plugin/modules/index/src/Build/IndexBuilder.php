@@ -14,6 +14,7 @@ use Otherguise\Index\Entries;
 use Otherguise\Index\Folding;
 use Otherguise\Index\Kinds;
 use Otherguise\Index\Mentions;
+use Otherguise\Index\Sources;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -116,15 +117,32 @@ final class IndexBuilder {
 
 		usort( $lines, fn( $a, $b ) => $this->order( $a['sort'], $b['sort'] ) );
 
+		$attribution = array(
+			'osm'       => false,
+			'wikimedia' => false,
+		);
+
+		foreach ( $lines as $line ) {
+			$attribution['wikimedia'] = $attribution['wikimedia'] || $line['wiki'];
+
+			foreach ( $line['locators'] as $locator ) {
+				foreach ( $locator['sources'] as $source ) {
+					// A place read from coordinates (a photograph, a track) comes from OpenStreetMap.
+					$attribution['osm'] = $attribution['osm'] || Sources::is_a( $source, 'image' ) || Sources::is_a( $source, 'trace' );
+				}
+			}
+		}
+
 		return new IndexModel(
 			array_map(
 				static function ( $line ) {
-					unset( $line['sort'] );
+					unset( $line['sort'], $line['wiki'] );
 
 					return $line;
 				},
 				$lines
-			)
+			),
+			$attribution
 		);
 	}
 
@@ -154,7 +172,24 @@ final class IndexBuilder {
 			'letter'   => $this->letter( $label ),
 			'locators' => array(),
 			'sort'     => Folding::key( $label ),
+			'wiki'     => $this->from_wikimedia( (array) $entry['keys'] ),
 		);
+	}
+
+	/**
+	 * Whether an entry has an identifier of Wikidata or a link to Wikipedia among its keys: it owes something to the Wikimedia projects.
+	 *
+	 * @param string[] $keys Keys.
+	 * @return bool
+	 */
+	private function from_wikimedia( array $keys ) {
+		foreach ( $keys as $key ) {
+			if ( 0 === strpos( (string) $key, 'wikidata:' ) || 0 === strpos( (string) $key, 'wikipedia:' ) ) {
+				return true;
+			}
+		}
+
+		return false;
 	}
 
 	/**

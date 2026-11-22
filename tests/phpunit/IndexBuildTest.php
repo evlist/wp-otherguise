@@ -384,4 +384,38 @@ class IndexBuildTest extends Otherguise_Test_Database_Case {
 
 		$this->assertSame( "letter,label,kind,posts,main\nP,plain,place,,\nA,\"a\\b\nc\td\",other,7,7\n", IndexRenderer::to_csv( new \Otherguise\Index\Build\IndexModel( $lines ) ) );
 	}
+
+	/**
+	 * What the index owes to others: a topic that has a Wikipedia or Wikidata key owes to the Wikimedia projects, a mention that comes from an image
+	 * or a track owes to OpenStreetMap; nothing owed, nothing said; a line that the selection drops owes nothing.
+	 *
+	 * @return void
+	 */
+	public function test_the_attribution(): void {
+		$this->assertSame(
+			array(
+				'osm'       => false,
+				'wikimedia' => false,
+			),
+			$this->builder->build( array( 1, 2, 3, 4 ) )->attribution()
+		);
+
+		$this->entries->add_keys( $this->id['merle'], array( 'wikidata:Q1234' ) );
+		$this->entries->add_keys( $this->id['doron'], array( 'wikipedia:fr:Doron' ) );
+
+		$this->assertSame(
+			array(
+				'osm'       => false,
+				'wikimedia' => true,
+			),
+			$this->builder->build( array( 2, 4 ) )->attribution(),
+			'The blackbird has a Wikidata key.'
+		);
+		$this->assertFalse( $this->builder->build( array( 2, 4 ), array( 'exclude' => 'species' ) )->attribution()['wikimedia'], 'A topic that is left out owes nothing.' );
+
+		$this->mentions->sync( 3, 'image/address', array( $this->id['beaufort'] => 'passing' ) );
+
+		$this->assertTrue( $this->builder->build( array( 3 ), array( 'include' => 'source:image' ) )->attribution()['osm'], 'A photograph: its place comes from OpenStreetMap.' );
+		$this->assertFalse( $this->builder->build( array( 3 ), array( 'exclude' => 'source:image' ) )->attribution()['osm'] );
+	}
 }

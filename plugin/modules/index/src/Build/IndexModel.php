@@ -25,12 +25,34 @@ final class IndexModel {
 	private $lines;
 
 	/**
+	 * What the lines owe to the services of others: `osm` (a place read from OpenStreetMap) and `wikimedia` (an identifier, a label or a kind
+	 * of Wikidata or a link to Wikipedia).
+	 *
+	 * @var array{osm:bool,wikimedia:bool}
+	 */
+	private $attribution;
+
+	/**
 	 * Builds the model.
 	 *
-	 * @param array<int, array<string, mixed>> $lines The lines, already sorted.
+	 * @param array<int, array<string, mixed>> $lines       The lines, already sorted.
+	 * @param array{osm?:bool,wikimedia?:bool} $attribution What the lines owe to others.
 	 */
-	public function __construct( array $lines ) {
-		$this->lines = array_values( $lines );
+	public function __construct( array $lines, array $attribution = array() ) {
+		$this->lines       = array_values( $lines );
+		$this->attribution = array(
+			'osm'       => ! empty( $attribution['osm'] ),
+			'wikimedia' => ! empty( $attribution['wikimedia'] ),
+		);
+	}
+
+	/**
+	 * What the lines owe to the services of others (slice 611: one notice for the index).
+	 *
+	 * @return array{osm:bool,wikimedia:bool}
+	 */
+	public function attribution() {
+		return $this->attribution;
 	}
 
 	/**

@@ -83,6 +83,7 @@ class IndexScreenAndModuleTest extends TestCase {
 				'shutdown'                    => array( array( 'flush_queue', 10, 0 ) ),
 				'otherguise_index_batch'      => array( array( 'run_batch', 10, 2 ) ),
 				'cli_init'                    => array( array( 'register_command', 10, 0 ) ),
+				'index_build'                 => array( array( 'build_for_filter', 10, 3 ) ),
 				'otherguise_index_pages'      => array( array( 'tick', 10, 0 ) ),
 				'otherguise_index_enrich'     => array( array( 'tick', 10, 0 ) ),
 				'otherguise_index_page'       => array( array( 'single', 10, 1 ) ),

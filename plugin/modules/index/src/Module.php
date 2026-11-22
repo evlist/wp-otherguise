@@ -22,6 +22,7 @@ use Otherguise\Index\Cli\KindsCommand;
 use Otherguise\Index\Cli\SourcesCommand;
 use Otherguise\Index\Cli\BuildCommand;
 use Otherguise\Index\Build\IndexBuilder;
+use Otherguise\Index\Build\Selection;
 use Otherguise\Index\Admin\KindsScreen;
 use Otherguise\Index\Cli\PagesCommand;
 use Otherguise\Index\Harvest\PageFetcher;
@@ -113,6 +114,8 @@ final class Module implements ModuleInterface, DescribedModule, DisabledByDefaul
 		( $this->add_action )( 'shutdown', array( $this, 'flush_queue' ), 10, 0 );
 		( $this->add_action )( self::BATCH_HOOK, array( $this, 'run_batch' ), 10, 2 );
 		( $this->add_action )( 'cli_init', array( $this, 'register_command' ), 10, 0 );
+		// Slice 611: a consumer (the block of a book) asks for the lines of an index through this filter, without knowing the classes of this module.
+		( $this->add_action )( 'index_build', array( $this, 'build_for_filter' ), 10, 3 );
 
 		// Slice 602: the pages are read in the background, and a saved post is read a little later.
 		( $this->add_action )( PagesService::TICK_HOOK, array( $this->pages(), 'tick' ), 10, 0 );
@@ -238,6 +241,33 @@ final class Module implements ModuleInterface, DescribedModule, DisabledByDefaul
 			new PageFetcher(),
 			new PageReader(),
 			new SignalStore()
+		);
+	}
+
+	/**
+	 * Answers the filter `index_build`: the index of some posts as plain data, for a consumer that does not know the classes of this module.
+	 *
+	 * @param mixed                $result   What was answered before (an answer that is already there wins).
+	 * @param int[]                $post_ids The posts, in the order of the book.
+	 * @param array<string, mixed> $options  `include`, `exclude` (tokens of the selection), `context`.
+	 * @return array{groups:array<string,array>,attribution:array{osm:bool,wikimedia:bool}}|mixed Null for a selection that is not valid.
+	 */
+	public function build_for_filter( $result, $post_ids = array(), $options = array() ) {
+		if ( null !== $result ) {
+			return $result;
+		}
+
+		$options = is_array( $options ) ? $options : array();
+
+		if ( array() !== Selection::parse( (string) ( $options['include'] ?? '' ), (string) ( $options['exclude'] ?? '' ) )->errors() ) {
+			return null;
+		}
+
+		$model = ( new IndexBuilder( $this->entries(), $this->mentions() ) )->build( array_map( 'intval', (array) $post_ids ), $options );
+
+		return array(
+			'groups'      => $model->groups(),
+			'attribution' => $model->attribution(),
 		);
 	}
 

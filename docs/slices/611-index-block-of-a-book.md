@@ -3,7 +3,7 @@
 
 # Slice 611 — Books: the block `books/section-index`, with page numbers
 
-Status: **proposed (2026-11-22), not coded.** Dependencies: 605 (the selection), 610 (the builder and the renderer), slices 227–228 and 231–235 of Books (the merge, the manifest, the passes, the table of contents as the model). **The module Books depends on Index** (declared in `dependencies()`, checked by `ArchitectureTest`; Index never knows Books). Context: [`../design/index.md`](../design/index.md), "Consumers" and "Vocabulary and the dimensions of an index".
+Status: **coded (2026-11-22), on `main`; see "What was built, and what differs from the plan" at the end.** Dependencies: 605 (the selection), 610 (the builder and the renderer), slices 227–228 and 231–235 of Books (the merge, the manifest, the passes, the table of contents as the model). **The module Books depends on Index** (declared in `dependencies()`, checked by `ArchitectureTest`; Index never knows Books). Context: [`../design/index.md`](../design/index.md), "Consumers" and "Vocabulary and the dimensions of an index".
 
 ## What it does
 
@@ -34,3 +34,22 @@ The block (the marker, a page that is not the section, a mode that is not allowe
 ## Not done
 
 **The exact pages of the printed elements (612)**; the tree (sub-topics under their parents); "see also"; ranges of non-consecutive pages; the renaming of the code (*entry* → *topic*), **to be done right after this slice**.
+
+## What was built, and what differs from the plan (2026-11-22)
+
+Built: the block `books/section-index` (`Block\SectionIndexBlock`, `blocks/section-index/` with `block.json`, `edit.js`, `style.css`), `Merge\IndexSlots` (the markers and their replacement), `Merge\IndexTable` (the HTML), `MergedPrint::index_slot()`, the count of numbered indexes in the manifest (added to `tocs`, so the job's second pass needs no change), and, on the side of Index, the filter `index_build` and the attribution flags of `IndexModel`.
+
+What differs from the plan:
+
+- **No declared dependency of Books on Index.** The slice said `Books` would declare `dependencies() = [ …, 'index' ]`. **That would have switched the module Index on wherever Books is on** (`ModuleSwitches` enables what an enabled module needs, and Index is off by default). Instead the coupling is **by a filter in both directions**: Index answers **`index_build( null, $post_ids, $options )`** (a plain array: `groups` by letter, each line with its label, kind, classes and locators, and `attribution`), and Books asks it; **no class of one is named in the other** (`ArchitectureTest` is untouched). **A site without the module of the index gets no index: the marker goes away.** The design note ("the module depends on Index") is corrected.
+- **The layout is Books'**: the HTML is made by `Merge\IndexTable` from the data, not by `IndexRenderer` of Index (which stays the renderer of the command and of the future web block). **`attribution`**: the notice is made in Books from the flags `osm` and `wikimedia` that the builder computes (a topic with a Wikidata or Wikipedia key owes to Wikimedia; a mention from `image/*` or `trace/*` owes to OpenStreetMap); **the wording is the filter `books_index_attribution`, there is no settings screen**.
+- **The locator of a mention is the page of the first heading of its post** (as planned). The pages in order, consecutive ones collapsed, a **main** page in bold, **a run broken where the weight changes**; a post that is not in the map has no number (**a line with none shows a dash**); a placeholder (`000`) until the map is known.
+- **Outside print** the locators are links with the **title of the post**.
+- **The titles of the index and of its letters carry `no-toc`**, so that a table of contents on the same page does not list them.
+- **The merge was too long**: `MergedPrint.php` was at the limit of 700 lines of the repository's rule, so **the manifest and the map of the pages moved to `Merge\MergeRecord`** (no change of behaviour) and the guard of the slots (`slot_section()`) is shared by the tables of contents and the indexes.
+- **Not done**: a settings screen for the notice; the tree (sub-topics); non-consecutive ranges; the exact page of an element (612).
+
+### Verification
+
+- **Under automated tests** (PHPUnit, 918 tests in the suite): the pages (runs, weights, escaping, classes), the unknown (a dash, the placeholder), the links and the title, the notice (`auto`, `yes`, `no`, one notice, the filter), the slots (markers, the data asked only for the slot in the piece, no units, no data), the block (the options, a mode it is not shown in, a notice that is not known), **the merge on a real database** (the posts of the merge in order, the draft and the password left out, the map of the pages, the manifest counting one numbered table of contents and one numbered index, two indexes with their own options, no module of the index, no right to merge), and the attribution flags of the builder.
+- **On a scratch WordPress 7.1.4** (both modules on): the block is registered, the filter `index_build` answers with the real module (a selection `kind:place source:post`: three letters), refuses a malformed token (null), and the table is made with page numbers and with links and real titles. **No PDF was made**: the second pass, the real page numbers and the layout in Chromium and Gotenberg were **never tried**.
