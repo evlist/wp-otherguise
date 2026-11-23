@@ -126,6 +126,9 @@ final class PhotosCommand {
 	 * [--dry-run]
 	 * : With --post, write nothing and print the stops, their duration, the place chosen and what is left out: the tool to calibrate the minimums.
 	 *
+	 * [--verbose]
+	 * : With --dry-run, also print, under each stop, the levels of its place as Media Helper gave them (the numbered administrative levels included) and each of its photographs: the time, the position and the address.
+	 *
 	 * @param array $args  Unused.
 	 * @param array $assoc Options.
 	 * @return void
@@ -149,6 +152,10 @@ final class PhotosCommand {
 			( $this->log )(
 				'stop ' . ( $number + 1 ) . ': ' . count( $stop['photos'] ) . ' photograph(s), ' . $stop['minutes'] . ' min, ' . self::name( $stop['place'] ) . ( $stop['qualifies'] || ! is_array( $stop['place'] ) ? '' : ' (too small: no topic)' )
 			);
+
+			if ( isset( $assoc['verbose'] ) ) {
+				self::details( $stop, $this->log );
+			}
 		}
 
 		foreach ( (array) ( $done['analysis']['left_out'] ?? array() ) as $reason => $count ) {
@@ -179,6 +186,24 @@ final class PhotosCommand {
 		}
 
 		( $this->success )( 'Done.' );
+	}
+
+	/**
+	 * What lies behind a stop, for the one who looks for a wrong place: the levels of its place as Media Helper gave them, then its photographs with
+	 * their time, their position and their address, in the order of the time.
+	 *
+	 * @param array    $stop The stop.
+	 * @param callable $log  Prints a line.
+	 * @return void
+	 */
+	private static function details( array $stop, $log ) {
+		if ( is_array( $stop['place'] ) ) {
+			$log( '    levels: ' . wp_json_encode( $stop['place']['levels'] ?? array(), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES ) );
+		}
+
+		foreach ( $stop['photos'] as $photo ) {
+			$log( '    ' . ( null === $photo['time'] ? '--:--' : gmdate( 'H:i', (int) $photo['time'] ) ) . '  ' . round( (float) $photo['lat'], 5 ) . ',' . round( (float) $photo['lon'], 5 ) . '  ' . $photo['url'] );
+		}
 	}
 
 	/**

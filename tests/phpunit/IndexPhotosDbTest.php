@@ -371,4 +371,79 @@ class IndexPhotosDbTest extends Otherguise_Test_Database_Case {
 		$this->assertSame( array( '3 post(s) looked at again.', 'Done.' ), $done );
 		$this->assertSame( array( '2 post(s) wait for a place, 5 file(s).', 'left out, no data: 4' ), $lines );
 	}
+
+	/**
+	 * With `--verbose` the dry run shows, under each stop, the levels of its place as Media Helper gave them and each photograph with its time, its
+	 * position and its address (the tool to find which photograph gives a wrong place); without it the lines are the same as before.
+	 *
+	 * @return void
+	 */
+	public function test_verbose_shows_the_photographs_and_the_levels(): void {
+		$place       = $this->place( 'San Román', 'Lascellas-Ponzano' );
+		$place['levels']['admin'] = array(
+			'level4' => 'Aragón',
+			'level6' => 'Huesca',
+		);
+
+		$this->files = array(
+			'/a.jpg' => $this->shot( 42.0000, 0, $place ),
+			'/b.jpg' => $this->shot( 42.0003, 30, $place ),
+		);
+
+		$lines   = array();
+		$command = new PhotosCommand(
+			static fn( $on ) => true,
+			function ( $post, $dry ) {
+				$this->photos->handle(
+					$post,
+					array(
+						new Signal( Signal::IMAGE, '/a.jpg', 'content', 'src' ),
+						new Signal( Signal::IMAGE, '/b.jpg', 'content', 'src' ),
+					)
+				);
+
+				return array(
+					'ok'       => true,
+					'message'  => 'Dry run: nothing was written.',
+					'analysis' => $this->photos->analyse( $post, $dry ),
+				);
+			},
+			static fn() => 0,
+			static fn() => array(),
+			static function ( $line ) use ( &$lines ) {
+				$lines[] = $line;
+			},
+			static fn() => null,
+			static function () {
+				throw new RuntimeException( 'Unexpected failure.' );
+			}
+		);
+
+		$command->run(
+			array(),
+			array(
+				'post' => 1,
+				'dry-run' => true,
+			)
+		);
+
+		$this->assertCount( 1, $lines, 'Without --verbose: the stop only.' );
+
+		$lines = array();
+
+		$command->run(
+			array(),
+			array(
+				'post' => 1,
+				'dry-run' => true,
+				'verbose' => true,
+			)
+		);
+
+		$this->assertStringStartsWith( 'stop 1: 2 photograph(s), 30 min, ', $lines[0] );
+		$this->assertStringStartsWith( '    levels: {', $lines[1] );
+		$this->assertStringContainsString( '"level6":"Huesca"', $lines[1], 'The numbered levels are shown.' );
+		$this->assertSame( '    10:00  42,6  /a.jpg', $lines[2] );
+		$this->assertSame( '    10:30  42.0003,6  /b.jpg', $lines[3] );
+	}
 }
