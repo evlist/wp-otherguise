@@ -276,6 +276,125 @@ final class Mentions {
 	}
 
 	/**
+	 * Moves the mentions of a topic to another (slice 616, the merge): the post that mentioned the first now mentions the second, with its sources, its
+	 * `via`, its visibility and its strength. A post that mentioned both has one mention with the union of what they said; **a source that showed a
+	 * mention in every mode keeps showing it in every mode** (a union of modes with "every" is "every"). The first topic has no mention left.
+	 *
+	 * @param int  $from The topic that goes away.
+	 * @param int  $to   The topic that stays.
+	 * @param bool $dry  Count only.
+	 * @return array{moved:int,merged:int} Mentions that became one of the second topic, and those that joined one it already had.
+	 */
+	public function move_topic( $from, $to, $dry = false ) {
+		$statements = $this->statements();
+		$from       = (int) $from;
+		$to         = (int) $to;
+
+		return $statements->transaction(
+			function () use ( $statements, $from, $to, $dry ) {
+				$moved  = 0;
+				$merged = 0;
+
+				foreach ( $statements->match( null, self::MENTIONS, Ref::term( $from ) ) as $old ) {
+					$post = Ref::post( (int) $old->subject()->id() );
+					$new  = $statements->find_by_triple( $post, self::MENTIONS, Ref::term( $to ) );
+
+					if ( null === $new ) {
+						++$moved;
+					} else {
+						++$merged;
+					}
+
+					if ( $dry ) {
+						continue;
+					}
+
+					$about = $statements->qualifications_of( array( $old ) )[ $old->id() ] ?? array();
+					$new   = $new ?? $statements->triple( $post, self::MENTIONS, Ref::term( $to ) );
+					$known = $statements->qualifications_of( array( $new ) )[ $new->id() ] ?? array();
+
+					$this->join_qualifiers( $new, $known, $about );
+					$statements->delete( $old );
+				}
+
+				return array(
+					'moved'  => $moved,
+					'merged' => $merged,
+				);
+			}
+		);
+	}
+
+	/**
+	 * Adds to a mention what another said: the sources, the `via`, the visibility of each source, the strength, the role and the anchor.
+	 *
+	 * @param \Otherguise\Triples\Storage\Statement $mention The mention that stays.
+	 * @param array<string, array>                  $known   Its qualifications.
+	 * @param array<string, array>                  $about   Those of the mention that goes away.
+	 * @return void
+	 */
+	private function join_qualifiers( $mention, array $known, array $about ) {
+		$statements = $this->statements();
+		$sources    = array();
+
+		foreach ( $about[ self::SOURCE ] ?? array() as $statement ) {
+			$sources[] = (string) $statement->object()->key();
+		}
+
+		foreach ( $sources as $source ) {
+			$already = $this->has( $known, self::SOURCE, $source );
+
+			if ( ! $already ) {
+				$statements->triple( $mention->as_entity(), self::SOURCE, new Literal( 'string', $source ) );
+			}
+
+			foreach ( array( self::VIA, self::VISIBLE ) as $predicate ) {
+				$incoming = array();
+				$have     = array();
+
+				foreach ( $about[ $predicate ] ?? array() as $statement ) {
+					if ( 0 === strpos( (string) $statement->object()->key(), $source . '|' ) ) {
+						$incoming[] = (string) $statement->object()->key();
+					}
+				}
+
+				foreach ( $known[ $predicate ] ?? array() as $statement ) {
+					if ( 0 === strpos( (string) $statement->object()->key(), $source . '|' ) ) {
+						$have[ (string) $statement->object()->key() ] = $statement;
+					}
+				}
+
+				// No row of visibility means every mode: it stays so when either side said so.
+				if ( self::VISIBLE === $predicate && $already && ( array() === $incoming || array() === $have ) ) {
+					foreach ( $have as $statement ) {
+						$statements->delete( $statement );
+					}
+
+					continue;
+				}
+
+				foreach ( $incoming as $stored ) {
+					if ( ! isset( $have[ $stored ] ) ) {
+						$statements->triple( $mention->as_entity(), $predicate, new Literal( 'string', $stored ) );
+					}
+				}
+			}
+		}
+
+		foreach ( array( self::ROLE, self::ANCHOR ) as $predicate ) {
+			foreach ( $about[ $predicate ] ?? array() as $statement ) {
+				if ( ! $this->has( $known, $predicate, (string) $statement->object()->key() ) ) {
+					$statements->triple( $mention->as_entity(), $predicate, new Literal( 'string', (string) $statement->object()->key() ) );
+				}
+			}
+		}
+
+		$strength = isset( $about[ self::STRENGTH ][0] ) ? (string) $about[ self::STRENGTH ][0]->object()->key() : Candidate::PASSING;
+
+		$this->strengthen( $mention, $strength );
+	}
+
+	/**
 	 * The posts that mention a topic, and with `$rolled_up` those that mention a topic below it.
 	 *
 	 * @param int   $topic     Topic.

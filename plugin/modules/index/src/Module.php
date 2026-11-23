@@ -19,6 +19,9 @@ use Otherguise\Index\Cli\EnrichCommand;
 use Otherguise\Index\Cli\IndexCommand;
 use Otherguise\Index\Enrich\EnrichService;
 use Otherguise\Index\Cli\KindsCommand;
+use Otherguise\Index\Cli\MergeCommand;
+use Otherguise\Index\Merge\DuplicateFinder;
+use Otherguise\Index\Merge\TopicMerger;
 use Otherguise\Index\Cli\SourcesCommand;
 use Otherguise\Index\Cli\BuildCommand;
 use Otherguise\Index\Build\IndexBuilder;
@@ -596,6 +599,10 @@ final class Module implements ModuleInterface, DescribedModule, DisabledByDefaul
 
 		\WP_CLI::add_command( 'otherguise index kinds', new KindsCommand() );
 		\WP_CLI::add_command( 'otherguise index sources', new SourcesCommand( $this->mentions() ) );
+		$merge = new MergeCommand( new TopicMerger( $this->topics(), $this->mentions() ), new DuplicateFinder( $this->topics() ) );
+
+		\WP_CLI::add_command( 'otherguise index merge', $merge );
+		\WP_CLI::add_command( 'otherguise index duplicates', array( $merge, 'duplicates' ) );
 		\WP_CLI::add_command(
 			'otherguise index build',
 			new BuildCommand(

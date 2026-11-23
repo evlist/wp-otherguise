@@ -140,6 +140,17 @@ final class TermTopics implements Topics {
 	}
 
 	/**
+	 * Puts a topic under another.
+	 *
+	 * @param int $id     Topic.
+	 * @param int $parent The new broader topic, 0 for none.
+	 * @return void
+	 */
+	public function set_parent( $id, $parent ) {
+		wp_update_term( (int) $id, self::TAXONOMY, array( 'parent' => (int) $parent ) );
+	}
+
+	/**
 	 * Changes the label of a topic: the name of the term changes, its slug stays.
 	 *
 	 * @param int    $id    Topic.

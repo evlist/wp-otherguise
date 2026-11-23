@@ -95,6 +95,15 @@ interface Topics {
 	public function delete( $id );
 
 	/**
+	 * Puts a topic under another (slice 616: the merge moves the children of a topic that goes away).
+	 *
+	 * @param int $id     Topic.
+	 * @param int $parent The new broader topic, 0 for none.
+	 * @return void
+	 */
+	public function set_parent( $id, $parent );
+
+	/**
 	 * Reads a topic.
 	 *
 	 * @param int $id Topic.

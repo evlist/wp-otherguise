@@ -104,6 +104,17 @@ final class Otherguise_Test_Memory_Topics implements Topics {
 	}
 
 	/**
+	 * Puts a topic under another.
+	 *
+	 * @param int $id     Topic.
+	 * @param int $parent Parent.
+	 * @return void
+	 */
+	public function set_parent( $id, $parent ) {
+		$this->topics[ $id ]['parent'] = (int) $parent;
+	}
+
+	/**
 	 * Changes a label.
 	 *
 	 * @param int    $id    Topic.
