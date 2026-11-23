@@ -9,6 +9,7 @@
  */
 
 use Otherguise\Index\Cli\PruneCommand;
+use Otherguise\Index\Cli\PurgeCommand;
 use Otherguise\Index\Kinds;
 use Otherguise\Index\Mentions;
 use Otherguise\Index\Merge\TopicPruner;
@@ -150,5 +151,100 @@ class IndexPruneDbTest extends Otherguise_Test_Database_Case {
 
 		$this->assertStringContainsString( '1 topic(s) deleted.', $done[1] );
 		$this->assertNull( $this->topics->get( $old ) );
+	}
+
+	/**
+	 * Dropping a source (slice 620): its mentions go (a mention that another source also makes stays, without it); the topics that nothing mentions any more
+	 * go, with the broader topics that nothing else mentions; what a person chose, a topic that is mentioned by something else, and the other sources stay.
+	 * A dry run says the same and changes nothing; the sub-sources go with their source.
+	 *
+	 * @return void
+	 */
+	public function test_dropping_a_source(): void {
+		Kinds::add( 'commune', 'Commune', 'place' );
+
+		$country = $this->topics->create( 'Espagne', 'place', 0, Topics::APPROVED, array() );
+		$region  = $this->topics->create( 'Galice', 'admin2', $country, Topics::APPROVED, array() );
+		$town    = $this->topics->create( 'A Guarda', 'commune', $region, Topics::APPROVED, array() );
+		$both    = $this->topics->create( 'Vigo', 'commune', $region, Topics::APPROVED, array() );
+		$other   = $this->topics->create( 'Lugo', 'commune', $country, Topics::APPROVED, array() );
+		$chosen  = $this->topics->create( 'Choisi', 'commune', $region, Topics::APPROVED, array() );
+		$mark    = $this->topics->create( 'Merle', 'species', 0, Topics::APPROVED, array() );
+
+		$this->topics->set_kind( $chosen, 'commune', true );
+
+		$this->mentions->sync(
+			1,
+			'image/address',
+			array(
+				$town => array(),
+				$both => array(),
+				$chosen => array(),
+			)
+		);
+		$this->mentions->sync( 1, 'post/tag', array( $both => array() ) );
+		$this->mentions->sync( 1, 'trace/start', array( $other => array() ) );
+		$this->mentions->sync( 2, 'post/mark', array( $mark => array() ) );
+
+		$lines = array();
+		$done  = array();
+		$fail  = array();
+		$cmd   = new PurgeCommand(
+			$this->topics,
+			$this->mentions,
+			new TopicPruner( $this->topics, $this->mentions ),
+			static function ( $line ) use ( &$lines ) {
+				$lines[] = $line;
+			},
+			static function ( $line ) use ( &$done ) {
+				$done[] = $line;
+			},
+			static function ( $line ) use ( &$fail ) {
+				$fail[] = $line;
+			}
+		);
+
+		$cmd( array(), array( 'source' => 'nonsense' ) );
+		$this->assertStringContainsString( '--source: one of', $fail[0] );
+
+		$cmd( array(), array( 'source' => 'image' ) );
+
+		$this->assertStringContainsString( '3 mention(s) of the source image would be dropped, 1 topic(s) would be deleted', $done[0] );
+		$this->assertSame( $town . "\tA Guarda [commune]", $lines[0], 'Only the topic that nothing mentions and nobody chose: not the chosen one, not Vigo (a tag mentions it).' );
+		$this->assertNotNull( $this->topics->get( $town ), 'Nothing changed.' );
+		$this->assertSame( array( 1 ), array_keys( $this->mentions->of_topic( $town ) ) );
+
+		$lines = array();
+
+		$cmd(
+			array(),
+			array(
+				'source' => 'image',
+				'apply' => true,
+			)
+		);
+
+		$this->assertStringContainsString( '3 mention(s) of the source image dropped, 1 topic(s) deleted.', $done[1] );
+		$this->assertNull( $this->topics->get( $town ) );
+		$this->assertNotNull( $this->topics->get( $region ), 'Galice stays: Vigo, which a tag mentions, is below it.' );
+		$this->assertSame( array( 'post/tag' ), $this->mentions->of_topic( $both )[1]['sources'], 'The mention of the tag stays, without the photographs.' );
+		$this->assertSame( array(), $this->mentions->of_topic( $chosen ), 'A topic that a person chose stays, without its mention.' );
+		$this->assertNotNull( $this->topics->get( $chosen ) );
+		$this->assertSame( array( 'trace/start' ), $this->mentions->of_topic( $other )[1]['sources'], 'Another source is not touched.' );
+		$this->assertNotNull( $this->topics->get( $mark ) );
+
+		// The sub-sources go with their source: the tracks, then the broader topic that nothing mentions any more.
+		$lines = array();
+
+		$cmd(
+			array(),
+			array(
+				'source' => 'trace',
+				'apply' => true,
+			)
+		);
+
+		$this->assertNull( $this->topics->get( $other ) );
+		$this->assertNotNull( $this->topics->get( $country ), 'Espagne stays: Galice and Vigo are below it and Vigo is mentioned.' );
 	}
 }

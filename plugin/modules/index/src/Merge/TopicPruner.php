@@ -51,11 +51,13 @@ final class TopicPruner {
 	/**
 	 * The topics that can go.
 	 *
-	 * @param string[] $kinds The kinds asked for, with their sub-kinds: by default `place`.
+	 * @param string[]                  $kinds     The kinds asked for, with their sub-kinds: by default `place`.
+	 * @param array<int, int>|null      $only      Only these topics may go (slice 620: the ones a source made), or null for every one.
+	 * @param array<int, int|true>|null $mentioned The topics that are mentioned, when it is not what the database says (a source that is being dropped).
 	 * @return array<int, array{id:int,label:string,kind:string,parent:int}> The topics, the deepest first.
 	 */
-	public function candidates( array $kinds = array( 'place' ) ) {
-		$mentioned = $this->mentions->mentioned_topics();
+	public function candidates( array $kinds = array( 'place' ), $only = null, $mentioned = null ) {
+		$mentioned = null === $mentioned ? $this->mentions->mentioned_topics() : array_fill_keys( array_map( 'intval', array_keys( $mentioned ) ), true );
 		$all       = $this->topics->all();
 		$children  = array();
 
@@ -107,7 +109,7 @@ final class TopicPruner {
 		$goes = array();
 
 		foreach ( $ids as $id ) {
-			if ( ! isset( $keep[ $id ] ) ) {
+			if ( ! isset( $keep[ $id ] ) && ( null === $only || in_array( (int) $id, $only, true ) ) ) {
 				$goes[] = array(
 					'id'     => (int) $id,
 					'label'  => (string) $all[ $id ]['label'],
@@ -123,12 +125,14 @@ final class TopicPruner {
 	/**
 	 * Deletes the topics that can go.
 	 *
-	 * @param string[] $kinds The kinds asked for.
-	 * @param bool     $dry   Delete nothing.
+	 * @param string[]                  $kinds     The kinds asked for.
+	 * @param bool                      $dry       Delete nothing.
+	 * @param array<int, int>|null      $only      Only these topics may go, or null for every one.
+	 * @param array<int, int|true>|null $mentioned The topics that are mentioned, when it is not what the database says.
 	 * @return array<int, array> The topics that go (or would), the deepest first.
 	 */
-	public function prune( array $kinds = array( 'place' ), $dry = true ) {
-		$goes = $this->candidates( $kinds );
+	public function prune( array $kinds = array( 'place' ), $dry = true, $only = null, $mentioned = null ) {
+		$goes = $this->candidates( $kinds, $only, $mentioned );
 
 		if ( ! $dry ) {
 			foreach ( $goes as $topic ) {

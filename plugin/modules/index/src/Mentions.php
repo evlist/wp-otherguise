@@ -395,6 +395,69 @@ final class Mentions {
 	}
 
 	/**
+	 * Removes a source from every mention (slice 620): what the source said is withdrawn (its `via`, its visibility), and **a mention that no other source
+	 * holds is deleted**. The source stands for its sub-sources (`image` is `image/address` and the others). With `$dry` nothing is changed.
+	 *
+	 * @param string $source The source (a path).
+	 * @param bool   $dry    Count only.
+	 * @return array{mentions:int,orphaned:int[]} How many mentions had the source, and the topics that no source mentions any more.
+	 */
+	public function drop_source( $source, $dry = false ) {
+		$statements = $this->statements();
+
+		return $statements->transaction(
+			function () use ( $statements, $source, $dry ) {
+				$mentions  = $statements->match( null, self::MENTIONS );
+				$about     = $statements->qualifications_of( $mentions );
+				$hit       = 0;
+				$touched   = array();
+				$remaining = array();
+
+				foreach ( $mentions as $mention ) {
+					$topic   = (int) $mention->object()->id();
+					$sources = array();
+
+					foreach ( $about[ $mention->id() ][ self::SOURCE ] ?? array() as $statement ) {
+						$sources[] = (string) $statement->object()->key();
+					}
+
+					$inside = array_values( array_filter( $sources, static fn( $one ) => Sources::is_a( $one, (string) $source ) ) );
+
+					if ( array() === $inside ) {
+						$remaining[ $topic ] = true;
+
+						continue;
+					}
+
+					++$hit;
+					$touched[ $topic ] = true;
+
+					if ( count( $inside ) < count( $sources ) ) {
+						$remaining[ $topic ] = true;
+					}
+
+					if ( $dry ) {
+						continue;
+					}
+
+					foreach ( $inside as $one ) {
+						$this->withdraw( $mention, $one );
+					}
+
+					if ( count( $inside ) === count( $sources ) ) {
+						$statements->delete( $mention );
+					}
+				}
+
+				return array(
+					'mentions' => $hit,
+					'orphaned' => array_keys( array_diff_key( $touched, $remaining ) ),
+				);
+			}
+		);
+	}
+
+	/**
 	 * The topics that at least one post mentions, in one query (slice 619: the cleaning of the topics nobody mentions).
 	 *
 	 * @return array<int, true> The ids of the topics.
