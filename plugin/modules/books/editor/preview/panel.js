@@ -200,7 +200,7 @@
 				return;
 			}
 			try {
-				storage.setItem( STORAGE_KEY, JSON.stringify( { x: state.x, y: state.y, width: state.width } ) );
+				storage.setItem( STORAGE_KEY, JSON.stringify( { x: state.x, y: state.y, width: state.width, numbered: state.numbered } ) );
 			} catch ( e ) {
 				// Storage can be unavailable: the panel works without it.
 			}
@@ -220,6 +220,9 @@
 						state.x = saved.x;
 						state.y = saved.y;
 					}
+					// The box of the numbered tables of contents is remembered: a PDF made with it unchecked keeps the placeholders, so it must not go back to
+					// unchecked by itself at every reload.
+					state.numbered = true === saved.numbered;
 				}
 			} catch ( e ) {
 				// Unreadable: the defaults stay.
@@ -603,6 +606,7 @@
 		if ( pdfOptions ) {
 			numberedBox.addEventListener( 'change', function () {
 				state.numbered = numberedBox.checked;
+				remember();
 				if ( state.open && 'pdf' === state.view ) {
 					load();
 				}
@@ -695,6 +699,9 @@
 		);
 
 		restore();
+		if ( numberedBox ) {
+			numberedBox.checked = state.numbered;
+		}
 		doc.body.appendChild( root );
 
 		return {

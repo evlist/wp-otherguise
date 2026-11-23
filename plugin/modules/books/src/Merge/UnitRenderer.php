@@ -17,6 +17,16 @@ defined( 'ABSPATH' ) || exit;
  */
 final class UnitRenderer {
 	/**
+	 * Joins the pages of a post cut by page breaks into one. Filter `content_pagination`, only while a unit is rendered.
+	 *
+	 * @param mixed $pages The pages of the post.
+	 * @return mixed
+	 */
+	public static function one_page( $pages ) {
+		return is_array( $pages ) && count( $pages ) > 1 ? array( implode( "\n", $pages ) ) : $pages;
+	}
+
+	/**
 	 * Renders a unit as WordPress would render its own page in the mode of the request: the main query is made to ask for that post, the
 	 * template that WordPress finds for it (the Modes module has put the variant in the hierarchy) is rendered, and the query is put back as it
 	 * was. The current post is the unit while its template renders: the shortcodes of a template (`[modes_url]`, hence the QR codes) read it.
@@ -45,6 +55,9 @@ final class UnitRenderer {
 				return '';
 			}
 
+			// A post cut by "Page break" blocks (`<!--nextpage-->`) is one unit: without this only its first page would be rendered and the rest lost.
+			add_filter( 'content_pagination', array( self::class, 'one_page' ) );
+
 			$wp_query->the_post();
 
 			// A block template is found when the answer is the canvas that renders it; the globals that hold it are read right after.
@@ -65,6 +78,8 @@ final class UnitRenderer {
 
 			return (string) ob_get_clean();
 		} finally {
+			remove_filter( 'content_pagination', array( self::class, 'one_page' ) );
+
 			foreach ( get_object_vars( $saved ) as $name => $value ) {
 				$wp_query->$name = $value;
 			}

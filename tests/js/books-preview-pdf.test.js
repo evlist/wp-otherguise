@@ -40,6 +40,15 @@ function make( options ) {
 		settings: SETTINGS,
 		getPost: () => PUBLISHED,
 		pdf: options.noPdf ? null : { enabled: true, api, openWindow: ( url ) => log.opened.push( url ), giveUpMs: options.giveUpMs },
+		storage: options.store
+			? {
+					getItem: ( key ) => ( key in options.store ? options.store[ key ] : null ),
+					setItem: ( key, value ) => {
+						if ( options.failStorage ) throw new Error( 'blocked' );
+						options.store[ key ] = value;
+					},
+			  }
+			: null,
 		setTimeout: ( callback ) => log.timers.push( callback ),
 		clearTimeout: () => {},
 	} );
@@ -413,4 +422,34 @@ test( 'a check box numbers the tables of contents: one pass by default, several 
 
 test( 'without a PDF server the check box does not exist', () => {
 	assert.strictEqual( make( { noPdf: true } ).q( '.books-preview__numbered' ), null );
+} );
+
+test( 'the check box is remembered: checked once, it is still checked after a reload; a blocked or garbled storage gives the default', () => {
+	const store = {};
+	const first = make( { store } );
+	const box = first.q( '.books-preview__numbered input' );
+
+	box.checked = true;
+	box.dispatchEvent( new first.dom.window.Event( 'change' ) );
+	assert.strictEqual( JSON.parse( store.books_preview_panel ).numbered, true );
+
+	const reloaded = make( { store } );
+	assert.strictEqual( reloaded.q( '.books-preview__numbered input' ).checked, true, 'it is checked again' );
+
+	reloaded.panel.open();
+	reloaded.click( '.books-preview__view--pdf' );
+	assert.deepStrictEqual( reloaded.log.numbered.filter( ( call ) => 'start' === call[ 0 ] ), [ [ 'start', true ] ], 'and the PDF is asked for numbered' );
+
+	const unchecked = reloaded.q( '.books-preview__numbered input' );
+	unchecked.checked = false;
+	unchecked.dispatchEvent( new reloaded.dom.window.Event( 'change' ) );
+	assert.strictEqual( make( { store } ).q( '.books-preview__numbered input' ).checked, false, 'unchecking is remembered too' );
+
+	assert.strictEqual( make( { store: { books_preview_panel: '{not json' } } ).q( '.books-preview__numbered input' ).checked, false );
+
+	const blocked = make( { store: {}, failStorage: true } );
+	const blockedBox = blocked.q( '.books-preview__numbered input' );
+	blockedBox.checked = true;
+	blockedBox.dispatchEvent( new blocked.dom.window.Event( 'change' ) );
+	assert.strictEqual( blockedBox.checked, true, 'it works without a storage' );
 } );
