@@ -282,7 +282,7 @@ final class Module implements ModuleInterface, DescribedModule, DisabledByDefaul
 	 * @param mixed                $result   What was answered before (an answer that is already there wins).
 	 * @param int[]                $post_ids The posts, in the order of the book.
 	 * @param array<string, mixed> $options  `include`, `exclude` (tokens of the selection), `context`, `rollup`.
-	 * @return array{groups:array<string,array>,attribution:array{osm:bool,wikimedia:bool}}|mixed Null for a selection that is not valid.
+	 * @return array{groups:array<string,array>,attribution:array{osm:bool,wikimedia:bool},errors?:string[]}|mixed With `errors` (and no group) for an option that is not valid.
 	 */
 	public function build_for_filter( $result, $post_ids = array(), $options = array() ) {
 		if ( null !== $result ) {
@@ -291,8 +291,18 @@ final class Module implements ModuleInterface, DescribedModule, DisabledByDefaul
 
 		$options = is_array( $options ) ? $options : array();
 
-		if ( array() !== Selection::parse( (string) ( $options['include'] ?? '' ), (string) ( $options['exclude'] ?? '' ) )->errors() || array() !== IndexBuilder::rollup_errors( (string) ( $options['rollup'] ?? '' ) ) ) {
-			return null;
+		$errors = array_merge( Selection::parse( (string) ( $options['include'] ?? '' ), (string) ( $options['exclude'] ?? '' ) )->errors(), IndexBuilder::rollup_errors( (string) ( $options['rollup'] ?? '' ) ) );
+
+		// A wrong option is told, not hidden: the consumer shows the message instead of an index that is silently empty.
+		if ( array() !== $errors ) {
+			return array(
+				'groups'      => array(),
+				'attribution' => array(
+					'osm'       => false,
+					'wikimedia' => false,
+				),
+				'errors'      => $errors,
+			);
 		}
 
 		$model = ( new IndexBuilder( $this->topics(), $this->mentions() ) )->build( array_map( 'intval', (array) $post_ids ), $options );

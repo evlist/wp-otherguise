@@ -16,10 +16,16 @@ The first index of a book showed *Cyclo-randonnées (Vélo)* but no line *Vélo*
 
 ## As coded
 
-- **The option `rollup`** (block attribute, `wp otherguise index build --rollup=…`, key of the options of the filter `index_build`): **the kinds of the broader topics that get a line**, written as the kind tokens of the selection (`kind:category`, `kind:place`, several allowed; a value stands for its sub-kinds), or **`all`** (every broader topic). Empty: nothing, as before. **Only kinds**: `source:` and `visibility:` are refused (they are chosen with `include` and `exclude`); a wrong value is an error in the command and, through the filter, makes the filter answer `null` like a wrong selection.
+- **The option `rollup`** (block attribute, `wp otherguise index build --rollup=…`, key of the options of the filter `index_build`): **the kinds of the broader topics that get a line**, written as the kind tokens of the selection (`kind:other`, `kind:place`, several allowed; a value stands for its sub-kinds), or **`all`** (every broader topic). Empty: nothing, as before. **Only kinds**: `source:` and `visibility:` are refused (they are chosen with `include` and `exclude`); a wrong value is an error in the command; through the filter it is **told, not hidden** (see below).
 - **What a rolled-up line holds**: for each line made from the mentions (the **snapshot**, so that the result does not depend on the order), every **broader topic up the chain** (at most 20 levels, cycles stopped) **of an asked kind** gets the locators of that line: **once per post**, the **strongest strength**, the sources and the `via` of every descendant (so the print index finds the pages of the elements that show them), **in the order of the book**. A broader topic that a post mentioned itself **keeps** its own mentions, merged.
 - **What it does not do**: it rolls up **what the selection kept** (an excluded source stays out); **an approved topic only** (a candidate gets no line, but the topics below it still have theirs); the broader topic is **not tested against `include`** (asking for `kind:place` in `rollup` is enough to give a line to a place that no post mentioned).
 - **Order and labels** are those of the builder: a line is placed by its own label; the broader topic is shown in parentheses after the label as before (`context`).
+
+## A wrong option is told, not hidden (2026-11-23)
+
+A wrong `include`, `exclude` or `rollup` used to make the filter `index_build` answer `null`, and **the block then printed nothing**: an index silently empty (found by Eric with `kind:category`, a suggestion of the block that was wrong). **Now the filter answers an array with `errors` and no group**; the messages list what is valid (`Unknown kind "category". The kinds: place, species, …`). `IndexSlots` puts **a visible note** (`books-index__error`, "Index not made: …") **in print always** (a PDF is not public) **and, elsewhere, for the people who can edit posts**; a visitor of the web page sees nothing. The suggestions of the block, of the command and of the documentation now name kinds that exist (`kind:other`, `kind:place`).
+
+Not done: a live check in the editor sidebar (the kinds would have to be given to the script of the block).
 
 ## What it needs for the places (not done)
 

@@ -178,9 +178,9 @@ final class Selection {
 			}
 
 			if ( 'kind' === $dimension && ! Kinds::is_kind( $value ) ) {
-				$errors[] = 'Unknown kind "' . $value . '".';
+				$errors[] = 'Unknown kind "' . $value . '". The kinds: ' . implode( ', ', array_keys( Kinds::all() ) ) . '.';
 			} elseif ( 'source' === $dimension && ! Sources::is_source( $value ) ) {
-				$errors[] = 'Unknown source "' . $value . '".';
+				$errors[] = 'Unknown source "' . $value . '". The sources: ' . implode( ', ', array_keys( Sources::registry() ) ) . '.';
 			}
 
 			$by_dim[ $dimension ][] = $value;

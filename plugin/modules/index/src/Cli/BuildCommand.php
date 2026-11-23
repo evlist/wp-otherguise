@@ -93,7 +93,7 @@ final class BuildCommand {
 	 * : `json` (default), `csv` or `html`.
 	 *
 	 * [--rollup=<kinds>]
-	 * : Give a line of their own to the broader topics of these kinds (`kind:category`, `kind:place`, or `all`), with the pages of everything below them (slice 613).
+	 * : Give a line of their own to the broader topics of these kinds (`kind:place`, `kind:other`, or `all`: the kinds are listed by `wp otherguise index kinds list`), with the pages of everything below them (slice 613).
 	 *
 	 * [--no-context]
 	 * : Do not show the broader topic in parentheses after a label.

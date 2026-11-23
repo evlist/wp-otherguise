@@ -341,4 +341,27 @@ class IndexScreenAndModuleTest extends TestCase {
 		$this->assertStringContainsString( 'Étroubles', $html );
 		$this->assertStringContainsString( 'otherguise_index_set_kinds', $html );
 	}
+
+	/**
+	 * The filter `index_build` tells what is wrong with the options instead of answering nothing (the index of a block was silently empty).
+	 *
+	 * @return void
+	 */
+	public function test_the_filter_says_what_is_wrong_with_the_options(): void {
+		$module = new Module();
+
+		foreach ( array(
+			array( 'include' => 'kind:nonsense' ),
+			array( 'exclude' => 'colour:red' ),
+			array( 'rollup' => 'kind:nonsense' ),
+			array( 'rollup' => 'source:post' ),
+		) as $options ) {
+			$answer = $module->build_for_filter( null, array( 1 ), $options );
+
+			$this->assertSame( array(), $answer['groups'] );
+			$this->assertNotSame( array(), $answer['errors'], wp_json_encode( $options ) );
+		}
+
+		$this->assertStringContainsString( 'The kinds:', $module->build_for_filter( null, array( 1 ), array( 'include' => 'kind:nonsense' ) )['errors'][0], 'It lists what is valid.' );
+	}
 }

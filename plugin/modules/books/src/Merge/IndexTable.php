@@ -186,6 +186,17 @@ final class IndexTable {
 	}
 
 	/**
+	 * The note that stands for an index that cannot be made because an option of its block is wrong.
+	 *
+	 * @param string[] $errors What is wrong.
+	 * @return string
+	 */
+	public static function error( array $errors ) {
+		/* translators: %s: what is wrong with the options of the block. */
+		return '<p class="books-index__error" style="border:1px solid #b32d2e;color:#b32d2e;padding:.4em .6em;">' . esc_html( sprintf( __( 'Index not made: %s', 'otherguise' ), implode( ' ', array_map( 'strval', $errors ) ) ) ) . '</p>';
+	}
+
+	/**
 	 * The notice of the index: one line, with links, naming what the lines owe to OpenStreetMap and to the Wikimedia projects. `auto` shows it only
 	 * when the lines owe something, `yes` always (both credits), `no` never. The filter `books_index_attribution` changes the wording.
 	 *

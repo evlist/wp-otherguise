@@ -4,7 +4,7 @@
 	"name": "books/section-index",
 	"title": "Index of the section",
 	"category": "widgets",
-	"description": "An index of the posts of the section, made by the module of the index: put it in a template or the content of the section, with the block that merges the units. In print each entry has the numbers of its pages; elsewhere it is a list of links. Choose what it lists with include and exclude (kind:place, source:image, visibility:print); a broader topic (the parent category, the country) gets a line of its own with the pages of everything below it through rollup (kind:category, or all); several blocks give several indexes.",
+	"description": "An index of the posts of the section, made by the module of the index: put it in a template or the content of the section, with the block that merges the units. In print each entry has the numbers of its pages; elsewhere it is a list of links. Choose what it lists with include and exclude (kind:place, source:image, visibility:print); a broader topic (the parent category, the country) gets a line of its own with the pages of everything below it through rollup (kind:other, kind:place, or all); several blocks give several indexes.",
 	"textdomain": "otherguise",
 	"attributes": {
 		"include": {

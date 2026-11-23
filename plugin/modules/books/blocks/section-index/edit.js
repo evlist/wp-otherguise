@@ -70,7 +70,7 @@
 						} ),
 						el( components.TextControl, {
 							label: __( 'Broader topics with a line of their own', 'otherguise' ),
-							help: __( 'Kinds whose topics get a line with the pages of everything below them, such as kind:category, or all. Empty: none.', 'otherguise' ),
+							help: __( 'Kinds whose topics get a line with the pages of everything below them, such as kind:other or kind:place, or all (the kinds are in Otherguise > Index kinds). Empty: none.', 'otherguise' ),
 							value: attributes.rollup,
 							onChange: function ( value ) {
 								props.setAttributes( { rollup: value } );

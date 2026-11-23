@@ -375,4 +375,56 @@ class BooksSectionIndexTest extends TestCase {
 			),
 		);
 	}
+
+	/**
+	 * A wrong option of the block is told, not hidden: the module answers with the errors, and the slot shows a note in print and to the people who
+	 * can edit, and nothing to the others; the other blocks are not touched.
+	 *
+	 * @return void
+	 */
+	public function test_a_wrong_option_is_shown_not_hidden(): void {
+		$answer = static fn() => array(
+			'groups'      => array(),
+			'attribution' => array(
+				'osm'       => false,
+				'wikimedia' => false,
+			),
+			'errors'      => array( 'Unknown kind "category". The kinds: place, species.' ),
+		);
+		$may    = true;
+		$slots  = new IndexSlots(
+			static fn() => '',
+			static fn( $id ) => 'Day ' . $id,
+			$answer,
+			static function () use ( &$may ) {
+				return $may;
+			}
+		);
+		$print  = $slots->slot( array(), true );
+		$web    = $slots->slot( array(), false );
+
+		list( $first, $pages ) = $this->pages();
+
+		$filled = $slots->fill( $print . '|' . $web, array( 1 ), array(), $pages );
+
+		$this->assertStringContainsString( '<p class="books-index__error"', $filled );
+		$this->assertSame( 2, substr_count( $filled, 'books-index__error' ), 'Print, and the web for who may edit.' );
+		$this->assertStringContainsString( 'Index not made: Unknown kind &quot;category&quot;. The kinds: place, species.', $filled );
+
+		$may    = false;
+		$slots2 = new IndexSlots(
+			static fn() => '',
+			static fn( $id ) => 'Day ' . $id,
+			$answer,
+			static function () use ( &$may ) {
+				return $may;
+			}
+		);
+		$print2 = $slots2->slot( array(), true );
+		$web2   = $slots2->slot( array(), false );
+		$hidden = $slots2->fill( $print2 . '|' . $web2, array( 1 ), array(), $pages );
+
+		$this->assertSame( 1, substr_count( $hidden, 'books-index__error' ), 'The web index is silent for a visitor; print always says it.' );
+		$this->assertStringEndsWith( '|', $hidden );
+	}
 }

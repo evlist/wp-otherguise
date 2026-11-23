@@ -53,13 +53,22 @@ final class IndexSlots {
 	private $data;
 
 	/**
+	 * Tells whether the person who sees the page may be told that an option of a block is wrong (in print everybody may: a PDF is not public).
+	 *
+	 * @var callable
+	 */
+	private $may_see_errors;
+
+	/**
 	 * Builds the slots.
 	 *
-	 * @param callable      $link  Post id to address.
-	 * @param callable|null $title Post id to title; default `get_the_title`.
-	 * @param callable|null $data  The data of the index; default the filter `index_build`.
+	 * @param callable      $link           Post id to address.
+	 * @param callable|null $title          Post id to title; default `get_the_title`.
+	 * @param callable|null $data           The data of the index; default the filter `index_build`.
+	 * @param callable|null $may_see_errors Whether the viewer may see an error note; default: who can edit posts.
 	 */
-	public function __construct( $link, $title = null, $data = null ) {
+	public function __construct( $link, $title = null, $data = null, $may_see_errors = null ) {
+		$this->may_see_errors = $may_see_errors ?? static fn() => current_user_can( 'edit_posts' );
 		$this->link  = $link;
 		$this->title = $title ?? static fn( $id ) => (string) get_the_title( (int) $id );
 		$this->data  = $data ?? static fn( $posts, $options ) => apply_filters( 'index_build', null, $posts, $options );
@@ -129,6 +138,14 @@ final class IndexSlots {
 					'context' => ! array_key_exists( 'context', $slot['options'] ) || (bool) $slot['options']['context'],
 				)
 			);
+			if ( is_array( $data ) && array() !== (array) ( $data['errors'] ?? array() ) ) {
+				// The options of the block are wrong: say so in print and to the people who can fix it, never an index that is silently empty.
+				$data = $slot['numbered'] || ( $this->may_see_errors )() ? $data : null;
+				$page = str_replace( self::MARKER . $index . ' -->', null === $data ? '' : IndexTable::error( (array) $data['errors'] ), $page );
+
+				continue;
+			}
+
 			$html = is_array( $data ) ? IndexTable::render( $data, $slot['numbered'], $first, $pages, $this->link, $this->title, $slot['options'], MentionMarks::by_post( $marks ) ) : '';
 			$page = str_replace( self::MARKER . $index . ' -->', $html, $page );
 		}
