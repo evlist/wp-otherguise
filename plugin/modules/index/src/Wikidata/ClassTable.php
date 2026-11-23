@@ -21,7 +21,7 @@ defined( 'ABSPATH' ) || exit;
  * kinds), and on a tie the order of the table. A class that is not in the table says nothing.
  *
  * **The default table is a proposal that was mostly not checked against Wikidata** (no service was reachable when it was written): the identifiers
- * are the ones its author remembers; **`Q4022` and `Q484170` were checked** on 2026-11-23 (the labels that Wikidata gave on a real run). `wp otherguise index enrich classes` prints each class of the table with its label read from Wikidata,
+ * are the ones its author remembers; **`Q4022`, `Q6256`, `Q484170`, `Q36784`, `Q6465` and `Q194203` were checked** on 2026-11-23 (the labels that Wikidata gave on a real run). `wp otherguise index enrich classes` prints each class of the table with its label read from Wikidata,
  * so that every line can be checked at a glance before it is trusted; `enrich map` changes a line.
  */
 final class ClassTable {
@@ -42,9 +42,12 @@ final class ClassTable {
 		'Q8502'     => 'place',      // Mountain.
 		'Q133056'   => 'place',      // Mountain pass.
 		'Q39816'    => 'place',      // Valley.
-		'Q6256'     => 'place',      // Country.
+		'Q6256'     => 'country',    // Country (checked on Wikidata, 2026-11-23).
 		'Q56061'    => 'place',      // Administrative territorial entity.
-		'Q484170'   => 'commune',    // Commune of France (checked on Wikidata, 2026-11-23, on Eric's blog: the most specific kind wins over `place`).
+		'Q484170'   => 'commune',    // Commune of France (checked on Wikidata, 2026-11-23: the most specific kind wins over `place`).
+		'Q36784'    => 'admin1',     // Region of France (checked on Wikidata, 2026-11-23).
+		'Q6465'     => 'admin2',     // Department of France (checked on Wikidata, 2026-11-23).
+		'Q194203'   => 'admin3',     // Arrondissement of France (checked on Wikidata, 2026-11-23).
 		'Q16521'    => 'species',    // Taxon.
 		'Q5'        => 'person',     // Human.
 		'Q47461344' => 'work',       // Written work.

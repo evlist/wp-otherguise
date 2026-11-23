@@ -27,11 +27,13 @@ use Otherguise\Index\Admin\KindsScreen;
 use Otherguise\Index\Merge\IgnoredPairs;
 use Otherguise\Index\Merge\MergeWiring;
 use Otherguise\Index\Cli\PagesCommand;
-use Otherguise\Index\Cli\PhotosCommand;
 use Otherguise\Index\Harvest\MentionElements;
 use Otherguise\Index\Harvest\PageFetcher;
 use Otherguise\Index\Harvest\SignalStore;
 use Otherguise\Index\Job\PagesService;
+use Otherguise\Index\Job\SyncService;
+use Otherguise\Index\Job\SyncWiring;
+use Otherguise\Index\Merge\TopicPruner;
 use Otherguise\Index\Photo\PhotosService;
 use Otherguise\Index\Source\Photos;
 use Otherguise\Index\Source\Page;
@@ -76,6 +78,13 @@ final class Module implements ModuleInterface, DescribedModule, DisabledByDefaul
 	 * @var PhotosService|null
 	 */
 	private $photos = null;
+
+	/**
+	 * The synchronisation of the index, built when needed (slice 621).
+	 *
+	 * @var SyncService|null
+	 */
+	private $sync = null;
 
 	/**
 	 * Builds the module.
@@ -139,6 +148,7 @@ final class Module implements ModuleInterface, DescribedModule, DisabledByDefaul
 		// Slice 604: the Wikidata enrichment runs in the background only, and only when it was turned on.
 		( $this->add_action )( EnrichService::TICK_HOOK, array( $this->enrich(), 'tick' ), 10, 0 );
 		// Slice 606: the places of the photographs, asked again without network, when Media Helper says it has new ones and hourly while some wait.
+		SyncWiring::register( $this->sync(), $this->add_action );
 		( $this->add_action )( PhotosService::TICK_HOOK, array( $this->photos(), 'tick' ), 10, 0 );
 		( $this->add_action )( 'wp_media_helper_places_updated', array( $this->photos(), 'tick' ), 10, 0 );
 		( $this->add_action )( PagesService::SINGLE_HOOK, array( $this->pages(), 'single' ), 10, 1 );
@@ -265,6 +275,19 @@ final class Module implements ModuleInterface, DescribedModule, DisabledByDefaul
 			new SignalStore(),
 			fn( $id, $signals ) => $this->photos()->process( $id, $signals )
 		);
+	}
+
+	/**
+	 * The synchronisation of the index (slice 621).
+	 *
+	 * @return SyncService
+	 */
+	public function sync() {
+		if ( null === $this->sync ) {
+			$this->sync = SyncWiring::build( fn() => $this->indexer(), $this->pages(), $this->enrich(), new TopicPruner( $this->topics(), $this->mentions() ), $this->mentions(), array( $this, 'published_posts' ) );
+		}
+
+		return $this->sync;
 	}
 
 	/**
@@ -600,6 +623,7 @@ final class Module implements ModuleInterface, DescribedModule, DisabledByDefaul
 		\WP_CLI::add_command( 'otherguise index kinds', new KindsCommand() );
 		\WP_CLI::add_command( 'otherguise index sources', new SourcesCommand( $this->mentions() ) );
 		MergeWiring::register_commands( $this->topics(), $this->mentions() );
+		SyncWiring::register_command( $this->sync() );
 		\WP_CLI::add_command(
 			'otherguise index build',
 			new BuildCommand(
@@ -613,32 +637,7 @@ final class Module implements ModuleInterface, DescribedModule, DisabledByDefaul
 				}
 			)
 		);
-		$photos = $this->photos();
-
-		\WP_CLI::add_command(
-			'otherguise index photos',
-			new PhotosCommand(
-				array( $photos, 'set_source' ),
-				static function ( $post, $dry ) use ( $pages, $photos ) {
-					if ( ! $dry ) {
-						return $pages->process( $post );
-					}
-
-					$read = $pages->read( $post );
-
-					return '' !== $read['error'] ? array(
-						'ok'      => false,
-						'message' => $read['error'],
-					) : array(
-						'ok'       => true,
-						'message'  => 'Dry run: nothing was written.',
-						'analysis' => $photos->explain( $post, $read['signals'] ),
-					);
-				},
-				array( $photos, 'tick' ),
-				array( $photos, 'status' )
-			)
-		);
+		$this->photos()->register_command( $pages );
 		\WP_CLI::add_command(
 			'otherguise index pages',
 			new PagesCommand(
@@ -661,6 +660,7 @@ final class Module implements ModuleInterface, DescribedModule, DisabledByDefaul
 		delete_option( TopicsMigration::OPTION );
 		delete_option( KindsMigration::OPTION );
 		delete_option( IgnoredPairs::OPTION );
+		SyncWiring::uninstall();
 		delete_option( 'index_site_address' );
 		foreach ( array( EnrichService::SWITCH, EnrichService::JOB, 'index_wikidata_contact', 'index_wikidata_last_request', 'index_wikidata_classes', 'index_wikidata_ancestors', 'index_enrich_failures', 'index_enrich_pause_until' ) as $option ) {
 			delete_option( $option );

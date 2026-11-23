@@ -91,6 +91,7 @@ class IndexPruneDbTest extends Otherguise_Test_Database_Case {
 		$hand    = $this->topics->create( 'Choisi', 'place', 0, Topics::APPROVED, array() );
 		$named   = $this->topics->create( 'Nommé', 'place', 0, Topics::APPROVED, array() );
 		$refused = $this->topics->create( 'Refusé', 'place', 0, Topics::REFUSED, array() );
+		$wait    = $this->topics->create( 'En attente', 'place', 0, Topics::CANDIDATE, array() );
 		$species = $this->topics->create( 'Merle', 'species', 0, Topics::APPROVED, array() );
 
 		$this->topics->set_kind( $hand, 'place', true );
@@ -113,7 +114,7 @@ class IndexPruneDbTest extends Otherguise_Test_Database_Case {
 		$this->assertNull( $this->topics->get( $old ) );
 		$this->assertNull( $this->topics->get( $old_kid ) );
 
-		foreach ( array( $region, $prov, $town, $hand, $named, $refused, $species ) as $id ) {
+		foreach ( array( $region, $prov, $town, $hand, $named, $refused, $wait, $species ) as $id ) {
 			$this->assertNotNull( $this->topics->get( $id ), 'Stays.' );
 		}
 

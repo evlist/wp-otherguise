@@ -10,6 +10,7 @@
 
 namespace Otherguise\Index\Photo;
 
+use Otherguise\Index\Cli\PhotosCommand;
 use Otherguise\Index\Harvest\Signal;
 use Otherguise\Index\Indexer;
 use Otherguise\Index\Job\PagesService;
@@ -238,6 +239,39 @@ final class PhotosService {
 		$waiting = get_option( self::WAITING, array() );
 
 		return array_slice( array_values( array_map( 'intval', is_array( $waiting ) ? $waiting : array() ) ), 0, (int) $limit );
+	}
+
+	/**
+	 * Registers the command `wp otherguise index photos`.
+	 *
+	 * @param PagesService $pages The reading of the pages.
+	 * @return void
+	 */
+	public function register_command( PagesService $pages ) {
+		\WP_CLI::add_command(
+			'otherguise index photos',
+			new PhotosCommand(
+				array( $this, 'set_source' ),
+				function ( $post, $dry ) use ( $pages ) {
+					if ( ! $dry ) {
+						return $pages->process( $post );
+					}
+
+					$read = $pages->read( $post );
+
+					return '' !== $read['error'] ? array(
+						'ok'      => false,
+						'message' => $read['error'],
+					) : array(
+						'ok'       => true,
+						'message'  => 'Dry run: nothing was written.',
+						'analysis' => $this->explain( $post, $read['signals'] ),
+					);
+				},
+				array( $this, 'tick' ),
+				array( $this, 'status' )
+			)
+		);
 	}
 
 	/**
