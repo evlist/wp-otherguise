@@ -229,7 +229,7 @@ class IndexPagesTest extends TestCase {
 
 		$this->assertSame( 'Les Arberons', $candidates[1]->label );
 		$this->assertSame( 'Beaufort', $candidates[1]->parent->label );
-		$this->assertSame( 'other', $candidates[1]->kind, 'A kind that is not one falls back to other.' );
+		$this->assertSame( 'any', $candidates[1]->kind, 'A kind that is not one falls back to any (not classified).' );
 		$this->assertSame( 'passing', $candidates[1]->strength );
 
 		$this->assertSame( array( 'wikipedia:fr:Beaufort (fromage)' ), $candidates[2]->keys );

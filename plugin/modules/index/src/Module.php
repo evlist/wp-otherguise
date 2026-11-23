@@ -117,6 +117,7 @@ final class Module implements ModuleInterface, DescribedModule, DisabledByDefaul
 	public function boot() {
 		// The topics were the terms of `index_entry` until 2026-11-22: the taxonomy is renamed before it is registered under its new name.
 		( $this->add_action )( 'init', array( TopicsMigration::class, 'run' ), 5, 0 );
+		( $this->add_action )( 'init', array( KindsMigration::class, 'run' ), 6, 0 );
 		( $this->add_action )( 'init', array( TermTopics::class, 'register_taxonomy' ), 10, 0 );
 		// Slice 603: the kinds are terms of a taxonomy; the built-in kinds are created once.
 		( $this->add_action )( 'init', array( TermKindStore::class, 'register_taxonomy' ), 10, 0 );
@@ -654,6 +655,7 @@ final class Module implements ModuleInterface, DescribedModule, DisabledByDefaul
 		delete_option( self::OPTION );
 		delete_option( PagesService::OPTION );
 		delete_option( TopicsMigration::OPTION );
+		delete_option( KindsMigration::OPTION );
 		delete_option( 'index_site_address' );
 		foreach ( array( EnrichService::SWITCH, EnrichService::JOB, 'index_wikidata_contact', 'index_wikidata_last_request', 'index_wikidata_classes', 'index_wikidata_ancestors', 'index_enrich_failures', 'index_enrich_pause_until' ) as $option ) {
 			delete_option( $option );

@@ -380,7 +380,7 @@ final class Enricher {
 		$report['classes'] = $item['classes'];
 		$deduced           = $this->classes->kind_for( array_keys( $item['classes'] ) );
 		$new_label         = '' !== $item['label'] && ! $topic['label_by_hand'] && $item['label'] !== $topic['label'] ? $item['label'] : '';
-		$new_kind          = null !== $deduced && ! $topic['kind_by_hand'] && in_array( (string) $topic['kind'], array( '', 'other' ), true ) && $deduced !== $topic['kind'] ? $deduced : '';
+		$new_kind          = null !== $deduced && ! $topic['kind_by_hand'] && in_array( (string) $topic['kind'], array( '', 'any', 'other' ), true ) && $deduced !== $topic['kind'] ? $deduced : '';
 
 		$report['state'] = 'done';
 		$report['kind']  = $new_kind;

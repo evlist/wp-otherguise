@@ -49,7 +49,7 @@ class IndexKindsTest extends TestCase {
 	 * @return void
 	 */
 	public function test_the_built_in_kinds(): void {
-		$this->assertCount( 16, $this->store->kinds );
+		$this->assertCount( 17, $this->store->kinds );
 		$this->assertSame( 'place', $this->store->kinds['waterway']['parent'] );
 
 		foreach ( $this->store->kinds as $kind ) {
@@ -385,5 +385,30 @@ class IndexKindsTest extends TestCase {
 		$this->assertStringContainsString( 'otherguise_index_kind_delete', $html );
 		$this->assertStringContainsString( 'name="reassign"', $html, 'A kind that is used offers where its terms go.' );
 		$this->assertStringContainsString( 'nonce-stub', $html );
+	}
+
+	/**
+	 * `any` is the root of every kind without being the stored parent of any (slice 615): everything is below it, nothing has to be moved, it adds no CSS
+	 * class, it conflicts with nothing, and `other` is a kind of its own, not the root.
+	 *
+	 * @return void
+	 */
+	public function test_any_is_the_root_of_every_kind(): void {
+		$this->assertTrue( Kinds::is_kind( 'any' ) );
+		$this->assertTrue( Kinds::is_a( 'species', 'any' ) );
+		$this->assertTrue( Kinds::is_a( 'commune', 'any' ) );
+		$this->assertTrue( Kinds::is_a( 'other', 'any' ) );
+		$this->assertTrue( Kinds::is_a( 'any', 'any' ) );
+		$this->assertFalse( Kinds::is_a( 'any', 'species' ), 'The root is not a sort of anything.' );
+		$this->assertFalse( Kinds::is_a( 'species', 'other' ), 'Other is a kind, not a root.' );
+
+		$this->assertSame( '', Kinds::records()['any']['parent'], 'Nothing is stored under it.' );
+		$this->assertContains( 'species', Kinds::descendants( 'any' ) );
+		$this->assertContains( 'any', Kinds::descendants( 'any' ) );
+		$this->assertSame( array( 'index-kind-waterway', 'index-kind-place' ), Kinds::classes( 'waterway' ), 'No class for the root.' );
+		$this->assertSame( array(), Kinds::classes( 'any' ) );
+
+		$this->assertTrue( Kinds::compatible( 'any', 'species' ) );
+		$this->assertTrue( Kinds::compatible( 'commune', 'any' ) );
 	}
 }

@@ -114,7 +114,7 @@ final class Page implements Source {
 		}
 
 		// A link to an item: the identifier is all there is, the label comes with the enrichment.
-		return $this->with_wikidata && Signal::WIKIDATA_LINK === $signal->type ? ( new Candidate( $signal->value, Kinds::OTHER, array( 'wikidata:' . $signal->value ), null, Candidate::PASSING ) )->from( Sources::LINK, array( 'link:wikidata:' . $signal->value ) ) : null;
+		return $this->with_wikidata && Signal::WIKIDATA_LINK === $signal->type ? ( new Candidate( $signal->value, Kinds::ANY, array( 'wikidata:' . $signal->value ), null, Candidate::PASSING ) )->from( Sources::LINK, array( 'link:wikidata:' . $signal->value ) ) : null;
 	}
 
 	/**
@@ -130,7 +130,7 @@ final class Page implements Source {
 			return null;
 		}
 
-		$kind     = isset( $signal->data['kind'] ) && Kinds::is_kind( (string) $signal->data['kind'] ) ? (string) $signal->data['kind'] : Kinds::OTHER;
+		$kind     = isset( $signal->data['kind'] ) && Kinds::is_kind( (string) $signal->data['kind'] ) ? (string) $signal->data['kind'] : Kinds::ANY;
 		$strength = ! empty( $signal->data['main'] ) ? Candidate::MAIN : Candidate::PASSING;
 		$parent   = null;
 		$last     = count( $path ) - 1;
@@ -164,6 +164,6 @@ final class Page implements Source {
 	private function from_wikipedia( Signal $signal ) {
 		$language = (string) ( $signal->data['language'] ?? '' );
 
-		return ( new Candidate( $signal->value, Kinds::OTHER, array( 'wikipedia:' . $language . ':' . $signal->value ), null, Candidate::PASSING ) )->from( Sources::LINK, array( 'link:' . $language . ':' . $signal->value ) );
+		return ( new Candidate( $signal->value, Kinds::ANY, array( 'wikipedia:' . $language . ':' . $signal->value ), null, Candidate::PASSING ) )->from( Sources::LINK, array( 'link:' . $language . ':' . $signal->value ) );
 	}
 }

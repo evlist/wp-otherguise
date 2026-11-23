@@ -25,9 +25,10 @@ defined( 'ABSPATH' ) || exit;
  */
 final class Kinds {
 	public const OTHER     = 'other';
+	public const ANY       = 'any';
 	public const MAX_DEPTH = 4;
 	public const SEED      = 'index_kinds_seeded';
-	public const VERSION   = '2';
+	public const VERSION   = '3';
 
 	/**
 	 * The store, or null for the one of WordPress.
@@ -61,6 +62,9 @@ final class Kinds {
 	 */
 	public static function builtins() {
 		return array(
+			// The root of every kind (slice 615): a topic of this kind is not classified yet, and may take any kind below it. `other` is not that: it is a
+			// kind of its own, for what exists and fits no other.
+			self::ANY  => array( __( 'Any (not classified)', 'otherguise' ), '' ),
 			'place'    => array( __( 'Place', 'otherguise' ), '' ),
 			'waterway' => array( __( 'Waterway', 'otherguise' ), 'place' ),
 			// The levels of a place (slice 614), by their meaning and not by their name in a country: admin1 is the first division below the country
@@ -255,6 +259,11 @@ final class Kinds {
 	public static function descendants( $slug ) {
 		$found = array();
 
+		// Every kind is below `any`, which is the root without being the stored parent of any.
+		if ( self::ANY === (string) $slug ) {
+			return array_keys( self::records() );
+		}
+
 		foreach ( array_keys( self::records() ) as $other ) {
 			if ( self::is_a( $other, $slug ) ) {
 				$found[] = $other;
@@ -272,11 +281,17 @@ final class Kinds {
 	 * @return bool
 	 */
 	public static function is_a( $kind, $of ) {
+		// `any` is the root of every kind: nothing has to be moved under it.
+		if ( self::ANY === (string) $of && '' !== (string) $kind ) {
+			return true;
+		}
+
 		return (string) $kind === (string) $of || in_array( (string) $of, self::ancestors( $kind ), true );
 	}
 
 	/**
-	 * Whether two kinds can be one topic: one is a sort of the other. A kind that is unknown, empty or `other` conflicts with nothing.
+	 * Whether two kinds can be one topic: one is a sort of the other. A kind that is unknown, empty, `any` or `other` conflicts with nothing (`other` was
+	 * the kind of what was not classified before `any` came, and a topic is not made ambiguous by what a person typed `other`).
 	 *
 	 * @param string $a Kind.
 	 * @param string $b Kind.
@@ -284,7 +299,7 @@ final class Kinds {
 	 */
 	public static function compatible( $a, $b ) {
 		foreach ( array( $a, $b ) as $kind ) {
-			if ( '' === (string) $kind || self::OTHER === $kind || ! self::is_kind( $kind ) ) {
+			if ( '' === (string) $kind || self::ANY === $kind || self::OTHER === $kind || ! self::is_kind( $kind ) ) {
 				return true;
 			}
 		}
@@ -303,7 +318,8 @@ final class Kinds {
 		$classes = array();
 
 		foreach ( array_merge( array( (string) $slug ), self::ancestors( $slug ) ) as $kind ) {
-			if ( isset( $records[ $kind ] ) ) {
+			// `any` is the root of everything: a class that every line would carry says nothing.
+			if ( isset( $records[ $kind ] ) && self::ANY !== $kind ) {
 				$classes[] = 'index-kind-' . sanitize_html_class( $records[ $kind ]['css'] );
 			}
 		}

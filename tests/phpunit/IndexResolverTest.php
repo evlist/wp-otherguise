@@ -270,4 +270,33 @@ class IndexResolverTest extends TestCase {
 		$this->assertSame( 'commune', $this->topics->get( $done['topic'] )['kind'] );
 		$this->assertSame( 'admin2', $this->topics->get( $this->topics->get( $done['topic'] )['parent'] )['kind'] );
 	}
+
+	/**
+	 * A topic of the root kind `any` (not classified) takes the kind that a source learns, whatever it is, unless a person chose its kind (slice 615);
+	 * a topic of the kind `other` is a classified topic and is not refined.
+	 *
+	 * @return void
+	 */
+	public function test_any_is_refined_by_what_a_source_learns(): void {
+		Kinds::add( 'country', 'Country', 'place' );
+
+		$unknown = $this->topics->create( 'Espagne', 'any', 0, Topics::APPROVED, array( Resolver::label_key( 0, 'Espagne' ) ) );
+
+		$this->resolver->resolve( new Candidate( 'Espagne', 'country', array(), null, Candidate::PASSING ) );
+		$this->assertSame( 'country', $this->topics->get( $unknown )['kind'] );
+
+		$this->resolver->resolve( new Candidate( 'Espagne', 'any', array(), null, Candidate::PASSING ) );
+		$this->assertSame( 'country', $this->topics->get( $unknown )['kind'], 'A source that knows nothing does not make it less precise.' );
+
+		$typed = $this->topics->create( 'Portugal', 'any', 0, Topics::APPROVED, array( Resolver::label_key( 0, 'Portugal' ) ) );
+
+		$this->topics->set_kind( $typed, 'any', true );
+		$this->resolver->resolve( new Candidate( 'Portugal', 'country', array(), null, Candidate::PASSING ) );
+		$this->assertSame( 'any', $this->topics->get( $typed )['kind'], 'A kind chosen by a person stays, even any.' );
+
+		$other = $this->topics->create( 'Machin', 'other', 0, Topics::APPROVED, array( Resolver::label_key( 0, 'Machin' ) ) );
+
+		$this->resolver->resolve( new Candidate( 'Machin', 'country', array(), null, Candidate::PASSING ) );
+		$this->assertSame( 'other', $this->topics->get( $other )['kind'], 'Other is a kind: it is not refined.' );
+	}
 }
