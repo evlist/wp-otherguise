@@ -50,7 +50,7 @@ final class DuplicateFinder {
 	/**
 	 * The groups of topics that may be one: the topics that are linked by a pair that can be a double, together (a topic and its two namesakes are one group of
 	 * three, whose keeper a person chooses). A group that is **safe** is one where a single topic has a place in the hierarchy and a kind, and all the others
-	 * are unclassified topics with no parent (a link or a tag that names the same thing): they can go into it with no doubt.
+	 * are loose topics with no parent, no qualifier and the same or a more general kind (a link or a tag that names the same thing): they can go into it with no doubt.
 	 *
 	 * @return array<int, array{key:string,members:array<int,array>,safe:?array{keep:int,go:int[]}}> Sorted by the label of the first topic.
 	 */
@@ -135,9 +135,24 @@ final class DuplicateFinder {
 	 */
 	private static function safe( array $members ) {
 		$placed = array_values( array_filter( $members, static fn( $topic ) => Kinds::ANY !== (string) $topic['kind'] && (int) $topic['parent'] > 0 ) );
-		$loose  = array_values( array_filter( $members, static fn( $topic ) => Kinds::ANY === (string) $topic['kind'] && 0 === (int) $topic['parent'] ) );
 
-		if ( 1 !== count( $placed ) || count( $loose ) !== count( $members ) - 1 ) {
+		if ( 1 !== count( $placed ) ) {
+			return null;
+		}
+
+		// A loose topic (a link, a tag) has no parent, no qualifier in parentheses (it names one of several namesakes), and a kind that is the one of the placed
+		// topic or a more general one (`any`, `place`).
+		$loose = array_values(
+			array_filter(
+				$members,
+				static fn( $topic ) => (int) $placed[0]['id'] !== (int) $topic['id']
+					&& 0 === (int) $topic['parent']
+					&& 1 !== preg_match( '/\([^)]+\)\s*$/u', (string) $topic['label'] )
+					&& ( Kinds::ANY === (string) $topic['kind'] || Kinds::is_a( (string) $placed[0]['kind'], (string) $topic['kind'] ) )
+			)
+		);
+
+		if ( count( $loose ) !== count( $members ) - 1 ) {
 			return null;
 		}
 

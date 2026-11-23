@@ -382,4 +382,23 @@ class IndexDuplicatesScreenTest extends Otherguise_Test_Database_Case {
 		$this->assertStringContainsString( 'term:category:9', $page );
 		$this->assertStringNotContainsString( 'Look at the', $page, 'No safe merge.' );
 	}
+
+	/**
+	 * A loose topic of the same kind or of a more general kind than the placed one is safe; a loose topic with a qualifier in parentheses (it names one of
+	 * several namesakes) or of a narrower or unrelated kind is not.
+	 *
+	 * @return void
+	 */
+	public function test_the_loose_topic_may_have_a_general_kind_but_not_a_qualifier(): void {
+		$gard  = $this->topics->create( 'Gard', 'admin2', 0, Topics::APPROVED, array() );
+		$ales  = $this->topics->create( 'Nîmes', 'commune', $gard, Topics::APPROVED, array() );
+		$place = $this->topics->create( 'Nîmes', 'place', 0, Topics::APPROVED, array( 'wikipedia:fr:Nîmes' ) );
+		$same  = $this->topics->create( 'Nîmes', 'commune', 0, Topics::APPROVED, array( 'label:0/nimes' ) );
+
+		$groups = $this->finder()->groups();
+
+		$this->assertCount( 1, $groups );
+		$this->assertSame( $ales, $groups[0]['safe']['keep'] );
+		$this->assertEqualsCanonicalizing( array( $place, $same ), $groups[0]['safe']['go'] );
+	}
 }

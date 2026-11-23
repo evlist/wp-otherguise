@@ -379,7 +379,7 @@ final class Enricher {
 
 		$report['classes'] = $item['classes'];
 		$deduced           = $this->classes->kind_for( array_keys( $item['classes'] ) );
-		$new_label         = '' !== $item['label'] && ! $topic['label_by_hand'] && $item['label'] !== $topic['label'] ? $item['label'] : '';
+		$new_label         = '' !== $item['label'] && ! $topic['label_by_hand'] && self::renames( (string) $topic['label'], (string) $item['label'] ) ? $item['label'] : '';
 		$new_kind          = null !== $deduced && ! $topic['kind_by_hand'] && in_array( (string) $topic['kind'], array( '', 'any', 'other' ), true ) && $deduced !== $topic['kind'] ? $deduced : '';
 
 		$report['state'] = 'done';
@@ -402,6 +402,22 @@ final class Enricher {
 		}
 
 		return $this->keep( $id, $report, $dry );
+	}
+
+	/**
+	 * Whether the label of Wikidata should replace the label of a topic: not when it only changes the case (`Têt` and `TÊT`), and not when the topic has a
+	 * qualifier in parentheses that Wikidata's label does not carry (`Moulins (Allier)` is not renamed `Moulins`: the qualifier tells it from its namesakes).
+	 *
+	 * @param string $current The label of the topic.
+	 * @param string $wikidata The label that Wikidata gives.
+	 * @return bool
+	 */
+	private static function renames( $current, $wikidata ) {
+		if ( $current === $wikidata || mb_strtolower( $current ) === mb_strtolower( $wikidata ) ) {
+			return false;
+		}
+
+		return ! ( 1 === preg_match( '/\([^)]+\)\s*$/u', $current ) && 1 !== preg_match( '/\([^)]+\)\s*$/u', $wikidata ) );
 	}
 
 	/**

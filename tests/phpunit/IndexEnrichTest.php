@@ -240,17 +240,16 @@ class IndexEnrichTest extends TestCase {
 
 		$tet = $this->topics->get( $this->id['tet'] );
 
-		$this->assertSame( 'Têt', $tet['label'] );
+		$this->assertSame( 'Têt (fleuve)', $tet['label'], 'The qualifier in parentheses tells the topic from its namesakes: Wikidata does not strip it.' );
 		$this->assertSame( 'waterway', $tet['kind'] );
 		$this->assertContains( 'wikidata:Q4040', $tet['keys'] );
 		$this->assertContains( 'wikipedia:fr:Têt (fleuve)', $tet['keys'] );
-		$this->assertContains( 'label:0/tet (fleuve)', $tet['keys'], 'The old label key stays.' );
-		$this->assertContains( 'label:0/tet', $tet['keys'] );
+		$this->assertContains( 'label:0/tet (fleuve)', $tet['keys'] );
 		$this->assertSame( 'done', $this->topics->enrich_state( $this->id['tet'] )['state'] );
 
 		$col = $this->topics->get( $this->id['col'] );
 
-		$this->assertSame( 'Col de la Perche', $col['label'] );
+		$this->assertSame( 'Col de la Perche (Pyrénées-Orientales)', $col['label'] );
 		$this->assertSame( 'place', $col['kind'] );
 
 		$this->assertSame( 'ambiguous', $this->topics->enrich_state( $this->id['paris'] )['state'] );
@@ -303,10 +302,25 @@ class IndexEnrichTest extends TestCase {
 		$col = $this->topics->get( $this->id['col'] );
 
 		$this->assertSame( 'route', $tet['kind'] );
-		$this->assertSame( 'Têt', $tet['label'] );
+		$this->assertSame( 'Têt (fleuve)', $tet['label'] );
 		$this->assertSame( 'person', $col['kind'] );
 		$this->assertSame( 'Col de la Perche (Pyrénées-Orientales)', $col['label'] );
 		$this->assertContains( 'wikidata:Q1000', $col['keys'] );
+	}
+
+	/**
+	 * The label of Wikidata replaces a label unless it only changes the case or the topic has a qualifier in parentheses that Wikidata does not carry.
+	 *
+	 * @return void
+	 */
+	public function test_when_a_label_is_renamed(): void {
+		$renames = new ReflectionMethod( Otherguise\Index\Enrich\Enricher::class, 'renames' );
+
+		$this->assertTrue( $renames->invoke( null, 'Tet', 'Têt' ) );
+		$this->assertFalse( $renames->invoke( null, 'Têt', 'TÊT' ), 'A change of case only is not a rename.' );
+		$this->assertFalse( $renames->invoke( null, 'Moulins (Allier)', 'Moulins' ) );
+		$this->assertTrue( $renames->invoke( null, 'Moulins (Allier)', 'Moulins (Yzeure)' ), 'A qualifier on both sides is Wikidata\'s to give.' );
+		$this->assertFalse( $renames->invoke( null, 'Têt', 'Têt' ) );
 	}
 
 	/**
@@ -338,7 +352,7 @@ class IndexEnrichTest extends TestCase {
 		$report = $done['report'][ $this->id['tet'] ];
 
 		$this->assertSame( 'Q4040', $report['qid'] );
-		$this->assertSame( 'Têt', $report['new'] );
+		$this->assertSame( '', $report['new'], 'A label with a qualifier is not renamed.' );
 		$this->assertSame( 'waterway', $report['kind'] );
 		$this->assertSame( array( 'Q4022' => 'cours d\'eau' ), $report['classes'] );
 		$this->assertSame( 'Têt (fleuve)', $this->topics->get( $this->id['tet'] )['label'] );
