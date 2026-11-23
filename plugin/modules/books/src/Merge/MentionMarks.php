@@ -31,6 +31,12 @@ final class MentionMarks {
 	 */
 	public static function unit( $html, $id, array &$marks ) {
 		$html = (string) $html;
+
+		// A switch to find out whether the marks are the cause of a problem with a PDF: `add_filter( 'books_mention_marks', '__return_false' )`.
+		if ( ! apply_filters( 'books_mention_marks', true ) ) {
+			return $html;
+		}
+
 		$done = apply_filters( 'index_mention_elements', $html, (int) $id );
 
 		if ( ! is_string( $done ) || false === strpos( $done, 'data-index-mention' ) ) {
@@ -51,24 +57,50 @@ final class MentionMarks {
 				continue;
 			}
 
-			$parts[ $index ] = (string) preg_replace_callback(
-				'~<[a-z][a-z0-9-]*\b(?:[^>"\']|"[^"]*"|\'[^\']*\')*?\sdata-index-mention="([^"]*)"(?:[^>"\']|"[^"]*"|\'[^\']*\')*>~i',
-				static function ( $found ) use ( $id, &$number, &$marks ) {
-					$value   = html_entity_decode( $found[1], ENT_QUOTES, 'UTF-8' );
-					$marks[] = array(
-						'unit'  => (int) $id,
-						'n'     => ++$number,
-						'type'  => (string) strtok( $value, ':' ),
-						'value' => $value,
-					);
-
-					return self::marker( (int) $id, $number ) . $found[0];
-				},
-				$part
-			);
+			$parts[ $index ] = self::mark( $part, (int) $id, $number, $marks );
 		}
 
 		return implode( '', $parts );
+	}
+
+	/**
+	 * Puts a marker in front of each element of a piece of HTML that carries `data-index-mention`: a linear scan (no regular expression that could fail on a
+	 * large page and lose its text), the start of the tag being the last `<` before the attribute.
+	 *
+	 * @param string            $part   The piece.
+	 * @param int               $id     Id of the unit.
+	 * @param int               $number The number of the last mark of the unit (modified).
+	 * @param array<int, array> $marks  The marks of the merge (modified).
+	 * @return string
+	 */
+	private static function mark( $part, $id, &$number, array &$marks ) {
+		$needle = ' data-index-mention="';
+		$out    = '';
+		$from   = 0;
+		$at     = strpos( $part, $needle );
+
+		while ( false !== $at ) {
+			$start = strrpos( $part, '<', $at - strlen( $part ) );
+			$end   = strpos( $part, '"', $at + strlen( $needle ) );
+
+			// The attribute of a tag that begins after the end of the last piece done (a tag name, no `>` before the attribute), with a closed value.
+			if ( false !== $start && $start >= $from && false !== $end && 1 === preg_match( '~^<[a-z][^>]*$~i', substr( $part, $start, $at - $start ) ) ) {
+				$value = html_entity_decode( substr( $part, $at + strlen( $needle ), $end - $at - strlen( $needle ) ), ENT_QUOTES, 'UTF-8' );
+				$out  .= substr( $part, $from, $start - $from ) . self::marker( $id, ++$number );
+				$from  = $start;
+
+				$marks[] = array(
+					'unit'  => $id,
+					'n'     => $number,
+					'type'  => (string) strtok( $value, ':' ),
+					'value' => $value,
+				);
+			}
+
+			$at = strpos( $part, $needle, $at + strlen( $needle ) );
+		}
+
+		return $out . substr( $part, $from );
 	}
 
 	/**

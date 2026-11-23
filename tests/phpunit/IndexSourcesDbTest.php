@@ -604,7 +604,6 @@ class IndexSourcesDbTest extends Otherguise_Test_Database_Case {
 		$this->assertStringContainsString( '<a data-index-mention="link:fr:Beaufort"', $marked );
 		$this->assertStringContainsString( 'data-index-mention="mark:#obs1"', $marked );
 		$this->assertSame( 2, substr_count( $marked, 'data-index-mention' ), 'The link to another site and the link that made no mention are left alone.' );
-		$this->assertStringNotContainsString( 'data-index-sig', $marked );
 
 		$line = ( new IndexBuilder( $this->topics, $this->mentions ) )->build( array( 1 ) )->groups();
 		$vias = array();

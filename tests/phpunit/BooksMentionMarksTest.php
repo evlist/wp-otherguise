@@ -97,4 +97,19 @@ class BooksMentionMarksTest extends TestCase {
 
 		$this->assertSame( '<p>y</p>', MentionMarks::unit( '<p>y</p>', 3, $marks ), 'A filter that answers with something else than a string is ignored.' );
 	}
+
+	/**
+	 * The filter `books_mention_marks` turns the marks off.
+	 *
+	 * @return void
+	 */
+	public function test_the_marks_can_be_turned_off(): void {
+		$GLOBALS['otherguise_test_filters']['index_mention_elements'] = static fn( $html ) => str_replace( '<a ', '<a data-index-mention="link:fr:B" ', $html );
+		$GLOBALS['otherguise_test_filters']['books_mention_marks']    = false;
+
+		$marks = array();
+
+		$this->assertSame( '<a href="w">x</a>', MentionMarks::unit( '<a href="w">x</a>', 3, $marks ) );
+		$this->assertSame( array(), $marks );
+	}
 }

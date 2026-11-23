@@ -51,24 +51,26 @@ final class PageReader {
 	public function signals( $html, $post_id = 0 ) {
 		unset( $post_id );
 
-		return $this->scan( (string) $html, false )['signals'];
+		return $this->scan( (string) $html, null )['signals'];
 	}
 
 	/**
-	 * Reads a page and stamps the elements that carry signals (slice 612): each gets `data-index-sig`, the positions of its signals in the list.
+	 * Reads a page and stamps the elements that carry a signal the caller wants (slice 612): the attribute `data-index-mention` is set, on the element,
+	 * to what the callback says of the first of its signals that it wants. Only those elements are touched, so the cost stays near that of a plain reading.
 	 *
-	 * @param string $html The HTML of the page (or of a part of it).
-	 * @return array{html:string, signals:Signal[]}
+	 * @param string   $html  The HTML of the page (or of a part of it).
+	 * @param callable $value Receives a signal, returns the value of the attribute for it, or an empty string to leave its element alone.
+	 * @return string The HTML, stamped.
 	 */
-	public function stamped( $html ) {
-		return $this->scan( (string) $html, true );
+	public function stamped( $html, $value ) {
+		return $this->scan( (string) $html, $value )['html'];
 	}
 
 	/**
 	 * Reads a page, and stamps the elements when asked.
 	 *
-	 * @param string $html  The HTML.
-	 * @param bool   $stamp Whether to stamp the elements that carry signals.
+	 * @param string        $html  The HTML.
+	 * @param callable|null $stamp Receives a signal, returns the value to stamp on its element, or an empty string; null: no stamp.
 	 * @return array{html:string, signals:Signal[]}
 	 */
 	private function scan( $html, $stamp ) {
@@ -112,8 +114,15 @@ final class PageReader {
 
 			$this->read( $tags, $tag, $state, $signals );
 
-			if ( $stamp && count( $signals ) > $before ) {
-				$tags->set_attribute( 'data-index-sig', implode( ',', range( $before, count( $signals ) - 1 ) ) );
+			$after = count( $signals );
+
+			for ( $at = $before; null !== $stamp && $at < $after; $at++ ) {
+				$wanted = (string) $stamp( $signals[ $at ] );
+
+				if ( '' !== $wanted ) {
+					$tags->set_attribute( 'data-index-mention', $wanted );
+					break;
+				}
 			}
 
 			if ( ! in_array( $tag, self::VOID, true ) ) {
@@ -123,7 +132,7 @@ final class PageReader {
 		}
 
 		return array(
-			'html'    => $stamp ? $tags->get_updated_html() : $html,
+			'html'    => null !== $stamp ? $tags->get_updated_html() : $html,
 			'signals' => $signals,
 		);
 	}

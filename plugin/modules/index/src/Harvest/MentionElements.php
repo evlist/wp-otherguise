@@ -80,41 +80,21 @@ final class MentionElements {
 			return $html;
 		}
 
-		$read   = $this->reader->stamped( $html );
-		$values = array();
+		return $this->reader->stamped(
+			$html,
+			function ( $signal ) use ( $stored ) {
+				$candidate = $this->page->candidate_of( $signal );
 
-		foreach ( $read['signals'] as $position => $signal ) {
-			$candidate = $this->page->candidate_of( $signal );
+				foreach ( null === $candidate ? array() : $candidate->via as $via ) {
+					$kept = substr( Mentions::pack( (string) $candidate->source, $via ), strlen( (string) $candidate->source ) + 1 );
 
-			foreach ( null === $candidate ? array() : $candidate->via as $via ) {
-				$kept = substr( Mentions::pack( (string) $candidate->source, $via ), strlen( (string) $candidate->source ) + 1 );
-
-				if ( isset( $stored[ (string) $candidate->source ][ $kept ] ) ) {
-					$values[ $position ] = $kept;
-					break;
+					if ( isset( $stored[ (string) $candidate->source ][ $kept ] ) ) {
+						return $kept;
+					}
 				}
+
+				return '';
 			}
-		}
-
-		$tags = new \WP_HTML_Tag_Processor( $read['html'] );
-
-		while ( $tags->next_tag() ) {
-			$sigs = $tags->get_attribute( 'data-index-sig' );
-
-			if ( ! is_string( $sigs ) ) {
-				continue;
-			}
-
-			$tags->remove_attribute( 'data-index-sig' );
-
-			foreach ( explode( ',', $sigs ) as $position ) {
-				if ( isset( $values[ (int) $position ] ) ) {
-					$tags->set_attribute( 'data-index-mention', $values[ (int) $position ] );
-					break;
-				}
-			}
-		}
-
-		return $tags->get_updated_html();
+		);
 	}
 }
