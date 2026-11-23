@@ -34,3 +34,10 @@ Status: **coded on 2026-11-23**. Dependencies: 616 (the merge). Context: [`../de
 ## Tests
 
 `IndexDuplicatesScreenTest`: the groups and what is not offered (the numbers, the qualifiers, the pairs kept, a pair offered again), safe or not; the list; the preview that changes nothing; the merge (capability, nonce, what is refused, the force); "not doubles"; the safe merges and the view that lists none after.
+
+## Changed on 2026-11-23 (after the first use on the blog)
+
+- **The kind has a column of its own**: it was printed in parentheses after the name (*Alès (Third-level division)*, *Aarhus (Commune)*), which reads as a qualifier of the name; it is **a kind**, not part of the label. The label in a printed index is the name with its **broader topic** (*Aarhus (Jutland central)*, the comarca and the other third divisions skipped: slice 619).
+- **Where a topic comes from**: two columns, **"Made by"** (the sources of the mentions: `post/link`, `image/address`…) and **"Keys"** (its identifiers and the keys of its sources, `wikipedia:fr:Alès`, `term:category:9`, the keys made of its label left out); the safe merges show the sources of both sides.
+- **A parent and its child of the same name make a merge unsafe**: *Alès* the arrondissement (a third division of the Gard, level 7) and *Alès* the commune below it are shown **with the loose topic *Alès*** (a link: it may be either); the group is **not safe**, a person chooses. Before, the finder did not see the commune (a parent and its child are not a double) and offered to put the link into the arrondissement. Two such topics alone are not a double: **a group needs a real pair**.
+- **Known limit**: in some countries **level 7 is the municipality** (Denmark: *Aarhus Kommune*, Sweden: *Arboga kommun*, Poland: the gmina), and **a third division is then the commune seen at a higher level**: a setting by country is to be decided.

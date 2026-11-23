@@ -38,7 +38,14 @@ final class MergeWiring {
 			new TopicMerger( $topics, $mentions ),
 			$ignored,
 			$topics,
-			static fn( $id ) => count( $mentions->of_topic( (int) $id ) )
+			static function ( $id ) use ( $mentions ) {
+				$of = $mentions->of_topic( (int) $id );
+
+				return array(
+					'posts'   => count( $of ),
+					'sources' => array_values( array_unique( array_merge( array(), ...array_column( $of, 'sources' ) ) ) ),
+				);
+			}
 		);
 	}
 

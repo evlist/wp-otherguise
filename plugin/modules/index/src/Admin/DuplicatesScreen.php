@@ -61,11 +61,11 @@ final class DuplicatesScreen {
 	private $topics;
 
 	/**
-	 * Counts the posts that mention a topic: `fn( int $id ): int`.
+	 * What the mentions of a topic say: `fn( int $id ): array{posts:int,sources:string[]}`, the number of posts that mention it and the sources of those mentions.
 	 *
 	 * @var callable
 	 */
-	private $count;
+	private $facts;
 
 	/**
 	 * Tells whether the current user has a capability.
@@ -102,18 +102,18 @@ final class DuplicatesScreen {
 	 * @param TopicMerger     $merger   The merger.
 	 * @param IgnoredPairs    $ignored  The pairs that are not doubles.
 	 * @param Topics          $topics   The topics.
-	 * @param callable        $count    Counts the posts that mention a topic.
+	 * @param callable        $facts    What the mentions of a topic say: the number of posts and the sources.
 	 * @param callable|null   $can      Default `current_user_can`.
 	 * @param callable|null   $input    Reads a field of the request; default `filter_input`.
 	 * @param callable|null   $verify   Checks a nonce; default `wp_verify_nonce`.
 	 * @param callable|null   $redirect Default `wp_safe_redirect` then `exit`.
 	 */
-	public function __construct( DuplicateFinder $finder, TopicMerger $merger, IgnoredPairs $ignored, Topics $topics, $count, $can = null, $input = null, $verify = null, $redirect = null ) {
+	public function __construct( DuplicateFinder $finder, TopicMerger $merger, IgnoredPairs $ignored, Topics $topics, $facts, $can = null, $input = null, $verify = null, $redirect = null ) {
 		$this->finder   = $finder;
 		$this->merger   = $merger;
 		$this->ignored  = $ignored;
 		$this->topics   = $topics;
-		$this->count    = $count;
+		$this->facts    = $facts;
 		$this->can      = $can ?? 'current_user_can';
 		$this->input    = $input ?? static function ( $type, $name, $is_array ) {
 			return filter_input( $type, $name, FILTER_DEFAULT, $is_array ? FILTER_REQUIRE_ARRAY : FILTER_FLAG_NONE );
@@ -330,6 +330,18 @@ final class DuplicatesScreen {
 	}
 
 	/**
+	 * What a topic is known by, short: its identifiers and the keys of its sources, without the keys made of its label.
+	 *
+	 * @param array $topic A topic.
+	 * @return string
+	 */
+	private function keys( array $topic ) {
+		$keys = array_values( array_filter( array_map( 'strval', (array) $topic['keys'] ), static fn( $key ) => 0 !== strpos( $key, 'label:' ) ) );
+
+		return implode( ', ', array_slice( $keys, 0, 3 ) ) . ( count( $keys ) > 3 ? ' … +' . ( count( $keys ) - 3 ) : '' );
+	}
+
+	/**
 	 * What says where a topic is: its broader topics, from the highest.
 	 *
 	 * @param array $topic A topic.
@@ -427,14 +439,16 @@ final class DuplicatesScreen {
 		$keep = null !== $group['safe'] ? $group['safe']['keep'] : $ids[0];
 
 		echo '<form method="get" action="' . esc_url( admin_url( 'admin.php' ) ) . '" style="margin:1em 0;"><input type="hidden" name="page" value="' . esc_attr( self::PAGE ) . '" /><input type="hidden" name="view" value="preview" />';
-		echo '<table class="widefat striped"><thead><tr><th>' . esc_html__( 'Stays', 'otherguise' ) . '</th><th>' . esc_html__( 'Goes in it', 'otherguise' ) . '</th><th>' . esc_html__( 'Topic', 'otherguise' ) . '</th><th>' . esc_html__( 'Kind', 'otherguise' ) . '</th><th>' . esc_html__( 'Under', 'otherguise' ) . '</th><th>' . esc_html__( 'Posts', 'otherguise' ) . '</th></tr></thead><tbody>';
+		echo '<table class="widefat striped"><thead><tr><th>' . esc_html__( 'Stays', 'otherguise' ) . '</th><th>' . esc_html__( 'Goes in it', 'otherguise' ) . '</th><th>' . esc_html__( 'Topic', 'otherguise' ) . '</th><th>' . esc_html__( 'Kind', 'otherguise' ) . '</th><th>' . esc_html__( 'Under', 'otherguise' ) . '</th><th>' . esc_html__( 'Posts', 'otherguise' ) . '</th><th>' . esc_html__( 'Made by', 'otherguise' ) . '</th><th>' . esc_html__( 'Keys', 'otherguise' ) . '</th></tr></thead><tbody>';
 
 		foreach ( $group['members'] as $member ) {
 			$id = (int) $member['id'];
 
 			echo '<tr><td><input type="radio" name="keep" value="' . esc_attr( (string) $id ) . '"' . checked( $keep, $id, false ) . ' /></td>';
 			echo '<td><input type="checkbox" name="go[]" value="' . esc_attr( (string) $id ) . '"' . checked( null !== $group['safe'] && in_array( $id, $group['safe']['go'], true ), true, false ) . ' /></td>';
-			echo '<td>' . esc_html( (string) $member['label'] ) . ' <small>#' . esc_html( (string) $id ) . '</small></td><td>' . esc_html( Kinds::label( (string) $member['kind'] ) ) . '</td><td>' . esc_html( $this->chain( $member ) ) . '</td><td>' . esc_html( (string) ( $this->count )( $id ) ) . '</td></tr>';
+			$facts = (array) ( $this->facts )( $id );
+
+			echo '<td>' . esc_html( (string) $member['label'] ) . ' <small>#' . esc_html( (string) $id ) . '</small></td><td>' . esc_html( Kinds::label( (string) $member['kind'] ) ) . '</td><td>' . esc_html( $this->chain( $member ) ) . '</td><td>' . esc_html( (string) ( $facts['posts'] ?? 0 ) ) . '</td><td>' . esc_html( implode( ', ', array_map( 'strval', (array) ( $facts['sources'] ?? array() ) ) ) ) . '</td><td><small>' . esc_html( $this->keys( $member ) ) . '</small></td></tr>';
 		}
 
 		echo '</tbody></table><p><button class="button">' . esc_html__( 'Preview the merge', 'otherguise' ) . '</button></p></form>';
@@ -533,20 +547,24 @@ final class DuplicatesScreen {
 		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
 		wp_nonce_field( self::NONCE );
 		echo '<input type="hidden" name="action" value="' . esc_attr( self::ACTION ) . '" /><input type="hidden" name="op" value="merge_safe" />';
-		echo '<table class="widefat striped"><thead><tr><th></th><th>' . esc_html__( 'Stays', 'otherguise' ) . '</th><th>' . esc_html__( 'Under', 'otherguise' ) . '</th><th>' . esc_html__( 'Goes in it', 'otherguise' ) . '</th><th>' . esc_html__( 'Mentions moved', 'otherguise' ) . '</th></tr></thead><tbody>';
+		echo '<table class="widefat striped"><thead><tr><th></th><th>' . esc_html__( 'Stays', 'otherguise' ) . '</th><th>' . esc_html__( 'Kind', 'otherguise' ) . '</th><th>' . esc_html__( 'Under', 'otherguise' ) . '</th><th>' . esc_html__( 'Made by', 'otherguise' ) . '</th><th>' . esc_html__( 'Goes in it', 'otherguise' ) . '</th><th>' . esc_html__( 'Made by', 'otherguise' ) . '</th><th>' . esc_html__( 'Mentions moved', 'otherguise' ) . '</th></tr></thead><tbody>';
 
 		foreach ( array_slice( $safe, ( $page - 1 ) * self::PER_PAGE * 2, self::PER_PAGE * 2 ) as $group ) {
 			$keep   = $this->topics->get( $group['safe']['keep'] );
-			$names  = array();
-			$moving = 0;
+			$names   = array();
+			$moving  = 0;
+			$sources = array();
+			$stays   = (array) ( $this->facts )( $group['safe']['keep'] );
 
 			foreach ( $group['safe']['go'] as $go ) {
-				$topic   = $this->topics->get( $go );
-				$names[] = null === $topic ? (string) $go : (string) $topic['label'];
-				$moving += (int) ( $this->count )( $go );
+				$topic    = $this->topics->get( $go );
+				$facts    = (array) ( $this->facts )( $go );
+				$names[]  = null === $topic ? (string) $go : (string) $topic['label'];
+				$moving  += (int) ( $facts['posts'] ?? 0 );
+				$sources  = array_merge( $sources, (array) ( $facts['sources'] ?? array() ) );
 			}
 
-			echo '<tr><td><input type="checkbox" name="safe[]" value="' . esc_attr( $group['safe']['keep'] . ':' . implode( ',', $group['safe']['go'] ) ) . '" checked="checked" /></td><td>' . esc_html( null === $keep ? '' : (string) $keep['label'] . ' (' . Kinds::label( (string) $keep['kind'] ) . ')' ) . '</td><td>' . esc_html( null === $keep ? '' : $this->chain( $keep ) ) . '</td><td>' . esc_html( implode( ', ', $names ) ) . '</td><td>' . esc_html( (string) $moving ) . '</td></tr>';
+			echo '<tr><td><input type="checkbox" name="safe[]" value="' . esc_attr( $group['safe']['keep'] . ':' . implode( ',', $group['safe']['go'] ) ) . '" checked="checked" /></td><td>' . esc_html( null === $keep ? '' : (string) $keep['label'] ) . '</td><td>' . esc_html( null === $keep ? '' : Kinds::label( (string) $keep['kind'] ) ) . '</td><td>' . esc_html( null === $keep ? '' : $this->chain( $keep ) ) . '</td><td>' . esc_html( implode( ', ', array_map( 'strval', (array) ( $stays['sources'] ?? array() ) ) ) ) . '</td><td>' . esc_html( implode( ', ', $names ) ) . '</td><td>' . esc_html( implode( ', ', array_values( array_unique( array_map( 'strval', $sources ) ) ) ) ) . '</td><td>' . esc_html( (string) $moving ) . '</td></tr>';
 		}
 
 		echo '</tbody></table><p><button class="button button-primary">' . esc_html__( 'Merge the checked lines', 'otherguise' ) . '</button> <a href="' . esc_url( $this->url() ) . '">' . esc_html__( 'Cancel', 'otherguise' ) . '</a></p></form>';

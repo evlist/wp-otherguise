@@ -55,9 +55,10 @@ final class DuplicateFinder {
 	 * @return array<int, array{key:string,members:array<int,array>,safe:?array{keep:int,go:int[]}}> Sorted by the label of the first topic.
 	 */
 	public function groups() {
-		$pairs  = $this->pairs();
+		$pairs  = $this->collect( true );
 		$parent = array();
 		$topics = array();
+		$real   = array();
 
 		foreach ( $pairs as $pair ) {
 			foreach ( array( $pair['a'], $pair['b'] ) as $topic ) {
@@ -71,17 +72,31 @@ final class DuplicateFinder {
 			if ( $x !== $y ) {
 				$parent[ max( $x, $y ) ] = min( $x, $y );
 			}
+
+			if ( empty( $pair['related'] ) ) {
+				$real[ (int) $pair['a']['id'] ] = true;
+				$real[ (int) $pair['b']['id'] ] = true;
+			}
 		}
 
 		$by_root = array();
+		$offered = array();
 
 		foreach ( $topics as $id => $topic ) {
-			$by_root[ $this->root( $parent, $id ) ][] = $topic;
+			$root                = $this->root( $parent, $id );
+			$by_root[ $root ][]  = $topic;
+			$offered[ $root ]    = ( $offered[ $root ] ?? false ) || isset( $real[ $id ] );
 		}
 
 		$groups = array();
 
 		foreach ( $by_root as $root => $members ) {
+			// A parent and its child of the same name (a Third-level division and the commune of the same name) are shown with the others, to tell them apart, but
+			// they are not a double: a group needs a pair that is.
+			if ( ! $offered[ $root ] ) {
+				continue;
+			}
+
 			usort( $members, static fn( $p, $q ) => (int) $p['id'] <=> (int) $q['id'] );
 
 			$groups[] = array(
@@ -138,6 +153,16 @@ final class DuplicateFinder {
 	 * @return array<int, array{a:array,b:array,why:string}> The topic with the lower id first.
 	 */
 	public function pairs() {
+		return $this->collect( false );
+	}
+
+	/**
+	 * Collects the pairs; with `$with_related` also the parent and its child of the same name (not offered, but they tell a topic from another in a group).
+	 *
+	 * @param bool $with_related Include the pairs of a parent and its child.
+	 * @return array<int, array{a:array,b:array,why:string,related?:bool}>
+	 */
+	private function collect( $with_related ) {
 		$topics = array_values( $this->topics->all( array( 'status' => Topics::APPROVED ) ) );
 		$found  = array();
 		$plain  = array();
@@ -158,7 +183,7 @@ final class DuplicateFinder {
 		}
 
 		foreach ( $plain as $group ) {
-			$this->pairs_of( $group, 'same label without the parentheses', $found );
+			$this->pairs_of( $group, 'same label without the parentheses', $found, $with_related );
 		}
 
 		foreach ( $near as $group ) {
@@ -173,7 +198,7 @@ final class DuplicateFinder {
 
 					// Names that differ only by their numbers are different things (EuroVelo 5 and EuroVelo 8, Route nationale 1 and 106).
 					if ( $x !== $y && $group[ $i ]['len'] >= 7 && levenshtein( $x, $y ) <= 2 && preg_replace( '/\d+/', '', $x ) !== preg_replace( '/\d+/', '', $y ) ) {
-						$this->pairs_of( array( $group[ $i ]['topic'], $group[ $j ]['topic'] ), 'labels that differ by a letter or two', $found );
+						$this->pairs_of( array( $group[ $i ]['topic'], $group[ $j ]['topic'] ), 'labels that differ by a letter or two', $found, $with_related );
 					}
 				}
 			}
@@ -190,9 +215,10 @@ final class DuplicateFinder {
 	 * @param array<int, array>    $group The topics.
 	 * @param string               $why   Why they are offered.
 	 * @param array<string, array> $found The pairs (modified), by their two ids.
+	 * @param bool                 $with_related Also keep the pairs of a parent and its child.
 	 * @return void
 	 */
-	private function pairs_of( array $group, $why, array &$found ) {
+	private function pairs_of( array $group, $why, array &$found, $with_related = false ) {
 		$count = count( $group );
 
 		for ( $i = 0; $i < $count; $i++ ) {
@@ -207,14 +233,17 @@ final class DuplicateFinder {
 				// Two places of the same name under two different parents are homonyms (Beaufort in Savoie and in the Jura), not doubles.
 				$homonyms = (int) $a['parent'] > 0 && (int) $b['parent'] > 0 && (int) $a['parent'] !== (int) $b['parent'];
 
-				if ( $homonyms || ! Kinds::compatible( (string) $a['kind'], (string) $b['kind'] ) || $this->related( $a, $b ) || self::other_qualifiers( $a, $b ) || ( $this->ignored )( (int) $a['id'], (int) $b['id'] ) ) {
+				$related = $this->related( $a, $b );
+
+				if ( ( $related && ! $with_related ) || ( ! $related && ( $homonyms || ! Kinds::compatible( (string) $a['kind'], (string) $b['kind'] ) ) ) || self::other_qualifiers( $a, $b ) || ( $this->ignored )( (int) $a['id'], (int) $b['id'] ) ) {
 					continue;
 				}
 
 				$found[ $a['id'] . '-' . $b['id'] ] = $found[ $a['id'] . '-' . $b['id'] ] ?? array(
-					'a'   => $a,
-					'b'   => $b,
-					'why' => $why,
+					'a'       => $a,
+					'b'       => $b,
+					'why'     => $why,
+					'related' => $related,
 				);
 			}
 		}

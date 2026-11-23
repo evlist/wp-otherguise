@@ -131,7 +131,14 @@ class IndexDuplicatesScreenTest extends Otherguise_Test_Database_Case {
 			new TopicMerger( $this->topics, $this->mentions ),
 			$this->ignored(),
 			$this->topics,
-			fn( $id ) => count( $this->mentions->of_topic( (int) $id ) ),
+			function ( $id ) {
+				$of = $this->mentions->of_topic( (int) $id );
+
+				return array(
+					'posts'   => count( $of ),
+					'sources' => array_values( array_unique( array_merge( array(), ...array_column( $of, 'sources' ) ) ) ),
+				);
+			},
 			static fn() => $allowed,
 			fn( $type, $name ) => $this->request[ $type ][ $name ] ?? null,
 			static fn() => $nonce,
@@ -337,5 +344,42 @@ class IndexDuplicatesScreenTest extends Otherguise_Test_Database_Case {
 		$this->request[ INPUT_GET ] = array( 'view' => 'safe' );
 
 		$this->assertStringContainsString( 'None.', $this->page( $this->screen( $urls ) ) );
+	}
+
+	/**
+	 * A parent and its child of the same name (the arrondissement of Alès and the commune of Alès) are shown with the loose topic of the same name, to tell
+	 * them apart, and the merge is **not** safe (the loose topic may be either); two such topics alone are not a double; the page shows the kind, the
+	 * sources and the keys in columns of their own, not in parentheses that look like a qualifier of the name.
+	 *
+	 * @return void
+	 */
+	public function test_a_parent_and_its_child_of_the_same_name_make_the_merge_unsafe(): void {
+		Kinds::add( 'admin3', 'Third-level division', 'place' );
+
+		$gard    = $this->topics->create( 'Gard', 'admin2', 0, Topics::APPROVED, array() );
+		$arrond  = $this->topics->create( 'Alès', 'admin3', $gard, Topics::APPROVED, array( 'term:category:9' ) );
+		$commune = $this->topics->create( 'Alès', 'commune', $arrond, Topics::APPROVED, array() );
+		$loose   = $this->topics->create( 'Alès', 'any', 0, Topics::APPROVED, array( 'wikipedia:fr:Alès' ) );
+		$pair    = $this->topics->create( 'Nîmes', 'admin3', $gard, Topics::APPROVED, array() );
+		$this->topics->create( 'Nîmes', 'commune', $pair, Topics::APPROVED, array() );
+
+		$this->mentions->sync( 1, 'post/link', array( $loose => array() ) );
+		$this->mentions->sync( 2, 'image/address', array( $commune => array() ) );
+
+		$groups = $this->finder()->groups();
+
+		$this->assertCount( 1, $groups, 'Nîmes the arrondissement and its commune alone are not a double.' );
+		$this->assertSame( array( $arrond, $commune, $loose ), array_column( $groups[0]['members'], 'id' ) );
+		$this->assertNull( $groups[0]['safe'], 'Two topics have a place: it is not safe to put the loose one in either.' );
+
+		$urls = array();
+		$page = $this->page( $this->screen( $urls ) );
+
+		$this->assertStringContainsString( '<td>Third-level division</td>', $page, 'The kind has a column of its own.' );
+		$this->assertStringContainsString( '<td>post/link</td>', $page, 'The sources of the mentions.' );
+		$this->assertStringContainsString( '<td>image/address</td>', $page );
+		$this->assertStringContainsString( 'wikipedia:fr:Alès', $page, 'The keys show where a topic comes from.' );
+		$this->assertStringContainsString( 'term:category:9', $page );
+		$this->assertStringNotContainsString( 'Look at the', $page, 'No safe merge.' );
 	}
 }
