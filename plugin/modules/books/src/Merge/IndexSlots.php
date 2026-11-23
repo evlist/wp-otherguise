@@ -68,7 +68,7 @@ final class IndexSlots {
 	/**
 	 * Notes a block and returns the marker that goes in the page.
 	 *
-	 * @param array<string, mixed> $options  `include`, `exclude`, `context`, `title`, `attribution`.
+	 * @param array<string, mixed> $options  `include`, `exclude`, `rollup`, `context`, `title`, `attribution`.
 	 * @param bool                 $numbered Whether the pages are numbers (print) or links.
 	 * @return string
 	 */
@@ -125,6 +125,7 @@ final class IndexSlots {
 				array(
 					'include' => (string) ( $slot['options']['include'] ?? '' ),
 					'exclude' => (string) ( $slot['options']['exclude'] ?? '' ),
+					'rollup'  => (string) ( $slot['options']['rollup'] ?? '' ),
 					'context' => ! array_key_exists( 'context', $slot['options'] ) || (bool) $slot['options']['context'],
 				)
 			);

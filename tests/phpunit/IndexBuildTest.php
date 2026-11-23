@@ -420,4 +420,94 @@ class IndexBuildTest extends Otherguise_Test_Database_Case {
 		$this->assertTrue( $this->builder->build( array( 3 ), array( 'include' => 'source:image' ) )->attribution()['osm'], 'A photograph: its place comes from OpenStreetMap.' );
 		$this->assertFalse( $this->builder->build( array( 3 ), array( 'exclude' => 'source:image' ) )->attribution()['osm'] );
 	}
+
+	/**
+	 * A country, a department and a hamlet below it, mentioned by three posts: the hamlet by 1 and 3, the department itself by 2.
+	 *
+	 * @param int $country_parent The topic above the country, 0 for none.
+	 * @return void
+	 */
+	private function tree( $country_parent = 0 ): void {
+		$this->id['france'] = $this->topics->create( 'France', 'place', $country_parent, Topics::APPROVED, array() );
+		$this->id['savoie'] = $this->topics->create( 'Savoie', 'place', $this->id['france'], Topics::APPROVED, array() );
+		$this->id['hameau'] = $this->topics->create( 'Hameau', 'hamlet', $this->id['savoie'], Topics::APPROVED, array() );
+
+		$this->mentions->sync( 1, 'testhameau', array( $this->id['hameau'] => 'passing' ) );
+		$this->mentions->sync( 3, 'testhameau', array( $this->id['hameau'] => 'main' ) );
+		$this->mentions->sync( 2, 'testsavoie', array( $this->id['savoie'] => 'passing' ) );
+	}
+
+	/**
+	 * The roll-up (slice 613): a broader topic of a kind asked for gets a line with the posts of everything below it, once per post, the strongest
+	 * strength, in the order of the book; the same topic keeps its own mentions; without the option nothing changes.
+	 *
+	 * @return void
+	 */
+	public function test_rollup_gives_the_broader_topics_their_descendants(): void {
+		$this->tree();
+
+		$before = array_column( $this->builder->build( array( 3, 1, 2 ) )->lines(), null, 'label' );
+
+		$this->assertArrayNotHasKey( 'France', $before, 'Flat by default.' );
+		$this->assertSame( array( 2 ), array_column( $before['Savoie (France)']['locators'], 'post' ) );
+
+		$lines = array_column( $this->builder->build( array( 3, 1, 2 ), array( 'rollup' => 'kind:place' ) )->lines(), null, 'label' );
+
+		$this->assertSame( array( 3, 1, 2 ), array_column( $lines['Savoie (France)']['locators'], 'post' ), 'The posts of the hamlet and its own post, in the order of the book.' );
+		$this->assertSame( array( 'main', 'passing', 'passing' ), array_column( $lines['Savoie (France)']['locators'], 'strength' ) );
+		$this->assertSame( array( 3, 1, 2 ), array_column( $lines['France']['locators'], 'post' ), 'And up to the country, through the department.' );
+		$this->assertSame( array( 3, 1 ), array_column( $lines['Hameau (Savoie)']['locators'], 'post' ), 'The hamlet keeps its own line.' );
+
+		// Only the kinds asked for: the hamlet is a sub-kind of place, so asking for the hamlets rolls nothing up above it.
+		$none = array_column( $this->builder->build( array( 3, 1, 2 ), array( 'rollup' => 'kind:hamlet' ) )->lines(), null, 'label' );
+
+		$this->assertArrayNotHasKey( 'France', $none );
+		$this->assertSame( array( 2 ), array_column( $none['Savoie (France)']['locators'], 'post' ) );
+
+		$all = array_column( $this->builder->build( array( 3, 1, 2 ), array( 'rollup' => 'all' ) )->lines(), null, 'label' );
+
+		$this->assertSame( array( 3, 1, 2 ), array_column( $all['France']['locators'], 'post' ) );
+	}
+
+	/**
+	 * What is rolled up is what the selection kept; an unapproved broader topic gets no line; a wrong option is an error and rolls nothing up.
+	 *
+	 * @return void
+	 */
+	public function test_rollup_follows_the_selection_and_the_approval(): void {
+		$candidate = $this->topics->create( 'Occitanie', 'place', 0, Topics::CANDIDATE, array() );
+
+		$this->tree( $candidate );
+
+		$lines = array_column( $this->builder->build( array( 1, 2, 3 ), array( 'rollup' => 'kind:place' ) )->lines(), null, 'label' );
+
+		$this->assertArrayNotHasKey( 'Occitanie', $lines, 'A candidate is not in the index, rolled up or not.' );
+		$this->assertArrayHasKey( 'France (Occitanie)', $lines, 'Its own line is there; the label shows the broader topic.' );
+
+		// The hamlet is excluded by source: only the post 2, mentioned directly, rolls up.
+		$kept = array_column(
+			$this->builder->build(
+				array( 1, 2, 3 ),
+				array(
+					'exclude' => 'source:testhameau',
+					'rollup' => 'kind:place',
+				)
+			)->lines(),
+			null,
+			'label'
+		);
+
+		$this->assertSame( array( 2 ), array_column( $kept['France (Occitanie)']['locators'], 'post' ) );
+
+		$this->assertSame( array(), IndexBuilder::rollup_errors( '' ) );
+		$this->assertSame( array(), IndexBuilder::rollup_errors( 'all' ) );
+		$this->assertSame( array(), IndexBuilder::rollup_errors( 'kind:place species' ) );
+		$this->assertNotSame( array(), IndexBuilder::rollup_errors( 'source:post' ) );
+		$this->assertNotSame( array(), IndexBuilder::rollup_errors( 'visibility:print' ) );
+		$this->assertNotSame( array(), IndexBuilder::rollup_errors( 'colour:red' ) );
+
+		$wrong = array_column( $this->builder->build( array( 1, 2, 3 ), array( 'rollup' => 'source:post' ) )->lines(), null, 'label' );
+
+		$this->assertArrayNotHasKey( 'France (Occitanie)', $wrong, 'An invalid option rolls nothing up.' );
+	}
 }

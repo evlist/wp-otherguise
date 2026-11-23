@@ -113,6 +113,7 @@ final class SectionIndexBlock {
 		$options     = array(
 			'include'     => (string) ( $attributes['include'] ?? '' ),
 			'exclude'     => (string) ( $attributes['exclude'] ?? '' ),
+			'rollup'      => (string) ( $attributes['rollup'] ?? '' ),
 			'context'     => ! array_key_exists( 'context', $attributes ) || (bool) $attributes['context'],
 			'title'       => (string) ( $attributes['title'] ?? '' ),
 			'attribution' => in_array( $attribution, array( 'auto', 'yes', 'no' ), true ) ? $attribution : 'auto',

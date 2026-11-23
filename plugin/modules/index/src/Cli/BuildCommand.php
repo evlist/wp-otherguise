@@ -92,6 +92,9 @@ final class BuildCommand {
 	 * [--format=<format>]
 	 * : `json` (default), `csv` or `html`.
 	 *
+	 * [--rollup=<kinds>]
+	 * : Give a line of their own to the broader topics of these kinds (`kind:category`, `kind:place`, or `all`), with the pages of everything below them (slice 613).
+	 *
 	 * [--no-context]
 	 * : Do not show the broader topic in parentheses after a label.
 	 *
@@ -131,12 +134,19 @@ final class BuildCommand {
 			return;
 		}
 
+		if ( array() !== IndexBuilder::rollup_errors( (string) ( $assoc['rollup'] ?? '' ) ) ) {
+			( $this->fail )( implode( ' ', IndexBuilder::rollup_errors( (string) ( $assoc['rollup'] ?? '' ) ) ) );
+
+			return;
+		}
+
 		$model = $this->builder->build(
 			$posts,
 			array(
 				'include' => (string) ( $assoc['include'] ?? '' ),
 				'exclude' => (string) ( $assoc['exclude'] ?? '' ),
 				'context' => empty( $assoc['no-context'] ),
+				'rollup'  => (string) ( $assoc['rollup'] ?? '' ),
 			)
 		);
 

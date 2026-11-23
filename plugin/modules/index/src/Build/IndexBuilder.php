@@ -76,13 +76,14 @@ final class IndexBuilder {
 	 * Builds the index of some posts.
 	 *
 	 * @param int[]                $post_ids The posts, in the order of the book.
-	 * @param array<string, mixed> $options  `include` and `exclude` (the tokens of `Selection`: `kind:place source:post/tag visibility:print`; a bare word is a kind), `context` (the broader topic in parentheses, true by default).
+	 * @param array<string, mixed> $options  `include` and `exclude` (the tokens of `Selection`: `kind:place source:post/tag visibility:print`; a bare word is a kind), `context` (the broader topic in parentheses, true by default), `rollup` (slice 613: the kinds of the broader topics that get a line of their own with the pages of what is below them: `kind:category`, or `all`).
 	 * @return IndexModel
 	 */
 	public function build( array $post_ids, array $options = array() ) {
 		$selection = Selection::parse( $options['include'] ?? '', $options['exclude'] ?? '' );
 		$context   = ! array_key_exists( 'context', $options ) || (bool) $options['context'];
 		$lines     = array();
+		$order     = array_flip( array_values( array_unique( array_map( 'intval', $post_ids ) ) ) );
 
 		foreach ( array_values( array_unique( array_map( 'intval', $post_ids ) ) ) as $post ) {
 			foreach ( $this->mentions->of_post( $post ) as $id => $mention ) {
@@ -116,6 +117,7 @@ final class IndexBuilder {
 			}
 		}
 
+		$lines = $this->rolled_up( $lines, (string) ( $options['rollup'] ?? '' ), $context, $order );
 		$lines = array_values( array_filter( $lines, static fn( $line ) => false !== $line && array() !== $line['locators'] ) );
 
 		usort( $lines, fn( $a, $b ) => $this->order( $a['sort'], $b['sort'] ) );
@@ -147,6 +149,121 @@ final class IndexBuilder {
 			),
 			$attribution
 		);
+	}
+
+	/**
+	 * What is wrong with the value of the option `rollup` (kind tokens or `all`): nothing for an empty value.
+	 *
+	 * @param string $rollup The value.
+	 * @return string[]
+	 */
+	public static function rollup_errors( $rollup ) {
+		$rollup = trim( (string) $rollup );
+
+		if ( '' === $rollup || 'all' === $rollup ) {
+			return array();
+		}
+
+		if ( 1 === preg_match( '/(^|[\s,])(source|visibility):/', $rollup ) ) {
+			return array( 'rollup: only kinds (kind:place) or all; source and visibility are chosen with include and exclude.' );
+		}
+
+		return Selection::parse( $rollup, '' )->errors();
+	}
+
+	/**
+	 * Gives the broader topics that the option asks for a line of their own (slice 613): each carries the posts of what is below it, **as the selection
+	 * already filtered them**, once per post (the strongest strength, the sources and the `via` of every descendant). A broader topic that was mentioned
+	 * itself keeps its own mentions too. The broader topics are taken from the lines that were made from mentions, not from the lines made here.
+	 *
+	 * @param array<int, array|false> $lines   The lines by topic.
+	 * @param string                  $rollup  The option.
+	 * @param bool                    $context Whether the broader topic is shown in parentheses.
+	 * @param array<int, int>         $order   The position of each post in the book.
+	 * @return array<int, array|false>
+	 */
+	private function rolled_up( array $lines, $rollup, $context, array $order ) {
+		$rollup = trim( $rollup );
+
+		if ( '' === $rollup || array() !== self::rollup_errors( $rollup ) ) {
+			return $lines;
+		}
+
+		$wanted = 'all' === $rollup ? null : Selection::parse( $rollup, '' );
+		$direct = $lines;
+
+		foreach ( $direct as $id => $line ) {
+			if ( false === $line || array() === $line['locators'] ) {
+				continue;
+			}
+
+			foreach ( $this->ancestors( (int) $id ) as $up ) {
+				$topic = $this->topics->get( $up );
+
+				if ( null === $topic || ( null !== $wanted && ! $wanted->passes( (string) $topic['kind'], '', null ) ) ) {
+					continue;
+				}
+
+				if ( ! isset( $lines[ $up ] ) ) {
+					$lines[ $up ] = $this->line( $up, $context ) ?? false;
+				}
+
+				if ( false !== $lines[ $up ] ) {
+					$lines[ $up ]['locators'] = self::merged( $lines[ $up ]['locators'], $line['locators'], $order );
+				}
+			}
+		}
+
+		return $lines;
+	}
+
+	/**
+	 * The broader topics of a topic, the nearest first.
+	 *
+	 * @param int $id Topic.
+	 * @return int[]
+	 */
+	private function ancestors( $id ) {
+		$found = array();
+		$topic = $this->topics->get( $id );
+
+		// At most 20 levels, and a cycle stops the walk.
+		for ( $level = 0; $level < 20 && null !== $topic && (int) $topic['parent'] > 0 && ! in_array( (int) $topic['parent'], $found, true ); $level++ ) {
+			$found[] = (int) $topic['parent'];
+			$topic   = $this->topics->get( (int) $topic['parent'] );
+		}
+
+		return $found;
+	}
+
+	/**
+	 * Merges two lists of locators: one per post, the strongest strength, the sources and the `via` of both, in the order of the book.
+	 *
+	 * @param array<int, array> $a     Locators.
+	 * @param array<int, array> $b     Locators.
+	 * @param array<int, int>   $order The position of each post in the book.
+	 * @return array<int, array>
+	 */
+	private static function merged( array $a, array $b, array $order ) {
+		$by_post = array();
+
+		foreach ( array_merge( $a, $b ) as $locator ) {
+			$post = (int) $locator['post'];
+
+			if ( ! isset( $by_post[ $post ] ) ) {
+				$by_post[ $post ] = $locator;
+
+				continue;
+			}
+
+			$by_post[ $post ]['strength'] = 'main' === $by_post[ $post ]['strength'] || 'main' === $locator['strength'] ? 'main' : 'passing';
+			$by_post[ $post ]['sources']  = array_values( array_unique( array_merge( $by_post[ $post ]['sources'], $locator['sources'] ) ) );
+			$by_post[ $post ]['via']      = array_values( array_unique( array_merge( $by_post[ $post ]['via'] ?? array(), $locator['via'] ?? array() ) ) );
+		}
+
+		uksort( $by_post, static fn( $x, $y ) => ( $order[ $x ] ?? 0 ) <=> ( $order[ $y ] ?? 0 ) );
+
+		return array_values( $by_post );
 	}
 
 	/**
