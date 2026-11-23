@@ -20,8 +20,8 @@ defined( 'ABSPATH' ) || exit;
  * The classes of an item and **their ancestors** are looked up in the table; the **most specific kind wins** (the deepest in the hierarchy of the
  * kinds), and on a tie the order of the table. A class that is not in the table says nothing.
  *
- * **The default table is a proposal that was not checked against Wikidata** (no service was reachable when it was written): the identifiers
- * are the ones its author remembers. `wp otherguise index enrich classes` prints each class of the table with its label read from Wikidata,
+ * **The default table is a proposal that was mostly not checked against Wikidata** (no service was reachable when it was written): the identifiers
+ * are the ones its author remembers; **`Q4022` and `Q484170` were checked** on 2026-11-23 (the labels that Wikidata gave on a real run). `wp otherguise index enrich classes` prints each class of the table with its label read from Wikidata,
  * so that every line can be checked at a glance before it is trusted; `enrich map` changes a line.
  */
 final class ClassTable {
@@ -44,6 +44,7 @@ final class ClassTable {
 		'Q39816'    => 'place',      // Valley.
 		'Q6256'     => 'place',      // Country.
 		'Q56061'    => 'place',      // Administrative territorial entity.
+		'Q484170'   => 'commune',    // Commune of France (checked on Wikidata, 2026-11-23, on Eric's blog: the most specific kind wins over `place`).
 		'Q16521'    => 'species',    // Taxon.
 		'Q5'        => 'person',     // Human.
 		'Q47461344' => 'work',       // Written work.

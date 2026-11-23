@@ -455,4 +455,23 @@ class IndexWikidataTest extends TestCase {
 		$this->assertSame( 'person', $table->kind_for( array( 'Q21', 'Q999' ) ) );
 		$this->assertSame( 'place', $table->kind_for( array( 'Q12', 'Q10' ) ), 'A tie (both are first-level kinds): Q10 comes before Q12 in the table.' );
 	}
+
+	/**
+	 * A commune of France is a commune (the class that Wikidata gave on the blog), not only a place: the most specific kind wins over the settlement
+	 * and the administrative entity that it descends from.
+	 *
+	 * @return void
+	 */
+	public function test_a_commune_of_france_is_a_commune(): void {
+		\Otherguise\Index\Kinds::add( 'commune', 'Commune', 'place' );
+
+		$table = new ClassTable( $this->options(), fn() => (int) $this->time, static fn( $min ) => $min );
+
+		$this->assertSame( 'commune', $table->mapping()['Q484170'] );
+
+		$table->remember( array( 'Q484170' => array( 'Q484170', 'Q486972', 'Q56061' ) ) );
+
+		$this->assertSame( 'commune', $table->kind_for( array( 'Q484170' ) ) );
+		$this->assertSame( 'place', $table->kind_for( array( 'Q486972' ) ), 'A settlement alone is a place.' );
+	}
 }

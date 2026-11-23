@@ -304,12 +304,17 @@ final class EnrichCommand {
 	/**
 	 * Prints the table of classes with the label of each class read from Wikidata (one request), so that every line can be checked at a glance.
 	 *
+	 * ## OPTIONS
+	 *
+	 * [--check=<classes>]
+	 * : Instead of the table, print the label that Wikidata gives to these identifiers (`Q484170,Q6465`), one request: to check a class **before** adding it with `map` (the table is not changed).
+	 *
 	 * @param array $args  Positional arguments.
 	 * @param array $assoc Options.
 	 * @return void
 	 */
 	public function classes( $args, $assoc ) {
-		unset( $args, $assoc );
+		unset( $args );
 
 		if ( ! $this->service->is_on() ) {
 			( $this->fail )( 'The enrichment is off: wp otherguise index enrich enable.' );
@@ -317,7 +322,22 @@ final class EnrichCommand {
 			return;
 		}
 
-		$table  = $this->service->classes()->mapping();
+		$table = $this->service->classes()->mapping();
+
+		if ( isset( $assoc['check'] ) ) {
+			$table = array();
+
+			foreach ( array_filter( array_map( 'trim', explode( ',', (string) $assoc['check'] ) ), 'strlen' ) as $class ) {
+				$table[ $class ] = '?';
+			}
+
+			if ( array() === $table || array() !== array_filter( array_keys( $table ), static fn( $class ) => ! \Otherguise\Index\Wikidata\ItemReader::valid_id( $class ) ) ) {
+				( $this->fail )( '--check: identifiers such as Q484170, separated by commas.' );
+
+				return;
+			}
+		}
+
 		$labels = $this->service->items()->read( array_keys( $table ), substr( (string) get_locale(), 0, 2 ) );
 
 		if ( ! $labels['response']['ok'] ) {
@@ -327,7 +347,7 @@ final class EnrichCommand {
 		}
 
 		foreach ( $table as $class => $kind ) {
-			( $this->log )( $class . "\t" . ( '' === ( $labels['items'][ $class ]['label'] ?? '' ) ? '(no label: check the identifier)' : $labels['items'][ $class ]['label'] ) . "\t=> " . $kind );
+			( $this->log )( $class . "\t" . ( '' === ( $labels['items'][ $class ]['label'] ?? '' ) ? '(no label: check the identifier)' : $labels['items'][ $class ]['label'] ) . ( isset( $assoc['check'] ) ? '' : "\t=> " . $kind ) );
 		}
 	}
 
