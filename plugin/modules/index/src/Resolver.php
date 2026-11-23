@@ -105,6 +105,7 @@ final class Resolver {
 
 			if ( ! $dry ) {
 				$this->topics->add_keys( $id, $keys );
+				$this->refine_kind( $id, $candidate );
 			}
 
 			return array(
@@ -129,6 +130,22 @@ final class Resolver {
 			'topic'  => $id,
 			'new'    => $above['new'] + 1,
 		);
+	}
+
+	/**
+	 * Gives a topic the more specific kind that a candidate says (a place that is now known to be a commune), unless a person chose its kind
+	 * (slice 614): a topic is not made less precise, nor changed to a kind that is not below its own.
+	 *
+	 * @param int       $id        Topic.
+	 * @param Candidate $candidate The candidate.
+	 * @return void
+	 */
+	private function refine_kind( $id, Candidate $candidate ) {
+		$topic = $this->topics->get( $id );
+
+		if ( null !== $topic && empty( $topic['kind_by_hand'] ) && $topic['kind'] !== $candidate->kind && Kinds::is_a( $candidate->kind, (string) $topic['kind'] ) ) {
+			$this->topics->set_kind( $id, $candidate->kind, false );
+		}
 	}
 
 	/**

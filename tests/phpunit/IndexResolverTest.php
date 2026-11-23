@@ -11,6 +11,7 @@
 use Otherguise\Index\Candidate;
 use Otherguise\Index\Topics;
 use Otherguise\Index\Folding;
+use Otherguise\Index\Kinds;
 use Otherguise\Index\Resolver;
 use PHPUnit\Framework\TestCase;
 
@@ -233,5 +234,40 @@ class IndexResolverTest extends TestCase {
 
 		$this->assertSame( Resolver::CREATED, $done['result'] );
 		$this->assertSame( array(), $this->topics->topics );
+	}
+
+	/**
+	 * A topic that was made with the general kind takes the more specific kind that a candidate says; a kind that a person chose, a kind that is not
+	 * below its own, and a less precise kind are left alone (slice 614). The same name under another parent is another topic.
+	 *
+	 * @return void
+	 */
+	public function test_the_kind_is_refined_not_overwritten(): void {
+		Kinds::add( 'commune', 'Commune', 'place' );
+		Kinds::add( 'admin2', 'Second-level division', 'place' );
+
+		$id = $this->topics->create( 'Zaragoza', 'place', 0, Topics::APPROVED, array( Resolver::label_key( 0, 'Zaragoza' ) ) );
+
+		$this->resolver->resolve( new Candidate( 'Zaragoza', 'commune', array(), null, Candidate::PASSING ) );
+		$this->assertSame( 'commune', $this->topics->get( $id )['kind'], 'Place becomes commune.' );
+
+		$this->resolver->resolve( new Candidate( 'Zaragoza', 'place', array(), null, Candidate::PASSING ) );
+		$this->assertSame( 'commune', $this->topics->get( $id )['kind'], 'Never made less precise.' );
+
+		$by_hand = $this->topics->create( 'Huesca', 'place', 0, Topics::APPROVED, array( Resolver::label_key( 0, 'Huesca' ) ) );
+
+		$this->topics->set_kind( $by_hand, 'place', true );
+		$this->resolver->resolve( new Candidate( 'Huesca', 'commune', array(), null, Candidate::PASSING ) );
+		$this->assertSame( 'place', $this->topics->get( $by_hand )['kind'], 'A kind chosen by a person is not changed.' );
+
+		// The province and the city: the city has the province for parent, so its key is not the one of the province.
+		$aragon   = new Candidate( 'Aragón', 'admin1', array(), null, Candidate::PASSING );
+		$province = new Candidate( 'Zaragoza', 'admin2', array(), $aragon, Candidate::PASSING );
+		$city     = new Candidate( 'Zaragoza', 'commune', array(), $province, Candidate::PASSING );
+		$done     = $this->resolver->resolve( $city );
+
+		$this->assertNotSame( $id, $done['topic'], 'Not the topic that has no parent.' );
+		$this->assertSame( 'commune', $this->topics->get( $done['topic'] )['kind'] );
+		$this->assertSame( 'admin2', $this->topics->get( $this->topics->get( $done['topic'] )['parent'] )['kind'] );
 	}
 }

@@ -27,7 +27,7 @@ final class Kinds {
 	public const OTHER     = 'other';
 	public const MAX_DEPTH = 4;
 	public const SEED      = 'index_kinds_seeded';
-	public const VERSION   = '1';
+	public const VERSION   = '2';
 
 	/**
 	 * The store, or null for the one of WordPress.
@@ -63,6 +63,13 @@ final class Kinds {
 		return array(
 			'place'    => array( __( 'Place', 'otherguise' ), '' ),
 			'waterway' => array( __( 'Waterway', 'otherguise' ), 'place' ),
+			// The levels of a place (slice 614), by their meaning and not by their name in a country: admin1 is the first division below the country
+			// (a region in France, a Land, a canton), admin2 the second (a department, a province, a powiat). A level that a country has not is just absent.
+			'country'  => array( __( 'Country', 'otherguise' ), 'place' ),
+			'admin1'   => array( __( 'First-level division', 'otherguise' ), 'place' ),
+			'admin2'   => array( __( 'Second-level division', 'otherguise' ), 'place' ),
+			'commune'  => array( __( 'Commune', 'otherguise' ), 'place' ),
+			'site'     => array( __( 'Site (below the commune)', 'otherguise' ), 'place' ),
 			'species'  => array( __( 'Species', 'otherguise' ), '' ),
 			'route'    => array( __( 'Route', 'otherguise' ), '' ),
 			'activity' => array( __( 'Activity', 'otherguise' ), '' ),

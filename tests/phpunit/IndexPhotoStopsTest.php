@@ -176,7 +176,11 @@ class IndexPhotoStopsTest extends TestCase {
 		$this->assertSame( array( 'France', 'Auvergne-Rhône-Alpes', 'Savoie', 'Beaufort', 'Les Arberons' ), $names );
 		$this->assertSame( 'image/address', $leaf->source );
 		$this->assertSame( array( 'image:abc' ), $leaf->via );
-		$this->assertSame( 'place', $leaf->kind );
+		$this->assertSame( 'site', $leaf->kind );
+		$this->assertSame( 'commune', $leaf->parent->kind );
+		$this->assertSame( 'admin2', $leaf->parent->parent->kind );
+		$this->assertSame( 'admin1', $leaf->parent->parent->parent->kind );
+		$this->assertSame( 'country', $leaf->parent->parent->parent->parent->kind );
 
 		// No commune and no county (a point on the coast): the place hangs from the highest level that exists; a repeated name is one level.
 		$coast = PlaceChain::candidate(
@@ -196,6 +200,71 @@ class IndexPhotoStopsTest extends TestCase {
 		$this->assertNull( $coast->parent->parent );
 
 		$this->assertNull( PlaceChain::candidate( array( 'levels' => array() ), 'image/address', array() ), 'A place with no name makes no topic.' );
+	}
+
+	/**
+	 * Two levels with the same name are two topics (slice 614): the province and the city of Zaragoza, the department and the commune of Paris; only a
+	 * first division that repeats the country is not one; a country with no intermediate level has the commune under the country.
+	 *
+	 * @return void
+	 */
+	public function test_levels_with_the_same_name_are_kept(): void {
+		$spain = PlaceChain::candidate(
+			array(
+				'levels' => array(
+					'country'    => 'España',
+					'state'      => 'Aragón',
+					'county'     => 'Zaragoza',
+					'settlement' => 'Zaragoza',
+				),
+			),
+			'image/address',
+			array()
+		);
+		$names = array();
+		$kinds = array();
+
+		for ( $c = $spain; null !== $c; $c = $c->parent ) {
+			array_unshift( $names, $c->label );
+			array_unshift( $kinds, $c->kind );
+		}
+
+		$this->assertSame( array( 'España', 'Aragón', 'Zaragoza', 'Zaragoza' ), $names );
+		$this->assertSame( array( 'country', 'admin1', 'admin2', 'commune' ), $kinds, 'The province and the city have each their kind.' );
+
+		$paris = PlaceChain::candidate(
+			array(
+				'levels' => array(
+					'country'    => 'France',
+					'state'      => 'Île-de-France',
+					'county'     => 'Paris',
+					'settlement' => 'Paris',
+				),
+			),
+			'image/address',
+			array()
+		);
+
+		$this->assertSame( 'Paris', $paris->label );
+		$this->assertSame( 'Paris', $paris->parent->label );
+		$this->assertSame( 'admin2', $paris->parent->kind );
+
+		$monaco = PlaceChain::candidate(
+			array(
+				'levels' => array(
+					'country'    => 'Monaco',
+					'state'      => 'Monaco',
+					'settlement' => 'Monaco-Ville',
+				),
+			),
+			'image/address',
+			array()
+		);
+
+		$this->assertSame( 'Monaco-Ville', $monaco->label );
+		$this->assertSame( 'Monaco', $monaco->parent->label );
+		$this->assertSame( 'country', $monaco->parent->kind );
+		$this->assertNull( $monaco->parent->parent, 'No intermediate level: the commune is under the country.' );
 	}
 
 	/**

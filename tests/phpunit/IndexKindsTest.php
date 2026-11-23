@@ -49,7 +49,7 @@ class IndexKindsTest extends TestCase {
 	 * @return void
 	 */
 	public function test_the_built_in_kinds(): void {
-		$this->assertCount( 11, $this->store->kinds );
+		$this->assertCount( 16, $this->store->kinds );
 		$this->assertSame( 'place', $this->store->kinds['waterway']['parent'] );
 
 		foreach ( $this->store->kinds as $kind ) {
@@ -71,7 +71,7 @@ class IndexKindsTest extends TestCase {
 	public function test_the_tree(): void {
 		$all = array_keys( Kinds::all() );
 
-		$this->assertSame( array_search( 'place', $all, true ) + 1, array_search( 'waterway', $all, true ) );
+		$this->assertGreaterThan( array_search( 'place', $all, true ), array_search( 'waterway', $all, true ), 'A parent comes before its children.' );
 		$this->assertSame( '— Waterway', Kinds::all()['waterway'] );
 
 		$rows = array_column( Kinds::tree(), 'depth', 'slug' );
@@ -92,7 +92,13 @@ class IndexKindsTest extends TestCase {
 		$this->assertTrue( Kinds::is_a( 'river', 'place' ) );
 		$this->assertTrue( Kinds::is_a( 'place', 'place' ) );
 		$this->assertFalse( Kinds::is_a( 'place', 'river' ) );
-		$this->assertSame( array( 'place', 'waterway', 'river' ), Kinds::descendants( 'place' ) );
+		$below = Kinds::descendants( 'place' );
+
+		$this->assertSame( 'place', $below[0] );
+
+		sort( $below );
+
+		$this->assertSame( array( 'admin1', 'admin2', 'commune', 'country', 'place', 'river', 'site', 'waterway' ), $below, 'The levels of a place (slice 614) are below place.' );
 
 		$this->assertTrue( Kinds::compatible( 'river', 'place' ) );
 		$this->assertTrue( Kinds::compatible( 'place', 'river' ) );

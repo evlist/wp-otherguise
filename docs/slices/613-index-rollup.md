@@ -27,9 +27,9 @@ A wrong `include`, `exclude` or `rollup` used to make the filter `index_build` a
 
 **Checked while typed (2026-11-23)**: the sidebar of the block asks, after a pause of half a second, the route `GET books/v1/index-options` (`include`, `exclude`, `rollup`; for the people who can edit posts), which asks **the module of the index** (the filter `index_build` for no post: the options are checked before anything is computed, field by field) and answers the errors of each field; the message is shown **in red under its field**, with the list of what is valid. A route that is missing or fails says nothing and the editing goes on. Not done: a completion of the kinds while typing (the same route could give the list).
 
-## What it needs for the places (not done)
+## What it needs for the places
 
-**A country, a region, a department and a commune are all of the kind `place`** today, so `kind:place` would give a line to **every level, the communes too** (France with every page of the book). To choose the levels, **the level of a place has to be data**. The proposal, **not decided**: **sub-kinds of `place` created by the kinds of the places** (`country`, `region`, `department`, `commune`, `site`), **set by the photographs and the tracks when they make the chain of a place** (`PlaceChain`) and editable like any kind; `rollup="kind:country kind:region kind:department"` would then do what Eric asks. It needs **a migration of the topics already made** (their kind is `place`) and the choice of the names of the levels for the countries that are not France.
+A country, a region, a department and a commune were all of the kind `place`: `kind:place` would have given a line to every level. **Done in [slice 614](614-index-levels-of-a-place.md)**: the levels are sub-kinds of `place` (`country`, `admin1`, `admin2`, `commune`, `site`), chosen by their meaning and not by a country's words or by their depth.
 
 ## Tests
 
