@@ -19,14 +19,13 @@ use Otherguise\Index\Cli\EnrichCommand;
 use Otherguise\Index\Cli\IndexCommand;
 use Otherguise\Index\Enrich\EnrichService;
 use Otherguise\Index\Cli\KindsCommand;
-use Otherguise\Index\Cli\MergeCommand;
-use Otherguise\Index\Merge\DuplicateFinder;
-use Otherguise\Index\Merge\TopicMerger;
 use Otherguise\Index\Cli\SourcesCommand;
 use Otherguise\Index\Cli\BuildCommand;
 use Otherguise\Index\Build\IndexBuilder;
 use Otherguise\Index\Build\Selection;
 use Otherguise\Index\Admin\KindsScreen;
+use Otherguise\Index\Merge\IgnoredPairs;
+use Otherguise\Index\Merge\MergeWiring;
 use Otherguise\Index\Cli\PagesCommand;
 use Otherguise\Index\Cli\PhotosCommand;
 use Otherguise\Index\Harvest\MentionElements;
@@ -148,6 +147,7 @@ final class Module implements ModuleInterface, DescribedModule, DisabledByDefaul
 		if ( is_admin() ) {
 			$this->screen()->register( $this->add_action );
 			( new KindsScreen() )->register( $this->add_action );
+			MergeWiring::screen( $this->topics(), $this->mentions() )->register( $this->add_action );
 		}
 	}
 
@@ -599,8 +599,7 @@ final class Module implements ModuleInterface, DescribedModule, DisabledByDefaul
 
 		\WP_CLI::add_command( 'otherguise index kinds', new KindsCommand() );
 		\WP_CLI::add_command( 'otherguise index sources', new SourcesCommand( $this->mentions() ) );
-		$merge = new MergeCommand( new TopicMerger( $this->topics(), $this->mentions() ), new DuplicateFinder( $this->topics() ) );
-
+		$merge = MergeWiring::command( $this->topics(), $this->mentions() );
 		\WP_CLI::add_command( 'otherguise index merge', $merge );
 		\WP_CLI::add_command( 'otherguise index duplicates', array( $merge, 'duplicates' ) );
 		\WP_CLI::add_command(
@@ -663,6 +662,7 @@ final class Module implements ModuleInterface, DescribedModule, DisabledByDefaul
 		delete_option( PagesService::OPTION );
 		delete_option( TopicsMigration::OPTION );
 		delete_option( KindsMigration::OPTION );
+		delete_option( IgnoredPairs::OPTION );
 		delete_option( 'index_site_address' );
 		foreach ( array( EnrichService::SWITCH, EnrichService::JOB, 'index_wikidata_contact', 'index_wikidata_last_request', 'index_wikidata_classes', 'index_wikidata_ancestors', 'index_enrich_failures', 'index_enrich_pause_until' ) as $option ) {
 			delete_option( $option );
