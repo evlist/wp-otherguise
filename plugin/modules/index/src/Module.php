@@ -23,6 +23,7 @@ use Otherguise\Index\Cli\SourcesCommand;
 use Otherguise\Index\Cli\BuildCommand;
 use Otherguise\Index\Build\IndexBuilder;
 use Otherguise\Index\Build\Selection;
+use Otherguise\Index\Admin\IndexScreenWiring;
 use Otherguise\Index\Admin\KindsScreen;
 use Otherguise\Index\Merge\IgnoredPairs;
 use Otherguise\Index\Merge\MergeWiring;
@@ -157,6 +158,7 @@ final class Module implements ModuleInterface, DescribedModule, DisabledByDefaul
 		if ( is_admin() ) {
 			$this->screen()->register( $this->add_action );
 			( new KindsScreen() )->register( $this->add_action );
+			IndexScreenWiring::screen( $this->sync(), $this->enrich(), $this->photos() )->register( $this->add_action );
 			MergeWiring::screen( $this->topics(), $this->mentions() )->register( $this->add_action );
 		}
 	}
