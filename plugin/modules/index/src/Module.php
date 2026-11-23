@@ -599,9 +599,7 @@ final class Module implements ModuleInterface, DescribedModule, DisabledByDefaul
 
 		\WP_CLI::add_command( 'otherguise index kinds', new KindsCommand() );
 		\WP_CLI::add_command( 'otherguise index sources', new SourcesCommand( $this->mentions() ) );
-		$merge = MergeWiring::command( $this->topics(), $this->mentions() );
-		\WP_CLI::add_command( 'otherguise index merge', $merge );
-		\WP_CLI::add_command( 'otherguise index duplicates', array( $merge, 'duplicates' ) );
+		MergeWiring::register_commands( $this->topics(), $this->mentions() );
 		\WP_CLI::add_command(
 			'otherguise index build',
 			new BuildCommand(

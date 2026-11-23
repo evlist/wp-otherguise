@@ -267,6 +267,27 @@ final class IndexBuilder {
 	}
 
 	/**
+	 * The broader topic that a label shows in parentheses (slice 619): the nearest one **that is not of a skipped kind** (by default the third divisions, a
+	 * comarca between a province and its communes: *A Guarda (Pontevedra)*, not *A Guarda (O Baixo Miño)*); when every broader topic is of a skipped kind, the
+	 * direct one. The filter `index_context_skipped_kinds` changes the kinds.
+	 *
+	 * @param array $topic A topic.
+	 * @return array|null
+	 */
+	private function context_of( array $topic ) {
+		$skipped = apply_filters( 'index_context_skipped_kinds', array( 'admin3' ) );
+		$skipped = is_array( $skipped ) ? array_map( 'strval', $skipped ) : array( 'admin3' );
+		$direct  = $this->topics->get( (int) $topic['parent'] );
+		$above   = $direct;
+
+		for ( $level = 0; null !== $above && in_array( (string) $above['kind'], $skipped, true ) && $level < 10; $level++ ) {
+			$above = (int) $above['parent'] > 0 ? $this->topics->get( (int) $above['parent'] ) : null;
+		}
+
+		return null === $above ? $direct : $above;
+	}
+
+	/**
 	 * The line of a topic, or null when it is not in the index (not approved).
 	 *
 	 * @param int  $id      Topic.
@@ -282,7 +303,7 @@ final class IndexBuilder {
 
 		$kind  = (string) $topic['kind'];
 		$label = (string) $topic['label'];
-		$above = $context && $topic['parent'] > 0 ? $this->topics->get( (int) $topic['parent'] ) : null;
+		$above = $context && $topic['parent'] > 0 ? $this->context_of( $topic ) : null;
 
 		return array(
 			'topic'    => $id,

@@ -395,6 +395,21 @@ final class Mentions {
 	}
 
 	/**
+	 * The topics that at least one post mentions, in one query (slice 619: the cleaning of the topics nobody mentions).
+	 *
+	 * @return array<int, true> The ids of the topics.
+	 */
+	public function mentioned_topics() {
+		$found = array();
+
+		foreach ( $this->statements()->match( null, self::MENTIONS ) as $mention ) {
+			$found[ (int) $mention->object()->id() ] = true;
+		}
+
+		return $found;
+	}
+
+	/**
 	 * The posts that mention a topic, and with `$rolled_up` those that mention a topic below it.
 	 *
 	 * @param int   $topic     Topic.

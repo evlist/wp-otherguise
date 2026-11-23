@@ -510,4 +510,44 @@ class IndexBuildTest extends Otherguise_Test_Database_Case {
 
 		$this->assertArrayNotHasKey( 'France (Occitanie)', $wrong, 'An invalid option rolls nothing up.' );
 	}
+
+	/**
+	 * The label shows the nearest broader topic that is not a third division (slice 619): *A Guarda (Pontevedra)*, not the comarca; the comarca itself
+	 * shows its province; with nothing else above, the direct topic; the filter changes the skipped kinds.
+	 *
+	 * @return void
+	 */
+	public function test_the_context_skips_the_third_divisions(): void {
+		Kinds::add( 'admin2', 'Second', 'place' );
+		Kinds::add( 'admin3', 'Third', 'place' );
+		Kinds::add( 'commune', 'Commune', 'place' );
+
+		$galice = $this->topics->create( 'Galice', 'place', 0, Topics::APPROVED, array() );
+		$prov   = $this->topics->create( 'Pontevedra', 'admin2', $galice, Topics::APPROVED, array() );
+		$comarc = $this->topics->create( 'O Baixo Miño', 'admin3', $prov, Topics::APPROVED, array() );
+		$guarda = $this->topics->create( 'A Guarda', 'commune', $comarc, Topics::APPROVED, array() );
+		$lonely = $this->topics->create( 'Seul', 'commune', $this->topics->create( 'Comarque seule', 'admin3', 0, Topics::APPROVED, array() ), Topics::APPROVED, array() );
+
+		$this->mentions->sync(
+			1,
+			'testa',
+			array(
+				$guarda => array(),
+				$comarc => array(),
+				$lonely => array(),
+			)
+		);
+
+		$labels = $this->labels( $this->builder->build( array( 1 ) )->lines() );
+
+		$this->assertContains( 'A Guarda (Pontevedra)', $labels );
+		$this->assertContains( 'O Baixo Miño (Pontevedra)', $labels, 'The comarca shows its province.' );
+		$this->assertContains( 'Seul (Comarque seule)', $labels, 'Nothing else above: the direct topic.' );
+
+		$GLOBALS['otherguise_test_filters']['index_context_skipped_kinds'] = array();
+
+		$this->assertContains( 'A Guarda (O Baixo Miño)', $this->labels( $this->builder->build( array( 1 ) )->lines() ), 'With no skipped kind, the direct topic.' );
+
+		unset( $GLOBALS['otherguise_test_filters']['index_context_skipped_kinds'] );
+	}
 }

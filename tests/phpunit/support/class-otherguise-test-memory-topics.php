@@ -104,6 +104,16 @@ final class Otherguise_Test_Memory_Topics implements Topics {
 	}
 
 	/**
+	 * Says that a person chose the label of a topic (for the tests).
+	 *
+	 * @param int $id Topic.
+	 * @return void
+	 */
+	public function label_by_hand( $id ) {
+		$this->topics[ $id ]['label_by_hand'] = true;
+	}
+
+	/**
 	 * Puts a topic under another.
 	 *
 	 * @param int $id     Topic.
