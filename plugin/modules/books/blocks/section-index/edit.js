@@ -21,9 +21,67 @@
 		return next;
 	}
 
+	var FIELDS = [ 'include', 'exclude', 'rollup' ];
+	var DELAY = 500;
+
+	/**
+	 * Checks the options while they are typed: after a pause it asks the server (the module of the index knows the kinds and the sources) and gives
+	 * back what is wrong with each field. When the route is not there or fails, nothing is said and the editing goes on.
+	 */
+	function useOptionErrors( attributes ) {
+		var state = wp.element.useState( {} );
+		var key = FIELDS.map( function ( field ) {
+			return attributes[ field ] || '';
+		} ).join( '\u0001' );
+
+		wp.element.useEffect(
+			function () {
+				var current = true;
+				var query = FIELDS.map( function ( field ) {
+					return field + '=' + encodeURIComponent( attributes[ field ] || '' );
+				} ).join( '&' );
+				var timer = setTimeout( function () {
+					if ( ! wp.apiFetch ) {
+						return;
+					}
+					wp.apiFetch( { path: '/books/v1/index-options?' + query } ).then(
+						function ( answer ) {
+							if ( current ) {
+								state[ 1 ]( answer && answer.errors ? answer.errors : {} );
+							}
+						},
+						function () {
+							if ( current ) {
+								state[ 1 ]( {} );
+							}
+						}
+					);
+				}, DELAY );
+
+				return function () {
+					current = false;
+					clearTimeout( timer );
+				};
+			},
+			[ key ]
+		);
+
+		return state[ 0 ];
+	}
+
+	/** The help of a field: what is wrong in red, else the usual help. */
+	function helpOf( errors, field, usual ) {
+		var wrong = errors[ field ];
+		if ( wrong && wrong.length ) {
+			return el( 'span', { className: 'books-index-field-error', style: { color: '#b32d2e' }, role: 'alert' }, wrong.join( ' ' ) );
+		}
+		return usual;
+	}
+
 	wp.blocks.registerBlockType( 'books/section-index', {
 		edit: function ( props ) {
 			var attributes = props.attributes;
+			var errors = useOptionErrors( attributes );
 			var selected = attributes.modes || [];
 			var boxes = ( modes || [] ).map( function ( mode ) {
 				return el( components.CheckboxControl, {
@@ -54,7 +112,7 @@
 						} ),
 						el( components.TextControl, {
 							label: __( 'Include', 'otherguise' ),
-							help: __( 'Tokens such as kind:place source:image visibility:print. Empty: everything.', 'otherguise' ),
+							help: helpOf( errors, 'include', __( 'Tokens such as kind:place source:image visibility:print. Empty: everything.', 'otherguise' ) ),
 							value: attributes.include,
 							onChange: function ( value ) {
 								props.setAttributes( { include: value } );
@@ -62,7 +120,7 @@
 						} ),
 						el( components.TextControl, {
 							label: __( 'Exclude', 'otherguise' ),
-							help: __( 'The same tokens: whatever matches is left out.', 'otherguise' ),
+							help: helpOf( errors, 'exclude', __( 'The same tokens: whatever matches is left out.', 'otherguise' ) ),
 							value: attributes.exclude,
 							onChange: function ( value ) {
 								props.setAttributes( { exclude: value } );
@@ -70,7 +128,7 @@
 						} ),
 						el( components.TextControl, {
 							label: __( 'Broader topics with a line of their own', 'otherguise' ),
-							help: __( 'Kinds whose topics get a line with the pages of everything below them, such as kind:other or kind:place, or all (the kinds are in Otherguise > Index kinds). Empty: none.', 'otherguise' ),
+							help: helpOf( errors, 'rollup', __( 'Kinds whose topics get a line with the pages of everything below them, such as kind:other or kind:place, or all (the kinds are in Otherguise > Index kinds). Empty: none.', 'otherguise' ) ),
 							value: attributes.rollup,
 							onChange: function ( value ) {
 								props.setAttributes( { rollup: value } );

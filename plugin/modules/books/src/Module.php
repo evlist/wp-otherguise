@@ -51,6 +51,7 @@ use Otherguise\Books\Project\WordPressProjects;
 use Otherguise\Books\Render\GotenbergClient;
 use Otherguise\Books\Render\InternalHost;
 use Otherguise\Books\Render\SiteAddress;
+use Otherguise\Books\Rest\IndexOptionsRoute;
 use Otherguise\Books\Rest\PdfRoutes;
 use Otherguise\Books\Rest\SectionRoutes;
 use Otherguise\Books\Section\SectionEditor;
@@ -183,6 +184,7 @@ final class Module implements ModuleInterface, DescribedModule {
 		( $this->add_action )( 'show_admin_bar', array( $preview, 'admin_bar' ), 10, 1 );
 		( $this->add_action )( 'rest_api_init', array( $routes, 'register' ), 10, 0 );
 		( $this->add_action )( 'rest_api_init', array( $section_routes, 'register' ), 10, 0 );
+		( $this->add_action )( 'rest_api_init', array( new IndexOptionsRoute(), 'register' ), 10, 0 );
 		( $this->add_action )( 'triples_register_predicates', array( $this, 'register_predicates' ), 10, 1 );
 		( $this->add_action )( 'before_delete_post', array( $sections, 'forget_post' ), 9, 1 );
 		( $this->add_action )( 'enqueue_block_editor_assets', array( $section_editor, 'enqueue' ), 10, 0 );

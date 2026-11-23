@@ -87,7 +87,7 @@ class BooksModuleTest extends TestCase {
 				'option_page_capability_books_settings_group' => array( array( 'save_capability', 10, 0 ) ),
 				'enqueue_block_editor_assets'        => array( array( 'enqueue', 10, 0 ), array( 'enqueue', 10, 0 ) ),
 				'show_admin_bar'                     => array( array( 'admin_bar', 10, 1 ) ),
-				'rest_api_init'                      => array( array( 'register', 10, 0 ), array( 'register', 10, 0 ) ),
+				'rest_api_init'                      => array( array( 'register', 10, 0 ), array( 'register', 10, 0 ), array( 'register', 10, 0 ) ),
 				'triples_register_predicates'        => array( array( 'register_predicates', 10, 1 ) ),
 				'before_delete_post'                 => array( array( 'forget_post', 9, 1 ) ),
 				'books_render_pdf'                   => array( array( 'run', 10, 5 ) ),

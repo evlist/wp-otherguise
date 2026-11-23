@@ -25,7 +25,7 @@ The first index of a book showed *Cyclo-randonnées (Vélo)* but no line *Vélo*
 
 A wrong `include`, `exclude` or `rollup` used to make the filter `index_build` answer `null`, and **the block then printed nothing**: an index silently empty (found by Eric with `kind:category`, a suggestion of the block that was wrong). **Now the filter answers an array with `errors` and no group**; the messages list what is valid (`Unknown kind "category". The kinds: place, species, …`). `IndexSlots` puts **a visible note** (`books-index__error`, "Index not made: …") **in print always** (a PDF is not public) **and, elsewhere, for the people who can edit posts**; a visitor of the web page sees nothing. The suggestions of the block, of the command and of the documentation now name kinds that exist (`kind:other`, `kind:place`).
 
-Not done: a live check in the editor sidebar (the kinds would have to be given to the script of the block).
+**Checked while typed (2026-11-23)**: the sidebar of the block asks, after a pause of half a second, the route `GET books/v1/index-options` (`include`, `exclude`, `rollup`; for the people who can edit posts), which asks **the module of the index** (the filter `index_build` for no post: the options are checked before anything is computed, field by field) and answers the errors of each field; the message is shown **in red under its field**, with the list of what is valid. A route that is missing or fails says nothing and the editing goes on. Not done: a completion of the kinds while typing (the same route could give the list).
 
 ## What it needs for the places (not done)
 
