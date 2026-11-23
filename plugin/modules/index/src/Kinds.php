@@ -28,7 +28,7 @@ final class Kinds {
 	public const ANY       = 'any';
 	public const MAX_DEPTH = 4;
 	public const SEED      = 'index_kinds_seeded';
-	public const VERSION   = '3';
+	public const VERSION   = '4';
 
 	/**
 	 * The store, or null for the one of WordPress.
@@ -72,6 +72,7 @@ final class Kinds {
 			'country'  => array( __( 'Country', 'otherguise' ), 'place' ),
 			'admin1'   => array( __( 'First-level division', 'otherguise' ), 'place' ),
 			'admin2'   => array( __( 'Second-level division', 'otherguise' ), 'place' ),
+			'admin3'   => array( __( 'Third-level division', 'otherguise' ), 'place' ),
 			'commune'  => array( __( 'Commune', 'otherguise' ), 'place' ),
 			'site'     => array( __( 'Site (below the commune)', 'otherguise' ), 'place' ),
 			'species'  => array( __( 'Species', 'otherguise' ), '' ),

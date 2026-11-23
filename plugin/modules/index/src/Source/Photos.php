@@ -216,16 +216,19 @@ final class Photos implements Source, Partial {
 			}
 		}
 
-		$stops = Stops::group( $photos, (array) ( $this->settings )() );
+		$photos = self::one_per_photograph( $photos );
+		$stops  = Stops::group( $photos, (array) ( $this->settings )() );
 
 		foreach ( $stops as $stop ) {
 			if ( null === $stop['place'] ) {
 				$left['no_place_yet'] += count( $stop['photos'] );
-				$pending               = array_merge( $pending, array_column( $stop['photos'], 'url' ) );
+				foreach ( $stop['photos'] as $photo ) {
+					$pending = array_merge( $pending, $photo['urls'] );
+				}
 			} elseif ( ! $stop['qualifies'] ) {
 				$left['small_stop'] += count( $stop['photos'] );
 			} else {
-				$candidate = PlaceChain::candidate( $stop['place'], 'image/address', array_map( static fn( $photo ) => self::via( 'image', $photo['url'] ), $stop['photos'] ) );
+				$candidate = PlaceChain::candidate( $stop['place'], 'image/address', array_map( static fn( $url ) => self::via( 'image', $url ), array_merge( ...array_column( $stop['photos'], 'urls' ) ) ) );
 
 				if ( null !== $candidate ) {
 					$candidates[] = $candidate;
@@ -298,7 +301,7 @@ final class Photos implements Source, Partial {
 	 *
 	 * @param string $url    URL.
 	 * @param array  $answer What Media Helper answered.
-	 * @return array{url:string,lat:float,lon:float,time:?int,place:?array}
+	 * @return array{url:string,urls:string[],lat:float,lon:float,time:?int,place:?array}
 	 */
 	private static function photo( $url, array $answer ) {
 		$precise = ! in_array( (string) ( $answer['taken_precision'] ?? '' ), array( 'day', 'date' ), true ) && 'mtime' !== (string) ( $answer['taken_source'] ?? '' );
@@ -307,11 +310,39 @@ final class Photos implements Source, Partial {
 
 		return array(
 			'url'   => $url,
+			'urls'  => array( $url ),
 			'lat'   => (float) ( $answer['lat'] ?? 0 ),
 			'lon'   => (float) ( $answer['lon'] ?? 0 ),
 			'time'  => false === $time ? null : $time,
 			'place' => $place,
 		);
+	}
+
+	/**
+	 * Makes one photograph of a thumbnail and of its original (slice 617): two addresses with the **same position, the same time and the same file name once
+	 * the size (`-1024x577`, `-scaled`) and the thumbnail directories are left out**. A page shows both (the image and its link), and the stop would count it
+	 * twice. The record keeps all the addresses (`urls`), so that the mention has the `via` of each and the pending list the addresses of both.
+	 *
+	 * @param array<int, array> $photos The photographs.
+	 * @return array<int, array>
+	 */
+	private static function one_per_photograph( array $photos ) {
+		$one = array();
+
+		foreach ( $photos as $photo ) {
+			$name = (string) preg_replace( '/^thumbs_/', '', (string) preg_replace( '/-(?:\d+x\d+|scaled)(\.[A-Za-z0-9]+)$/', '$1', basename( (string) wp_parse_url( $photo['url'], PHP_URL_PATH ) ) ) );
+			$key  = $name . '|' . (string) $photo['time'] . '|' . round( (float) $photo['lat'], 5 ) . '|' . round( (float) $photo['lon'], 5 );
+
+			if ( isset( $one[ $key ] ) ) {
+				$one[ $key ]['urls'][] = $photo['url'];
+
+				continue;
+			}
+
+			$one[ $key ] = $photo;
+		}
+
+		return array_values( $one );
 	}
 
 	/**

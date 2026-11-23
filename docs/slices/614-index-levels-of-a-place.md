@@ -33,3 +33,14 @@ The roll-up (613) chooses the broader topics by **kind**, but every level of a p
 ## Tests
 
 `IndexPhotoStopsTest` (the chain: kinds, Spain, Paris, a country with no intermediate level, the first division that repeats the country), `IndexResolverTest` (the kind is refined, not overwritten; a kind by hand stays; the province and the city), `IndexKindsTest` (the built-in kinds). Under PHPUnit, and on a scratch WordPress with a fake Media Helper (the seed gives the new kinds; the hamlet is a `site` under a `commune`). **Not tried with the real Media Helper nor on the blog.**
+
+## Changed on 2026-11-23 (slice 617): the levels by their numbers, a third division, one photograph once
+
+Found on Eric's blog (the photographs of San Román, Aragon): **Media Helper's `county` is not always the province**. In Aragon and in Catalonia it is the **comarca**, and the province (*Huesca*, *Lleida*) is only in `levels.admin.level6`:
+`settlement` = Lascellas-Ponzano, `county` = Somontano de Barbastro, `state` = Aragon, `admin` = `level8` Lascellas-Ponzano, `level7` Somontano de Barbastro, `level6` **Huesca**, `level4` Aragon.
+
+- **The levels come from the numbered administrative levels when the answer has them**: `admin1` = `level4`, `admin2` = `level6`, and a new built-in kind **`admin3`** = `level7` (a comarca in Spain, an arrondissement in France), put **between the second division and the commune**: *Espagne > Aragon > Huesca > Somontano de Barbastro > Lascellas-Ponzano > San Román*. A third division that **is the commune** (Poland, where the gmina is level 7), or repeats the province or the region, is not one. `admin3` has a line in an index **only when `rollup` asks for it**.
+- **A numbered level that is missing is missing**: without `level6` the comarca of `county` is **not** taken for the province. **Only an answer with no numbered level at all** (an old answer of the cache) falls back to `state` and `county`.
+- **A thumbnail and its original are one photograph**: same position, same time and the same file name once the size (`-1024x577`, `-scaled`) and the thumbnail directories are left out. A page shows both (the image and its link): the stop counted it twice (16 addresses were 15 photographs). The record keeps both addresses: the mention has **the `via` of each** and the pending list **both**.
+- **The topics already made**: reading the photographs again makes the new chain; *Somontano de Barbastro* under *Aragon* (kind `admin2`) is **no longer mentioned** and stays in the list of topics: merge it into the new one with `wp otherguise index merge <new> <old>`, or leave it.
+- **Not checked in other countries**: the numbers 4 and 6 are the convention of OpenStreetMap, which Media Helper reported for France, Spain, Italy and Poland; the others are to be seen with `index photos run --post=<id> --dry-run --verbose`.

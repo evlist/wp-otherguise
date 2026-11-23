@@ -446,4 +446,40 @@ class IndexPhotosDbTest extends Otherguise_Test_Database_Case {
 		$this->assertSame( '    10:00  42,6  /a.jpg', $lines[2] );
 		$this->assertSame( '    10:30  42.0003,6  /b.jpg', $lines[3] );
 	}
+
+	/**
+	 * A thumbnail and its original are one photograph (same position, same time, same name once the size is left out): a stop counts it once, so two
+	 * photographs and a thumbnail do not make the three of a stop; the mention has the `via` of both addresses.
+	 *
+	 * @return void
+	 */
+	public function test_a_thumbnail_and_its_original_are_one_photograph(): void {
+		$here        = $this->place( 'Les Arberons', 'Beaufort' );
+		$this->files = array(
+			'/up/a.jpg'                => $this->shot( 45.0000, 0, $here ),
+			'/up/thumbnails/b-1024x577.jpg' => $this->shot( 45.0003, 1, $here ),
+			'/up/b.jpg'                => $this->shot( 45.0003, 1, $here ),
+		);
+
+		$signals = array(
+			new Signal( Signal::IMAGE, '/up/a.jpg', 'content', 'src' ),
+			new Signal( Signal::IMAGE, '/up/thumbnails/b-1024x577.jpg', 'content', 'src' ),
+			new Signal( Signal::IMAGE, '/up/b.jpg', 'content', 'href' ),
+		);
+
+		$this->photos->handle( 1, $signals );
+		$this->indexer->index_post( 1 );
+
+		$this->assertSame( array(), $this->mentions->of_post( 1 ), 'Two photographs, not three: too small.' );
+		$this->assertSame( 2, $this->photos->last( 1 )['left_out']['small_stop'], 'Two photographs left out, not three.' );
+
+		$this->files['/up/c.jpg'] = $this->shot( 45.0006, 2, $here );
+		$this->photos->handle( 1, array_merge( $signals, array( new Signal( Signal::IMAGE, '/up/c.jpg', 'content', 'src' ) ) ) );
+		$this->indexer->index_post( 1 );
+
+		$found = $this->mentions->of_post( 1 );
+
+		$this->assertCount( 1, $found, 'Three photographs now.' );
+		$this->assertCount( 4, reset( $found )['details']['image/address']['via'], 'The via of each of the four addresses.' );
+	}
 }

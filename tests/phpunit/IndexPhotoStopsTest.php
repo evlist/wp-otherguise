@@ -268,6 +268,124 @@ class IndexPhotoStopsTest extends TestCase {
 	}
 
 	/**
+	 * The names of the levels in a chain, from the country down, with their kinds.
+	 *
+	 * @param array $levels The levels of the answer.
+	 * @return array<int, string>
+	 */
+	private function chain_of( array $levels ): array {
+		$chain = array();
+
+		for ( $c = PlaceChain::candidate( array( 'levels' => $levels ), 'image/address', array() ); null !== $c; $c = $c->parent ) {
+			array_unshift( $chain, $c->kind . ':' . $c->label );
+		}
+
+		return $chain;
+	}
+
+	/**
+	 * The levels come from the numbered administrative levels (slice 617): in Aragon `county` is the comarca and the province is `level6`; the comarca is
+	 * a third division between the province and the commune.
+	 *
+	 * @return void
+	 */
+	public function test_the_numbered_levels_give_the_province(): void {
+		$this->assertSame(
+			array( 'country:Espagne', 'admin1:Aragon', 'admin2:Huesca', 'admin3:Somontano de Barbastro', 'commune:Lascellas-Ponzano', 'site:San Román' ),
+			$this->chain_of(
+				array(
+					'country'    => 'Espagne',
+					'state'      => 'Aragon',
+					'county'     => 'Somontano de Barbastro',
+					'settlement' => 'Lascellas-Ponzano',
+					'site'       => 'San Román',
+					'admin'      => array(
+						'level8' => 'Lascellas-Ponzano',
+						'level7' => 'Somontano de Barbastro',
+						'level6' => 'Huesca',
+						'level4' => 'Aragon',
+					),
+				)
+			)
+		);
+
+		// France: the département is level 6 and the arrondissement level 7 (a third division); the commune is level 8.
+		$this->assertSame(
+			array( 'country:France', 'admin1:Occitanie', 'admin2:Hérault', 'admin3:Arrondissement de Montpellier', 'commune:Pérols' ),
+			$this->chain_of(
+				array(
+					'country'    => 'France',
+					'state'      => 'Occitanie',
+					'county'     => 'Hérault',
+					'settlement' => 'Pérols',
+					'admin'      => array(
+						'level8' => 'Pérols',
+						'level7' => 'Arrondissement de Montpellier',
+						'level6' => 'Hérault',
+						'level4' => 'Occitanie',
+					),
+				)
+			)
+		);
+
+		// Poland: the gmina is level 7 and is the commune: it is not a third division.
+		$this->assertSame(
+			array( 'country:Polska', 'admin1:Małopolskie', 'admin2:Tatrzański', 'commune:Zakopane' ),
+			$this->chain_of(
+				array(
+					'country'    => 'Polska',
+					'state'      => 'Małopolskie',
+					'county'     => 'Tatrzański',
+					'settlement' => 'Zakopane',
+					'admin'      => array(
+						'level7' => 'Zakopane',
+						'level6' => 'Tatrzański',
+						'level4' => 'Małopolskie',
+					),
+				)
+			)
+		);
+	}
+
+	/**
+	 * A numbered level that is missing is a level that is missing: without `level6` the comarca of `county` is **not** taken for the province; and an
+	 * answer without any numbered level (an old one of the cache) keeps `state` and `county`.
+	 *
+	 * @return void
+	 */
+	public function test_a_missing_level_is_missing_and_an_old_answer_falls_back(): void {
+		$this->assertSame(
+			array( 'country:Espagne', 'admin1:Navarra', 'commune:Pamplona' ),
+			$this->chain_of(
+				array(
+					'country'    => 'Espagne',
+					'state'      => 'Navarra',
+					'county'     => 'Cuenca de Pamplona',
+					'settlement' => 'Pamplona',
+					'admin'      => array(
+						'level8' => 'Pamplona',
+						'level4' => 'Navarra',
+					),
+				)
+			),
+			'No province in the answer: none is made up from the comarca.'
+		);
+
+		$this->assertSame(
+			array( 'country:France', 'admin1:Occitanie', 'admin2:Hérault', 'commune:Pérols' ),
+			$this->chain_of(
+				array(
+					'country'    => 'France',
+					'state'      => 'Occitanie',
+					'county'     => 'Hérault',
+					'settlement' => 'Pérols',
+				)
+			),
+			'An answer with no numbered level: the names of the answer.'
+		);
+	}
+
+	/**
 	 * The Wikidata item belongs to the object found: only a place gets it, never a road or a house, and only a well formed identifier.
 	 *
 	 * @return void

@@ -49,7 +49,7 @@ class IndexKindsTest extends TestCase {
 	 * @return void
 	 */
 	public function test_the_built_in_kinds(): void {
-		$this->assertCount( 17, $this->store->kinds );
+		$this->assertCount( 18, $this->store->kinds );
 		$this->assertSame( 'place', $this->store->kinds['waterway']['parent'] );
 
 		foreach ( $this->store->kinds as $kind ) {
@@ -98,7 +98,7 @@ class IndexKindsTest extends TestCase {
 
 		sort( $below );
 
-		$this->assertSame( array( 'admin1', 'admin2', 'commune', 'country', 'place', 'river', 'site', 'waterway' ), $below, 'The levels of a place (slice 614) are below place.' );
+		$this->assertSame( array( 'admin1', 'admin2', 'admin3', 'commune', 'country', 'place', 'river', 'site', 'waterway' ), $below, 'The levels of a place (slice 614) are below place.' );
 
 		$this->assertTrue( Kinds::compatible( 'river', 'place' ) );
 		$this->assertTrue( Kinds::compatible( 'place', 'river' ) );

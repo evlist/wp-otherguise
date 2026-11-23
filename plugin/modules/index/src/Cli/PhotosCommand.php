@@ -202,7 +202,7 @@ final class PhotosCommand {
 		}
 
 		foreach ( $stop['photos'] as $photo ) {
-			$log( '    ' . ( null === $photo['time'] ? '--:--' : gmdate( 'H:i', (int) $photo['time'] ) ) . '  ' . round( (float) $photo['lat'], 5 ) . ',' . round( (float) $photo['lon'], 5 ) . '  ' . $photo['url'] );
+			$log( '    ' . ( null === $photo['time'] ? '--:--' : gmdate( 'H:i', (int) $photo['time'] ) ) . '  ' . round( (float) $photo['lat'], 5 ) . ',' . round( (float) $photo['lon'], 5 ) . '  ' . implode( '  ', (array) ( $photo['urls'] ?? array( $photo['url'] ) ) ) );
 		}
 	}
 
