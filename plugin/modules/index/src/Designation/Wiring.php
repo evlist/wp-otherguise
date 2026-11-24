@@ -11,6 +11,8 @@
 namespace Otherguise\Index\Designation;
 
 use Otherguise\Core\Modules;
+use Otherguise\Index\Admin\AssignmentsScreen;
+use Otherguise\Index\Admin\AssignmentsTable;
 use Otherguise\Index\Admin\TopicsScreen;
 use Otherguise\Index\Cli\DesignationsCommand;
 use Otherguise\Index\Cli\SuggestionsCommand;
@@ -18,6 +20,7 @@ use Otherguise\Index\Merge\DuplicateFinder;
 use Otherguise\Index\Merge\IgnoredPairs;
 use Otherguise\Index\Merge\MergeWiring;
 use Otherguise\Index\Merge\TopicMerger;
+use Otherguise\Index\Rest\TopicsRoute;
 use Otherguise\Index\Designations;
 use Otherguise\Index\Mentions;
 use Otherguise\Index\Observations;
@@ -30,21 +33,67 @@ defined( 'ABSPATH' ) || exit;
  */
 final class Wiring {
 	/**
-	 * The screen of the topics and of their designations (slice 628), with the suggestions as one of its views.
+	 * Registers the screens of the administration (the topics, the assignments) and the route that finds topics (slices 628 and 630).
 	 *
 	 * @param Topics       $topics       The topics.
 	 * @param Mentions     $mentions     The mentions.
 	 * @param Observations $observations The observations.
 	 * @param Designations $designations The designations.
-	 * @return TopicsScreen
+	 * @param callable     $add_action   `add_action`.
+	 * @return void
 	 */
-	public static function screen( Topics $topics, Mentions $mentions, Observations $observations, Designations $designations ) {
-		return new TopicsScreen(
-			$topics,
+	public static function register_admin( Topics $topics, Mentions $mentions, Observations $observations, Designations $designations, $add_action ) {
+		$assigner = new Assigner( $designations, $observations, $mentions, $topics );
+
+		( new TopicsScreen( $topics, $designations, $observations, $assigner, MergeWiring::screen( $topics, $mentions ) ) )->register( $add_action );
+		( new AssignmentsScreen(
 			$designations,
 			$observations,
-			new Assigner( $designations, $observations, $mentions, $topics ),
-			MergeWiring::screen( $topics, $mentions )
+			$topics,
+			$assigner,
+			$mentions,
+			static fn() => self::table( $designations, $observations, $topics ),
+			static function ( $file ) {
+				return plugins_url( 'modules/index/admin/' . $file, OTHERGUISE_PLUGIN_FILE );
+			}
+		) )->register( $add_action );
+	}
+
+	/**
+	 * Registers the route that finds topics for the field of the screen of the assignments (outside the administration: a request of the REST API is not one).
+	 *
+	 * @param Topics   $topics     The topics.
+	 * @param callable $add_action `add_action`.
+	 * @return void
+	 */
+	public static function register_rest( Topics $topics, $add_action ) {
+		$add_action( 'rest_api_init', array( new TopicsRoute( new TopicFinder( $topics ) ), 'register' ), 10, 0 );
+	}
+
+	/**
+	 * The table of the assignments: the class of WordPress that it extends is loaded first.
+	 *
+	 * @param Designations $designations The designations.
+	 * @param Observations $observations The observations.
+	 * @param Topics       $topics       The topics.
+	 * @return AssignmentsTable
+	 */
+	private static function table( Designations $designations, Observations $observations, Topics $topics ) {
+		if ( ! class_exists( 'WP_List_Table', false ) ) {
+			require_once ABSPATH . 'wp-admin/includes/class-wp-list-table.php';
+		}
+
+		return new AssignmentsTable(
+			new Listing( $designations, $observations, $topics ),
+			$topics,
+			static function ( $name ) {
+				$value = filter_input( INPUT_GET, $name );
+
+				return is_string( $value ) ? $value : '';
+			},
+			static function ( array $args ) {
+				return add_query_arg( array_merge( array( 'page' => AssignmentsScreen::PAGE ), $args ), admin_url( 'admin.php' ) );
+			}
 		);
 	}
 

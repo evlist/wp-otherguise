@@ -229,6 +229,56 @@ final class Observations {
 	}
 
 	/**
+	 * Every assignment, in two queries (the screen of the assignments lists them all).
+	 *
+	 * @return array<int, array{topic:int,by:string}> By designation.
+	 */
+	public function assignments() {
+		$statements = $this->statements();
+		$found      = $statements->match( null, self::DESIGNATES );
+		$about      = $statements->qualifications_of( $found );
+		$all        = array();
+
+		foreach ( $found as $statement ) {
+			$who = $this->values( $about[ $statement->id() ][ self::BY ] ?? array() );
+
+			$all[ (int) $statement->subject()->id() ] = array(
+				'topic' => (int) $statement->object()->id(),
+				'by'    => self::HAND === ( $who[0] ?? '' ) ? self::HAND : self::SYSTEM,
+			);
+		}
+
+		return $all;
+	}
+
+	/**
+	 * How many posts observe designations. **Without a list, one pass over every observation** (heavy: tens of thousands of statements; the screen asks for it
+	 * only to sort by the number of posts or to list the designations that nothing observes); with a list, one question each.
+	 *
+	 * @param int[]|null $ids The designations, or null for all those that have an observation.
+	 * @return array<int, int> By designation.
+	 */
+	public function post_counts( ?array $ids = null ) {
+		$statements = $this->statements();
+		$counts     = array();
+
+		if ( null === $ids ) {
+			foreach ( $statements->match( null, self::OBSERVES ) as $statement ) {
+				$id            = (int) $statement->object()->id();
+				$counts[ $id ] = ( $counts[ $id ] ?? 0 ) + 1;
+			}
+
+			return $counts;
+		}
+
+		foreach ( $ids as $id ) {
+			$counts[ (int) $id ] = count( $statements->match( null, self::OBSERVES, Ref::term( (int) $id ) ) );
+		}
+
+		return $counts;
+	}
+
+	/**
 	 * The designations assigned to a topic.
 	 *
 	 * @param int $topic Topic.

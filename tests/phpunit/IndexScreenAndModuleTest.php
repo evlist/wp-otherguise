@@ -92,6 +92,7 @@ class IndexScreenAndModuleTest extends TestCase {
 				'otherguise_index_photos'     => array( array( 'tick', 10, 0 ) ),
 				'wp_media_helper_places_updated' => array( array( 'tick', 10, 0 ) ),
 				'otherguise_index_page'       => array( array( 'single', 10, 1 ) ),
+				'rest_api_init'               => array( array( 'register', 10, 0 ) ),
 			),
 			$hooks
 		);

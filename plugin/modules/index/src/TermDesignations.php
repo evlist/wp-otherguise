@@ -185,13 +185,18 @@ final class TermDesignations implements Designations {
 	 */
 	public function all( array $filters = array() ) {
 		$found = array();
-		$ids   = get_terms(
+		$terms = get_terms(
 			array(
 				'taxonomy'   => self::TAXONOMY,
 				'hide_empty' => false,
-				'fields'     => 'ids',
 			)
 		);
+		$ids   = is_array( $terms ) ? array_map( static fn( $term ) => (int) $term->term_id, $terms ) : array();
+
+		// The terms are in the cache with `get_terms`; the meta of all of them in one query, not six for each (a screen lists thousands).
+		if ( array() !== $ids ) {
+			update_termmeta_cache( $ids );
+		}
 
 		foreach ( is_array( $ids ) ? $ids : array() as $id ) {
 			$one = $this->get( (int) $id );

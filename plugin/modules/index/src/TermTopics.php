@@ -261,8 +261,20 @@ final class TermTopics implements Topics {
 		}
 
 		$topics = array();
+		$ids    = (array) get_terms( $args );
 
-		foreach ( (array) get_terms( $args ) as $id ) {
+		// The terms and their meta in the cache in two queries, not seven for each (a screen lists thousands).
+		if ( array() !== $ids ) {
+			$ids = array_map( 'intval', $ids );
+
+			if ( function_exists( '_prime_term_caches' ) ) {
+				_prime_term_caches( $ids, true );
+			} else {
+				update_termmeta_cache( $ids );
+			}
+		}
+
+		foreach ( $ids as $id ) {
 			$topic = $this->get( (int) $id );
 
 			if ( null !== $topic ) {

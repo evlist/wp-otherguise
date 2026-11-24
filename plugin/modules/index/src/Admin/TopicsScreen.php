@@ -12,6 +12,7 @@ namespace Otherguise\Index\Admin;
 
 use Otherguise\Core\AdminMenu;
 use Otherguise\Index\Designation\Assigner;
+use Otherguise\Index\Designation\TopicFinder;
 use Otherguise\Index\Designations;
 use Otherguise\Index\Folding;
 use Otherguise\Index\Kinds;
@@ -433,33 +434,7 @@ final class TopicsScreen {
 	 * @return array{id:int,error:string}
 	 */
 	private function target( $text ) {
-		if ( ctype_digit( $text ) && null !== $this->topics->get( (int) $text ) ) {
-			return array(
-				'id'    => (int) $text,
-				'error' => '',
-			);
-		}
-
-		$found = array();
-
-		foreach ( $this->topics->all() as $id => $topic ) {
-			if ( '' !== $text && Folding::key( (string) $topic['label'] ) === Folding::key( $text ) ) {
-				$found[] = (int) $id;
-			}
-		}
-
-		if ( 1 === count( $found ) ) {
-			return array(
-				'id'    => $found[0],
-				'error' => '',
-			);
-		}
-
-		return array(
-			'id'    => 0,
-			/* translators: %s: what was typed. */
-			'error' => array() === $found ? sprintf( __( 'No topic is called "%s": type its number, or make a new topic.', 'otherguise' ), $text ) : sprintf( __( 'Several topics are called "%1$s": type the number of one of them (%2$s).', 'otherguise' ), $text, implode( ', ', $found ) ),
-		);
+		return ( new TopicFinder( $this->topics ) )->find( $text );
 	}
 
 	/**

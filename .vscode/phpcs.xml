@@ -21,6 +21,8 @@ SPDX-License-Identifier: GPL-3.0-or-later OR MIT
   <exclude-pattern>*/tests/phpunit/bootstrap.php</exclude-pattern>
   <!-- A copy of an interface of another plugin (Media Helper): its namespace is not ours. -->
   <exclude-pattern>*/tests/phpunit/support/class-otherguise-test-media-helper-stub.php</exclude-pattern>
+  <!-- A stand-in for a class of WordPress (WP_List_Table): its name and its file are not ours. -->
+  <exclude-pattern>*/tests/phpunit/support/class-otherguise-test-wp-list-table.php</exclude-pattern>
   <exclude-pattern>*/scripts/*</exclude-pattern>
 
   <config name="text_domain" value="otherguise"/>
