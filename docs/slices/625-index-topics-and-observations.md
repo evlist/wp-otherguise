@@ -3,7 +3,7 @@
 
 # Slice 625 — Index: topics, designations and observations
 
-Status: **design only, nothing coded.** The vocabulary and the principle are **decided by Eric on 2026-11-24**, in three steps the same day: **topics and observations**; **no merge and no split, only assignments**; **designations** (the class) **and observations** (the instance), the assignment being made on the **designation**. Every other point is marked **Proposed** or **To decide** and waits for Eric. Dependencies: 600 to 624 (the whole Index module as it stands). Slices that follow, once this one is validated: 626 (storage and migration), 627 (enrichment before creation), 628 (screens and vocabulary), 629 (purge, prune and reset in the new vocabulary). Context: [`../design/index.md`](../design/index.md).
+Status: **design only, nothing coded.** The vocabulary and the principle are **decided by Eric on 2026-11-24**, in three steps the same day: **topics and observations**; **no merge and no split, only assignments**; **designations** (the class) **and observations** (the instance), the assignment being made on the **designation**. Eric's answers of 2026-11-24 to the questions below are recorded as **Decided**; what is still **Proposed** or **To decide** waits for him (the threshold for leaving Triples). Dependencies: 600 to 624 (the whole Index module as it stands). Slices that follow, once this one is validated: 626 (storage and migration), 627 (enrichment before creation), 628 (screens and vocabulary), 629 (purge, prune and reset in the new vocabulary). Context: [`../design/index.md`](../design/index.md).
 
 ## Why (Eric, 2026-11-24)
 
@@ -95,7 +95,7 @@ Identity of an observation: the post, the designation and an order number (`n`: 
 - **Nothing else is needed to fix a double.** Two topics that are the same thing are fixed by **assigning the designations of one to the other**; a topic **with no designation left and nothing chosen by a person** is deleted by the cleaning (or by hand). **Its sub-topics are topics too**: they are **moved under another parent** on the topic screen, or have their own designations assigned elsewhere; a convenience **"and the sub-topics of the same name"** repeats the assignment down the tree (**to decide**).
 - **A topic is managed as a topic**: its **label**, **kind** and **parent** are edited on the topic screen. A label chosen by hand is **never replaced** (by the enrichment either); **the old label key stays** on the topic, so that a designation that uses the old name still finds it.
 - **Confirm** an assignment that the system proposed (it becomes manual, and stable).
-- **What lasts, and what is rebuilt**: **the observations are recalculated at each reading** (they come and go with the pages); **a designation that has a manual assignment lasts even when it has no observation left** (shown as such on the screen), so that **`index reset` and `sync --from-scratch` never lose what a person decided**; a designation that was only proposed by the system and has no observation left is deleted by the cleaning. **Purge a source** deletes the observations of the source (and its automatic designations that have none left); **prune** deletes the topics with no designation and no decision of a person; **reset** deletes the observations and the automatic designations (with `--everything`, the manual ones and the topics too).
+- **What lasts, and what is rebuilt**: **the observations are recalculated at each reading** (they come and go with the pages); **a designation that has a manual assignment lasts even when it has no observation left** (**Decided**: kept for ever, with a **filter "no observation"** and **a button to delete** on the admin screen), so that **`index reset` and `sync --from-scratch` never lose what a person decided**; a designation that was only proposed by the system and has no observation left is deleted by the cleaning. **Purge a source** deletes the observations of the source (and its automatic designations that have none left); **prune** deletes the topics with no designation and no decision of a person; **reset** deletes the observations and the automatic designations (with `--everything`, the manual ones and the topics too).
 - **Enrichment before creation** (slice 627), **once per designation, not once per occurrence**: a designation that carries a Wikipedia link is `pending` until Wikidata has answered; it is then assigned to the topic that holds `wikidata:Q…`, **which is created complete** (label, kind from the classes, parent) if it does not exist. **No topic is created unenriched.** A link repeated fifty times costs **one** query. If the service says "wait", the designation stays `pending` and the next worker goes on; the index is **incomplete for a while but never degraded**. What has no Wikipedia link (tags, categories, photographs, marks) needs no enrichment.
 
 ## Where it is stored (Proposed; Eric 2026-11-24: Triples for now, a table if the performance degrades)
@@ -121,7 +121,7 @@ The two levels have **very different sizes**, which is the point: **the designat
 |---|---|---|
 | **626** | **First, the measure** on the test blog (designations, observations, lookups). Then the designation (term, key per source, upsert), the observation (statement, identity, upsert), the assignment (statement), `Mentions` as a facade, `index migrate observations`, the resolver that proposes an assignment and keeps the proposal. | 625 validated |
 | **627** | **Enrichment before creation**, per designation: the `pending` state, the batch with a cache of the Wikipedia key → Wikidata item, the phase "enrich" of `index sync` becomes the retry of the pending designations. | 626 |
-| **628** | **One screen to manage the topics and their assignments** (below), the queue **To resolve** and the suggestions as views of it; the words of the interface, the commands and the documents are changed (`index merge` and `index duplicates` give way to `index assign` and `index suggestions`, `index designations --topic=<id>` comes; the old names stay as aliases for a time). | 626 |
+| **628** | **One screen to manage the topics and their assignments** (below), the queue **To resolve** and the suggestions as views of it; the words of the interface, the commands and the documents are changed (`index merge` and `index duplicates` give way to `index assign` and `index suggestions`, `index designations --topic=<id>` comes; **no alias is kept**: Eric, 2026-11-24). | 626 |
 | **629** | `purge`, `prune`, `reset` and `sync --from-scratch` in the new vocabulary; **the topics of status `candidate` that stood for doubts are gone**. | 626, 628 |
 
 ## The screen (Proposed): topics and assignments on one page
@@ -136,16 +136,28 @@ The two levels have **very different sizes**, which is the point: **the designat
 - **Safe by default**: a preview before any change (a dry run), a capability and a nonce on each form, and **no assignment between topics of kinds that exclude each other** without an explicit confirmation (the rule of `Kinds::compatible`, as now).
 - **Every list is paginated by the server** (50 lines), never loaded whole.
 
-## To decide (Eric)
+## Decided by Eric (2026-11-24) and still to decide
 
-1. **Designations that have a manual assignment and no observation left**: kept for ever (**Proposed**: it is what makes a reset harmless), or deleted after a delay? And how are they seen (a filter *"with no observation"*) and removed (a button)?
-2. **The key of a designation, source by source** (table above): is it right, notably **all the photographs of one commune as one designation** and **a mark with no identifier designated by its text**?
-3. **Predicates**: new ones, `index/observes` and `index/designates`, with `Mentions` as a facade (**proposed**), **or** keeping `index/mentions` and changing its meaning? *Proposed*: **new**, to avoid two meanings in one database.
-4. **The threshold** that makes us leave Triples for tables of the module (above).
-5. **A topic that has lost all its designations** leaves nothing but its keys on the topic that received them. Is it enough, or should a **redirect** (a topic that points to another, kept for a while) exist, for a link or a note that names the old id? *Proposed*: **keys only**.
-6. **One screen or two** (above)? *Proposed*: **one**, with three views.
-7. **"And the sub-topics of the same name"** when all the designations of a topic are assigned elsewhere: offered, or left to be done one topic at a time? *Proposed*: **offered**, ticked off by default, with the preview.
-8. **The commands**: `index assign` and `index suggestions` with `index merge` and `index duplicates` kept as aliases for a time (they print that the name is old)? *Proposed*: **yes**.
+**Decided:**
+
+1. **Designations with a manual assignment and no observation left** are **kept**, and the admin screen can **filter** them and **delete** them.
+2. **The key of a designation, source by source** (table above) is right: **all the photographs of one commune are one designation**, and **a mark with no identifier is designated by its text**.
+3. **New predicates** `index/observes` and `index/designates`, with `Mentions` as a facade.
+4. **A topic that has lost all its designations** leaves **its keys only** on the topic that received them: no redirect.
+5. **One screen** (**Otherguise → Topics**) **with three views**.
+6. **"And the sub-topics of the same name"** is offered when all the designations of a topic are assigned elsewhere (not ticked by default, with a preview).
+7. **The commands**: `index assign` and `index suggestions` replace `index merge` and `index duplicates`; **no alias is kept**.
+
+**To decide: the threshold for leaving Triples** (question 4), measured on **the operations that a person waits for** (Proposed):
+
+| Operation | Why it matters | Proposed threshold |
+|---|---|---|
+| **A page of the screen** (the list of the topics, a topic with its designations, the queue To resolve): 50 lines with their counts | A person waits for it | **1 second** |
+| **Assigning all the designations of a topic** to another (the preview, then the change) | A person waits for it | **2 seconds** |
+| **Building the index of the largest section** (`index build --section=<id>`), the heaviest reading | It runs inside the page of a book and the PDF job | **no more than twice the time of today** (to measure first: it is the reference), and **10 seconds at the most** |
+| **Reading one post** (its observations are made again, with 100 photographs) | It runs in the background for hundreds of posts, so **it does not decide alone**: it counts only above **5 seconds** | **5 seconds** |
+
+**What leaving Triples means**: the designations and the observations go to **tables of the module** (`otherguise_index_designations`, `otherguise_index_observations`) behind the same facade, with their own indexes, a migration and an uninstall; **the screens and the builder do not change.** If **only one operation** exceeds its threshold (the builder, say), **only the observations** go to a table. Eric sets the thresholds; the measure on the test blog (first task of slice 626) tells which of them are met.
 
 ## Not tried
 
