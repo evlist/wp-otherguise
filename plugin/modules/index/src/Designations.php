@@ -44,7 +44,7 @@ interface Designations {
 	 * A designation.
 	 *
 	 * @param int $id Id.
-	 * @return array{id:int,key:string,source:string,evidence:array,state:string,proposal:array{topic:int,why:string}}|null
+	 * @return array{id:int,key:string,source:string,evidence:array,state:string,proposal:array{topic:int,why:string,ambiguity?:array{level:string,key:string,candidates:int[]}}}|null
 	 */
 	public function get( $id );
 

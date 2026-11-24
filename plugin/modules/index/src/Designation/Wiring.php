@@ -22,6 +22,7 @@ use Otherguise\Index\Merge\MergeWiring;
 use Otherguise\Index\Merge\TopicMerger;
 use Otherguise\Index\Rest\TopicsRoute;
 use Otherguise\Index\Designations;
+use Otherguise\Index\Resolver;
 use Otherguise\Index\Mentions;
 use Otherguise\Index\Observations;
 use Otherguise\Index\Topics;
@@ -52,6 +53,7 @@ final class Wiring {
 			$topics,
 			$assigner,
 			$mentions,
+			new Reresolver( $designations, $observations, $mentions, new Resolver( $topics ), $topics ),
 			static fn() => self::table( $designations, $observations, $topics ),
 			static function ( $file ) {
 				return plugins_url( 'modules/index/admin/' . $file, OTHERGUISE_PLUGIN_FILE );
@@ -123,7 +125,8 @@ final class Wiring {
 			null,
 			null,
 			null,
-			new TopicMerger( $topics, $mentions )
+			new TopicMerger( $topics, $mentions ),
+			new Reresolver( $designations, $observations, $mentions, new Resolver( $topics ), $topics )
 		);
 
 		\WP_CLI::add_command( 'otherguise index designations', $command );

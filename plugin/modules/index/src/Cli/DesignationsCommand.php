@@ -13,6 +13,7 @@ namespace Otherguise\Index\Cli;
 use Otherguise\Index\Designation\Assigner;
 use Otherguise\Index\Designation\Cleaner;
 use Otherguise\Index\Designation\Migration;
+use Otherguise\Index\Designation\Reresolver;
 use Otherguise\Index\Designations;
 use Otherguise\Index\Merge\TopicMerger;
 use Otherguise\Index\Observations;
@@ -75,6 +76,13 @@ final class DesignationsCommand {
 	private $merger;
 
 	/**
+	 * Resolves the ambiguous designations again.
+	 *
+	 * @var Reresolver|null
+	 */
+	private $reresolver;
+
+	/**
 	 * Prints a line.
 	 *
 	 * @var callable
@@ -108,8 +116,9 @@ final class DesignationsCommand {
 	 * @param callable|null    $success     Default `WP_CLI::success`.
 	 * @param callable|null    $fail        Default `WP_CLI::error`.
 	 * @param TopicMerger|null $merger   Assigns a whole topic with its sub-topics.
+	 * @param Reresolver|null  $reresolver Resolves the ambiguous designations again.
 	 */
-	public function __construct( Designations $designations, Observations $observations, Topics $topics, Assigner $assigner, Cleaner $cleaner, Migration $migration, $log = null, $success = null, $fail = null, ?TopicMerger $merger = null ) {
+	public function __construct( Designations $designations, Observations $observations, Topics $topics, Assigner $assigner, Cleaner $cleaner, Migration $migration, $log = null, $success = null, $fail = null, ?TopicMerger $merger = null, ?Reresolver $reresolver = null ) {
 		$this->designations = $designations;
 		$this->observations = $observations;
 		$this->topics       = $topics;
@@ -120,6 +129,7 @@ final class DesignationsCommand {
 		$this->success      = $success ?? array( 'WP_CLI', 'success' );
 		$this->fail         = $fail ?? array( 'WP_CLI', 'error' );
 		$this->merger       = $merger;
+		$this->reresolver   = $reresolver;
 	}
 
 	/**
@@ -376,6 +386,38 @@ final class DesignationsCommand {
 		}
 
 		( $this->success )( 'Thresholds: a page of the screen 1 s, an assignment of all the designations of a topic 2 s, the index of the largest section twice today and 10 s.' );
+	}
+
+	/**
+	 * Resolves again the designations that are ambiguous, **from their evidence, without reading the pages**: it records, for each, **the topics that a level
+	 * hesitated between** (the lists of the screen Otherguise → Assignments), and settles the ones that the topics made since have cleared up. Nothing is
+	 * changed without --apply.
+	 *
+	 * ## OPTIONS
+	 *
+	 * [--limit=<n>]
+	 * : At most this many designations (default all).
+	 *
+	 * [--apply]
+	 * : Do it.
+	 *
+	 * @param array $args  Unused.
+	 * @param array $assoc Options.
+	 * @return void
+	 */
+	public function resolve( $args, $assoc ) {
+		unset( $args );
+
+		if ( null === $this->reresolver ) {
+			( $this->fail )( 'The resolution is not available.' );
+
+			return;
+		}
+
+		$dry  = ! isset( $assoc['apply'] );
+		$done = $this->reresolver->run( $dry, (int) ( $assoc['limit'] ?? 0 ) );
+
+		( $this->success )( $done['looked'] . ' ambiguous designation(s) looked at: ' . $done['settled'] . ' ' . ( $dry ? 'would be settled' : 'settled' ) . ', ' . $done['still'] . ' still ambiguous' . ( $dry ? ' (nothing was changed, add --apply)' : ', the topics they hesitate between recorded for ' . $done['recorded'] ) . '.' );
 	}
 
 	/**

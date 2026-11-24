@@ -12,6 +12,8 @@ use Otherguise\Index\Admin\AssignmentsScreen;
 use Otherguise\Index\Admin\AssignmentsTable;
 use Otherguise\Index\Designation\Assigner;
 use Otherguise\Index\Designation\Listing;
+use Otherguise\Index\Designation\Reresolver;
+use Otherguise\Index\Resolver;
 use Otherguise\Index\Designation\TopicFinder;
 use Otherguise\Index\Designations;
 use Otherguise\Index\Kinds;
@@ -303,6 +305,7 @@ class IndexAssignmentsDbTest extends Otherguise_Test_Database_Case {
 			$this->topics,
 			new Assigner( $this->designations, $this->observations, $this->mentions, $this->topics ),
 			$this->mentions,
+			new Reresolver( $this->designations, $this->observations, $this->mentions, new Resolver( $this->topics ), $this->topics ),
 			fn() => $table ?? $this->make_table(),
 			static fn( $file ) => 'https://example.test/' . $file,
 			static fn() => $allowed,
@@ -367,7 +370,7 @@ class IndexAssignmentsDbTest extends Otherguise_Test_Database_Case {
 		$this->assertSame( 'designation', $table->_column_headers[3] );
 		$this->assertSame( array( 'cb', 'designation', 'source', 'posts', 'topic', 'by', 'state' ), array_keys( $table->get_columns() ) );
 		$this->assertSame( array( 'label', false ), $table->get_sortable_columns()['designation'] );
-		$this->assertSame( array( 'assign', 'confirm', 'unassign', 'delete' ), array_keys( $this->call( $table, 'get_bulk_actions' ) ) );
+		$this->assertSame( array( 'choose', 'assign', 'confirm', 'unassign', 'delete' ), array_keys( $this->call( $table, 'get_bulk_actions' ) ) );
 
 		$views = $this->call( $table, 'get_views' );
 
@@ -606,5 +609,181 @@ class IndexAssignmentsDbTest extends Otherguise_Test_Database_Case {
 
 		$this->assertSame( '', (string) ob_get_clean(), 'A stranger sees nothing.' );
 		$this->assertSame( AssignmentsScreen::PAGE, $this->screen( $urls )->declare_screen( null )[0]['page'] );
+	}
+
+	/**
+	 * A designation that hesitated between topics: the list of the table offers them (with the kind and the topics above each, to tell the namesakes apart); a
+	 * designation that has no candidate shows nothing to choose.
+	 *
+	 * @return void
+	 */
+	public function test_the_list_of_the_choices(): void {
+		$spain = $this->topics->create( 'Espagne', 'country', 0, Topics::APPROVED, array() );
+		$a     = $this->topics->create( 'Fisterra', 'commune', $spain, Topics::APPROVED, array() );
+		$b     = $this->topics->create( 'Fisterra', 'site', 0, Topics::APPROVED, array() );
+		$id    = $this->designation( 'A Atalaia', array( 1 ), 0, Observations::SYSTEM, Designations::AMBIGUOUS );
+
+		$this->designations->set_state(
+			$id,
+			Designations::AMBIGUOUS,
+			array(
+				'topic'     => 0,
+				'why'       => 'label',
+				'ambiguity' => array(
+					'level'      => 'Fisterra',
+					'key'        => 'label:' . $spain . '/fisterra',
+					'candidates' => array( $a, $b ),
+				),
+			)
+		);
+		$plain = $this->designation( 'Sans candidat', array( 2 ), 0, Observations::SYSTEM, Designations::AMBIGUOUS );
+		$table = $this->make_table();
+
+		$table->prepare_items();
+
+		$rows = array_column( $table->items, null, 'id' );
+		$html = $this->call( $table, 'column_topic', $rows[ $id ] );
+
+		$this->assertStringContainsString( 'Which &quot;Fisterra&quot;?', $html );
+		$this->assertStringContainsString( 'name="choice[' . $id . ']"', $html );
+		$this->assertStringContainsString( 'Fisterra (Commune, Espagne) #' . $a, $html, 'The kind and the topics above tell the namesakes apart.' );
+		$this->assertStringContainsString( 'Fisterra (Site (below the commune)) #' . $b, $html );
+		$this->assertSame( '—', $this->call( $table, 'column_topic', $rows[ $plain ] ), 'Nothing to choose from.' );
+	}
+
+	/**
+	 * The bulk action "Apply the choices": a line with a choice counts, ticked or not; a topic that is not a candidate is refused and said; nothing chosen is said.
+	 *
+	 * @return void
+	 */
+	public function test_applying_the_choices(): void {
+		$spain = $this->topics->create( 'Espagne', 'country', 0, Topics::APPROVED, array( 'label:0/espagne' ) );
+		$a     = $this->topics->create( 'Fisterra', 'commune', $spain, Topics::APPROVED, array( 'label:' . $spain . '/fisterra' ) );
+		$b     = $this->topics->create( 'Fisterra', 'commune', $spain, Topics::APPROVED, array( 'label:' . $spain . '/fisterra' ) );
+		$other = $this->topics->create( 'Ailleurs', 'commune', 0, Topics::APPROVED, array() );
+		$id    = $this->designation( 'A Atalaia', array( 1 ), 0, Observations::SYSTEM, Designations::AMBIGUOUS );
+
+		$this->designations->designations[ $id ]['evidence'] = array(
+			'label'  => 'A Atalaia',
+			'kind'   => 'commune',
+			'keys'   => array(),
+			'levels' => array(
+				array(
+					'label' => 'Espagne',
+					'kind' => 'country',
+					'keys' => array(),
+				),
+				array(
+					'label' => 'Fisterra',
+					'kind' => 'commune',
+					'keys' => array(),
+				),
+				array(
+					'label' => 'A Atalaia',
+					'kind' => 'commune',
+					'keys' => array(),
+				),
+			),
+		);
+		$this->designations->set_state(
+			$id,
+			Designations::AMBIGUOUS,
+			array(
+				'topic'     => 0,
+				'why'       => 'label',
+				'ambiguity' => array(
+					'level'      => 'Fisterra',
+					'key'        => 'label:' . $spain . '/fisterra',
+					'candidates' => array( $a, $b ),
+				),
+			)
+		);
+
+		$urls = array();
+
+		$this->bulk( 'choose', array( 'choice' => array( (string) $id => '' ) ) );
+		$this->screen( $urls )->process();
+		$this->assertStringContainsString( 'Choose a topic in at least one list', urldecode( end( $urls ) ) );
+
+		$this->bulk( 'choose', array( 'choice' => array( (string) $id => (string) $other ) ) );
+		$this->screen( $urls )->process();
+		$this->assertStringContainsString( 'not one of those', urldecode( end( $urls ) ) );
+		$this->assertNull( $this->observations->assignment( $id ) );
+
+		$this->bulk( 'choose', array( 'choice' => array( (string) $id => (string) $b ) ) );
+		$this->screen( $urls )->process();
+
+		$this->assertStringContainsString( 'did=choose', end( $urls ) );
+
+		$have = $this->observations->assignment( $id );
+
+		$this->assertSame( Observations::HAND, $have['by'] );
+		$this->assertSame( 'A Atalaia', $this->topics->get( $have['topic'] )['label'] );
+		$this->assertSame( $b, $this->topics->get( $have['topic'] )['parent'], 'The level that was missing is made under the topic that was chosen.' );
+		$this->assertSame( Designations::ASSIGNED, $this->designations->get( $id )['state'] );
+		$this->assertSame( array( $have['topic'] ), array_keys( $this->mentions->of_post( 1 ) ) );
+		$this->assertSame( $b, $this->topics->pinned( 'label:' . $spain . '/fisterra' ), 'The choice is kept for the next designation that hesitates the same way.' );
+	}
+
+	/**
+	 * A new topic in the assignment: the confirmation says "a new topic"; the second step makes it (the kind chosen is a decision of a person) and assigns; an
+	 * assignment that is refused does not leave the topic behind.
+	 *
+	 * @return void
+	 */
+	public function test_assigning_to_a_new_topic(): void {
+		$river = $this->topics->create( 'Allier (rivière)', 'waterway', 0, Topics::APPROVED, array() );
+		$id    = $this->designation( 'Allier', array( 1, 2 ), $river );
+		$urls  = array();
+
+		$this->bulk(
+			'assign',
+			array(
+				'designation' => array( (string) $id ),
+				'to' => '',
+				'to_label' => '',
+				'new_label' => 'Allier (département)',
+				'new_kind' => 'commune',
+				'new_parent' => '0',
+			)
+		);
+		$this->screen( $urls )->process();
+
+		$this->assertStringContainsString( 'confirm=1', end( $urls ) );
+		$this->assertStringContainsString( 'new_label=', end( $urls ) );
+
+		parse_str( (string) wp_parse_url( end( $urls ), PHP_URL_QUERY ), $query );
+		$this->request[ INPUT_GET ] = $query;
+
+		ob_start();
+		$this->screen( $urls )->render();
+		$page = (string) ob_get_clean();
+
+		$this->assertStringContainsString( 'will be assigned to &quot;Allier (département)&quot; (a new topic)', $page );
+		$this->assertStringContainsString( 'name="new_label" value="Allier (département)"', $page );
+
+		$before = count( $this->topics->topics );
+
+		$this->request[ INPUT_POST ] = array(
+			'_wpnonce'    => 'good',
+			'designation' => array( (string) $id ),
+			'to'          => '',
+			'new_label'   => 'Allier (département)',
+			'new_kind'    => 'commune',
+			'new_parent'  => '0',
+		);
+		$this->screen( $urls )->apply();
+
+		$this->assertSame( $before, count( $this->topics->topics ), 'The kinds exclude each other: refused, and the topic made for it is not kept.' );
+		$this->assertStringContainsString( 'error=', end( $urls ) );
+
+		$this->request[ INPUT_POST ]['force'] = '1';
+		$this->screen( $urls )->apply();
+
+		$new = $this->observations->assignment( $id )['topic'];
+
+		$this->assertSame( 'Allier (département)', $this->topics->get( $new )['label'] );
+		$this->assertTrue( $this->topics->get( $new )['kind_by_hand'] );
+		$this->assertSame( Observations::HAND, $this->observations->assignment( $id )['by'] );
 	}
 }

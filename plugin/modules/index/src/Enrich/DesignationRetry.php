@@ -10,7 +10,7 @@
 
 namespace Otherguise\Index\Enrich;
 
-use Otherguise\Index\Candidate;
+use Otherguise\Index\Designation\Evidence;
 use Otherguise\Index\Designations;
 use Otherguise\Index\Mentions;
 use Otherguise\Index\Observations;
@@ -132,7 +132,7 @@ final class DesignationRetry {
 		$one = (array) $this->designations->get( $id );
 		$was = $one['evidence'] ?? array();
 
-		$candidate = ( new Candidate( (string) ( $was['label'] ?? '' ), (string) ( $was['kind'] ?? 'any' ), (array) ( $was['keys'] ?? array() ) ) )->from( (string) $one['source'] );
+		$candidate = Evidence::candidate( (array) $was, (string) $one['source'] );
 		$candidate = $this->enrichment->completed( $candidate, $this->enrichment->learnt( $id ) );
 		$done      = $this->resolver->resolve( $candidate, true, false, false );
 

@@ -156,6 +156,7 @@ final class AssignmentsTable extends \WP_List_Table {
 	 */
 	protected function get_bulk_actions() {
 		return array(
+			'choose'   => __( 'Apply the choices (the lists in the Assigned to column)', 'otherguise' ),
 			'assign'   => __( 'Assign to the topic chosen above…', 'otherguise' ),
 			'confirm'  => __( 'Confirm the assignment (a person decides)', 'otherguise' ),
 			'unassign' => __( 'Take the assignment away', 'otherguise' ),
@@ -176,7 +177,15 @@ final class AssignmentsTable extends \WP_List_Table {
 
 		echo '<div class="alignleft actions"><label class="screen-reader-text" for="assignment-topic">' . esc_html__( 'The topic to assign to', 'otherguise' ) . '</label>';
 		echo '<input type="text" id="assignment-topic" name="to_label" size="30" placeholder="' . esc_attr__( 'Search the topic to assign to', 'otherguise' ) . '" data-topic-picker="assignment-topic-id" value="' . esc_attr( (string) ( $this->request )( 'to_label' ) ) . '" />';
-		echo '<input type="hidden" id="assignment-topic-id" name="to" value="" /></div>';
+		echo '<input type="hidden" id="assignment-topic-id" name="to" value="" />';
+		echo ' <label class="screen-reader-text" for="assignment-new-label">' . esc_html__( 'Or a new topic', 'otherguise' ) . '</label><input type="text" id="assignment-new-label" name="new_label" size="20" placeholder="' . esc_attr__( 'or a new topic: label', 'otherguise' ) . '" />';
+		echo ' <select name="new_kind" aria-label="' . esc_attr__( 'Kind of the new topic', 'otherguise' ) . '">';
+
+		foreach ( Kinds::tree() as $row ) {
+			echo '<option value="' . esc_attr( (string) $row['slug'] ) . '">' . esc_html( str_repeat( '— ', (int) $row['depth'] ) . $row['label'] ) . '</option>';
+		}
+
+		echo '</select> <input type="number" min="0" name="new_parent" size="6" placeholder="' . esc_attr__( 'under the topic number', 'otherguise' ) . '" /></div>';
 	}
 
 	/**
@@ -282,9 +291,59 @@ final class AssignmentsTable extends \WP_List_Table {
 		$topic = (int) $item['topic'] > 0 ? $this->topics->get( (int) $item['topic'] ) : null;
 
 		if ( null === $topic ) {
+			return $this->choice( $item );
+		}
+
+		return '<a href="' . esc_url(
+			add_query_arg(
+				array(
+					'page' => TopicsScreen::PAGE,
+					'topic' => (int) $topic['id'],
+				),
+				admin_url( 'admin.php' )
+			)
+		) . '">' . esc_html( (string) $topic['label'] ) . '</a> <small>' . esc_html( $this->describe( $topic ) ) . '</small>';
+	}
+
+	/**
+	 * What a designation that has no topic offers: **the topics that a level hesitated between**, in a list, with the kind and the topics above each; the choice
+	 * is applied by the bulk action *Apply the choices* (a form inside the form of the table is not possible).
+	 *
+	 * @param array $item A line.
+	 * @return string
+	 */
+	private function choice( $item ) {
+		$ambiguity = $item['ambiguity'] ?? null;
+
+		if ( ! is_array( $ambiguity ) || array() === (array) ( $ambiguity['candidates'] ?? array() ) ) {
 			return '—';
 		}
 
+		$html = '<label class="screen-reader-text" for="choice-' . esc_attr( (string) $item['id'] ) . '">' . esc_html__( 'Choose the topic', 'otherguise' ) . '</label>';
+		/* translators: %s: the label of the level that hesitates. */
+		$html .= '<small>' . esc_html( sprintf( __( 'Which "%s"?', 'otherguise' ), (string) ( $ambiguity['level'] ?? '' ) ) ) . '</small><br />';
+		$html .= '<select id="choice-' . esc_attr( (string) $item['id'] ) . '" name="choice[' . esc_attr( (string) $item['id'] ) . ']"><option value="">' . esc_html__( '— choose —', 'otherguise' ) . '</option>';
+
+		foreach ( (array) $ambiguity['candidates'] as $candidate ) {
+			$topic = $this->topics->get( (int) $candidate );
+
+			if ( null === $topic ) {
+				continue;
+			}
+
+			$html .= '<option value="' . esc_attr( (string) $topic['id'] ) . '">' . esc_html( (string) $topic['label'] . ' (' . $this->describe( $topic ) . ') #' . $topic['id'] ) . '</option>';
+		}
+
+		return $html . '</select>';
+	}
+
+	/**
+	 * What tells a topic from its namesakes: its kind and the topics above it.
+	 *
+	 * @param array $topic A topic.
+	 * @return string
+	 */
+	private function describe( array $topic ) {
 		$above = array();
 		$up    = (int) $topic['parent'];
 
@@ -299,15 +358,7 @@ final class AssignmentsTable extends \WP_List_Table {
 			$up = (int) $parent['parent'];
 		}
 
-		return '<a href="' . esc_url(
-			add_query_arg(
-				array(
-					'page' => TopicsScreen::PAGE,
-					'topic' => (int) $topic['id'],
-				),
-				admin_url( 'admin.php' )
-			)
-		) . '">' . esc_html( (string) $topic['label'] ) . '</a> <small>' . esc_html( (string) Kinds::label( (string) $topic['kind'] ) . ( array() === $above ? '' : ', ' . implode( ' > ', $above ) ) ) . '</small>';
+		return (string) Kinds::label( (string) $topic['kind'] ) . ( array() === $above ? '' : ', ' . implode( ' > ', $above ) );
 	}
 
 	/**

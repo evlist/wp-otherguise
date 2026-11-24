@@ -12,8 +12,11 @@ namespace Otherguise\Index\Admin;
 
 use Otherguise\Core\AdminMenu;
 use Otherguise\Index\Designation\Assigner;
+use Otherguise\Index\Designation\Reresolver;
 use Otherguise\Index\Designation\TopicFinder;
 use Otherguise\Index\Designations;
+use Otherguise\Index\Kinds;
+use Otherguise\Index\Resolver;
 use Otherguise\Index\Mentions;
 use Otherguise\Index\Observations;
 use Otherguise\Index\Rest\TopicsRoute;
@@ -69,6 +72,13 @@ final class AssignmentsScreen {
 	 * @var Mentions
 	 */
 	private $mentions;
+
+	/**
+	 * The choices among the topics that a level hesitated between.
+	 *
+	 * @var Reresolver
+	 */
+	private $reresolver;
 
 	/**
 	 * The finder of topics.
@@ -134,6 +144,7 @@ final class AssignmentsScreen {
 	 * @param Topics        $topics       The topics.
 	 * @param Assigner      $assigner     The assigner.
 	 * @param Mentions      $mentions     The mentions.
+	 * @param Reresolver    $reresolver   The choices among the topics that a level hesitated between.
 	 * @param callable      $make_table   Makes the table.
 	 * @param callable      $script_url   The address of a script of the screen.
 	 * @param callable|null $can         Default `current_user_can`.
@@ -141,12 +152,13 @@ final class AssignmentsScreen {
 	 * @param callable|null $verify      Default `wp_verify_nonce`.
 	 * @param callable|null $redirect    Default `wp_safe_redirect` then `exit`.
 	 */
-	public function __construct( Designations $designations, Observations $observations, Topics $topics, Assigner $assigner, Mentions $mentions, $make_table, $script_url, $can = null, $input = null, $verify = null, $redirect = null ) {
+	public function __construct( Designations $designations, Observations $observations, Topics $topics, Assigner $assigner, Mentions $mentions, Reresolver $reresolver, $make_table, $script_url, $can = null, $input = null, $verify = null, $redirect = null ) {
 		$this->designations = $designations;
 		$this->observations = $observations;
 		$this->topics       = $topics;
 		$this->assigner     = $assigner;
 		$this->mentions     = $mentions;
+		$this->reresolver   = $reresolver;
 		$this->finder       = new TopicFinder( $topics );
 		$this->make_table   = $make_table;
 		$this->script_url   = $script_url;
@@ -267,6 +279,17 @@ final class AssignmentsScreen {
 	}
 
 	/**
+	 * Reads a text field of the request.
+	 *
+	 * @param int    $type INPUT_GET or INPUT_POST.
+	 * @param string $name The field.
+	 * @return string
+	 */
+	private function text( $type, $name ) {
+		return sanitize_text_field( (string) ( $this->input )( $type, $name, false ) );
+	}
+
+	/**
 	 * The topic that a request names: the number that the field of the page put in `to`, else what was typed, a number or a label.
 	 *
 	 * @param int $type INPUT_GET or INPUT_POST.
@@ -312,6 +335,15 @@ final class AssignmentsScreen {
 			return;
 		}
 
+		$back = array_filter( array( 'view' => sanitize_key( (string) ( $this->input )( INPUT_POST, 'view', false ) ) ) );
+
+		// The choices are made in the lists of the lines: a line with a choice counts, ticked or not.
+		if ( 'choose' === $action ) {
+			( $this->redirect )( $this->url( array_merge( $back, $this->choose() ) ) );
+
+			return;
+		}
+
 		$ids = $this->numbers( INPUT_POST, 'designation' );
 
 		if ( array() === $ids ) {
@@ -320,7 +352,24 @@ final class AssignmentsScreen {
 			return;
 		}
 
-		$back = array_filter( array( 'view' => sanitize_key( (string) ( $this->input )( INPUT_POST, 'view', false ) ) ) );
+		if ( 'assign' === $action && '' !== $this->text( INPUT_POST, 'new_label' ) ) {
+			( $this->redirect )(
+				$this->url(
+					array_filter(
+						array(
+							'confirm'    => 1,
+							'ids'        => implode( ',', $ids ),
+							'to'         => 0,
+							'new_label'  => $this->text( INPUT_POST, 'new_label' ),
+							'new_kind'   => sanitize_key( (string) ( $this->input )( INPUT_POST, 'new_kind', false ) ),
+							'new_parent' => absint( (string) ( $this->input )( INPUT_POST, 'new_parent', false ) ),
+						)
+					)
+				)
+			);
+
+			return;
+		}
 
 		if ( 'assign' === $action ) {
 			$found = $this->target( INPUT_POST );
@@ -339,6 +388,45 @@ final class AssignmentsScreen {
 		}
 
 		( $this->redirect )( $this->url( array_merge( $back, $this->bulk( $action, $ids ) ) ) );
+	}
+
+	/**
+	 * Applies the choices made in the lists of the lines: for each line with a choice, the topic is pinned to the level that hesitated, the designation is resolved
+	 * again and assigned by hand.
+	 *
+	 * @return array<string, int|string> What to say.
+	 */
+	private function choose() {
+		$choices = (array) ( $this->input )( INPUT_POST, 'choice', true );
+		$done    = 0;
+		$error   = '';
+
+		foreach ( $choices as $id => $topic ) {
+			if ( absint( (string) $topic ) <= 0 ) {
+				continue;
+			}
+
+			$result = $this->reresolver->choose( absint( (string) $id ), absint( (string) $topic ) );
+
+			if ( $result['ok'] ) {
+				++$done;
+			} elseif ( '' === $error ) {
+				$error = $result['error'];
+			}
+		}
+
+		if ( 0 === $done && '' === $error ) {
+			$error = __( 'Choose a topic in at least one list.', 'otherguise' );
+		}
+
+		return array_filter(
+			array(
+				'did'   => $done > 0 ? 'choose' : '',
+				'count' => $done > 0 ? $done : '',
+				'error' => $error,
+			),
+			static fn( $value ) => '' !== $value
+		);
 	}
 
 	/**
@@ -419,16 +507,39 @@ final class AssignmentsScreen {
 		}
 
 		$ids   = $this->numbers( INPUT_POST, 'designation' );
-		$found = $this->target( INPUT_POST );
+		$new   = $this->text( INPUT_POST, 'new_label' );
+		$found = '' !== $new ? array(
+			'id'    => 0,
+			'error' => '',
+		) : $this->target( INPUT_POST );
 
-		if ( array() === $ids || $found['id'] <= 0 ) {
+		if ( array() === $ids || ( '' === $new && $found['id'] <= 0 ) ) {
 			( $this->redirect )( $this->url( array( 'error' => array() === $ids ? __( 'Tick at least one designation.', 'otherguise' ) : $found['error'] ) ) );
 
 			return;
 		}
 
-		$force = '1' === (string) ( $this->input )( INPUT_POST, 'force', false );
-		$done  = $this->assigner->assign( $ids, $found['id'], false, $force );
+		$force   = '1' === (string) ( $this->input )( INPUT_POST, 'force', false );
+		$created = 0;
+
+		if ( '' !== $new ) {
+			$kind    = sanitize_key( (string) ( $this->input )( INPUT_POST, 'new_kind', false ) );
+			$kind    = '' !== $kind && Kinds::is_kind( $kind ) ? $kind : Kinds::ANY;
+			$parent  = absint( (string) ( $this->input )( INPUT_POST, 'new_parent', false ) );
+			$parent  = $parent > 0 && null !== $this->topics->get( $parent ) ? $parent : 0;
+			$created = $this->topics->create( $new, $kind, $parent, Topics::APPROVED, array( Resolver::label_key( $parent, $new ) ) );
+
+			$this->topics->set_kind( $created, $kind, true );
+
+			$found['id'] = $created;
+		}
+
+		$done = $this->assigner->assign( $ids, $found['id'], false, $force );
+
+		// A topic that was made for an assignment that was refused is not kept.
+		if ( $created > 0 && ! $done['ok'] ) {
+			$this->topics->delete( $created );
+		}
 
 		( $this->redirect )(
 			$this->url(
@@ -490,6 +601,8 @@ final class AssignmentsScreen {
 			/* translators: %d: number of designations. */
 			'assign'   => __( '%d designation(s) assigned; the mentions of their posts follow.', 'otherguise' ),
 			/* translators: %d: number of designations. */
+			'choose'   => __( '%d choice(s) applied: the topics are made where they were missing, and the mentions of the posts follow.', 'otherguise' ),
+			/* translators: %d: number of designations. */
 			'confirm'  => __( '%d assignment(s) confirmed: a new reading will not change them.', 'otherguise' ),
 			/* translators: %d: number of designations. */
 			'unassign' => __( '%d assignment(s) taken away: the designations are to resolve, and a new reading may propose a topic again.', 'otherguise' ),
@@ -512,6 +625,7 @@ final class AssignmentsScreen {
 	private function confirmation() {
 		$ids    = $this->numbers( INPUT_GET, 'ids' );
 		$target = $this->topics->get( absint( (string) ( $this->input )( INPUT_GET, 'to', false ) ) );
+		$new    = $this->text( INPUT_GET, 'new_label' );
 		$posts  = array();
 		$count  = 0;
 
@@ -521,7 +635,7 @@ final class AssignmentsScreen {
 			$posts  = array_merge( $posts, $where );
 		}
 
-		if ( null === $target || array() === $ids ) {
+		if ( ( null === $target && '' === $new ) || array() === $ids ) {
 			echo '<p>' . esc_html__( 'Nothing to assign.', 'otherguise' ) . '</p><p><a href="' . esc_url( $this->url() ) . '">' . esc_html__( 'Back', 'otherguise' ) . '</a></p>';
 
 			return;
@@ -529,10 +643,14 @@ final class AssignmentsScreen {
 
 		echo '<h2>' . esc_html__( 'Assign', 'otherguise' ) . '</h2>';
 		/* translators: 1: designations, 2: observations, 3: posts, 4: topic label. */
-		echo '<p>' . esc_html( sprintf( __( '%1$d designation(s), %2$d observation(s) in %3$d post(s), will be assigned to "%4$s". Nothing is deleted: the designations and the observations stay, and the mentions of the posts follow.', 'otherguise' ), count( $ids ), $count, count( array_unique( $posts ) ), (string) $target['label'] ) ) . '</p>';
+		echo '<p>' . esc_html( sprintf( __( '%1$d designation(s), %2$d observation(s) in %3$d post(s), will be assigned to "%4$s"%5$s. Nothing is deleted: the designations and the observations stay, and the mentions of the posts follow.', 'otherguise' ), count( $ids ), $count, count( array_unique( $posts ) ), null === $target ? $new : (string) $target['label'], null === $target ? ' ' . __( '(a new topic)', 'otherguise' ) : '' ) ) . '</p>';
 		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
 		wp_nonce_field( self::NONCE );
-		echo '<input type="hidden" name="action" value="' . esc_attr( self::APPLY ) . '" /><input type="hidden" name="to" value="' . esc_attr( (string) $target['id'] ) . '" />';
+		echo '<input type="hidden" name="action" value="' . esc_attr( self::APPLY ) . '" /><input type="hidden" name="to" value="' . esc_attr( null === $target ? '' : (string) $target['id'] ) . '" />';
+
+		foreach ( array( 'new_label', 'new_kind', 'new_parent' ) as $name ) {
+			echo '<input type="hidden" name="' . esc_attr( $name ) . '" value="' . esc_attr( $this->text( INPUT_GET, $name ) ) . '" />';
+		}
 
 		foreach ( $ids as $id ) {
 			echo '<input type="hidden" name="designation[]" value="' . esc_attr( (string) $id ) . '" />';

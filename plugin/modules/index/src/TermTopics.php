@@ -23,6 +23,7 @@ final class TermTopics implements Topics {
 	public const HAND     = '_index_kind_set_by_hand';
 	public const LABEL_BY_HAND = '_index_label_by_hand';
 	public const ENRICH   = '_index_enrich';
+	public const PIN      = '_index_pin';
 	public const STATUS   = '_index_status';
 
 	/**
@@ -164,6 +165,55 @@ final class TermTopics implements Topics {
 		if ( $by_hand ) {
 			update_term_meta( (int) $id, self::LABEL_BY_HAND, '1' );
 		}
+	}
+
+	/**
+	 * The topics that are pinned to a key.
+	 *
+	 * @param string $key The key.
+	 * @return int[]
+	 */
+	private function pinned_ids( $key ) {
+		global $wpdb;
+
+		return array_map(
+			'intval',
+			(array) $wpdb->get_col(
+				$wpdb->prepare(
+					"SELECT DISTINCT m.term_id FROM {$wpdb->termmeta} m INNER JOIN {$wpdb->term_taxonomy} t ON t.term_id = m.term_id WHERE m.meta_key = %s AND m.meta_value = %s AND t.taxonomy = %s ORDER BY m.term_id",
+					self::PIN,
+					(string) $key,
+					self::TAXONOMY
+				)
+			)
+		);
+	}
+
+	/**
+	 * Pins a key to a topic: the one that a person chose.
+	 *
+	 * @param int    $id  Topic.
+	 * @param string $key The key.
+	 * @return void
+	 */
+	public function pin( $id, $key ) {
+		foreach ( $this->pinned_ids( $key ) as $other ) {
+			delete_term_meta( $other, self::PIN, (string) $key );
+		}
+
+		add_term_meta( (int) $id, self::PIN, (string) $key );
+	}
+
+	/**
+	 * The topic that a person chose for a key.
+	 *
+	 * @param string $key The key.
+	 * @return int
+	 */
+	public function pinned( $key ) {
+		$ids = $this->pinned_ids( $key );
+
+		return array() === $ids ? 0 : $ids[0];
 	}
 
 	/**

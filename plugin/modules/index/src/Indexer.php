@@ -10,6 +10,7 @@
 
 namespace Otherguise\Index;
 
+use Otherguise\Index\Designation\Evidence;
 use Otherguise\Index\Designation\Keys;
 use Otherguise\Index\Enrich\DesignationEnricher;
 
@@ -230,7 +231,7 @@ final class Indexer {
 		}
 
 		$id = $this->designations->find( $key );
-		$id = $id > 0 ? $id : $this->designations->create( $key, $leaf, self::evidence( $candidate ) );
+		$id = $id > 0 ? $id : $this->designations->create( $key, $leaf, Evidence::of( $candidate ) );
 
 		if ( $id <= 0 ) {
 			return array(
@@ -281,9 +282,13 @@ final class Indexer {
 				$this->designations->set_state(
 					$id,
 					Resolver::AMBIGUOUS === $done['result'] ? Designations::AMBIGUOUS : Designations::PENDING,
-					array(
-						'topic' => 0,
-						'why'   => (string) ( $candidate->keys[0] ?? 'label' ),
+					array_filter(
+						array(
+							'topic'     => 0,
+							'why'       => (string) ( $candidate->keys[0] ?? 'label' ),
+							'ambiguity' => $done['ambiguity'] ?? null,
+						),
+						static fn( $value ) => null !== $value
 					)
 				);
 			}
@@ -332,7 +337,7 @@ final class Indexer {
 			$leaf = null !== $candidate->source && '' !== $candidate->source ? $candidate->source : $default;
 			$key  = Keys::of( $candidate, $leaf );
 			$id   = $this->designations->find( $key );
-			$id   = $id > 0 ? $id : $this->designations->create( $key, $leaf, self::evidence( $candidate ) );
+			$id   = $id > 0 ? $id : $this->designations->create( $key, $leaf, Evidence::of( $candidate ) );
 
 			// What a person assigned is not asked about (the resolver is not asked either).
 			if ( $id > 0 && ! $this->enrichment->known( $id ) && Observations::HAND !== ( $this->observations->assignment( $id )['by'] ?? '' ) ) {
@@ -347,27 +352,6 @@ final class Indexer {
 		$asked = $this->enrichment->look_up( $ask );
 
 		return $asked['ok'] ? array() : array_keys( array_diff_key( $ask, $asked['done'] ) );
-	}
-
-	/**
-	 * What a candidate saw, to be kept with its designation: the label, the kind, the keys and the chain of broader labels. Never a URL or a coordinate.
-	 *
-	 * @param Candidate $candidate The candidate.
-	 * @return array<string, mixed>
-	 */
-	private static function evidence( Candidate $candidate ) {
-		$chain = array();
-
-		for ( $up = $candidate->parent, $depth = 0; null !== $up && $depth < 30; $up = $up->parent, ++$depth ) {
-			array_unshift( $chain, $up->label );
-		}
-
-		return array(
-			'label' => $candidate->label,
-			'kind'  => $candidate->kind,
-			'keys'  => array_slice( $candidate->keys, 0, 10 ),
-			'above' => $chain,
-		);
 	}
 
 	/**

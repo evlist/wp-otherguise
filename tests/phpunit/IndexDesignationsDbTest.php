@@ -16,6 +16,8 @@ use Otherguise\Index\Designation\Migration;
 use Otherguise\Index\Merge\TopicMerger;
 use Otherguise\Index\Merge\TopicPruner;
 use Otherguise\Index\Designation\Cleaner;
+use Otherguise\Index\Designation\Evidence;
+use Otherguise\Index\Designation\Reresolver;
 use Otherguise\Index\Designation\Keys;
 use Otherguise\Index\Designations;
 use Otherguise\Index\Indexer;
@@ -694,6 +696,225 @@ class IndexDesignationsDbTest extends Otherguise_Test_Database_Case {
 		$this->assertCount( 2, $this->designations->designations );
 		$this->assertSame( 1, $this->mentions->clean_designations() );
 		$this->assertSame( array( $ids[0] ), array_keys( $this->designations->designations ), 'What a person assigned stays.' );
+	}
+
+	/**
+	 * The chain of a candidate: a place under two namesakes of the same level.
+	 *
+	 * @param string $name The lowest place.
+	 * @return Candidate
+	 */
+	private function place( $name ): Candidate {
+		$spain  = new Candidate( 'Espagne', 'country', array() );
+		$commune = new Candidate( 'Fisterra', 'commune', array(), $spain );
+
+		return ( new Candidate( $name, 'commune', array(), $commune ) )->from( 'post/link', array( 'a' ) );
+	}
+
+	/**
+	 * An ambiguous level **records the topics that it hesitated between**, and no placeholder topic is made; the evidence keeps every level, so the chain can be
+	 * made again without the page; the evidence of before (the labels of the broader levels only) still makes a chain.
+	 *
+	 * @return void
+	 */
+	public function test_an_ambiguous_level_records_its_candidates(): void {
+		$spain = $this->topics->create( 'Espagne', 'country', 0, Topics::APPROVED, array( 'label:0/espagne' ) );
+		$a     = $this->topics->create( 'Fisterra', 'commune', $spain, Topics::APPROVED, array( 'label:' . $spain . '/fisterra' ) );
+		$b     = $this->topics->create( 'Fisterra', 'commune', $spain, Topics::APPROVED, array( 'label:' . $spain . '/fisterra' ) );
+
+		$this->says[1] = array( $this->place( 'A Atalaia' ) );
+		$this->indexer->index_post( 1 );
+
+		$id = (int) array_key_first( $this->designations->designations );
+		$on = $this->designations->get( $id )['proposal']['ambiguity'];
+
+		$this->assertSame( Designations::AMBIGUOUS, $this->designations->get( $id )['state'] );
+		$this->assertSame( 'Fisterra', $on['level'], 'The level that hesitated, not the lowest.' );
+		$this->assertSame( 'label:' . $spain . '/fisterra', $on['key'] );
+		$this->assertSame( array( $a, $b ), $on['candidates'] );
+		$this->assertCount( 3, $this->topics->topics, 'No placeholder topic.' );
+
+		$again = Evidence::candidate( $this->designations->get( $id )['evidence'], 'post/link' );
+
+		$this->assertSame( 'A Atalaia', $again->label );
+		$this->assertSame( 'Fisterra', $again->parent->label );
+		$this->assertSame( 'commune', $again->parent->kind );
+		$this->assertSame( 'Espagne', $again->parent->parent->label );
+		$this->assertNull( $again->parent->parent->parent );
+
+		$old = Evidence::candidate(
+			array(
+				'label' => 'A Atalaia',
+				'kind'  => 'site',
+				'keys'  => array( 'k' ),
+				'above' => array( 'Espagne', 'Fisterra' ),
+			),
+			'image/address'
+		);
+
+		$this->assertSame( array( 'A Atalaia', 'Fisterra', 'Espagne' ), array( $old->label, $old->parent->label, $old->parent->parent->label ) );
+		$this->assertSame( 'any', $old->parent->kind, 'The kinds of the broader levels were not kept.' );
+		$this->assertSame( 'image/address', $old->source );
+	}
+
+	/**
+	 * A choice among the candidates: the topic is pinned to the level, the levels below are made under it, the designation is assigned **by hand**, the mentions
+	 * follow, and **the next designation that hesitates in the same way gets the same topic**; a topic that is not a candidate is refused.
+	 *
+	 * @return void
+	 */
+	public function test_a_choice_makes_the_levels_below(): void {
+		$spain = $this->topics->create( 'Espagne', 'country', 0, Topics::APPROVED, array( 'label:0/espagne' ) );
+		$a     = $this->topics->create( 'Fisterra', 'commune', $spain, Topics::APPROVED, array( 'label:' . $spain . '/fisterra' ) );
+		$b     = $this->topics->create( 'Fisterra', 'commune', $spain, Topics::APPROVED, array( 'label:' . $spain . '/fisterra' ) );
+		$other = $this->topics->create( 'Ailleurs', 'commune', 0, Topics::APPROVED, array() );
+
+		$this->says[1] = array( $this->place( 'A Atalaia' ) );
+		$this->says[2] = array( $this->place( 'A Barxa' ) );
+		$this->indexer->index_post( 1 );
+		$this->indexer->index_post( 2 );
+
+		$ids      = array_keys( $this->designations->designations );
+		$resolver = new Reresolver( $this->designations, $this->observations, $this->mentions, new Resolver( $this->topics ), $this->topics );
+
+		$refused = $resolver->choose( $ids[0], $other );
+
+		$this->assertFalse( $refused['ok'] );
+		$this->assertStringContainsString( 'not one of those', $refused['error'] );
+		$this->assertFalse( $resolver->choose( 999999, $a )['ok'] );
+
+		$done = $resolver->choose( $ids[0], $b );
+		$have = $this->observations->assignment( $ids[0] );
+
+		$this->assertTrue( $done['ok'] );
+		$this->assertSame(
+			array(
+				'topic' => $done['topic'],
+				'by' => Observations::HAND,
+			),
+			$have
+		);
+		$this->assertSame( $b, $this->topics->get( $done['topic'] )['parent'] );
+		$this->assertSame( 'A Atalaia', $this->topics->get( $done['topic'] )['label'] );
+		$this->assertSame( array( $done['topic'] ), array_keys( $this->mentions->of_post( 1 ) ) );
+		$this->assertSame( $b, $this->topics->pinned( 'label:' . $spain . '/fisterra' ) );
+
+		$this->indexer->index_post( 2 );
+
+		$second = $this->observations->assignment( $ids[1] );
+
+		$this->assertNotNull( $second, 'The other designation is no longer ambiguous: the choice was kept for the level.' );
+		$this->assertSame( $b, $this->topics->get( $second['topic'] )['parent'] );
+		$this->assertSame( Designations::ASSIGNED, $this->designations->get( $ids[1] )['state'] );
+	}
+
+	/**
+	 * Resolving the ambiguous designations again: a designation read before the candidates were kept gets them without its page; a dry run changes nothing; a
+	 * designation that the topics made since have cleared up is settled; the command says it.
+	 *
+	 * @return void
+	 */
+	public function test_resolving_again(): void {
+		$spain = $this->topics->create( 'Espagne', 'country', 0, Topics::APPROVED, array( 'label:0/espagne' ) );
+		$a     = $this->topics->create( 'Fisterra', 'commune', $spain, Topics::APPROVED, array( 'label:' . $spain . '/fisterra' ) );
+		$b     = $this->topics->create( 'Fisterra', 'commune', $spain, Topics::APPROVED, array( 'label:' . $spain . '/fisterra' ) );
+		$id    = $this->designations->create(
+			'post/link|chain:espagne > fisterra > a atalaia',
+			'post/link',
+			array(
+				'label' => 'A Atalaia',
+				'kind'  => 'commune',
+				'keys'  => array(),
+				'above' => array( 'Espagne', 'Fisterra' ),
+			)
+		);
+
+		$this->designations->set_state(
+			$id,
+			Designations::AMBIGUOUS,
+			array(
+				'topic' => 0,
+				'why' => 'label',
+			)
+		);
+		$this->observations->sync( 1, 'post/link', array( $id => array( 'strength' => 'main' ) ) );
+
+		$resolver = new Reresolver( $this->designations, $this->observations, $this->mentions, new Resolver( $this->topics ), $this->topics );
+
+		$this->assertSame(
+			array(
+				'looked' => 1,
+				'settled' => 0,
+				'still' => 1,
+				'recorded' => 0,
+			),
+			$resolver->run( true )
+		);
+		$this->assertArrayNotHasKey( 'ambiguity', $this->designations->get( $id )['proposal'], 'A dry run changes nothing.' );
+
+		$this->assertSame(
+			array(
+				'looked' => 1,
+				'settled' => 0,
+				'still' => 1,
+				'recorded' => 1,
+			),
+			$resolver->run( false )
+		);
+		$this->assertSame( array( $a, $b ), $this->designations->get( $id )['proposal']['ambiguity']['candidates'] );
+
+		$this->topics->pin( $a, 'label:' . $spain . '/fisterra' );
+
+		$this->assertSame(
+			array(
+				'looked' => 1,
+				'settled' => 1,
+				'still' => 0,
+				'recorded' => 0,
+			),
+			$resolver->run( false )
+		);
+		$this->assertSame( Designations::ASSIGNED, $this->designations->get( $id )['state'] );
+		$this->assertSame( Observations::SYSTEM, $this->observations->assignment( $id )['by'] );
+		$this->assertCount( 1, $this->mentions->of_post( 1 ), 'The mention appears without the page being read.' );
+	}
+
+	/**
+	 * WordPress refuses a topic whose name is a sibling's: the topic that is there is taken instead of leaving the designation waiting for ever; of another kind,
+	 * it is a doubt that a person settles.
+	 *
+	 * @return void
+	 */
+	public function test_a_topic_that_wordpress_refuses_is_the_one_that_is_there(): void {
+		$this->topics->refuse_duplicates = true;
+
+		$moulins = $this->topics->create( 'Moulins', 'commune', 0, Topics::APPROVED, array( 'wikipedia:fr:Autre_page' ) );
+
+		$this->says[1] = array( $this->link( 'moulins', 'Moulins', 'commune' ) );
+		$report        = $this->indexer->index_post( 1 );
+
+		$id = (int) array_key_first( $this->designations->designations );
+
+		$this->assertSame( 1, $report['resolved'] );
+		$this->assertSame(
+			array(
+				'topic' => $moulins,
+				'by' => Observations::SYSTEM,
+			),
+			$this->observations->assignment( $id )
+		);
+		$this->assertContains( 'wikipedia:fr:Moulins', $this->topics->get( $moulins )['keys'] );
+		$this->assertCount( 1, $this->topics->topics );
+
+		$this->topics->create( 'Lyon', 'waterway', 0, Topics::APPROVED, array( 'wikipedia:fr:Rhone' ) );
+
+		$this->says[2] = array( $this->link( 'Lyon', 'Lyon', 'commune' ) );
+		$this->indexer->index_post( 2 );
+
+		$lyon = (int) array_key_last( $this->designations->designations );
+
+		$this->assertSame( Designations::AMBIGUOUS, $this->designations->get( $lyon )['state'], 'Another kind: a person decides.' );
+		$this->assertCount( 1, $this->designations->get( $lyon )['proposal']['ambiguity']['candidates'] );
 	}
 
 	/**

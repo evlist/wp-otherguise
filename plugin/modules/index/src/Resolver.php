@@ -62,7 +62,8 @@ final class Resolver {
 	 * @param bool      $sure      Whether its source is sure (a new topic is then approved).
 	 * @param bool      $dry       Write nothing: say what would happen (a topic that would be created has the id 0).
 	 * @param bool      $record    Whether an ambiguous candidate leaves a placeholder topic (`candidate`, key `ambiguous:…`): **not when the designations hold the doubt** (slice 629).
-	 * @return array{result:string,topic:int,new:int} `topic` is 0 when ambiguous; `new` counts the topics created, the broader ones included.
+	 * @return array{result:string,topic:int,new:int,ambiguity?:array{level:string,key:string,candidates:int[]}} `topic` is 0 when ambiguous, and `ambiguity` then says
+	 *         **which level** hesitated (its label, its key) and **between which topics** (slice 631); `new` counts the topics created, the broader ones included.
 	 */
 	public function resolve( Candidate $candidate, $sure = true, $dry = false, $record = true ) {
 		$parent = 0;
@@ -74,10 +75,13 @@ final class Resolver {
 
 			// An ambiguous parent makes the child ambiguous; a parent that would be created makes the child new.
 			if ( self::AMBIGUOUS === $above['result'] || ( $dry && 0 === $parent ) ) {
-				return array(
-					'result' => self::AMBIGUOUS === $above['result'] ? self::AMBIGUOUS : self::CREATED,
-					'topic'  => 0,
-					'new'    => $above['new'] + ( self::AMBIGUOUS === $above['result'] ? 0 : 1 ),
+				return array_merge(
+					array(
+						'result' => self::AMBIGUOUS === $above['result'] ? self::AMBIGUOUS : self::CREATED,
+						'topic'  => 0,
+						'new'    => $above['new'] + ( self::AMBIGUOUS === $above['result'] ? 0 : 1 ),
+					),
+					isset( $above['ambiguity'] ) ? array( 'ambiguity' => $above['ambiguity'] ) : array()
 				);
 			}
 		}
@@ -99,15 +103,29 @@ final class Resolver {
 			}
 		}
 
+		// A person chose, among the topics that bear this level, the one that it is: the doubt is over (slice 631).
+		if ( count( $found ) > 1 || in_array( 0, $found, true ) ) {
+			$pinned = $this->topics->pinned( $label );
+
+			if ( $pinned > 0 && null !== $this->topics->get( $pinned ) ) {
+				$found = array( $pinned );
+			}
+		}
+
 		if ( count( $found ) > 1 ) {
 			if ( ! $dry && $record ) {
 				$this->record_ambiguous( $candidate, $parent );
 			}
 
 			return array(
-				'result' => self::AMBIGUOUS,
-				'topic'  => 0,
-				'new'    => $above['new'],
+				'result'    => self::AMBIGUOUS,
+				'topic'     => 0,
+				'new'       => $above['new'],
+				'ambiguity' => array(
+					'level'      => $candidate->label,
+					'key'        => $label,
+					'candidates' => array_values( array_filter( array_map( 'intval', $found ) ) ),
+				),
 			);
 		}
 
@@ -136,10 +154,65 @@ final class Resolver {
 
 		$id = $this->topics->create( $candidate->label, $candidate->kind, $parent, $sure ? Topics::APPROVED : Topics::CANDIDATE, $keys );
 
+		// WordPress refuses a term whose name is already one of its siblings' (accents and case ignored): the topic is there, under other keys. Take it (slice 631),
+		// instead of leaving the designation waiting for ever; of another kind, a person decides.
+		if ( $id <= 0 ) {
+			return $this->sibling( $candidate, $parent, $keys, $above['new'] );
+		}
+
 		return array(
 			'result' => self::CREATED,
 			'topic'  => $id,
 			'new'    => $above['new'] + 1,
+		);
+	}
+
+	/**
+	 * The topic that bears the label under the parent when WordPress refused to make another one.
+	 *
+	 * @param Candidate $candidate The candidate.
+	 * @param int       $parent    The parent topic.
+	 * @param string[]  $keys      The keys of the candidate.
+	 * @param int       $new       How many topics were made above.
+	 * @return array<string, mixed>
+	 */
+	private function sibling( Candidate $candidate, $parent, array $keys, $new ) {
+		$same = array();
+
+		foreach ( $this->topics->all( array( 'parent' => (int) $parent ) ) as $id => $topic ) {
+			if ( Folding::key( (string) $topic['label'] ) === Folding::key( $candidate->label ) ) {
+				$same[] = (int) $id;
+			}
+		}
+
+		if ( 1 === count( $same ) && ! $this->conflicts( $same[0], $candidate ) ) {
+			$this->topics->add_keys( $same[0], $keys );
+			$this->refine_kind( $same[0], $candidate );
+
+			return array(
+				'result' => self::RESOLVED,
+				'topic'  => $same[0],
+				'new'    => $new,
+			);
+		}
+
+		if ( array() === $same ) {
+			return array(
+				'result' => self::CREATED,
+				'topic'  => 0,
+				'new'    => $new,
+			);
+		}
+
+		return array(
+			'result'    => self::AMBIGUOUS,
+			'topic'     => 0,
+			'new'       => $new,
+			'ambiguity' => array(
+				'level'      => $candidate->label,
+				'key'        => self::label_key( $parent, $candidate->label ),
+				'candidates' => $same,
+			),
 		);
 	}
 

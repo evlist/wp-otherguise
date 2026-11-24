@@ -98,6 +98,7 @@ final class Listing {
 				'topic'    => null === $have ? 0 : $have['topic'],
 				'by'       => null === $have ? '' : $have['by'],
 				'wikidata' => (string) ( $this->designations->enrichment( (int) $id )['qid'] ?? '' ),
+				'ambiguity' => is_array( $one['proposal']['ambiguity'] ?? null ) ? $one['proposal']['ambiguity'] : null,
 			);
 
 			++$counts[ self::ALL ];

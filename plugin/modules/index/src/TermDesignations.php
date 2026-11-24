@@ -124,9 +124,13 @@ final class TermDesignations implements Designations {
 			'source'   => (string) get_term_meta( (int) $id, self::SOURCE, true ),
 			'evidence' => is_array( $evidence ) ? $evidence : array(),
 			'state'    => (string) get_term_meta( (int) $id, self::STATE, true ),
-			'proposal' => array(
-				'topic' => (int) ( is_array( $proposal ) ? ( $proposal['topic'] ?? 0 ) : 0 ),
-				'why'   => (string) ( is_array( $proposal ) ? ( $proposal['why'] ?? '' ) : '' ),
+			'proposal' => array_filter(
+				array(
+					'topic'     => (int) ( is_array( $proposal ) ? ( $proposal['topic'] ?? 0 ) : 0 ),
+					'why'       => (string) ( is_array( $proposal ) ? ( $proposal['why'] ?? '' ) : '' ),
+					'ambiguity' => is_array( $proposal ) && is_array( $proposal['ambiguity'] ?? null ) ? $proposal['ambiguity'] : null,
+				),
+				static fn( $value ) => null !== $value
 			),
 		);
 	}

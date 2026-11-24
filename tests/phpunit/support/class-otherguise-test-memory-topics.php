@@ -57,6 +57,14 @@ final class Otherguise_Test_Memory_Topics implements Topics {
 	 * @return int
 	 */
 	public function create( $label, $kind, $parent, $status, array $keys ) {
+		if ( $this->refuse_duplicates ) {
+			foreach ( $this->topics as $topic ) {
+				if ( (int) $topic['parent'] === (int) $parent && strtolower( (string) $topic['label'] ) === strtolower( (string) $label ) ) {
+					return 0;
+				}
+			}
+		}
+
 		$id = ++$this->last;
 
 		$this->topics[ $id ] = array(
@@ -138,6 +146,41 @@ final class Otherguise_Test_Memory_Topics implements Topics {
 		if ( $by_hand ) {
 			$this->topics[ $id ]['label_by_hand'] = true;
 		}
+	}
+
+	/**
+	 * Whether a topic with the label of a sibling is refused, as WordPress does (a term name is unique under its parent).
+	 *
+	 * @var bool
+	 */
+	public $refuse_duplicates = false;
+
+	/**
+	 * The topics chosen for a key.
+	 *
+	 * @var array<string, int>
+	 */
+	public $pins = array();
+
+	/**
+	 * Pins a key to a topic.
+	 *
+	 * @param int    $id  Topic.
+	 * @param string $key The key.
+	 * @return void
+	 */
+	public function pin( $id, $key ) {
+		$this->pins[ (string) $key ] = (int) $id;
+	}
+
+	/**
+	 * The topic chosen for a key.
+	 *
+	 * @param string $key The key.
+	 * @return int
+	 */
+	public function pinned( $key ) {
+		return (int) ( $this->pins[ (string) $key ] ?? 0 );
 	}
 
 	/**

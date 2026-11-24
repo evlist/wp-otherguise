@@ -61,6 +61,24 @@ interface Topics {
 	public function set_kind( $id, $kind, $by_hand );
 
 	/**
+	 * Says that, among the topics that bear a key (a level of a place under its parent: `label:<parent>/<folded label>`), **this is the one** (slice 631): a person
+	 * chose it, and the resolver takes it instead of calling the candidate ambiguous. The topic that was pinned to the key before is released.
+	 *
+	 * @param int    $id  Topic.
+	 * @param string $key The key.
+	 * @return void
+	 */
+	public function pin( $id, $key );
+
+	/**
+	 * The topic that a person chose for a key, or 0.
+	 *
+	 * @param string $key The key.
+	 * @return int
+	 */
+	public function pinned( $key );
+
+	/**
 	 * Changes the label of a topic (its slug and keys stay).
 	 *
 	 * @param int    $id      Topic.
