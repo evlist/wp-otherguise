@@ -159,7 +159,7 @@ final class Module implements ModuleInterface, DescribedModule, DisabledByDefaul
 			$this->screen()->register( $this->add_action );
 			( new KindsScreen() )->register( $this->add_action );
 			IndexScreenWiring::screen( $this->sync(), $this->enrich() )->register( $this->add_action );
-			MergeWiring::screen( $this->topics(), $this->mentions() )->register( $this->add_action );
+			Designation\Wiring::screen( $this->topics(), $this->mentions(), $this->observations(), $this->designations() )->register( $this->add_action );
 		}
 	}
 

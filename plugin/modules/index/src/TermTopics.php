@@ -153,12 +153,17 @@ final class TermTopics implements Topics {
 	/**
 	 * Changes the label of a topic: the name of the term changes, its slug stays.
 	 *
-	 * @param int    $id    Topic.
-	 * @param string $label Label.
+	 * @param int    $id      Topic.
+	 * @param string $label   Label.
+	 * @param bool   $by_hand Whether a person chose it.
 	 * @return void
 	 */
-	public function set_label( $id, $label ) {
+	public function set_label( $id, $label, $by_hand = false ) {
 		wp_update_term( (int) $id, self::TAXONOMY, array( 'name' => (string) $label ) );
+
+		if ( $by_hand ) {
+			update_term_meta( (int) $id, self::LABEL_BY_HAND, '1' );
+		}
 	}
 
 	/**

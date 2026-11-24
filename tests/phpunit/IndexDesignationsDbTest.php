@@ -13,6 +13,7 @@ use Otherguise\Index\Cli\DesignationsCommand;
 use Otherguise\Index\Cli\ResetCommand;
 use Otherguise\Index\Designation\Assigner;
 use Otherguise\Index\Designation\Migration;
+use Otherguise\Index\Merge\TopicMerger;
 use Otherguise\Index\Merge\TopicPruner;
 use Otherguise\Index\Designation\Cleaner;
 use Otherguise\Index\Designation\Keys;
@@ -474,7 +475,8 @@ class IndexDesignationsDbTest extends Otherguise_Test_Database_Case {
 			},
 			static function () {
 				throw new RuntimeException( 'A command failed.' );
-			}
+			},
+			new TopicMerger( $this->topics, $this->mentions )
 		);
 
 		$command->list( array(), array() );
@@ -516,6 +518,76 @@ class IndexDesignationsDbTest extends Otherguise_Test_Database_Case {
 
 		$this->expectException( RuntimeException::class );
 		$command->assign( array(), array( 'topic' => $river ) );
+	}
+
+	/**
+	 * `assign --from-topic --with-sub-topics`: everything of a topic goes to another, down the tree; a preview first; the topic that is left with nothing
+	 * is deleted.
+	 *
+	 * @return void
+	 */
+	public function test_assigning_a_topic_with_its_sub_topics(): void {
+		$to   = $this->topics->create( 'Aragon', 'admin1', 0, Topics::APPROVED, array() );
+		$from = $this->topics->create( 'Aragon (x)', 'admin1', 0, Topics::APPROVED, array( 'wikipedia:fr:Aragon_(x)' ) );
+		$kid  = $this->topics->create( 'Huesca', 'admin2', $from, Topics::APPROVED, array() );
+
+		$this->says[1] = array( $this->link( 'Aragon (x)', 'Aragon_(x)' ) );
+		$this->indexer->index_post( 1 );
+
+		$id = (int) array_key_first( $this->designations->designations );
+
+		$this->assertSame( $from, $this->observations->assignment( $id )['topic'] );
+
+		$done    = array();
+		$command = new DesignationsCommand(
+			$this->designations,
+			$this->observations,
+			$this->topics,
+			new Assigner( $this->designations, $this->observations, $this->mentions, $this->topics ),
+			new Cleaner( $this->designations, $this->observations ),
+			new Migration( fn() => $this->statementsOf( $this->mentions ), $this->designations, $this->observations ),
+			static function () {},
+			static function ( $line ) use ( &$done ) {
+				$done[] = $line;
+			},
+			static function () {
+				throw new RuntimeException( 'A command failed.' );
+			},
+			new TopicMerger( $this->topics, $this->mentions )
+		);
+
+		$command->assign(
+			array(),
+			array(
+				'topic' => $to,
+				'from-topic' => $from,
+				'with-sub-topics' => true,
+			)
+		);
+
+		$this->assertStringContainsString( 'Nothing changed', end( $done ) );
+		$this->assertNotNull( $this->topics->get( $from ) );
+
+		$command->assign(
+			array(),
+			array(
+				'topic' => $to,
+				'from-topic' => $from,
+				'with-sub-topics' => true,
+				'apply' => true,
+			)
+		);
+
+		$this->assertSame(
+			array(
+				'topic' => $to,
+				'by' => Observations::HAND,
+			),
+			$this->observations->assignment( $id )
+		);
+		$this->assertSame( array( $to ), array_keys( $this->mentions->of_post( 1 ) ) );
+		$this->assertNull( $this->topics->get( $from ), 'The topic that is left with nothing is deleted.' );
+		$this->assertSame( $to, $this->topics->get( $kid )['parent'], 'Its sub-topic moved under the one that received.' );
 	}
 
 	/**

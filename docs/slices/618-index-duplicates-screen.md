@@ -45,3 +45,7 @@ Status: **coded on 2026-11-23**. Dependencies: 616 (the merge). Context: [`../de
 ## Amendment (2026-11-23): what a safe merge accepts
 
 In a group with **one placed topic** (a kind other than `any` and a parent), the loose topics that can go into it have **no parent**, **no qualifier in parentheses** (a label such as *Moulins (Allier)* names one of several namesakes: a person looks at it) and a kind that is **`any`, the kind of the placed topic or a more general kind** of it (a link that said `place` for a `commune`). A loose topic of a narrower or unrelated kind makes the group not safe. Tried under PHPUnit only; not on the blog.
+
+## Amendment (2026-11-24)
+
+This screen is now **the view *Suggestions* of the screen Otherguise → Topics** (slice [628](628-index-topics-screen.md)), in the vocabulary of the assignments; its page and its menu entry are gone, its safe suggestions and its preview stay.

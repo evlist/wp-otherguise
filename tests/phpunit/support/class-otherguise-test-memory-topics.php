@@ -127,12 +127,17 @@ final class Otherguise_Test_Memory_Topics implements Topics {
 	/**
 	 * Changes a label.
 	 *
-	 * @param int    $id    Topic.
-	 * @param string $label Label.
+	 * @param int    $id      Topic.
+	 * @param string $label   Label.
+	 * @param bool   $by_hand Whether a person chose it.
 	 * @return void
 	 */
-	public function set_label( $id, $label ) {
+	public function set_label( $id, $label, $by_hand = false ) {
 		$this->topics[ $id ]['label'] = $label;
+
+		if ( $by_hand ) {
+			$this->topics[ $id ]['label_by_hand'] = true;
+		}
 	}
 
 	/**

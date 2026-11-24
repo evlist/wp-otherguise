@@ -63,11 +63,12 @@ interface Topics {
 	/**
 	 * Changes the label of a topic (its slug and keys stay).
 	 *
-	 * @param int    $id    Topic.
-	 * @param string $label Label.
+	 * @param int    $id      Topic.
+	 * @param string $label   Label.
+	 * @param bool   $by_hand Whether a person chose it: the enrichment then never replaces it (slice 628).
 	 * @return void
 	 */
-	public function set_label( $id, $label );
+	public function set_label( $id, $label, $by_hand = false );
 
 	/**
 	 * The state of the Wikidata enrichment of a topic (slice 604): `state`, `date`, `due`, `qid`, `note`; empty when never looked at.

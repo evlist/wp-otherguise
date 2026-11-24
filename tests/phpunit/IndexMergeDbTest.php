@@ -9,7 +9,7 @@
  */
 
 use Otherguise\Index\Candidate;
-use Otherguise\Index\Cli\MergeCommand;
+use Otherguise\Index\Cli\SuggestionsCommand;
 use Otherguise\Index\Kinds;
 use Otherguise\Index\Mentions;
 use Otherguise\Index\Merge\DuplicateFinder;
@@ -28,7 +28,7 @@ require_once __DIR__ . '/support/class-otherguise-test-memory-kinds.php';
  *
  * @covers \Otherguise\Index\Merge\TopicMerger
  * @covers \Otherguise\Index\Merge\DuplicateFinder
- * @covers \Otherguise\Index\Cli\MergeCommand
+ * @covers \Otherguise\Index\Cli\SuggestionsCommand
  * @covers \Otherguise\Index\Mentions::move_topic
  */
 class IndexMergeDbTest extends Otherguise_Test_Database_Case {
@@ -315,48 +315,32 @@ class IndexMergeDbTest extends Otherguise_Test_Database_Case {
 	}
 
 	/**
-	 * The commands: the merge reports and stops at the first failure; a dry run says it; the duplicates are listed.
+	 * The command that lists the suggestions: the pairs of topics that may be the same (nothing is changed).
 	 *
 	 * @return void
 	 */
-	public function test_the_commands(): void {
+	public function test_the_suggestions_command(): void {
 		$keep = $this->topics->create( 'Aragon', 'any', 0, Topics::APPROVED, array() );
 		$go   = $this->topics->create( 'Aragon (x)', 'any', 0, Topics::APPROVED, array() );
-		$this->mentions->sync( 1, 'post/tag', array( $go => array() ) );
 
 		$lines = array();
 		$done  = array();
-		$fail  = array();
-		$cmd   = new MergeCommand(
-			$this->merger,
+		$cmd   = new SuggestionsCommand(
 			new DuplicateFinder( $this->topics ),
 			static function ( $line ) use ( &$lines ) {
 				$lines[] = $line;
 			},
 			static function ( $line ) use ( &$done ) {
 				$done[] = $line;
-			},
-			static function ( $line ) use ( &$fail ) {
-				$fail[] = $line;
 			}
 		);
 
-		$cmd( array( (string) $keep ), array() );
-		$this->assertStringContainsString( 'at least one that goes', $fail[0] );
+		$cmd( array(), array() );
 
-		$cmd->duplicates( array(), array() );
 		$this->assertStringContainsString( 'Aragon (x)', $lines[0] );
 		$this->assertStringContainsString( '1 pair(s)', $done[0] );
-
-		$cmd( array( (string) $keep, (string) $go ), array( 'dry-run' => true ) );
-		$this->assertStringContainsString( 'Dry run, nothing changed: 1 mention(s) moved', $done[1] );
+		$this->assertStringContainsString( 'index assign', $done[0] );
+		$this->assertNotNull( $this->topics->get( $keep ) );
 		$this->assertNotNull( $this->topics->get( $go ) );
-
-		$cmd( array( (string) $keep, (string) $go ), array() );
-		$this->assertStringStartsWith( 'Merged: 1 mention(s) moved', $done[2] );
-		$this->assertNull( $this->topics->get( $go ) );
-
-		$cmd( array( (string) $keep, (string) $go ), array() );
-		$this->assertStringContainsString( 'Both topics must exist', $fail[1], 'Run twice: it says there is nothing to merge.' );
 	}
 }

@@ -14,6 +14,7 @@ use Otherguise\Index\Designation\Assigner;
 use Otherguise\Index\Designation\Cleaner;
 use Otherguise\Index\Designation\Migration;
 use Otherguise\Index\Designations;
+use Otherguise\Index\Merge\TopicMerger;
 use Otherguise\Index\Observations;
 use Otherguise\Index\Topics;
 
@@ -67,6 +68,13 @@ final class DesignationsCommand {
 	private $migration;
 
 	/**
+	 * The assignment of a whole topic with its sub-topics.
+	 *
+	 * @var TopicMerger|null
+	 */
+	private $merger;
+
+	/**
 	 * Prints a line.
 	 *
 	 * @var callable
@@ -90,17 +98,18 @@ final class DesignationsCommand {
 	/**
 	 * Builds the command.
 	 *
-	 * @param Designations  $designations The designations.
-	 * @param Observations  $observations The observations.
-	 * @param Topics        $topics       The topics.
-	 * @param Assigner      $assigner     The assigner.
-	 * @param Cleaner       $cleaner      The cleaner.
-	 * @param Migration     $migration    The conversion.
-	 * @param callable|null $log         Default `WP_CLI::log`.
-	 * @param callable|null $success     Default `WP_CLI::success`.
-	 * @param callable|null $fail        Default `WP_CLI::error`.
+	 * @param Designations     $designations The designations.
+	 * @param Observations     $observations The observations.
+	 * @param Topics           $topics       The topics.
+	 * @param Assigner         $assigner     The assigner.
+	 * @param Cleaner          $cleaner      The cleaner.
+	 * @param Migration        $migration    The conversion.
+	 * @param callable|null    $log         Default `WP_CLI::log`.
+	 * @param callable|null    $success     Default `WP_CLI::success`.
+	 * @param callable|null    $fail        Default `WP_CLI::error`.
+	 * @param TopicMerger|null $merger   Assigns a whole topic with its sub-topics.
 	 */
-	public function __construct( Designations $designations, Observations $observations, Topics $topics, Assigner $assigner, Cleaner $cleaner, Migration $migration, $log = null, $success = null, $fail = null ) {
+	public function __construct( Designations $designations, Observations $observations, Topics $topics, Assigner $assigner, Cleaner $cleaner, Migration $migration, $log = null, $success = null, $fail = null, ?TopicMerger $merger = null ) {
 		$this->designations = $designations;
 		$this->observations = $observations;
 		$this->topics       = $topics;
@@ -110,6 +119,7 @@ final class DesignationsCommand {
 		$this->log          = $log ?? array( 'WP_CLI', 'log' );
 		$this->success      = $success ?? array( 'WP_CLI', 'success' );
 		$this->fail         = $fail ?? array( 'WP_CLI', 'error' );
+		$this->merger       = $merger;
 	}
 
 	/**
@@ -192,6 +202,9 @@ final class DesignationsCommand {
 	 * [--from-topic=<id>]
 	 * : Every designation now assigned to this topic (its keys follow them).
 	 *
+	 * [--with-sub-topics]
+	 * : With --from-topic: also repeat the assignment down the tree (the sub-topics of the same name give their designations to the sub-topics of the receiving topic; the others move under it), and delete what is left with nothing.
+	 *
 	 * [--apply]
 	 * : Do it. Without it the command only says what it would do.
 	 *
@@ -207,6 +220,12 @@ final class DesignationsCommand {
 
 		$from = (int) ( $assoc['from-topic'] ?? 0 );
 		$ids  = isset( $assoc['designation'] ) ? array_map( 'intval', explode( ',', (string) $assoc['designation'] ) ) : array();
+
+		if ( isset( $assoc['with-sub-topics'] ) ) {
+			$this->with_sub_topics( (int) ( $assoc['topic'] ?? 0 ), $from, ! isset( $assoc['apply'] ), isset( $assoc['force'] ) );
+
+			return;
+		}
 
 		if ( $from > 0 ) {
 			$ids = array_merge( $ids, array_keys( $this->observations->designations_of_topic( $from ) ) );
@@ -232,6 +251,40 @@ final class DesignationsCommand {
 		}
 
 		( $this->success )( $report['designations'] . ' designation(s), ' . $report['observations'] . ' observation(s) in ' . $report['posts'] . ' post(s) ' . ( $dry ? 'would be assigned: nothing was changed, add --apply to do it.' : 'assigned.' ) );
+	}
+
+	/**
+	 * Assigns every designation of a topic to another, and the same down the tree.
+	 *
+	 * @param int  $topic The topic that receives them.
+	 * @param int  $from  The topic that gives them.
+	 * @param bool $dry   Change nothing.
+	 * @param bool $force Across kinds that exclude each other.
+	 * @return void
+	 */
+	private function with_sub_topics( $topic, $from, $dry, $force ) {
+		if ( null === $this->merger || $topic <= 0 || $from <= 0 ) {
+			( $this->fail )( 'Say --topic=<id> and --from-topic=<id> with --with-sub-topics.' );
+
+			return;
+		}
+
+		$report = $this->merger->merge( $topic, $from, $dry, $force );
+
+		if ( ! $report['ok'] ) {
+			( $this->fail )( $report['error'] );
+
+			return;
+		}
+
+		foreach ( $report['lines'] as $line ) {
+			( $this->log )( $line );
+		}
+
+		( $this->success )(
+			( $dry ? 'Nothing changed (add --apply): ' : 'Assigned: ' ) . $report['mentions_moved'] . ' mention(s) moved, ' . $report['mentions_joined'] . ' joined to one that the topic already had, '
+			. $report['children_moved'] . ' sub-topic(s) moved under it, ' . $report['children_merged'] . ' assigned to its own, ' . $report['keys'] . ' key(s) added.'
+		);
 	}
 
 	/**

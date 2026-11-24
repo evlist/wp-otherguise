@@ -11,7 +11,6 @@
 namespace Otherguise\Index\Merge;
 
 use Otherguise\Index\Admin\DuplicatesScreen;
-use Otherguise\Index\Cli\MergeCommand;
 use Otherguise\Index\Cli\PruneCommand;
 use Otherguise\Index\Cli\PurgeCommand;
 use Otherguise\Index\Mentions;
@@ -57,10 +56,6 @@ final class MergeWiring {
 	 * @return void
 	 */
 	public static function register_commands( Topics $topics, Mentions $mentions ) {
-		$merge = new MergeCommand( new TopicMerger( $topics, $mentions ), new DuplicateFinder( $topics, array( new IgnoredPairs(), 'has' ) ) );
-
-		\WP_CLI::add_command( 'otherguise index merge', $merge );
-		\WP_CLI::add_command( 'otherguise index duplicates', array( $merge, 'duplicates' ) );
 		\WP_CLI::add_command( 'otherguise index prune', new PruneCommand( new TopicPruner( $topics, $mentions ) ) );
 		\WP_CLI::add_command( 'otherguise index purge', new PurgeCommand( $topics, $mentions, new TopicPruner( $topics, $mentions ) ) );
 	}

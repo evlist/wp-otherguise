@@ -156,7 +156,7 @@ class IndexDuplicatesScreenTest extends Otherguise_Test_Database_Case {
 	 */
 	private function page( DuplicatesScreen $screen ): string {
 		ob_start();
-		$screen->render();
+		$screen->body();
 
 		return (string) ob_get_clean();
 	}
@@ -231,7 +231,7 @@ class IndexDuplicatesScreenTest extends Otherguise_Test_Database_Case {
 		$page = $this->page( $this->screen( $urls ) );
 
 		$this->assertStringContainsString( '1 group(s) of topics that may be the same', $page );
-		$this->assertStringContainsString( 'Look at the 1 safe merge(s)', $page );
+		$this->assertStringContainsString( 'Look at the 1 safe suggestion(s)', $page );
 		$this->assertStringContainsString( 'name="keep" value="' . $kept . '" checked', $page, 'The topic with a place stays by default.' );
 		$this->assertStringContainsString( 'name="go[]" value="' . $loose . '" checked', $page );
 		$this->assertStringContainsString( 'Italie', $page, 'Its place.' );

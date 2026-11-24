@@ -10,7 +10,6 @@
 
 namespace Otherguise\Index\Admin;
 
-use Otherguise\Core\AdminMenu;
 use Otherguise\Index\Kinds;
 use Otherguise\Index\Merge\DuplicateFinder;
 use Otherguise\Index\Merge\IgnoredPairs;
@@ -27,7 +26,7 @@ defined( 'ABSPATH' ) || exit;
  * and done in one click. A merge cannot be undone. Saved through `admin-post.php`, with the capability and a nonce.
  */
 final class DuplicatesScreen {
-	public const PAGE     = 'otherguise-index-duplicates';
+	public const PAGE     = TopicsScreen::PAGE;
 	public const ACTION   = 'otherguise_index_duplicates';
 	public const NONCE    = 'otherguise_index_duplicates';
 	public const PER_PAGE = 20;
@@ -132,8 +131,6 @@ final class DuplicatesScreen {
 	 * @return void
 	 */
 	public function register( $add_action ) {
-		$add_action( 'admin_menu', array( $this, 'add_menu' ), 10, 0 );
-		$add_action( AdminMenu::FILTER, array( $this, 'declare_screen' ), 10, 1 );
 		$add_action( 'admin_post_' . self::ACTION, array( $this, 'handle' ), 10, 0 );
 	}
 
@@ -144,42 +141,6 @@ final class DuplicatesScreen {
 	 */
 	public function capability() {
 		return (string) apply_filters( 'index_capability', 'edit_others_posts' );
-	}
-
-	/**
-	 * Declares the screen to the overview of the menu. Filter `otherguise_admin_screens`.
-	 *
-	 * @param mixed $screens Screens declared so far.
-	 * @return array<int|string, mixed>
-	 */
-	public function declare_screen( $screens ) {
-		$screens   = is_array( $screens ) ? $screens : array();
-		$screens[] = array(
-			'title'       => __( 'Index duplicates', 'otherguise' ),
-			'description' => __( 'Topics that may be the same: look at them, merge them, or say that they are not doubles.', 'otherguise' ),
-			'capability'  => $this->capability(),
-			'page'        => self::PAGE,
-			'group'       => 'settings',
-			'order'       => 47,
-		);
-
-		return $screens;
-	}
-
-	/**
-	 * Adds the screen to the menu. Action `admin_menu`.
-	 *
-	 * @return void
-	 */
-	public function add_menu() {
-		add_submenu_page(
-			AdminMenu::SLUG,
-			__( 'Index duplicates', 'otherguise' ),
-			__( 'Index duplicates', 'otherguise' ),
-			$this->capability(),
-			self::PAGE,
-			array( $this, 'render' )
-		);
 	}
 
 	/**
@@ -213,7 +174,18 @@ final class DuplicatesScreen {
 			$done = $this->merge_all( $this->safe_choice( (array) ( $this->input )( INPUT_POST, 'safe', true ) ), false );
 		}
 
-		( $this->redirect )( add_query_arg( array_merge( array( 'page' => self::PAGE ), $done ), admin_url( 'admin.php' ) ) );
+		( $this->redirect )(
+			add_query_arg(
+				array_merge(
+					array(
+						'page' => self::PAGE,
+						'tab'  => 'suggestions',
+					),
+					$done
+				),
+				admin_url( 'admin.php' )
+			)
+		);
 	}
 
 	/**
@@ -269,18 +241,18 @@ final class DuplicatesScreen {
 	}
 
 	/**
-	 * Prints the screen: the list of the groups, the preview of a merge, or the safe merges.
+	 * Prints the view of the suggestions, inside the screen of the topics (slice 628): the list of the groups, the preview, or the safe suggestions.
 	 *
 	 * @return void
 	 */
-	public function render() {
+	public function body() {
 		if ( ! (bool) ( $this->can )( $this->capability() ) ) {
 			return;
 		}
 
 		$view = sanitize_key( (string) ( $this->input )( INPUT_GET, 'view', false ) );
 
-		echo '<div class="wrap"><h1>' . esc_html__( 'Index duplicates', 'otherguise' ) . '</h1>';
+		echo '<div class="suggestions">';
 		$this->notices();
 
 		if ( 'preview' === $view ) {
@@ -306,7 +278,7 @@ final class DuplicatesScreen {
 
 		if ( null !== $merged && false !== $merged && '' !== (string) $merged ) {
 			/* translators: 1: topics merged, 2: mentions moved, 3: mentions joined to one that was there. */
-			echo '<div class="notice notice-success"><p>' . esc_html( sprintf( __( '%1$d topic(s) merged: %2$d mention(s) moved, %3$d joined to a mention that was already there.', 'otherguise' ), absint( $merged ), absint( (string) ( $this->input )( INPUT_GET, 'moved', false ) ), absint( (string) ( $this->input )( INPUT_GET, 'joined', false ) ) ) ) . '</p></div>';
+			echo '<div class="notice notice-success"><p>' . esc_html( sprintf( __( '%1$d topic(s) given their designations to another: %2$d mention(s) moved, %3$d joined to a mention that was already there.', 'otherguise' ), absint( $merged ), absint( (string) ( $this->input )( INPUT_GET, 'moved', false ) ), absint( (string) ( $this->input )( INPUT_GET, 'joined', false ) ) ) ) . '</p></div>';
 		}
 
 		if ( null !== $ignored && false !== $ignored && '' !== (string) $ignored ) {
@@ -326,7 +298,16 @@ final class DuplicatesScreen {
 	 * @return string
 	 */
 	private function url( array $args = array() ) {
-		return add_query_arg( array_merge( array( 'page' => self::PAGE ), $args ), admin_url( 'admin.php' ) );
+		return add_query_arg(
+			array_merge(
+				array(
+					'page' => self::PAGE,
+					'tab'  => 'suggestions',
+				),
+				$args
+			),
+			admin_url( 'admin.php' )
+		);
 	}
 
 	/**
@@ -395,11 +376,11 @@ final class DuplicatesScreen {
 		$pages  = max( 1, (int) ceil( count( $groups ) / self::PER_PAGE ) );
 
 		/* translators: 1: number of groups, 2: number of pairs that were kept as not doubles. */
-		echo '<p>' . esc_html( sprintf( __( '%1$d group(s) of topics that may be the same; %2$d pair(s) kept as not doubles. A merge cannot be undone: save the database first.', 'otherguise' ), count( $groups ), $this->ignored->count() ) ) . '</p>';
+		echo '<p>' . esc_html( sprintf( __( '%1$d group(s) of topics that may be the same; %2$d pair(s) kept as not doubles. The designations and the observations stay; the topic that is left with nothing is deleted.', 'otherguise' ), count( $groups ), $this->ignored->count() ) ) . '</p>';
 
 		if ( $safe > 0 ) {
 			/* translators: %d: number of safe merges. */
-			echo '<p><a class="button button-primary" href="' . esc_url( $this->url( array( 'view' => 'safe' ) ) ) . '">' . esc_html( sprintf( __( 'Look at the %d safe merge(s)', 'otherguise' ), $safe ) ) . '</a> ' . esc_html__( 'An unclassified topic with no parent against a single topic that has a place and a kind.', 'otherguise' ) . '</p>';
+			echo '<p><a class="button button-primary" href="' . esc_url( $this->url( array( 'view' => 'safe' ) ) ) . '">' . esc_html( sprintf( __( 'Look at the %d safe suggestion(s)', 'otherguise' ), $safe ) ) . '</a> ' . esc_html__( 'An unclassified topic with no parent against a single topic that has a place and a kind.', 'otherguise' ) . '</p>';
 		}
 
 		echo '<form method="get" action="' . esc_url( admin_url( 'admin.php' ) ) . '"><input type="hidden" name="page" value="' . esc_attr( self::PAGE ) . '" /><p class="search-box"><input type="search" name="s" value="' . esc_attr( $search ) . '" /> <button class="button">' . esc_html__( 'Search', 'otherguise' ) . '</button></p></form>';
@@ -439,7 +420,7 @@ final class DuplicatesScreen {
 		$keep = null !== $group['safe'] ? $group['safe']['keep'] : $ids[0];
 
 		echo '<form method="get" action="' . esc_url( admin_url( 'admin.php' ) ) . '" style="margin:1em 0;"><input type="hidden" name="page" value="' . esc_attr( self::PAGE ) . '" /><input type="hidden" name="view" value="preview" />';
-		echo '<table class="widefat striped"><thead><tr><th>' . esc_html__( 'Stays', 'otherguise' ) . '</th><th>' . esc_html__( 'Goes in it', 'otherguise' ) . '</th><th>' . esc_html__( 'Topic', 'otherguise' ) . '</th><th>' . esc_html__( 'Kind', 'otherguise' ) . '</th><th>' . esc_html__( 'Under', 'otherguise' ) . '</th><th>' . esc_html__( 'Posts', 'otherguise' ) . '</th><th>' . esc_html__( 'Made by', 'otherguise' ) . '</th><th>' . esc_html__( 'Keys', 'otherguise' ) . '</th></tr></thead><tbody>';
+		echo '<table class="widefat striped"><thead><tr><th>' . esc_html__( 'Receives', 'otherguise' ) . '</th><th>' . esc_html__( 'Gives its designations', 'otherguise' ) . '</th><th>' . esc_html__( 'Topic', 'otherguise' ) . '</th><th>' . esc_html__( 'Kind', 'otherguise' ) . '</th><th>' . esc_html__( 'Under', 'otherguise' ) . '</th><th>' . esc_html__( 'Posts', 'otherguise' ) . '</th><th>' . esc_html__( 'Made by', 'otherguise' ) . '</th><th>' . esc_html__( 'Keys', 'otherguise' ) . '</th></tr></thead><tbody>';
 
 		foreach ( $group['members'] as $member ) {
 			$id = (int) $member['id'];
@@ -451,7 +432,7 @@ final class DuplicatesScreen {
 			echo '<td>' . esc_html( (string) $member['label'] ) . ' <small>#' . esc_html( (string) $id ) . '</small></td><td>' . esc_html( Kinds::label( (string) $member['kind'] ) ) . '</td><td>' . esc_html( $this->chain( $member ) ) . '</td><td>' . esc_html( (string) ( $facts['posts'] ?? 0 ) ) . '</td><td>' . esc_html( implode( ', ', array_map( 'strval', (array) ( $facts['sources'] ?? array() ) ) ) ) . '</td><td><small>' . esc_html( $this->keys( $member ) ) . '</small></td></tr>';
 		}
 
-		echo '</tbody></table><p><button class="button">' . esc_html__( 'Preview the merge', 'otherguise' ) . '</button></p></form>';
+		echo '</tbody></table><p><button class="button">' . esc_html__( 'Preview the assignment', 'otherguise' ) . '</button></p></form>';
 
 		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" style="margin:-0.5em 0 1.5em;">';
 		wp_nonce_field( self::NONCE );
@@ -483,7 +464,7 @@ final class DuplicatesScreen {
 
 		echo '<h2>' . esc_html__( 'Preview', 'otherguise' ) . '</h2>';
 		echo '<p>' . esc_html( sprintf( /* translators: %s: label of the topic that stays. */ __( 'The topic that stays: %s', 'otherguise' ), null === $topic ? (string) $keep : (string) $topic['label'] ) ) . '</p>';
-		echo '<table class="widefat striped"><thead><tr><th>' . esc_html__( 'Goes in it', 'otherguise' ) . '</th><th>' . esc_html__( 'Mentions moved', 'otherguise' ) . '</th><th>' . esc_html__( 'Joined to one already there', 'otherguise' ) . '</th><th>' . esc_html__( 'Children moved', 'otherguise' ) . '</th><th>' . esc_html__( 'Keys', 'otherguise' ) . '</th><th>' . esc_html__( 'Kind then', 'otherguise' ) . '</th></tr></thead><tbody>';
+		echo '<table class="widefat striped"><thead><tr><th>' . esc_html__( 'Gives its designations', 'otherguise' ) . '</th><th>' . esc_html__( 'Mentions moved', 'otherguise' ) . '</th><th>' . esc_html__( 'Joined to one already there', 'otherguise' ) . '</th><th>' . esc_html__( 'Children moved', 'otherguise' ) . '</th><th>' . esc_html__( 'Keys', 'otherguise' ) . '</th><th>' . esc_html__( 'Kind then', 'otherguise' ) . '</th></tr></thead><tbody>';
 
 		$kind_problem = false;
 		$any_ok       = false;
@@ -521,10 +502,10 @@ final class DuplicatesScreen {
 		}
 
 		if ( $kind_problem ) {
-			echo '<p><label><input type="checkbox" name="force" value="1" /> ' . esc_html__( 'Merge them anyway, although their kinds are not one a sort of the other', 'otherguise' ) . '</label></p>';
+			echo '<p><label><input type="checkbox" name="force" value="1" /> ' . esc_html__( 'Assign them anyway, although their kinds are not one a sort of the other', 'otherguise' ) . '</label></p>';
 		}
 
-		echo '<p>' . esc_html__( 'A merge cannot be undone.', 'otherguise' ) . '</p><p><button class="button button-primary">' . esc_html__( 'Merge', 'otherguise' ) . '</button> <a href="' . esc_url( $this->url() ) . '">' . esc_html__( 'Cancel', 'otherguise' ) . '</a></p></form>';
+		echo '<p>' . esc_html__( 'The designations and the observations stay; the topic that is left with nothing is deleted.', 'otherguise' ) . '</p><p><button class="button button-primary">' . esc_html__( 'Assign', 'otherguise' ) . '</button> <a href="' . esc_url( $this->url() ) . '">' . esc_html__( 'Cancel', 'otherguise' ) . '</a></p></form>';
 	}
 
 	/**
@@ -536,7 +517,7 @@ final class DuplicatesScreen {
 		$page = max( 1, absint( (string) ( $this->input )( INPUT_GET, 'paged', false ) ) );
 		$safe = array_values( array_filter( $this->finder->groups(), static fn( $group ) => null !== $group['safe'] ) );
 
-		echo '<h2>' . esc_html__( 'Safe merges', 'otherguise' ) . '</h2><p>' . esc_html__( 'Each line puts an unclassified topic that has no parent into the single topic of the group that has a place and a kind. Uncheck what you do not want; a merge cannot be undone.', 'otherguise' ) . '</p>';
+		echo '<h2>' . esc_html__( 'Safe suggestions', 'otherguise' ) . '</h2><p>' . esc_html__( 'Each line puts an unclassified topic that has no parent into the single topic of the group that has a place and a kind. Uncheck what you do not want; a merge cannot be undone.', 'otherguise' ) . '</p>';
 
 		if ( array() === $safe ) {
 			echo '<p>' . esc_html__( 'None.', 'otherguise' ) . '</p><p><a href="' . esc_url( $this->url() ) . '">' . esc_html__( 'Back to the list', 'otherguise' ) . '</a></p>';
@@ -547,7 +528,7 @@ final class DuplicatesScreen {
 		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
 		wp_nonce_field( self::NONCE );
 		echo '<input type="hidden" name="action" value="' . esc_attr( self::ACTION ) . '" /><input type="hidden" name="op" value="merge_safe" />';
-		echo '<table class="widefat striped"><thead><tr><th></th><th>' . esc_html__( 'Stays', 'otherguise' ) . '</th><th>' . esc_html__( 'Kind', 'otherguise' ) . '</th><th>' . esc_html__( 'Under', 'otherguise' ) . '</th><th>' . esc_html__( 'Made by', 'otherguise' ) . '</th><th>' . esc_html__( 'Goes in it', 'otherguise' ) . '</th><th>' . esc_html__( 'Made by', 'otherguise' ) . '</th><th>' . esc_html__( 'Mentions moved', 'otherguise' ) . '</th></tr></thead><tbody>';
+		echo '<table class="widefat striped"><thead><tr><th></th><th>' . esc_html__( 'Receives', 'otherguise' ) . '</th><th>' . esc_html__( 'Kind', 'otherguise' ) . '</th><th>' . esc_html__( 'Under', 'otherguise' ) . '</th><th>' . esc_html__( 'Made by', 'otherguise' ) . '</th><th>' . esc_html__( 'Gives its designations', 'otherguise' ) . '</th><th>' . esc_html__( 'Made by', 'otherguise' ) . '</th><th>' . esc_html__( 'Mentions moved', 'otherguise' ) . '</th></tr></thead><tbody>';
 
 		foreach ( array_slice( $safe, ( $page - 1 ) * self::PER_PAGE * 2, self::PER_PAGE * 2 ) as $group ) {
 			$keep   = $this->topics->get( $group['safe']['keep'] );
@@ -567,7 +548,7 @@ final class DuplicatesScreen {
 			echo '<tr><td><input type="checkbox" name="safe[]" value="' . esc_attr( $group['safe']['keep'] . ':' . implode( ',', $group['safe']['go'] ) ) . '" checked="checked" /></td><td>' . esc_html( null === $keep ? '' : (string) $keep['label'] ) . '</td><td>' . esc_html( null === $keep ? '' : Kinds::label( (string) $keep['kind'] ) ) . '</td><td>' . esc_html( null === $keep ? '' : $this->chain( $keep ) ) . '</td><td>' . esc_html( implode( ', ', array_map( 'strval', (array) ( $stays['sources'] ?? array() ) ) ) ) . '</td><td>' . esc_html( implode( ', ', $names ) ) . '</td><td>' . esc_html( implode( ', ', array_values( array_unique( array_map( 'strval', $sources ) ) ) ) ) . '</td><td>' . esc_html( (string) $moving ) . '</td></tr>';
 		}
 
-		echo '</tbody></table><p><button class="button button-primary">' . esc_html__( 'Merge the checked lines', 'otherguise' ) . '</button> <a href="' . esc_url( $this->url() ) . '">' . esc_html__( 'Cancel', 'otherguise' ) . '</a></p></form>';
+		echo '</tbody></table><p><button class="button button-primary">' . esc_html__( 'Assign the checked lines', 'otherguise' ) . '</button> <a href="' . esc_url( $this->url() ) . '">' . esc_html__( 'Cancel', 'otherguise' ) . '</a></p></form>';
 
 		$pages = max( 1, (int) ceil( count( $safe ) / ( self::PER_PAGE * 2 ) ) );
 
