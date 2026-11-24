@@ -265,8 +265,22 @@ class IndexPruneDbTest extends Otherguise_Test_Database_Case {
 		$hand    = $this->topics->create( 'A la main', 'place', 0, Topics::APPROVED, array() );
 
 		$this->topics->set_kind( $chosen, 'place', true );
-		$this->mentions->sync( 1, 'post/link', array( $made => array(), $shared => array() ) );
-		$this->mentions->sync( 1, 'hand', array( $hand => array(), $shared => array() ) );
+		$this->mentions->sync(
+			1,
+			'post/link',
+			array(
+				$made => array(),
+				$shared => array(),
+			)
+		);
+		$this->mentions->sync(
+			1,
+			'hand',
+			array(
+				$hand => array(),
+				$shared => array(),
+			)
+		);
 		$this->mentions->sync( 2, 'image/address', array( $shared => array() ) );
 
 		$lines   = array();
@@ -306,11 +320,23 @@ class IndexPruneDbTest extends Otherguise_Test_Database_Case {
 		$this->assertNotNull( $this->topics->get( $hand ) );
 		$this->assertNotNull( $this->topics->get( $chosen ), 'A chosen kind stays.' );
 		$this->assertNotNull( $this->topics->get( $refused ), 'A refused topic stays.' );
-		$this->assertEquals( array( $hand => true, $shared => true ), $this->mentions->mentioned_topics() );
+		$this->assertEquals(
+			array(
+				$hand => true,
+				$shared => true,
+			),
+			$this->mentions->mentioned_topics()
+		);
 
 		$called = array();
 
-		$command( array(), array( 'apply' => true, 'everything' => true ) );
+		$command(
+			array(),
+			array(
+				'apply' => true,
+				'everything' => true,
+			)
+		);
 
 		$this->assertSame( array( 'stop', 'forget everything' ), $called );
 		$this->assertSame( array(), $this->mentions->mentioned_topics(), 'Every mention goes, the one made by hand too.' );
