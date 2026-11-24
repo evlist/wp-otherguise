@@ -54,6 +54,12 @@ final class ClassTable {
 		'Q11424'    => 'work',       // Film.
 		'Q1656682'  => 'event',      // Event.
 		'Q2095'     => 'product',    // Food.
+		// Itineraries (checked on Wikidata, 2026-11-24): the thoroughfare is what a road, a street, a motorway (controlled-access highway), a cycling route (EuroVelo 9),
+		// a hiking trail and a long-distance trail all come under, so one line would do; the more particular ones are kept so that the table says what it means.
+		'Q83620'    => 'route',      // Thoroughfare.
+		'Q34442'    => 'route',      // Road.
+		'Q102307360' => 'route',     // Cycling route.
+		'Q2143825'  => 'route',      // Hiking trail.
 	);
 
 	/**

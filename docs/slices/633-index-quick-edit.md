@@ -27,3 +27,9 @@ Status: **coded on 2026-11-24** (1028 PHPUnit tests, with a real database; the r
 - The line changed in place shows the topic **with its link** to the screen of the topics, its kind and the topics above (the answer of the route carries the address); the other cells (by, state) are plain text. (First version, corrected the same day on Eric's remarks: the link was in the first column and the topic had no link after the change.)
 - The confirmation of an assignment to a **new topic** still goes through the page of confirmation.
 - Not asked, not done: a close topic from the **letters that differ** (see above), and "apply to every designation that has the same label".
+
+## Amendment: itineraries in the table of the classes of Wikidata (Eric, 2026-11-24)
+
+*Can Wikipedia/Wikidata not tell the type of EuroVelo 9?* They can: Wikidata says it is a *long-distance cycling route* (Q353027), a sort of *cycling route* (Q102307360), then of *thoroughfare* (Q83620) and *route* (Q137255322). The plugin reads that chain, but **the table of the classes had no line for itineraries**, so the topic stayed *Unspecified*. Four lines were added to the default table, all of the kind `route` and all **checked on Wikidata on 2026-11-24**: *thoroughfare* (Q83620: a road, a street, a motorway, a cycling route, a hiking trail and a long-distance trail all come under it, so this one line would do), *road* (Q34442), *cycling route* (Q102307360) and *hiking trail* (Q2143825), kept so that the table says what it means. A **street** (Q79007) comes under the thoroughfare too: it is now a `route`, which is a choice to look at.
+
+**A blog that already changed the table does not get them**: the table is a stored copy as soon as `wp otherguise index enrich map` has been used once, and the defaults are no longer read. Print it with `enrich map --list` and add the lines by hand (`enrich map Q83620 route`).

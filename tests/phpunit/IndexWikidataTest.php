@@ -385,6 +385,30 @@ class IndexWikidataTest extends TestCase {
 	}
 
 	/**
+	 * The itineraries (slice 633, checked on Wikidata on 2026-11-24): EuroVelo 9 is a *long-distance cycling route*, which comes under *cycling route* and
+	 * *thoroughfare*; a hiking trail, a road and a motorway come under the thoroughfare too, so they are all of the kind `route`; a river is still a waterway.
+	 *
+	 * @return void
+	 */
+	public function test_the_itineraries_are_routes(): void {
+		$table = new ClassTable( $this->options(), fn() => (int) $this->time, static fn( $min ) => $min );
+
+		$table->remember(
+			array(
+				'Q353027'  => array( 'Q353027', 'Q102307360', 'Q83620', 'Q137255322' ),
+				'Q13405588' => array( 'Q13405588', 'Q2143825', 'Q1322323', 'Q1297806', 'Q83620' ),
+				'Q46622'   => array( 'Q46622', 'Q269949', 'Q34442', 'Q83620' ),
+				'Q4022'    => array( 'Q4022', 'Q355304' ),
+			)
+		);
+
+		$this->assertSame( 'route', $table->kind_for( array( 'Q353027' ) ), 'A long-distance cycling route (EuroVelo 9).' );
+		$this->assertSame( 'route', $table->kind_for( array( 'Q13405588' ) ), 'A long-distance trail.' );
+		$this->assertSame( 'route', $table->kind_for( array( 'Q46622' ) ), 'A motorway.' );
+		$this->assertSame( 'waterway', $table->kind_for( array( 'Q4022' ) ) );
+	}
+
+	/**
 	 * The table of classes: the default one, a line added (identifier and kind checked), removed.
 	 *
 	 * @return void
