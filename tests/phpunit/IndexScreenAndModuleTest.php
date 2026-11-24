@@ -76,7 +76,7 @@ class IndexScreenAndModuleTest extends TestCase {
 
 		$this->assertSame(
 			array(
-				'init'                        => array( array( 'run', 5, 0 ), array( 'run', 6, 0 ), array( 'register_taxonomy', 10, 0 ), array( 'register_taxonomy', 10, 0 ), array( 'seed', 12, 0 ), array( 'ensure_scheduled', 20, 0 ) ),
+				'init'                        => array( array( 'run', 5, 0 ), array( 'run', 6, 0 ), array( 'register_taxonomy', 10, 0 ), array( 'register_taxonomy', 10, 0 ), array( 'register_taxonomy', 10, 0 ), array( 'seed', 12, 0 ), array( 'ensure_scheduled', 20, 0 ) ),
 				'triples_register_predicates' => array( array( 'register_predicates', 10, 1 ) ),
 				'wp_after_insert_post'        => array( array( 'queue_post', 20, 1 ), array( 'on_save', 30, 1 ) ),
 				'set_object_terms'            => array( array( 'queue_post', 10, 1 ) ),

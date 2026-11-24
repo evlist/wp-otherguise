@@ -11,6 +11,7 @@
 namespace Otherguise\Index\Job;
 
 use Otherguise\Index\Cli\ResetCommand;
+use Otherguise\Index\Designation\Cleaner;
 use Otherguise\Index\Cli\SyncCommand;
 use Otherguise\Index\Harvest\SignalStore;
 use Otherguise\Index\Indexer;
@@ -202,14 +203,15 @@ final class SyncWiring {
 	/**
 	 * Registers the commands `wp otherguise index sync` and `wp otherguise index reset`.
 	 *
-	 * @param SyncService $sync     The service.
-	 * @param Topics      $topics   The topics.
-	 * @param Mentions    $mentions The mentions.
+	 * @param SyncService  $sync     The service.
+	 * @param Topics       $topics   The topics.
+	 * @param Mentions     $mentions The mentions.
+	 * @param Cleaner|null $cleaner The cleaner of the designations.
 	 * @return void
 	 */
-	public static function register_command( SyncService $sync, Topics $topics, Mentions $mentions ) {
+	public static function register_command( SyncService $sync, Topics $topics, Mentions $mentions, ?Cleaner $cleaner = null ) {
 		\WP_CLI::add_command( 'otherguise index sync', new SyncCommand( $sync ) );
-		\WP_CLI::add_command( 'otherguise index reset', new ResetCommand( $topics, $mentions, new TopicPruner( $topics, $mentions ), array( $sync, 'stop' ), array( self::class, 'forget' ) ) );
+		\WP_CLI::add_command( 'otherguise index reset', new ResetCommand( $topics, $mentions, new TopicPruner( $topics, $mentions ), array( $sync, 'stop' ), array( self::class, 'forget' ), null, null, $cleaner ) );
 	}
 
 	/**

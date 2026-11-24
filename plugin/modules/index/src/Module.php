@@ -40,7 +40,6 @@ use Otherguise\Index\Source\Photos;
 use Otherguise\Index\Source\Page;
 use Otherguise\Index\Harvest\PageReader;
 use Otherguise\Index\Source\Terms;
-use Otherguise\Triples\Predicate\PredicateDefinition;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -131,6 +130,7 @@ final class Module implements ModuleInterface, DescribedModule, DisabledByDefaul
 		( $this->add_action )( 'init', array( TopicsMigration::class, 'run' ), 5, 0 );
 		( $this->add_action )( 'init', array( KindsMigration::class, 'run' ), 6, 0 );
 		( $this->add_action )( 'init', array( TermTopics::class, 'register_taxonomy' ), 10, 0 );
+		( $this->add_action )( 'init', array( TermDesignations::class, 'register_taxonomy' ), 10, 0 );
 		// Slice 603: the kinds are terms of a taxonomy; the built-in kinds are created once.
 		( $this->add_action )( 'init', array( TermKindStore::class, 'register_taxonomy' ), 10, 0 );
 		( $this->add_action )( 'init', array( Kinds::class, 'seed' ), 12, 0 );
@@ -170,39 +170,7 @@ final class Module implements ModuleInterface, DescribedModule, DisabledByDefaul
 	 * @return void
 	 */
 	public function register_predicates( $predicates ) {
-		$predicates->register(
-			PredicateDefinition::from_array(
-				array(
-					'slug'          => Mentions::MENTIONS,
-					'label'         => __( 'Mentions', 'otherguise' ),
-					'inverse_label' => __( 'Is mentioned by', 'otherguise' ),
-					'subject_types' => array( 'post' ),
-					'object_types'  => array( 'term' ),
-					'qualified_by'  => array( Mentions::SOURCE, Mentions::STRENGTH, Mentions::ROLE, Mentions::ANCHOR, Mentions::VIA, Mentions::VISIBLE ),
-				)
-			)
-		);
-
-		foreach ( array(
-			Mentions::SOURCE   => __( 'Said by the source', 'otherguise' ),
-			Mentions::STRENGTH => __( 'Strength', 'otherguise' ),
-			Mentions::ROLE     => __( 'Role', 'otherguise' ),
-			Mentions::ANCHOR   => __( 'Anchor', 'otherguise' ),
-			Mentions::VIA      => __( 'Produced by', 'otherguise' ),
-			Mentions::VISIBLE  => __( 'Shown in the mode', 'otherguise' ),
-		) as $slug => $label ) {
-			$predicates->register(
-				PredicateDefinition::from_array(
-					array(
-						'slug'          => $slug,
-						'label'         => $label,
-						'subject_types' => array( 'statement' ),
-						'object_types'  => array( 'string' ),
-						'qualifies'     => array( Mentions::MENTIONS ),
-					)
-				)
-			);
-		}
+		Predicates::register( $predicates );
 	}
 
 	/**
@@ -223,8 +191,32 @@ final class Module implements ModuleInterface, DescribedModule, DisabledByDefaul
 		return new Mentions(
 			static function () {
 				return Modules::get( 'triples' )->statements();
+			},
+			$this->observations(),
+			$this->designations()
+		);
+	}
+
+	/**
+	 * The observations and the assignments of the designations (slice 626).
+	 *
+	 * @return Observations
+	 */
+	public function observations() {
+		return new Observations(
+			static function () {
+				return Modules::get( 'triples' )->statements();
 			}
 		);
+	}
+
+	/**
+	 * The designations (slice 626).
+	 *
+	 * @return Designations
+	 */
+	public function designations() {
+		return new TermDesignations();
 	}
 
 	/**
@@ -255,7 +247,9 @@ final class Module implements ModuleInterface, DescribedModule, DisabledByDefaul
 				$sources,
 				static function ( $post_id ) {
 					return 'publish' === get_post_status( (int) $post_id );
-				}
+				},
+				$this->designations(),
+				$this->observations()
 			);
 		}
 
@@ -625,7 +619,8 @@ final class Module implements ModuleInterface, DescribedModule, DisabledByDefaul
 		\WP_CLI::add_command( 'otherguise index kinds', new KindsCommand() );
 		\WP_CLI::add_command( 'otherguise index sources', new SourcesCommand( $this->mentions() ) );
 		MergeWiring::register_commands( $this->topics(), $this->mentions() );
-		SyncWiring::register_command( $this->sync(), $this->topics(), $this->mentions() );
+		SyncWiring::register_command( $this->sync(), $this->topics(), $this->mentions(), new Designation\Cleaner( $this->designations(), $this->observations() ) );
+		Designation\Wiring::register_command( $this->topics(), $this->mentions(), $this->observations(), $this->designations() );
 		\WP_CLI::add_command(
 			'otherguise index build',
 			new BuildCommand(

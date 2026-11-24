@@ -25,6 +25,7 @@ defined( 'ABSPATH' ) || exit;
  */
 final class Mentions {
 	use MentionsDropping;
+	use MentionsDeriving;
 
 	public const MENTIONS = 'index/mentions';
 	public const SOURCE   = 'index/source';
@@ -43,12 +44,30 @@ final class Mentions {
 	private $statements;
 
 	/**
+	 * The observations, when the model of slice 625 is on: what is dropped, moved or made by hand is done to them too.
+	 *
+	 * @var Observations|null
+	 */
+	private $observations;
+
+	/**
+	 * The designations, when the model of slice 625 is on.
+	 *
+	 * @var Designations|null
+	 */
+	private $designations;
+
+	/**
 	 * Builds the service.
 	 *
-	 * @param callable $statements Returns the `Statements` service.
+	 * @param callable          $statements   Returns the `Statements` service.
+	 * @param Observations|null $observations The observations.
+	 * @param Designations|null $designations The designations.
 	 */
-	public function __construct( $statements ) {
-		$this->statements = $statements;
+	public function __construct( $statements, ?Observations $observations = null, ?Designations $designations = null ) {
+		$this->statements   = $statements;
+		$this->observations = $observations;
+		$this->designations = $designations;
 	}
 
 	/**
@@ -297,6 +316,13 @@ final class Mentions {
 				$moved  = 0;
 				$merged = 0;
 
+				// The designations of the first topic are assigned to the second, by a person (slice 626): a new reading follows the decision.
+				if ( ! $dry && null !== $this->observations ) {
+					foreach ( array_keys( $this->observations->designations_of_topic( $from ) ) as $designation ) {
+						$this->observations->assign( (int) $designation, $to, Observations::HAND );
+					}
+				}
+
 				foreach ( $statements->match( null, self::MENTIONS, Ref::term( $from ) ) as $old ) {
 					$post = Ref::post( (int) $old->subject()->id() );
 					$new  = $statements->find_by_triple( $post, self::MENTIONS, Ref::term( $to ) );
@@ -428,6 +454,7 @@ final class Mentions {
 	 */
 	public function add_by_hand( $post_id, $topic ) {
 		$this->sync_hand( (int) $post_id, (int) $topic, true );
+		$this->hand_observation( (int) $post_id, (int) $topic, true );
 	}
 
 	/**
@@ -439,6 +466,56 @@ final class Mentions {
 	 */
 	public function remove_by_hand( $post_id, $topic ) {
 		$this->sync_hand( (int) $post_id, (int) $topic, false );
+		$this->hand_observation( (int) $post_id, (int) $topic, false );
+	}
+
+	/**
+	 * Keeps the observation of a mention made by a person: a designation of the source `hand` for the topic, assigned to it by hand (slice 626).
+	 *
+	 * @param int  $post_id Post.
+	 * @param int  $topic   Topic.
+	 * @param bool $add     Add or withdraw.
+	 * @return void
+	 */
+	private function hand_observation( $post_id, $topic, $add ) {
+		if ( null === $this->observations || null === $this->designations ) {
+			return;
+		}
+
+		$key = Designation\Keys::by_hand( $topic );
+		$id  = $this->designations->find( $key );
+		$id  = $id > 0 ? $id : $this->designations->create(
+			$key,
+			self::HAND,
+			array(
+				'label' => 'by hand',
+				'topic' => $topic,
+			)
+		);
+
+		if ( $id <= 0 ) {
+			return;
+		}
+
+		$this->observations->assign( $id, $topic, Observations::HAND );
+		$this->designations->set_state(
+			$id,
+			Designations::ASSIGNED,
+			array(
+				'topic' => $topic,
+				'why'   => self::HAND,
+			)
+		);
+
+		$wanted = $this->observations->of_post( $post_id, self::HAND );
+
+		if ( $add ) {
+			$wanted[ $id ] = array( 'strength' => Candidate::MAIN );
+		} else {
+			unset( $wanted[ $id ] );
+		}
+
+		$this->observations->sync( $post_id, self::HAND, $wanted );
 	}
 
 	/**

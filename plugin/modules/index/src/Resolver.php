@@ -46,6 +46,16 @@ final class Resolver {
 	}
 
 	/**
+	 * Whether a topic exists (a decision of a person may name a topic that was deleted since).
+	 *
+	 * @param int $id Topic.
+	 * @return bool
+	 */
+	public function exists( $id ) {
+		return null !== $this->topics->get( (int) $id );
+	}
+
+	/**
 	 * Resolves a candidate.
 	 *
 	 * @param Candidate $candidate The candidate.

@@ -72,6 +72,11 @@ trait MentionsDropping {
 					}
 				}
 
+				// What a source saw goes with what it said (slice 626): its observations, not its designations (a decision of a person stays).
+				if ( null !== $this->observations ) {
+					$this->observations->drop_source( (string) $source, $dry );
+				}
+
 				return array(
 					'mentions' => $hit,
 					'orphaned' => array_keys( array_diff_key( $touched, $remaining ) ),
@@ -102,7 +107,7 @@ trait MentionsDropping {
 			}
 		}
 
-		return $found;
+		return $found + $this->held_topics();
 	}
 
 	/**
@@ -124,6 +129,10 @@ trait MentionsDropping {
 					}
 				}
 
+				if ( null !== $this->observations ) {
+					$this->observations->drop_source( '', $dry );
+				}
+
 				return count( $mentions );
 			}
 		);
@@ -141,6 +150,16 @@ trait MentionsDropping {
 			$found[ (int) $mention->object()->id() ] = true;
 		}
 
-		return $found;
+		return $found + $this->held_topics();
+	}
+
+	/**
+	 * The topics that a decision of a person holds (slice 626): a designation that a person assigned to a topic keeps it, observed or not, so that the
+	 * cleaning of the topics that nobody mentions does not leave the decision pointing at nothing.
+	 *
+	 * @return array<int, true>
+	 */
+	private function held_topics() {
+		return null === $this->observations ? array() : $this->observations->manual_topics();
 	}
 }
