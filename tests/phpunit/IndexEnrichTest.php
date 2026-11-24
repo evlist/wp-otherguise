@@ -413,6 +413,37 @@ class IndexEnrichTest extends TestCase {
 	}
 
 	/**
+	 * Undoing a kind that a line too wide gave (slice 633): the topics of a kind that have an identifier of Wikidata and **that no person gave it** are read again and
+	 * get what the table says now, or `any`; a kind given by hand, a topic born of a term (a person chose its kind in the screen of the terms), and a topic that the
+	 * table still gives the kind to, stay.
+	 *
+	 * @return void
+	 */
+	public function test_taking_a_kind_away(): void {
+		$wrong = $this->topics->create( 'Un pont', 'route', 0, Topics::APPROVED, array( 'wikidata:Q1000' ) );
+		$right = $this->topics->create( 'Un fleuve', 'waterway', 0, Topics::APPROVED, array( 'wikidata:Q4040' ) );
+		$hand  = $this->topics->create( 'Choisi', 'route', 0, Topics::APPROVED, array( 'wikidata:Q1000' ) );
+		$term  = $this->topics->create( 'Un tag', 'route', 0, Topics::APPROVED, array( 'wikidata:Q1000', 'term:post_tag:5' ) );
+
+		$this->topics->set_kind( $hand, 'route', true );
+
+		$this->assertSame( array( $wrong ), $this->enricher->of_kind( 'route' ) );
+
+		$dry = $this->enricher->reread_kinds( false, 'route' );
+
+		$this->assertSame( 1, $dry['changed'] );
+		$this->assertSame( array( $wrong . "\tUn pont\troute => place\tQ1000" ), $dry['lines'], 'The table gives a pass the kind place: it is read again, not just emptied.' );
+		$this->assertSame( 'route', $this->topics->get( $wrong )['kind'], 'A dry run writes nothing.' );
+
+		$this->enricher->reread_kinds( true, 'route' );
+
+		$this->assertSame( 'place', $this->topics->get( $wrong )['kind'] );
+		$this->assertSame( 'route', $this->topics->get( $hand )['kind'] );
+		$this->assertSame( 'route', $this->topics->get( $term )['kind'] );
+		$this->assertSame( 'waterway', $this->topics->get( $right )['kind'] );
+	}
+
+	/**
 	 * The batches of the command `enrich kinds`: a dry run says and writes nothing, `--apply` writes, and what is left to do is none.
 	 *
 	 * @return void

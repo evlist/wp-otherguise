@@ -186,6 +186,11 @@ final class EnrichCommand {
 	 *
 	 * ## OPTIONS
 	 *
+	 * [--reset=<kind>]
+	 * : Instead: read again the topics of this kind that have an identifier of Wikidata and **that no person gave it** (not by hand, not born of a term of
+	 * WordPress), and give them the kind that the table says now, or `any` when it says nothing: to undo the kind that a line of the table that was too wide gave.
+	 * Read the list of a dry run before `--apply`.
+	 *
 	 * [--apply]
 	 * : Write the kinds (without it, only say which topic would get which).
 	 *
@@ -196,6 +201,14 @@ final class EnrichCommand {
 	public function kinds( $args, $assoc ) {
 		unset( $args );
 
+		$reset = isset( $assoc['reset'] ) ? sanitize_key( (string) $assoc['reset'] ) : '';
+
+		if ( isset( $assoc['reset'] ) && ! Kinds::is_kind( $reset ) ) {
+			( $this->fail )( 'Unknown kind "' . $reset . '".' );
+
+			return;
+		}
+
 		if ( ! $this->service->is_on() ) {
 			( $this->fail )( 'The enrichment is off: wp otherguise index enrich enable.' );
 
@@ -203,7 +216,7 @@ final class EnrichCommand {
 		}
 
 		$apply = ! empty( $assoc['apply'] );
-		$done  = $this->service->enricher()->reread_kinds( $apply );
+		$done  = $this->service->enricher()->reread_kinds( $apply, $reset );
 
 		foreach ( $done['lines'] as $line ) {
 			( $this->log )( $line );

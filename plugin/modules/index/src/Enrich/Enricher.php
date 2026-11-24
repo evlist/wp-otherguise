@@ -10,6 +10,7 @@
 
 namespace Otherguise\Index\Enrich;
 
+use Otherguise\Index\Kinds;
 use Otherguise\Index\Topics;
 use Otherguise\Index\Resolver;
 use Otherguise\Index\Wikidata\ClassTable;
@@ -170,10 +171,11 @@ final class Enricher {
 	/**
 	 * Enriches one batch.
 	 *
-	 * @param bool       $dry       Report what would be written and write nothing (the requests are made).
-	 * @param int|null   $only      Only this topic (looked at again whatever its state: **by its identifier of Wikidata when it has one**, slice 633).
-	 * @param int[]|null $ids       Only these topics, looked at again like the one above (the command `enrich kinds`).
-	 * @param bool       $kind_only Write the kind and nothing else: not the label, not the state of the enrichment.
+	 * @param bool        $dry       Report what would be written and write nothing (the requests are made).
+	 * @param int|null    $only      Only this topic (looked at again whatever its state: **by its identifier of Wikidata when it has one**, slice 633).
+	 * @param int[]|null  $ids       Only these topics, looked at again like the one above (the command `enrich kinds`).
+	 * @param bool|string $kind_only Write the kind and nothing else: not the label, not the state of the enrichment; `reset` also takes away a kind that the table no
+	 *                               longer gives (the command `enrich kinds --reset`).
 	 * @return array{ok:bool,stop:bool,message:string,processed:int,report:array<int,array<string,mixed>>}
 	 */
 	public function run_batch( $dry = false, $only = null, $ids = null, $kind_only = false ) {
@@ -283,7 +285,7 @@ final class Enricher {
 		);
 
 		if ( $kind_only ) {
-			return $this->refine( $id, $topic, $report, $item, $dry );
+			return $this->refine( $id, $topic, $report, $item, $dry, 'reset' === $kind_only );
 		}
 
 		if ( 'resolved' !== $outcome['state'] || null === $item ) {
@@ -337,9 +339,10 @@ final class Enricher {
 	 * @param array<string, mixed>      $report What is known so far.
 	 * @param array<string, mixed>|null $item   The label and classes of the item.
 	 * @param bool                      $dry    Dry run.
+	 * @param bool                      $reset  The kind of the topic is not a kind that nobody chose: the table says (`any` when it says nothing).
 	 * @return array<string, mixed> The report.
 	 */
-	private function refine( $id, array $topic, array $report, $item, $dry ) {
+	private function refine( $id, array $topic, array $report, $item, $dry, $reset = false ) {
 		$report['was'] = (string) $topic['kind'];
 
 		if ( null === $item ) {
@@ -352,6 +355,11 @@ final class Enricher {
 		$deduced           = $this->classes->kind_for( array_keys( $item['classes'] ) );
 		$report['state']   = 'done';
 		$report['kind']    = null !== $deduced && ! $topic['kind_by_hand'] && in_array( (string) $topic['kind'], array( '', 'any', 'other' ), true ) && $deduced !== $topic['kind'] ? $deduced : '';
+
+		if ( $reset && ! $topic['kind_by_hand'] ) {
+			$new            = null === $deduced ? Kinds::ANY : $deduced;
+			$report['kind'] = $new !== $topic['kind'] ? $new : '';
+		}
 
 		if ( ! $dry && '' !== $report['kind'] ) {
 			$this->topics->set_kind( $id, $report['kind'], false );
@@ -387,19 +395,51 @@ final class Enricher {
 	}
 
 	/**
+	 * The topics that have a kind that the table of the classes may not give (slice 633): approved, with an identifier of Wikidata, of this kind, **whose kind no
+	 * person chose** (not by hand, and **not born of a term** of WordPress, whose kind a person gave in the screen of the terms).
+	 *
+	 * @param string $kind The kind.
+	 * @return int[]
+	 */
+	public function of_kind( $kind ) {
+		$found = array();
+
+		foreach ( $this->topics->all() as $id => $topic ) {
+			if ( Topics::APPROVED !== $topic['status'] || ! empty( $topic['kind_by_hand'] ) || (string) $topic['kind'] !== (string) $kind ) {
+				continue;
+			}
+
+			$has = false;
+			$own = false;
+
+			foreach ( $topic['keys'] as $key ) {
+				$has = $has || ( 0 === strpos( (string) $key, 'wikidata:' ) && ItemReader::valid_id( substr( (string) $key, 9 ) ) );
+				$own = $own || 0 === strpos( (string) $key, 'term:' );
+			}
+
+			if ( $has && ! $own ) {
+				$found[] = (int) $id;
+			}
+		}
+
+		return $found;
+	}
+
+	/**
 	 * Reads again, in batches, the classes of the topics that have an identifier of Wikidata and no kind, and gives them the kind that the table says (slice 633:
 	 * the command `enrich kinds`). Only the kind changes.
 	 *
-	 * @param bool $apply Write the kinds (false: say which topic would get which).
+	 * @param bool   $apply Write the kinds (false: say which topic would get which).
+	 * @param string $reset A kind to take away from the topics that the table does not give it to any more (they get what the table says, else `any`); '' for none.
 	 * @return array{ok:bool,message:string,read:int,changed:int,lines:string[]} `ok` is false when a service refused, `read` and `lines` say how far it went.
 	 */
-	public function reread_kinds( $apply ) {
+	public function reread_kinds( $apply, $reset = '' ) {
 		$read    = 0;
 		$changed = 0;
 		$lines   = array();
 
-		foreach ( array_chunk( $this->unclassified(), self::BATCH ) as $chunk ) {
-			$done = $this->run_batch( ! $apply, null, $chunk, true );
+		foreach ( array_chunk( '' === $reset ? $this->unclassified() : $this->of_kind( $reset ), self::BATCH ) as $chunk ) {
+			$done = $this->run_batch( ! $apply, null, $chunk, '' === $reset ? true : 'reset' );
 
 			foreach ( $done['report'] as $id => $line ) {
 				++$read;

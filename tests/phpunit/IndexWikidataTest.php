@@ -409,6 +409,31 @@ class IndexWikidataTest extends TestCase {
 	}
 
 	/**
+	 * What comes under the thoroughfare is not a route (Eric's blog, 2026-11-24: 23 of 44 topics read were squares, bridges, tunnels, a port, a station and
+	 * lines of public transport): the thoroughfare (Q83620) and the generic class (Q137255322) are **not** in the table.
+	 *
+	 * @return void
+	 */
+	public function test_what_comes_under_the_thoroughfare_is_not_a_route(): void {
+		$table = new ClassTable( $this->options(), fn() => (int) $this->time, static fn( $min ) => $min );
+
+		$this->assertArrayNotHasKey( 'Q83620', ClassTable::DEFAULTS );
+		$this->assertArrayNotHasKey( 'Q137255322', ClassTable::DEFAULTS );
+
+		$table->remember(
+			array(
+				'Q174782' => array( 'Q174782', 'Q83620', 'Q137255322' ),
+				'Q12280'  => array( 'Q12280', 'Q83620', 'Q137255322' ),
+				'Q44782'  => array( 'Q44782', 'Q83620', 'Q137255322' ),
+			)
+		);
+
+		$this->assertNull( $table->kind_for( array( 'Q174782' ) ), 'A square.' );
+		$this->assertNull( $table->kind_for( array( 'Q12280' ) ), 'A bridge.' );
+		$this->assertNull( $table->kind_for( array( 'Q44782' ) ), 'A port.' );
+	}
+
+	/**
 	 * The table of classes: the default one, a line added (identifier and kind checked), removed.
 	 *
 	 * @return void
