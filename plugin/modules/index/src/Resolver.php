@@ -30,6 +30,11 @@ final class Resolver {
 	public const AMBIGUOUS = 'ambiguous';
 
 	/**
+	 * The `type` of an ambiguity that is not one: a single topic of this label, of a kind that the source cannot mean (slice 632).
+	 */
+	public const INCOMPATIBLE = 'incompatible';
+
+	/**
 	 * The store.
 	 *
 	 * @var Topics
@@ -89,27 +94,32 @@ final class Resolver {
 		$label = self::label_key( $parent, $candidate->label );
 		$keys  = array_merge( $candidate->keys, array( $label ) );
 		$found = array();
+		$clash = false;
 
 		// The first key that matches decides: the keys come most reliable first and the label comes last.
 		foreach ( $keys as $key ) {
 			$found = $this->without_refused( $this->topics->with_key( $key ) );
 
 			if ( array() !== $found ) {
-				if ( $key === $label && 1 === count( $found ) && $this->conflicts( (int) reset( $found ), $candidate ) ) {
-					$found[] = 0; // Same label, another kind: a person decides.
-				}
+				// Same label, a kind that cannot be the same (slice 632): not an ambiguity, the topic and the source disagree. A person decides.
+				$clash = $key === $label && 1 === count( $found ) && $this->conflicts( (int) reset( $found ), $candidate );
 
 				break;
 			}
 		}
 
 		// A person chose, among the topics that bear this level, the one that it is: the doubt is over (slice 631).
-		if ( count( $found ) > 1 || in_array( 0, $found, true ) ) {
+		if ( count( $found ) > 1 || $clash ) {
 			$pinned = $this->topics->pinned( $label );
 
 			if ( $pinned > 0 && null !== $this->topics->get( $pinned ) ) {
 				$found = array( $pinned );
+				$clash = false;
 			}
+		}
+
+		if ( $clash ) {
+			return $this->incompatible( (int) reset( $found ), $candidate, $label, $above['new'] );
 		}
 
 		if ( count( $found ) > 1 ) {
@@ -168,6 +178,35 @@ final class Resolver {
 	}
 
 	/**
+	 * The result for a level whose topic is of a kind that the source cannot mean (slice 632): the designation has no topic, and says **why**: the topic that is
+	 * there, its kind and the kind that the source gives. It is not an ambiguity (there is one topic, not several): the person keeps the topic, or assigns the
+	 * designation elsewhere.
+	 *
+	 * @param int       $topic     The topic that bears the label.
+	 * @param Candidate $candidate The candidate.
+	 * @param string    $key       The key of the label under its parent.
+	 * @param int       $new       How many topics were made above.
+	 * @return array<string, mixed>
+	 */
+	private function incompatible( $topic, Candidate $candidate, $key, $new ) {
+		$have = $this->topics->get( $topic );
+
+		return array(
+			'result'    => self::AMBIGUOUS,
+			'topic'     => 0,
+			'new'       => $new,
+			'ambiguity' => array(
+				'type'       => self::INCOMPATIBLE,
+				'level'      => $candidate->label,
+				'key'        => $key,
+				'candidates' => array( (int) $topic ),
+				'found_kind' => null === $have ? '' : (string) $have['kind'],
+				'asked_kind' => $candidate->kind,
+			),
+		);
+	}
+
+	/**
 	 * The topic that bears the label under the parent when WordPress refused to make another one.
 	 *
 	 * @param Candidate $candidate The candidate.
@@ -194,6 +233,10 @@ final class Resolver {
 				'topic'  => $same[0],
 				'new'    => $new,
 			);
+		}
+
+		if ( 1 === count( $same ) ) {
+			return $this->incompatible( $same[0], $candidate, self::label_key( $parent, $candidate->label ), $new );
 		}
 
 		if ( array() === $same ) {

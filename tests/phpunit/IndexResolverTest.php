@@ -211,6 +211,35 @@ class IndexResolverTest extends TestCase {
 	}
 
 	/**
+	 * A topic and a source that disagree on the kind are **incompatible**, not ambiguous (slice 632): one topic, said with its kind and the kind that the source
+	 * gives; a commune is a third-level division, so it is not a conflict; a topic that a person kept is taken.
+	 *
+	 * @return void
+	 */
+	public function test_a_kind_that_cannot_be_the_same_is_incompatible_not_ambiguous(): void {
+		$mouche = $this->resolver->resolve( new Candidate( 'Mouche', 'species', array( 'term:category:1' ) ) )['topic'];
+
+		$conflict = $this->resolver->resolve( new Candidate( 'Mouche', 'place', array( 'term:post_tag:2' ) ) );
+
+		$this->assertSame( 0, $conflict['topic'] );
+		$this->assertSame( Resolver::INCOMPATIBLE, $conflict['ambiguity']['type'] );
+		$this->assertSame( array( $mouche ), $conflict['ambiguity']['candidates'], 'One topic, not several.' );
+		$this->assertSame( 'species', $conflict['ambiguity']['found_kind'] );
+		$this->assertSame( 'place', $conflict['ambiguity']['asked_kind'] );
+
+		$this->topics->pin( $mouche, $conflict['ambiguity']['key'] );
+
+		$this->assertSame( $mouche, $this->resolver->resolve( new Candidate( 'Mouche', 'place', array( 'term:post_tag:2' ) ) )['topic'], 'Kept by a person.' );
+
+		$apt = $this->resolver->resolve( new Candidate( 'Apt', 'admin3', array( 'wikidata:Q1' ) ) )['topic'];
+		$one = $this->resolver->resolve( new Candidate( 'Apt', 'commune', array() ) );
+
+		$this->assertSame( Resolver::RESOLVED, $one['result'], 'A commune is a third-level division.' );
+		$this->assertSame( $apt, $one['topic'] );
+		$this->assertSame( 'commune', $this->topics->get( $apt )['kind'], 'The kind becomes the more precise one.' );
+	}
+
+	/**
 	 * A refused topic is never found again: the candidate gets a new one.
 	 *
 	 * @return void

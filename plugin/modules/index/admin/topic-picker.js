@@ -20,6 +20,9 @@
 							} );
 					},
 				};
+				root.document.querySelectorAll( '[data-shown-by-action]' ).forEach( function ( box ) {
+					root.otherguiseTopicPicker.showWhenChosen( { document: root.document, box: box, action: box.getAttribute( 'data-shown-by-action' ) } );
+				} );
 				root.document.querySelectorAll( '[data-topic-picker]' ).forEach( function ( input ) {
 					root.otherguiseTopicPicker.mount( { document: root.document, input: input, hidden: root.document.getElementById( input.getAttribute( 'data-topic-picker' ) ), api: api } );
 				} );
@@ -125,5 +128,30 @@
 		};
 	}
 
-	return { mount: mount };
+	/**
+	 * Shows a box only while a bulk action is chosen in one of the two lists of actions of the table (slice 632): the box that says where "Assign" puts the lines
+	 * is of no use for the other actions. Without this script the box stays visible.
+	 *
+	 * @param {Object} options `document`, `box` (the element) and `action` (the value of the action that needs it).
+	 * @return {Object} `refresh()`.
+	 */
+	function showWhenChosen( options ) {
+		const doc = options.document;
+		const selects = [ doc.getElementById( 'bulk-action-selector-top' ), doc.getElementById( 'bulk-action-selector-bottom' ) ].filter( Boolean );
+
+		function refresh() {
+			options.box.hidden = ! selects.some( function ( select ) {
+				return select.value === options.action;
+			} );
+		}
+
+		selects.forEach( function ( select ) {
+			select.addEventListener( 'change', refresh );
+		} );
+		refresh();
+
+		return { refresh: refresh };
+	}
+
+	return { mount: mount, showWhenChosen: showWhenChosen };
 } ) );

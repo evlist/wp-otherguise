@@ -12,6 +12,7 @@ namespace Otherguise\Index\Admin;
 
 use Otherguise\Index\Designation\Listing;
 use Otherguise\Index\Kinds;
+use Otherguise\Index\Resolver;
 use Otherguise\Index\Topics;
 
 defined( 'ABSPATH' ) || exit;
@@ -90,7 +91,7 @@ final class AssignmentsTable extends \WP_List_Table {
 	public function view() {
 		$view = sanitize_key( (string) ( $this->request )( 'view' ) );
 
-		return in_array( $view, array( Listing::RESOLVE, Listing::SYSTEM, Listing::HAND, Listing::UNOBSERVED ), true ) ? $view : Listing::ALL;
+		return in_array( $view, array( Listing::RESOLVE, Listing::INCOMPATIBLE, Listing::SYSTEM, Listing::HAND, Listing::UNOBSERVED ), true ) ? $view : Listing::ALL;
 	}
 
 	/**
@@ -134,6 +135,7 @@ final class AssignmentsTable extends \WP_List_Table {
 		$names = array(
 			Listing::ALL        => __( 'All', 'otherguise' ),
 			Listing::RESOLVE    => __( 'To resolve', 'otherguise' ),
+			Listing::INCOMPATIBLE => __( 'Incompatible', 'otherguise' ),
 			Listing::SYSTEM     => __( 'Assigned by the system', 'otherguise' ),
 			Listing::HAND       => __( 'Assigned by a person', 'otherguise' ),
 			Listing::UNOBSERVED => __( 'Observed by no post', 'otherguise' ),
@@ -157,7 +159,7 @@ final class AssignmentsTable extends \WP_List_Table {
 	protected function get_bulk_actions() {
 		return array(
 			'choose'   => __( 'Apply the choices (the lists in the Assigned to column)', 'otherguise' ),
-			'assign'   => __( 'Assign to the topic in the box above…', 'otherguise' ),
+			'assign'   => __( 'Assign to the topic in the box that appears…', 'otherguise' ),
 			'confirm'  => __( 'Confirm the assignment (a person decides)', 'otherguise' ),
 			'unassign' => __( 'Take the assignment away', 'otherguise' ),
 			'delete'   => __( 'Delete (only what no post observes)', 'otherguise' ),
@@ -171,7 +173,7 @@ final class AssignmentsTable extends \WP_List_Table {
 	 * @return void
 	 */
 	public function target_fields() {
-		echo '<fieldset class="assignment-target" style="background:#fff;border:1px solid #c3c4c7;margin:12px 0;padding:8px 12px;">';
+		echo '<fieldset class="assignment-target" data-shown-by-action="assign" style="background:#fff;border:1px solid #c3c4c7;margin:12px 0;padding:8px 12px;">';
 		echo '<legend><strong>' . esc_html__( 'Where "Assign to the topic…" puts the ticked lines', 'otherguise' ) . '</strong></legend>';
 		echo '<p><label for="assignment-topic"><strong>' . esc_html__( 'An existing topic', 'otherguise' ) . '</strong> ' . esc_html__( '(type a name, then pick it in the list)', 'otherguise' ) . '</label><br />';
 		echo '<input type="text" id="assignment-topic" name="to_label" size="40" data-topic-picker="assignment-topic-id" value="' . esc_attr( (string) ( $this->request )( 'to_label' ) ) . '" />';
@@ -320,8 +322,7 @@ final class AssignmentsTable extends \WP_List_Table {
 		}
 
 		$html = '<label class="screen-reader-text" for="choice-' . esc_attr( (string) $item['id'] ) . '">' . esc_html__( 'Choose the topic', 'otherguise' ) . '</label>';
-		/* translators: %s: the label of the level that hesitates. */
-		$html .= '<small>' . esc_html( sprintf( __( 'Which "%s"?', 'otherguise' ), (string) ( $ambiguity['level'] ?? '' ) ) ) . '</small><br />';
+		$html .= '<small>' . esc_html( $this->question( $ambiguity ) ) . '</small><br />';
 		$html .= '<select id="choice-' . esc_attr( (string) $item['id'] ) . '" name="choice[' . esc_attr( (string) $item['id'] ) . ']"><option value="">' . esc_html__( '— choose —', 'otherguise' ) . '</option>';
 
 		foreach ( (array) $ambiguity['candidates'] as $candidate ) {
@@ -331,10 +332,36 @@ final class AssignmentsTable extends \WP_List_Table {
 				continue;
 			}
 
-			$html .= '<option value="' . esc_attr( (string) $topic['id'] ) . '">' . esc_html( (string) $topic['label'] . ' (' . $this->describe( $topic ) . ') #' . $topic['id'] ) . '</option>';
+			$text = (string) $topic['label'] . ' (' . $this->describe( $topic ) . ') #' . $topic['id'];
+
+			if ( Resolver::INCOMPATIBLE === (string) ( $ambiguity['type'] ?? '' ) ) {
+				/* translators: %s: a topic, with its kind and the topics above it. */
+				$text = sprintf( __( 'Keep %s', 'otherguise' ), $text );
+			}
+
+			$html .= '<option value="' . esc_attr( (string) $topic['id'] ) . '">' . esc_html( $text ) . '</option>';
 		}
 
 		return $html . '</select>';
+	}
+
+	/**
+	 * What the list asks: which topic a level is (several hesitate), or what to do when the only topic of that name is of a kind that the source cannot mean
+	 * (slice 632).
+	 *
+	 * @param array $ambiguity The ambiguity of the designation.
+	 * @return string
+	 */
+	private function question( array $ambiguity ) {
+		$level = (string) ( $ambiguity['level'] ?? '' );
+
+		if ( Resolver::INCOMPATIBLE !== (string) ( $ambiguity['type'] ?? '' ) ) {
+			/* translators: %s: the label of the level that hesitates. */
+			return sprintf( __( 'Which "%s"?', 'otherguise' ), $level );
+		}
+
+		/* translators: 1: the label of the level, 2: the kind of the topic that exists, 3: the kind that the source gives. */
+		return sprintf( __( '"%1$s" is incompatible: the topic is a %2$s, the source says %3$s.', 'otherguise' ), $level, (string) Kinds::label( (string) ( $ambiguity['found_kind'] ?? '' ) ), (string) Kinds::label( (string) ( $ambiguity['asked_kind'] ?? '' ) ) );
 	}
 
 	/**
@@ -378,7 +405,7 @@ final class AssignmentsTable extends \WP_List_Table {
 	 * @return string
 	 */
 	protected function column_state( $item ) {
-		return esc_html( (string) $item['state'] ) . ( '' === $item['wikidata'] ? '' : ' <small>' . esc_html( (string) $item['wikidata'] ) . '</small>' );
+		return esc_html( ! empty( $item['incompatible'] ) ? __( 'incompatible', 'otherguise' ) : (string) $item['state'] ) . ( '' === $item['wikidata'] ? '' : ' <small>' . esc_html( (string) $item['wikidata'] ) . '</small>' );
 	}
 
 	/**

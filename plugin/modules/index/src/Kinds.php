@@ -28,7 +28,7 @@ final class Kinds {
 	public const ANY       = 'any';
 	public const MAX_DEPTH = 4;
 	public const SEED      = 'index_kinds_seeded';
-	public const VERSION   = '4';
+	public const VERSION   = '5';
 
 	/**
 	 * The store, or null for the one of WordPress.
@@ -64,7 +64,7 @@ final class Kinds {
 		return array(
 			// The root of every kind (slice 615): a topic of this kind is not classified yet, and may take any kind below it. `other` is not that: it is a
 			// kind of its own, for what exists and fits no other.
-			self::ANY  => array( __( 'Any (not classified)', 'otherguise' ), '' ),
+			self::ANY  => array( __( 'Unspecified (not classified yet)', 'otherguise' ), '' ),
 			'place'    => array( __( 'Place', 'otherguise' ), '' ),
 			'waterway' => array( __( 'Waterway', 'otherguise' ), 'place' ),
 			// The levels of a place (slice 614), by their meaning and not by their name in a country: admin1 is the first division below the country
@@ -73,7 +73,9 @@ final class Kinds {
 			'admin1'   => array( __( 'First-level division', 'otherguise' ), 'place' ),
 			'admin2'   => array( __( 'Second-level division', 'otherguise' ), 'place' ),
 			'admin3'   => array( __( 'Third-level division', 'otherguise' ), 'place' ),
-			'commune'  => array( __( 'Commune', 'otherguise' ), 'place' ),
+			// A commune is a third-level division of a country that has communes (slice 632): the same place is `admin3` for an administrative source and
+			// `commune` for the chain of a photo, and it must not be taken for two.
+			'commune'  => array( __( 'Commune', 'otherguise' ), 'admin3' ),
 			'site'     => array( __( 'Site (below the commune)', 'otherguise' ), 'place' ),
 			'species'  => array( __( 'Species', 'otherguise' ), '' ),
 			'route'    => array( __( 'Route', 'otherguise' ), '' ),
@@ -109,6 +111,16 @@ final class Kinds {
 			if ( true === self::store()->add( $slug, $default[0], $default[1], $slug, true ) ) {
 				++$created;
 			}
+		}
+
+		// Slice 632: `commune` was a sort of `place` beside `admin3`; it is a sort of `admin3`. Only a built-in kind that has not been moved is moved.
+		if ( isset( $have['commune'], $have['admin3'] ) && ! empty( $have['commune']['builtin'] ) && 'place' === (string) $have['commune']['parent'] ) {
+			self::store()->move( 'commune', 'admin3' );
+		}
+
+		// Slice 632: the root was named *Any (not classified)*, which in a filter read as "only what is not classified". Its name is changed unless a person renamed it.
+		if ( isset( $have[ self::ANY ] ) && 'Any (not classified)' === (string) $have[ self::ANY ]['label'] ) {
+			self::store()->update( self::ANY, self::builtins()[ self::ANY ][0], (string) $have[ self::ANY ]['css'] );
 		}
 
 		self::$cache = null;

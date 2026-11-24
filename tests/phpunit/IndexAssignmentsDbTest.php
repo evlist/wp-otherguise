@@ -374,7 +374,7 @@ class IndexAssignmentsDbTest extends Otherguise_Test_Database_Case {
 
 		$views = $this->call( $table, 'get_views' );
 
-		$this->assertSame( array( 'all', 'resolve', 'system', 'hand', 'unobserved' ), array_keys( $views ) );
+		$this->assertSame( array( 'all', 'resolve', 'incompatible', 'system', 'hand', 'unobserved' ), array_keys( $views ) );
 		$this->assertStringContainsString( 'class="current"', $views['all'] );
 		$this->assertStringContainsString( '(1)', $views['system'] );
 		$this->assertStringNotContainsString( '(', $views['unobserved'], 'Its count is not known: it costs a pass.' );
@@ -659,6 +659,52 @@ class IndexAssignmentsDbTest extends Otherguise_Test_Database_Case {
 		$this->assertStringContainsString( 'Fisterra (Commune, Espagne) #' . $a, $html, 'The kind and the topics above tell the namesakes apart.' );
 		$this->assertStringContainsString( 'Fisterra (Site (below the commune)) #' . $b, $html );
 		$this->assertSame( '—', $this->call( $table, 'column_topic', $rows[ $plain ] ), 'Nothing to choose from.' );
+	}
+
+	/**
+	 * A designation whose only topic is of a kind that the source cannot mean (slice 632): it is said **incompatible**, with both kinds, in a view of its own, and the
+	 * list offers to keep the topic.
+	 *
+	 * @return void
+	 */
+	public function test_an_incompatible_designation_is_said_so(): void {
+		$vaucluse = $this->topics->create( 'Vaucluse', 'admin2', 0, Topics::APPROVED, array() );
+		$apt      = $this->topics->create( 'Apt', 'species', $vaucluse, Topics::APPROVED, array() );
+		$id       = $this->designation( 'Apt (chain)', array( 1 ), 0, Observations::SYSTEM, Designations::AMBIGUOUS );
+
+		$this->designations->set_state(
+			$id,
+			Designations::AMBIGUOUS,
+			array(
+				'topic'     => 0,
+				'why'       => 'label',
+				'ambiguity' => array(
+					'type'       => 'incompatible',
+					'level'      => 'Apt',
+					'key'        => 'label:' . $vaucluse . '/apt',
+					'candidates' => array( $apt ),
+					'found_kind' => 'species',
+					'asked_kind' => 'commune',
+				),
+			)
+		);
+
+		$list = ( new Listing( $this->designations, $this->observations, $this->topics ) )->query( array( 'view' => Listing::INCOMPATIBLE ) );
+
+		$this->assertSame( array( $id ), array_column( $list['rows'], 'id' ) );
+		$this->assertSame( 1, $list['counts'][ Listing::INCOMPATIBLE ] );
+
+		$table = $this->make_table();
+
+		$table->prepare_items();
+
+		$rows = array_column( $table->items, null, 'id' );
+		$html = $this->call( $table, 'column_topic', $rows[ $id ] );
+
+		$this->assertStringContainsString( 'is incompatible: the topic is a Species, the source says Commune.', html_entity_decode( $html ) );
+		$this->assertStringNotContainsString( 'Which', $html );
+		$this->assertStringContainsString( 'Keep Apt (Species, Vaucluse) #' . $apt, $html );
+		$this->assertStringContainsString( 'incompatible', $this->call( $table, 'column_state', $rows[ $id ] ) );
 	}
 
 	/**

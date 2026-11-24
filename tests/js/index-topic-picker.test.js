@@ -107,3 +107,25 @@ test( 'destroying the picker removes its list and stops listening', async () => 
 	assert.strictEqual( s.list(), null );
 	assert.deepStrictEqual( s.calls, [] );
 } );
+
+test( 'the box of the target shows only while the action that needs it is chosen (slice 632)', () => {
+	const { showWhenChosen } = require( '../../plugin/modules/index/admin/topic-picker.js' );
+	const dom = new JSDOM( '<!doctype html><body><select id="bulk-action-selector-top"><option value="-1"></option><option value="assign"></option><option value="delete"></option></select><fieldset id="box"></fieldset><select id="bulk-action-selector-bottom"><option value="-1"></option><option value="assign"></option></select></body>' );
+	const doc = dom.window.document;
+	const box = doc.getElementById( 'box' );
+
+	showWhenChosen( { document: doc, box, action: 'assign' } );
+	assert.strictEqual( box.hidden, true, 'Hidden while no action is chosen.' );
+
+	doc.getElementById( 'bulk-action-selector-top' ).value = 'assign';
+	doc.getElementById( 'bulk-action-selector-top' ).dispatchEvent( new dom.window.Event( 'change' ) );
+	assert.strictEqual( box.hidden, false );
+
+	doc.getElementById( 'bulk-action-selector-top' ).value = 'delete';
+	doc.getElementById( 'bulk-action-selector-top' ).dispatchEvent( new dom.window.Event( 'change' ) );
+	assert.strictEqual( box.hidden, true );
+
+	doc.getElementById( 'bulk-action-selector-bottom' ).value = 'assign';
+	doc.getElementById( 'bulk-action-selector-bottom' ).dispatchEvent( new dom.window.Event( 'change' ) );
+	assert.strictEqual( box.hidden, false, 'The list at the bottom counts too.' );
+} );

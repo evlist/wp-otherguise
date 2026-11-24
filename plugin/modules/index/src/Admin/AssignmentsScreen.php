@@ -242,7 +242,7 @@ final class AssignmentsScreen {
 			return;
 		}
 
-		wp_enqueue_script( 'otherguise-topic-picker', ( $this->script_url )( 'topic-picker.js' ), array(), '630.1', true );
+		wp_enqueue_script( 'otherguise-topic-picker', ( $this->script_url )( 'topic-picker.js' ), array(), '632.1', true );
 		wp_add_inline_script(
 			'otherguise-topic-picker',
 			'window.otherguiseTopics = ' . wp_json_encode(

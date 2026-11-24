@@ -36,3 +36,7 @@ Status: **coded on 2026-11-24** (1019 PHPUnit tests, 8 of them new, with a real 
 ## Tests
 
 `IndexDesignationsDbTest`: **an ambiguous level records its candidates** (the level that hesitated, its key, the topics; no placeholder; the evidence makes the chain again, and the old evidence too); **a choice makes the levels below** (pinned, assigned by hand, the mentions, a topic that is not a candidate refused, **the next designation resolved by the pin**); **resolving again** (a dry run changes nothing, the candidates are recorded, a designation that cleared up is settled); **a topic that WordPress refuses is the one that is there**. `IndexAssignmentsDbTest`: **the list of the choices** (kind and topics above tell the namesakes apart; nothing to choose shows nothing); **applying the choices** (ticked or not; nothing chosen, a topic that is not a candidate, the levels made under the one chosen, the pin); **a new topic** in the assignment (the confirmation, the creation, the refusal that leaves nothing behind).
+
+## Amendment (slice 632)
+
+A single topic of the right label but of another kind is **not an ambiguity**: it is an *incompatibility* (`ambiguity.type`), shown as such, without the fictitious candidate that this slice added by mistake. See [`632-index-incompatible-and-commune.md`](632-index-incompatible-and-commune.md).

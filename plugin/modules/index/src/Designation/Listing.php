@@ -13,6 +13,7 @@ namespace Otherguise\Index\Designation;
 use Otherguise\Index\Designations;
 use Otherguise\Index\Folding;
 use Otherguise\Index\Observations;
+use Otherguise\Index\Resolver;
 use Otherguise\Index\Topics;
 
 defined( 'ABSPATH' ) || exit;
@@ -27,6 +28,7 @@ defined( 'ABSPATH' ) || exit;
 final class Listing {
 	public const ALL        = 'all';
 	public const RESOLVE    = 'resolve';
+	public const INCOMPATIBLE = 'incompatible';
 	public const SYSTEM     = 'system';
 	public const HAND       = 'hand';
 	public const UNOBSERVED = 'unobserved';
@@ -82,6 +84,7 @@ final class Listing {
 		$counts   = array(
 			self::ALL        => 0,
 			self::RESOLVE    => 0,
+			self::INCOMPATIBLE => 0,
 			self::SYSTEM     => 0,
 			self::HAND       => 0,
 			self::UNOBSERVED => null,
@@ -102,8 +105,11 @@ final class Listing {
 				'ambiguity' => is_array( $one['proposal']['ambiguity'] ?? null ) ? $one['proposal']['ambiguity'] : null,
 			);
 
+			$base[ (int) $id ]['incompatible'] = Designations::AMBIGUOUS === $one['state'] && Resolver::INCOMPATIBLE === (string) ( $base[ (int) $id ]['ambiguity']['type'] ?? '' );
+
 			++$counts[ self::ALL ];
 			$counts[ self::RESOLVE ] += in_array( $one['state'], array( Designations::PENDING, Designations::AMBIGUOUS ), true ) ? 1 : 0;
+			$counts[ self::INCOMPATIBLE ] += $base[ (int) $id ]['incompatible'] ? 1 : 0;
 			$counts[ self::SYSTEM ]  += null !== $have && Observations::SYSTEM === $have['by'] ? 1 : 0;
 			$counts[ self::HAND ]    += null !== $have && Observations::HAND === $have['by'] ? 1 : 0;
 		}
@@ -133,6 +139,10 @@ final class Listing {
 				$base,
 				static function ( $row ) use ( $view, $search, $labels ) {
 					if ( self::RESOLVE === $view && ! in_array( $row['state'], array( Designations::PENDING, Designations::AMBIGUOUS ), true ) ) {
+						return false;
+					}
+
+					if ( self::INCOMPATIBLE === $view && ! $row['incompatible'] ) {
 						return false;
 					}
 

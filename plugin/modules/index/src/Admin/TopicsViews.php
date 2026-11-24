@@ -81,9 +81,14 @@ trait TopicsViews {
 
 		echo '<form method="get"><input type="hidden" name="page" value="' . esc_attr( self::PAGE ) . '" /><p>';
 		echo '<input type="search" name="s" value="' . esc_attr( $search ) . '" placeholder="' . esc_attr__( 'Search a label', 'otherguise' ) . '" /> ';
-		echo '<select name="kind"><option value="">' . esc_html__( 'Every kind', 'otherguise' ) . '</option>';
+		echo '<select name="kind"><option value="">' . esc_html__( 'Any kind', 'otherguise' ) . '</option>';
 
+		// The root kind is not a filter: every kind is a sort of it, so it would show everything, which is the first entry.
 		foreach ( Kinds::tree() as $row ) {
+			if ( Kinds::ANY === $row['slug'] ) {
+				continue;
+			}
+
 			echo '<option value="' . esc_attr( (string) $row['slug'] ) . '"' . selected( $kind, $row['slug'], false ) . '>' . esc_html( str_repeat( '— ', (int) $row['depth'] ) . $row['label'] ) . '</option>';
 		}
 

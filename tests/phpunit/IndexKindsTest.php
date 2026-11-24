@@ -64,6 +64,40 @@ class IndexKindsTest extends TestCase {
 	}
 
 	/**
+	 * A commune is a third-level division (slice 632): the same place seen by an administrative source and by the chain of a photo is not two places, and a
+	 * store that was seeded before is moved once.
+	 *
+	 * @return void
+	 */
+	public function test_a_commune_is_a_third_level_division(): void {
+		$this->assertSame( 'admin3', $this->store->kinds['commune']['parent'] );
+		$this->assertTrue( Kinds::is_a( 'commune', 'admin3' ) );
+		$this->assertTrue( Kinds::compatible( 'admin3', 'commune' ) );
+		$this->assertTrue( Kinds::is_a( 'commune', 'place' ) );
+		$this->assertFalse( Kinds::compatible( 'admin2', 'commune' ), 'A department is not a commune.' );
+
+		$this->store->kinds['commune']['parent'] = 'place'; // What a blog seeded before has.
+		delete_option( Kinds::SEED );
+		Kinds::use_store( $this->store );
+		Kinds::seed();
+
+		$this->assertSame( 'admin3', $this->store->kinds['commune']['parent'] );
+
+		// The root was *Any (not classified)*, which read as a filter on what is not classified: renamed once, unless a person renamed it.
+		$this->store->kinds['any']['label'] = 'Any (not classified)';
+		delete_option( Kinds::SEED );
+		Kinds::seed();
+
+		$this->assertSame( 'Unspecified (not classified yet)', $this->store->kinds['any']['label'] );
+
+		$this->store->kinds['any']['label'] = 'Tout';
+		delete_option( Kinds::SEED );
+		Kinds::seed();
+
+		$this->assertSame( 'Tout', $this->store->kinds['any']['label'], 'A name that a person chose stays.' );
+	}
+
+	/**
 	 * The tree lists a parent before its children, and the selector indents a sub-kind.
 	 *
 	 * @return void
