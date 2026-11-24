@@ -29,6 +29,13 @@ if ( ! class_exists( 'WP_List_Table', false ) ) {
 		public $_args = array();
 
 		/**
+		 * The columns, the hidden columns, the sortable columns and the primary column, which a table of a plugin gives itself.
+		 *
+		 * @var array
+		 */
+		public $_column_headers = array();
+
+		/**
 		 * The arguments of the pagination.
 		 *
 		 * @var array

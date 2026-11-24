@@ -208,6 +208,9 @@ final class AssignmentsTable extends \WP_List_Table {
 		$this->items  = $result['rows'];
 		$this->counts = $result['counts'];
 
+		// A table of a plugin names its columns itself: WordPress would otherwise look for them in a filter of the screen and print none.
+		$this->_column_headers = array( $this->get_columns(), array(), $this->get_sortable_columns(), 'designation' );
+
 		$this->set_pagination_args(
 			array(
 				'total_items' => $result['total'],

@@ -363,6 +363,8 @@ class IndexAssignmentsDbTest extends Otherguise_Test_Database_Case {
 		$this->assertCount( 1, $table->items );
 		$this->assertSame( 2, $table->items[0]['posts'] );
 		$this->assertSame( 1, $table->pagination['total_items'] );
+		$this->assertSame( array_keys( $table->get_columns() ), array_keys( $table->_column_headers[0] ), 'The table names its columns: WordPress prints none otherwise.' );
+		$this->assertSame( 'designation', $table->_column_headers[3] );
 		$this->assertSame( array( 'cb', 'designation', 'source', 'posts', 'topic', 'by', 'state' ), array_keys( $table->get_columns() ) );
 		$this->assertSame( array( 'label', false ), $table->get_sortable_columns()['designation'] );
 		$this->assertSame( array( 'assign', 'confirm', 'unassign', 'delete' ), array_keys( $this->call( $table, 'get_bulk_actions' ) ) );
