@@ -3,7 +3,7 @@
 
 # Slice 625 — Index: topics (abstractions) and observations
 
-Status: **design only, nothing coded.** The vocabulary and the principle are **decided by Eric on 2026-11-24**; every other point is marked **Proposed** or **To decide** and waits for Eric. Dependencies: 600 to 624 (the whole Index module as it stands). Slices that follow, once this one is validated: 626 (storage and migration), 627 (enrichment before creation), 628 (screens and vocabulary), 629 (purge, prune and reset in the new vocabulary). Context: [`../design/index.md`](../design/index.md).
+Status: **design only, nothing coded.** The vocabulary and the principle are **decided by Eric on 2026-11-24** (revised the same day: **no merge and no split, only assignments**); every other point is marked **Proposed** or **To decide** and waits for Eric. Dependencies: 600 to 624 (the whole Index module as it stands). Slices that follow, once this one is validated: 626 (storage and migration), 627 (enrichment before creation), 628 (screens and vocabulary), 629 (purge, prune and reset in the new vocabulary). Context: [`../design/index.md`](../design/index.md).
 
 ## Why (Eric, 2026-11-24)
 
@@ -21,12 +21,11 @@ Status: **design only, nothing coded.** The vocabulary and the principle are **d
 
 | Word | Meaning |
 |---|---|
-| **Topic** | An **abstraction**: a concept that can be indexed (the river Allier, the département Allier, the commune Moulins). It has a **label**, a **kind**, a **place in its own tree** (parent), **identifiers** (`wikidata:Q…`, OSM, and the keys of what was merged into it) and a status. It exists **by itself**: it is edited as a topic, not deduced from what was seen. |
+| **Topic** | An **abstraction**: a concept that can be indexed (the river Allier, the département Allier, the commune Moulins). It has a **label**, a **kind**, a **place in its own tree** (parent), **identifiers** (`wikidata:Q…`, OSM, and the keys of the evidence that was assigned to it) and a status. It exists **by itself**: it is edited as a topic, not deduced from what was seen. |
 | **Observation** | **Something seen** in a post by a source: a link to Wikipedia, a tag, a category, a mark `data-index`, a geolocated photograph, the start of a track. It has a **source**, a **position** in the post, **evidence**, and **the topic it is attached to** (its **assignment**). |
-| **Assignment** | The link from an observation to a topic: **proposed by the system**, **or decided by a person**. |
-| **Merge** | **Reassigning the observations of a topic to another one.** The observations stay. |
-| **Split** | **Reassigning some observations** of a topic to another topic (new or existing). |
+| **Assignment** | The link from an observation to a topic. **Automatic** (proposed by the system, from the keys) **or manual** (decided by a person). **It is the only relation between what was seen and what is indexed**: everything that was called *merge*, *split*, *link* or *correct* is **an assignment that changes**. |
 | **Entry** | A line of a printed index (unchanged). |
+| *Merge*, *split* | **Words that are abandoned** (Decided by Eric, 2026-11-24): there are **assignments** and **screens to manage them**. Moving the observations of one topic to another is *assigning them again*. |
 | **Mention** | In the code today, a statement `(post, topic)`. **It becomes a derived view**: *the mentions of a post* are its observations **grouped by topic** (the builder and Books read that). The word stays for the text of a book (a mark `data-index`), not for the data. |
 
 ## The model (Proposed)
@@ -53,9 +52,10 @@ As today (`TermTopics`): label, kind (editable data, slice 603), parent, status 
 ### Operations in this vocabulary
 
 - **Read a post**: the sources give observations; each is **upserted** by its identity; the resolver proposes an assignment by the **same rules as today** (the first key that matches decides, the label last, a kind conflict is ambiguous), **unless a person decided**; an observation that the page no longer shows is **deleted**.
-- **Merge A into B**: the observations of A are reassigned to B, **the keys of A are added to B** (so that what said "A" yesterday says "B" tomorrow), the children of A move under B (or merge with their namesakes, as now), and A is deleted **when nothing is attached to it and no person chose anything about it**.
-- **Split A**: a person picks observations of A (by source, by post, by evidence key: *"the Wikipedia links to `Allier_(rivière)`"*) and assigns them to a topic B (existing, or new with a kind and a parent). **The key of the evidence moves from A to B**, so the next reading follows the decision. An **"only this one"** choice reassigns the single observation and leaves the keys alone.
-- **Reassign / confirm** one observation.
+- **Assign** observations to a topic, **one**, **several** (the ones that are ticked on a screen) or **all those of a topic** (*"every observation now attached to Allier the département goes to Allier the river"*). The target is an existing topic, or **a new one** (label, kind, parent). The assignment is **manual**: a new reading never changes it. **"Remember"** (ticked by default) **moves the keys of the evidence** (the Wikipedia key, the label key under its parent, the id of the tag…) **to the target topic**, so that **the next reading assigns the same evidence there by itself**; unticked, only these observations change (**an exception for this occurrence**).
+- **Nothing else is needed to fix a double.** Two topics that are the same thing are fixed by **assigning the observations of one to the other**; a topic **with no observation left and nothing chosen by a person** is deleted by the cleaning (or by hand). **Its sub-topics are topics too**: they are **moved under another parent** on the topic screen (below), or have their own observations assigned elsewhere. A convenience **"and the sub-topics of the same name"** repeats the assignment down the tree (**to decide**).
+- **A topic is managed as a topic**: its **label**, **kind** and **parent** are edited on the topic screen. A label chosen by hand is **never replaced** (by the enrichment either); **the old label key stays** on the topic, so that what was seen under the old name still comes to it.
+- **Confirm** an assignment that the system proposed (it becomes manual, and stable).
 - **Purge a source** = delete the observations of that source; **prune** = delete the topics with no observation and no decision of a person; **reset** = delete the observations (and with `--everything` the topics too).
 - **Enrichment before creation** (slice 627): an observation that carries a Wikipedia link is `pending` until Wikidata has answered; it is then assigned to the topic that holds `wikidata:Q…`, **which is created complete** (label, kind from the classes, parent) if it does not exist. **No topic is created unenriched.** If the service says "wait", the observation stays `pending` and the next worker goes on; the index is **incomplete for a while but never degraded**. What has no Wikipedia link (tags, categories, photographs, marks) needs no enrichment.
 
@@ -78,8 +78,19 @@ As today (`TermTopics`): label, kind (editable data, slice 603), parent, status 
 |---|---|---|
 | **626** | The observation (statement, identity, upsert), `Mentions` as a facade over it, `index migrate observations`, the resolver proposes an assignment and keeps the proposal. | 625 validated |
 | **627** | **Enrichment before creation**: the `pending` state, the batch by post with a cache of the Wikipedia key → Wikidata item, the phase "enrich" of `index sync` becomes the retry of the pending observations. | 626 |
-| **628** | **Screens and words**: a topic screen with its observations (post, source, evidence, who assigned), reassign, confirm, **split**, merge; the queue **To resolve** made of observations; the duplicates screen becomes **suggested merges**; the words of the interface, the commands and the documents (`index merge` stays, `index observations --topic=<id>` and `index reassign` come). | 626 |
+| **628** | **One screen to manage the topics and their assignments** (see below), the queue **To resolve** and the suggestions as views of it; the words of the interface, the commands and the documents are changed (`index merge` and `index duplicates` give way to `index assign` and `index suggestions`, `index observations --topic=<id>` comes; the old names stay as aliases for a time). | 626 |
 | **629** | `purge`, `prune`, `reset` and `sync --from-scratch` in the new vocabulary; **the topics of status `candidate` that stood for doubts are gone**. | 626, 628 |
+
+## The screen (Proposed): topics and assignments on one page
+
+*Eric, 2026-11-24: "a page to manage the topics and change their labels, unless one page manages both the topics and the assignments."* **Proposed: one screen, Otherguise → Topics**, because **one gesture needs both** (rename a topic, then move what was wrongly attached to it). It replaces the screens of the duplicates (slice 618) and the commands that merge; **the screens of the kinds (603) and of the terms (600) stay** (they are about other things: the kinds and the tags and categories of WordPress). The screen of the state of the synchronisation (622) stays as it is, **Otherguise → Index**.
+
+- **Three views** (tabs): **Topics** (the list), **To resolve** (the observations that are `pending` or `ambiguous`, which a person must assign) and **Suggestions** (the pairs of topics that look alike, today's duplicates: each offers *"assign the observations of one to the other"*, with a preview and one click, as the safe merges do now).
+- **The list of the topics**: a search, filters (kind, status, **with no observation**, **made by hand**), the tree (a topic shows its parent), and the counts (observations, sub-topics). Sorted by label.
+- **A topic** (click): **its label, its kind and its parent are editable in place** (a label or kind changed is *by hand*, protected from the enrichment); its **identifiers** are shown (`wikidata:Q…`); then **two lists**: its **observations** (post, source, evidence, **automatic or manual**, state) and its **sub-topics**.
+- **Assigning**: tick observations (or **"all of this topic"**), **"Assign to…"**: a search over the topics (with their parent, to tell *Moulins (Allier)* from *Moulins* the rivière), or **"a new topic…"**; **"Remember"** ticked; a **preview** of what changes, then **one click**. **Nothing is deleted**: the observations stay, only their assignment changes, and **the previous assignment is shown** on the observation (so that a mistake is put right the same way).
+- **Safe by default**: a preview before any change (a dry run), a capability and a nonce on each form, and **no assignment between topics of kinds that exclude each other** without an explicit confirmation (the rule of `Kinds::compatible`, as now).
+- **A long list** is paginated by the server (50 lines), never loaded whole; the tens of thousands of observations are only listed **by topic** or **by state**.
 
 ## To decide (Eric)
 
@@ -87,7 +98,10 @@ As today (`TermTopics`): label, kind (editable data, slice 603), parent, status 
 2. **Reassigning one observation: by default for this occurrence only, or for every observation with the same evidence?** *Proposed*: **for all of them** (the key moves), with **"only this one"** as a choice.
 3. **Predicate**: a new `index/observes` with `Mentions` as a facade (proposed), **or** keeping `index/mentions` and changing its meaning? *Proposed*: **new**, to avoid two meanings in one database.
 4. **The threshold** that makes us leave Triples for a table of the module (above).
-5. **A topic that is merged away leaves nothing but its keys on the one that stays.** Is it enough, or should a **redirect** (a topic that points to another, kept for a while) exist, for a link or a note that names the old id? *Proposed*: **keys only**.
+5. **A topic that has lost all its observations** leaves nothing but its keys on the topic that received them. Is it enough, or should a **redirect** (a topic that points to another, kept for a while) exist, for a link or a note that names the old id? *Proposed*: **keys only**.
+6. **One screen or two** (above)? *Proposed*: **one**, with three views.
+7. **"And the sub-topics of the same name"** when all the observations of a topic are assigned elsewhere: offered, or left to be done one topic at a time? *Proposed*: **offered**, ticked off by default, with the preview.
+8. **The commands**: `index assign` and `index suggestions` with `index merge` and `index duplicates` kept as aliases for a time (they print that the name is old)? *Proposed*: **yes**.
 
 ## Not tried
 

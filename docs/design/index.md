@@ -312,7 +312,7 @@ The geocoding (coordinates to a place) is the one real decision of the list: an 
 
 ## Topics and observations (the principle Decided by Eric, 2026-11-24; the details are Proposed)
 
-A **topic** is an **abstraction** (the river Allier, the département Allier: each its own topic with its own place in the tree); an **observation** is **something seen** in a post by a source (a link to Wikipedia, a tag, a geolocated photograph) and **assigned** to a topic. **Merging is reassigning observations**: they are never deleted by a merge, a wrong guess of the system is put right on the screens, and a topic can be **split**. The enrichment happens **before** a topic is created. The details, the storage (Triples for now), the migration and the slices that follow are in [slice 625](../slices/625-index-topics-and-observations.md); the code of slices 600 to 624 still has *mention*s attached to topics directly.
+A **topic** is an **abstraction** (the river Allier, the département Allier: each its own topic with its own place in the tree); an **observation** is **something seen** in a post by a source (a link to Wikipedia, a tag, a geolocated photograph) and **assigned** to a topic. **There is no merge and no split, only assignments**, automatic or manual: moving what was seen from one topic to another is assigning it again, nothing is deleted, a wrong guess of the system is put right on **one screen that manages the topics and their assignments**. The enrichment happens **before** a topic is created. The details, the storage (Triples for now), the migration and the slices that follow are in [slice 625](../slices/625-index-topics-and-observations.md); the code of slices 600 to 624 still has *mention*s attached to topics directly.
 
 ## Marks in the text (Proposed)
 
