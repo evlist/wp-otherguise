@@ -97,6 +97,27 @@ final class Otherguise_Test_Memory_Designations implements Designations {
 	}
 
 	/**
+	 * What the enrichment learnt about a designation.
+	 *
+	 * @param int $id Id.
+	 * @return array<string, mixed>
+	 */
+	public function enrichment( $id ) {
+		return $this->designations[ (int) $id ]['enrichment'] ?? array();
+	}
+
+	/**
+	 * Keeps what the enrichment learnt.
+	 *
+	 * @param int   $id    Id.
+	 * @param array $state What it learnt.
+	 * @return void
+	 */
+	public function set_enrichment( $id, array $state ) {
+		$this->designations[ (int) $id ]['enrichment'] = $state;
+	}
+
+	/**
 	 * Deletes a designation.
 	 *
 	 * @param int $id Id.

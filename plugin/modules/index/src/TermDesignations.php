@@ -24,6 +24,7 @@ final class TermDesignations implements Designations {
 	public const EVIDENCE = '_index_evidence';
 	public const STATE    = '_index_state';
 	public const PROPOSAL = '_index_proposal';
+	public const ENRICH   = '_index_enrich';
 
 	/**
 	 * Registers the taxonomy: flat, not public, no screen of its own. Action `init`.
@@ -141,6 +142,29 @@ final class TermDesignations implements Designations {
 	public function set_state( $id, $state, array $proposal ) {
 		update_term_meta( (int) $id, self::STATE, (string) $state );
 		update_term_meta( (int) $id, self::PROPOSAL, wp_slash( (string) wp_json_encode( $proposal ) ) );
+	}
+
+	/**
+	 * What the enrichment learnt about a designation.
+	 *
+	 * @param int $id Id.
+	 * @return array<string, mixed>
+	 */
+	public function enrichment( $id ) {
+		$state = json_decode( (string) get_term_meta( (int) $id, self::ENRICH, true ), true );
+
+		return is_array( $state ) ? $state : array();
+	}
+
+	/**
+	 * Keeps what the enrichment learnt.
+	 *
+	 * @param int                  $id    Id.
+	 * @param array<string, mixed> $state What it learnt.
+	 * @return void
+	 */
+	public function set_enrichment( $id, array $state ) {
+		update_term_meta( (int) $id, self::ENRICH, wp_slash( (string) wp_json_encode( $state, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES ) ) );
 	}
 
 	/**

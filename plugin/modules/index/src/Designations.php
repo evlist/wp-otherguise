@@ -59,6 +59,23 @@ interface Designations {
 	public function set_state( $id, $state, array $proposal );
 
 	/**
+	 * What the enrichment learnt about a designation (slice 627): `state` (`done`, `missing`, `ambiguous`, `none`), `qid`, `label`, `kind`, `date`, `due`.
+	 *
+	 * @param int $id Id.
+	 * @return array<string, mixed> Empty when the designation was not looked at.
+	 */
+	public function enrichment( $id );
+
+	/**
+	 * Keeps what the enrichment learnt.
+	 *
+	 * @param int                  $id    Id.
+	 * @param array<string, mixed> $state What it learnt.
+	 * @return void
+	 */
+	public function set_enrichment( $id, array $state );
+
+	/**
 	 * Deletes a designation.
 	 *
 	 * @param int $id Id.

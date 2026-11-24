@@ -249,7 +249,8 @@ final class Module implements ModuleInterface, DescribedModule, DisabledByDefaul
 					return 'publish' === get_post_status( (int) $post_id );
 				},
 				$this->designations(),
-				$this->observations()
+				$this->observations(),
+				$this->enrich()->designation_enricher()
 			);
 		}
 
@@ -358,7 +359,7 @@ final class Module implements ModuleInterface, DescribedModule, DisabledByDefaul
 	 * @return EnrichService
 	 */
 	public function enrich() {
-		return new EnrichService( $this->topics(), $this->mentions() );
+		return new EnrichService( $this->topics(), $this->mentions(), $this->designations(), $this->observations() );
 	}
 
 	/**

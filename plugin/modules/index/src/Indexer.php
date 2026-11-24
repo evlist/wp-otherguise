@@ -11,6 +11,7 @@
 namespace Otherguise\Index;
 
 use Otherguise\Index\Designation\Keys;
+use Otherguise\Index\Enrich\DesignationEnricher;
 
 use Otherguise\Index\Source\Partial;
 
@@ -64,21 +65,30 @@ final class Indexer {
 	private $observations;
 
 	/**
+	 * The enrichment before creation (slice 627), when it is on.
+	 *
+	 * @var DesignationEnricher|null
+	 */
+	private $enrichment;
+
+	/**
 	 * Builds the indexer.
 	 *
-	 * @param Resolver          $resolver     The resolver.
-	 * @param Mentions          $mentions     The mentions.
-	 * @param Source[]          $sources      The sources.
-	 * @param callable          $is_published Whether a post is published.
-	 * @param Designations|null $designations The designations (with the observations, they make the model of slice 625).
-	 * @param Observations|null $observations The observations and the assignments.
+	 * @param Resolver                 $resolver     The resolver.
+	 * @param Mentions                 $mentions     The mentions.
+	 * @param Source[]                 $sources      The sources.
+	 * @param callable                 $is_published Whether a post is published.
+	 * @param Designations|null        $designations The designations (with the observations, they make the model of slice 625).
+	 * @param Observations|null        $observations The observations and the assignments.
+	 * @param DesignationEnricher|null $enrichment The enrichment before creation, when it is on.
 	 */
-	public function __construct( Resolver $resolver, Mentions $mentions, array $sources, $is_published, ?Designations $designations = null, ?Observations $observations = null ) {
+	public function __construct( Resolver $resolver, Mentions $mentions, array $sources, $is_published, ?Designations $designations = null, ?Observations $observations = null, ?DesignationEnricher $enrichment = null ) {
 		$this->resolver     = $resolver;
 		$this->mentions     = $mentions;
 		$this->is_published = $is_published;
 		$this->designations = $designations;
 		$this->observations = $observations;
+		$this->enrichment   = $enrichment;
 
 		foreach ( $sources as $source ) {
 			$this->sources[ $source->id() ] = $source;
@@ -127,12 +137,15 @@ final class Indexer {
 			$seen   = array();
 			$kept   = array_fill_keys( $leaves, array() );
 
-			foreach ( $published ? $source->candidates( (int) $post_id ) : array() as $candidate ) {
+			$candidates = $published ? $source->candidates( (int) $post_id ) : array();
+			$waiting    = $dry ? array() : $this->prefetch( $candidates, $leaves[0] );
+
+			foreach ( $candidates as $candidate ) {
 				$leaf = null !== $candidate->source && '' !== $candidate->source ? $candidate->source : $leaves[0];
-				$name = $this->designate( $candidate, $leaf, $source->is_sure(), $dry, $seen );
+				$name = $this->designate( $candidate, $leaf, $source->is_sure(), $dry, $seen, $waiting );
 				$done = $name['done'];
 
-				++$report[ $done['result'] ];
+				$report[ $done['result'] ] = ( $report[ $done['result'] ] ?? 0 ) + 1;
 				// The topics created for the broader terms count as created, not as resolved.
 				$report['created'] += $done['new'] - ( Resolver::CREATED === $done['result'] ? 1 : 0 );
 
@@ -187,9 +200,10 @@ final class Indexer {
 	 * @param bool                                             $sure      Whether the source is sure.
 	 * @param bool                                             $dry       Write nothing.
 	 * @param array<string, array{done:array,designation:int}> $seen      What was decided in this reading, by key (a designation is resolved once).
+	 * @param int[]                                            $waiting   The designations that the enrichment could not look at now (the service asked to wait).
 	 * @return array{done:array{result:string,topic:int,new:int},designation:int}
 	 */
-	private function designate( Candidate $candidate, $leaf, $sure, $dry, array &$seen ) {
+	private function designate( Candidate $candidate, $leaf, $sure, $dry, array &$seen, array $waiting = array() ) {
 		if ( null === $this->designations || null === $this->observations || $dry ) {
 			return array(
 				'done'        => $this->resolver->resolve( $candidate, $sure, $dry ),
@@ -233,8 +247,24 @@ final class Indexer {
 				'topic'  => $have['topic'],
 				'new'    => 0,
 			);
+		} elseif ( in_array( $id, $waiting, true ) && null === $have ) {
+			// Wikidata has not answered yet: **no topic is made unenriched**. The observation is kept, the designation waits (slice 627).
+			$done = array(
+				'result' => Designations::PENDING,
+				'topic'  => 0,
+				'new'    => 0,
+			);
+
+			$this->designations->set_state(
+				$id,
+				Designations::PENDING,
+				array(
+					'topic' => 0,
+					'why'   => 'enrichment',
+				)
+			);
 		} else {
-			$done = $this->resolver->resolve( $candidate, $sure, false );
+			$done = $this->resolver->resolve( $this->completed( $candidate, $id ), $sure, false );
 
 			if ( $done['topic'] > 0 ) {
 				$this->observations->assign( $id, $done['topic'], Observations::SYSTEM );
@@ -265,6 +295,58 @@ final class Indexer {
 		);
 
 		return $seen[ $key ];
+	}
+
+	/**
+	 * The candidate that Wikidata completed (the identifier first, the label, the kind), when the enrichment is on and it knows the designation.
+	 *
+	 * @param Candidate $candidate The candidate.
+	 * @param int       $id        Its designation.
+	 * @return Candidate
+	 */
+	private function completed( Candidate $candidate, $id ) {
+		return null === $this->enrichment || null === DesignationEnricher::source_of( $candidate->keys ) ? $candidate : $this->enrichment->completed( $candidate, $this->enrichment->learnt( $id ) );
+	}
+
+	/**
+	 * Asks Wikidata about the designations of a post that carry a link to Wikipedia and were not looked at, **in one batch** (slice 627).
+	 *
+	 * @param Candidate[] $candidates The candidates of a source.
+	 * @param string      $default    The leaf of the source when a candidate has none.
+	 * @return int[] The designations that could not be looked at now (the service asked to wait, or failed).
+	 */
+	private function prefetch( array $candidates, $default ) {
+		if ( null === $this->enrichment || null === $this->designations ) {
+			return array();
+		}
+
+		$ask = array();
+
+		foreach ( $candidates as $candidate ) {
+			$found = DesignationEnricher::source_of( $candidate->keys );
+
+			if ( null === $found ) {
+				continue;
+			}
+
+			$leaf = null !== $candidate->source && '' !== $candidate->source ? $candidate->source : $default;
+			$key  = Keys::of( $candidate, $leaf );
+			$id   = $this->designations->find( $key );
+			$id   = $id > 0 ? $id : $this->designations->create( $key, $leaf, self::evidence( $candidate ) );
+
+			// What a person assigned is not asked about (the resolver is not asked either).
+			if ( $id > 0 && ! $this->enrichment->known( $id ) && Observations::HAND !== ( $this->observations->assignment( $id )['by'] ?? '' ) ) {
+				$ask[ $id ] = $found;
+			}
+		}
+
+		if ( array() === $ask ) {
+			return array();
+		}
+
+		$asked = $this->enrichment->look_up( $ask );
+
+		return $asked['ok'] ? array() : array_keys( array_diff_key( $ask, $asked['done'] ) );
 	}
 
 	/**

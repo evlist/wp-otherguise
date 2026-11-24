@@ -99,3 +99,7 @@ What differs or was decided while coding:
 ## Amendment (2026-11-23): when the label of Wikidata is not taken
 
 The label of Wikidata replaces the label of a topic **unless** it only changes the case (`Têt` and `TÊT`), **or** the topic has a qualifier in parentheses that Wikidata's label does not carry: *Moulins (Allier)* is not renamed *Moulins*, because the qualifier tells it from its namesakes (and from the duplicates finder's point of view it is what keeps two communes of one name apart). A label set by a person was never replaced. Tried under PHPUnit only; not on the blog.
+
+## Amendment (2026-11-24)
+
+Slice [627](627-index-enrichment-before-creation.md): **a topic that comes from a link to Wikipedia is now enriched before it is made**, once per designation; this enrichment of the topics stays as the fallback (the topics that exist, the pages that do not exist). The questions to the services and the failures are shared (`Enrich\Lookup`, `Enrich\Failures`).

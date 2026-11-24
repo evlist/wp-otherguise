@@ -10,6 +10,9 @@
 
 namespace Otherguise\Index\Enrich;
 
+use Otherguise\Index\Designations;
+use Otherguise\Index\Observations;
+use Otherguise\Index\Resolver;
 use Otherguise\Index\Topics;
 use Otherguise\Index\Job\PagesJob;
 use Otherguise\Index\Mentions;
@@ -45,14 +48,62 @@ final class EnrichService {
 	private $mentions;
 
 	/**
+	 * The designations.
+	 *
+	 * @var Designations|null
+	 */
+	private $designations;
+
+	/**
+	 * The observations.
+	 *
+	 * @var Observations|null
+	 */
+	private $observations;
+
+	/**
 	 * Builds the service.
 	 *
-	 * @param Topics   $topics  The topics.
-	 * @param Mentions $mentions The mentions.
+	 * @param Topics            $topics  The topics.
+	 * @param Mentions          $mentions The mentions.
+	 * @param Designations|null $designations The designations (the enrichment before creation needs them).
+	 * @param Observations|null $observations The observations.
 	 */
-	public function __construct( Topics $topics, Mentions $mentions ) {
-		$this->topics  = $topics;
-		$this->mentions = $mentions;
+	public function __construct( Topics $topics, Mentions $mentions, ?Designations $designations = null, ?Observations $observations = null ) {
+		$this->topics       = $topics;
+		$this->mentions     = $mentions;
+		$this->designations = $designations;
+		$this->observations = $observations;
+	}
+
+	/**
+	 * The enrichment before the creation of a topic (slice 627), or null when the enrichment is off.
+	 *
+	 * @return DesignationEnricher|null
+	 */
+	public function designation_enricher() {
+		if ( null === $this->designations || ! $this->is_on() ) {
+			return null;
+		}
+
+		$client = $this->client();
+
+		return new DesignationEnricher(
+			new Lookup( new TitleResolver( $client ), new ItemReader( $client ), $this->classes(), substr( (string) get_locale(), 0, 2 ) ),
+			new Failures( new Options() ),
+			$this->designations
+		);
+	}
+
+	/**
+	 * The queue of the designations that waited for Wikidata, or null when the enrichment is off.
+	 *
+	 * @return DesignationRetry|null
+	 */
+	public function designation_retry() {
+		$enrichment = $this->designation_enricher();
+
+		return null === $enrichment || null === $this->observations ? null : new DesignationRetry( $this->designations, $this->observations, $this->mentions, new Resolver( $this->topics ), $enrichment );
 	}
 
 	/**
@@ -140,7 +191,8 @@ final class EnrichService {
 			);
 		}
 
-		$done = $this->enricher()->run_batch();
+		$retry = $this->designation_retry();
+		$done  = null !== $retry && array() !== $retry->pending( 1 ) ? $retry->run_batch() : $this->enricher()->run_batch();
 
 		return array(
 			'ok'        => $done['ok'],
@@ -167,8 +219,8 @@ final class EnrichService {
 			static function ( array $state ) {
 				update_option( self::JOB, $state, false );
 			},
-			fn() => array() === $this->enricher()->pending( 1 ) ? array() : array( 1 ),
-			fn() => count( $this->enricher()->pending( 100000 ) ),
+			fn() => array() === $this->enricher()->pending( 1 ) && array() === $this->waiting( 1 ) ? array() : array( 1 ),
+			fn() => count( $this->enricher()->pending( 100000 ) ) + count( $this->waiting( 100000 ) ),
 			array( $this, 'process' ),
 			static function ( $delay ) use ( $foreground ) {
 				if ( ! $foreground && false === wp_next_scheduled( self::TICK_HOOK ) ) {
@@ -176,6 +228,18 @@ final class EnrichService {
 				}
 			}
 		);
+	}
+
+	/**
+	 * The designations that wait for Wikidata.
+	 *
+	 * @param int $limit At most this many.
+	 * @return array
+	 */
+	private function waiting( $limit ) {
+		$retry = $this->designation_retry();
+
+		return null === $retry ? array() : $retry->pending( $limit );
 	}
 
 	/**

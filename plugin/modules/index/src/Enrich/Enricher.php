@@ -33,9 +33,7 @@ defined( 'ABSPATH' ) || exit;
  */
 final class Enricher {
 	public const BATCH       = 50;
-	public const STOP_AFTER  = 3;
 	public const RETRY_DAYS  = 7;
-	public const MAX_BACKOFF = 300;
 
 	/**
 	 * The topics.
@@ -45,18 +43,18 @@ final class Enricher {
 	private $topics;
 
 	/**
-	 * Resolves the titles.
+	 * The questions to the services.
 	 *
-	 * @var TitleResolver
+	 * @var Lookup
 	 */
-	private $titles;
+	private $lookup;
 
 	/**
-	 * Reads the items.
+	 * The failures and the pause.
 	 *
-	 * @var ItemReader
+	 * @var Failures
 	 */
-	private $items;
+	private $failures;
 
 	/**
 	 * The table of classes.
@@ -66,25 +64,11 @@ final class Enricher {
 	private $classes;
 
 	/**
-	 * The options (failures, pause).
-	 *
-	 * @var Options
-	 */
-	private $options;
-
-	/**
 	 * Tells whether a published post mentions a topic: `fn( int $topic ): bool`.
 	 *
 	 * @var callable
 	 */
 	private $has_mentions;
-
-	/**
-	 * The language of the labels.
-	 *
-	 * @var string
-	 */
-	private $language;
 
 	/**
 	 * Returns the time in seconds.
@@ -114,14 +98,12 @@ final class Enricher {
 	 * @param callable|null $random       Default `wp_rand`.
 	 */
 	public function __construct( Topics $topics, TitleResolver $titles, ItemReader $items, ClassTable $classes, Options $options, $has_mentions, $language, $now = null, $random = null ) {
-		$this->topics      = $topics;
-		$this->titles       = $titles;
-		$this->items        = $items;
+		$this->topics       = $topics;
 		$this->classes      = $classes;
-		$this->options      = $options;
+		$this->lookup       = new Lookup( $titles, $items, $classes, $language );
 		$this->has_mentions = $has_mentions;
-		$this->language     = (string) $language;
 		$this->now          = $now ?? 'time';
+		$this->failures     = new Failures( $options, $this->now );
 		$this->random       = $random ?? 'wp_rand';
 	}
 
@@ -159,9 +141,7 @@ final class Enricher {
 	 * @return int
 	 */
 	public function paused_until() {
-		$until = (int) $this->options->get( 'index_enrich_pause_until', 0 );
-
-		return $until > (int) ( $this->now )() ? $until : 0;
+		return $this->failures->paused_until();
 	}
 
 	/**
@@ -218,44 +198,18 @@ final class Enricher {
 			}
 		}
 
-		$resolved = $this->resolve_titles( $sources );
+		$asked = $this->lookup->run( $sources );
 
-		if ( isset( $resolved['failure'] ) ) {
-			return $this->failed( $resolved['failure'] );
+		if ( ! $asked['ok'] ) {
+			return $this->failed( $asked['response'] );
 		}
 
-		$qids  = array_values( array_unique( array_filter( array_column( $resolved['items'], 'qid' ) ) ) );
-		$items = array();
-
-		if ( array() !== $qids ) {
-			$read = $this->items->read( $qids, $this->language );
-
-			if ( ! $read['response']['ok'] ) {
-				return $this->failed( $read['response'] );
-			}
-
-			$items = $read['items'];
-		}
-
-		$unknown = $this->classes->unknown( array_keys( array_merge( array(), ...array_column( $items, 'classes' ) ) ) );
-
-		foreach ( array_chunk( $unknown, ItemReader::BATCH ) as $chunk ) {
-			$ancestors = $this->items->ancestors( $chunk );
-
-			if ( ! $ancestors['response']['ok'] ) {
-				return $this->failed( $ancestors['response'] );
-			}
-
-			$this->classes->remember( $ancestors['ancestors'] );
-		}
-
-		$this->options->set( 'index_enrich_failures', 0 );
-		$this->options->set( 'index_enrich_pause_until', 0 );
+		$this->failures->succeeded();
 
 		$report = array();
 
-		foreach ( $resolved['items'] as $id => $outcome ) {
-			$report[ $id ] = $this->apply( (int) $id, $outcome, $items[ $outcome['qid'] ] ?? null, $dry );
+		foreach ( $asked['outcomes'] as $id => $outcome ) {
+			$report[ $id ] = $this->apply( (int) $id, $outcome, $asked['items'][ $outcome['qid'] ] ?? null, $dry );
 		}
 
 		return $this->result( true, false, count( $report ) . ' topic' . ( 1 === count( $report ) ? '' : 's' ) . ' looked at.', $report );
@@ -299,45 +253,6 @@ final class Enricher {
 		}
 
 		return $wikipedia;
-	}
-
-	/**
-	 * Resolves the titles of the topics, one request per language.
-	 *
-	 * @param array<int, array<string, string>> $sources By topic.
-	 * @return array{items:array<int,array<string,string>>}|array{failure:array}
-	 */
-	private function resolve_titles( array $sources ) {
-		$by_language = array();
-		$outcomes    = array();
-
-		foreach ( $sources as $id => $source ) {
-			if ( 'wikidata' === $source['type'] ) {
-				$outcomes[ $id ] = array(
-					'state' => 'resolved',
-					'qid'   => $source['qid'],
-				);
-			} else {
-				$by_language[ $source['language'] ][ $id ] = $source['title'];
-			}
-		}
-
-		foreach ( $by_language as $language => $titles ) {
-			$answer = $this->titles->resolve( $language, array_values( $titles ) );
-
-			if ( ! $answer['response']['ok'] ) {
-				return array( 'failure' => $answer['response'] );
-			}
-
-			foreach ( $titles as $id => $title ) {
-				$outcomes[ $id ] = $answer['results'][ $title ] ?? array(
-					'state' => 'missing',
-					'qid'   => '',
-				);
-			}
-		}
-
-		return array( 'items' => $outcomes );
 	}
 
 	/**
@@ -412,7 +327,7 @@ final class Enricher {
 	 * @param string $wikidata The label that Wikidata gives.
 	 * @return bool
 	 */
-	private static function renames( $current, $wikidata ) {
+	public static function renames( $current, $wikidata ) {
 		if ( $current === $wikidata || mb_strtolower( $current ) === mb_strtolower( $wikidata ) ) {
 			return false;
 		}
@@ -455,24 +370,9 @@ final class Enricher {
 	 * @return array{ok:bool,stop:bool,message:string,processed:int,report:array}
 	 */
 	private function failed( array $response ) {
-		$failures = (int) $this->options->get( 'index_enrich_failures', 0 ) + 1;
-		$retry    = 'retry' === $response['class'];
-		$stop     = $retry || 'fatal' === $response['class'] || $failures >= self::STOP_AFTER;
-		$message  = (string) $response['error'];
+		$failed = $this->failures->failed( $response );
 
-		$this->options->set( 'index_enrich_failures', $failures );
-
-		if ( $retry ) {
-			$wait  = max( (int) $response['retry_after'], min( self::MAX_BACKOFF, 5 * ( 2 ** ( $failures - 1 ) ) ) );
-			$until = (int) ( $this->now )() + $wait;
-
-			$this->options->set( 'index_enrich_pause_until', $until );
-			$message .= ' Paused until ' . gmdate( 'Y-m-d H:i:s', $until ) . ' UTC.';
-		} elseif ( $stop ) {
-			$message .= ' Stopped after ' . $failures . ' failure(s) in a row.';
-		}
-
-		return $this->result( false, $stop, $message, array() );
+		return $this->result( false, $failed['stop'], $failed['message'], array() );
 	}
 
 	/**
