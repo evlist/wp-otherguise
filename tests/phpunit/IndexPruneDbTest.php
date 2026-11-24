@@ -10,6 +10,7 @@
 
 use Otherguise\Index\Cli\PruneCommand;
 use Otherguise\Index\Cli\PurgeCommand;
+use Otherguise\Index\Cli\ResetCommand;
 use Otherguise\Index\Kinds;
 use Otherguise\Index\Mentions;
 use Otherguise\Index\Merge\TopicPruner;
@@ -247,5 +248,72 @@ class IndexPruneDbTest extends Otherguise_Test_Database_Case {
 
 		$this->assertNull( $this->topics->get( $other ) );
 		$this->assertNotNull( $this->topics->get( $country ), 'Espagne stays: Galice and Vigo are below it and Vigo is mentioned.' );
+	}
+
+	/**
+	 * The complete reset (slice 623): a dry run counts and changes nothing; the real one stops the synchronisation, drops the mentions of the pages, the tags
+	 * and the photographs, deletes the topics that nothing mentions any more, and forgets the state of the reads; what a person decided stays (a mention made
+	 * by hand, a chosen kind, a refused topic); with `--everything` nothing stays.
+	 *
+	 * @return void
+	 */
+	public function test_the_reset(): void {
+		$made    = $this->topics->create( 'Fait par une source', 'place', 0, Topics::APPROVED, array() );
+		$shared  = $this->topics->create( 'Deux sources', 'place', 0, Topics::APPROVED, array() );
+		$chosen  = $this->topics->create( 'Choisi', 'place', 0, Topics::APPROVED, array() );
+		$refused = $this->topics->create( 'Refusé', 'place', 0, Topics::REFUSED, array() );
+		$hand    = $this->topics->create( 'A la main', 'place', 0, Topics::APPROVED, array() );
+
+		$this->topics->set_kind( $chosen, 'place', true );
+		$this->mentions->sync( 1, 'post/link', array( $made => array(), $shared => array() ) );
+		$this->mentions->sync( 1, 'hand', array( $hand => array(), $shared => array() ) );
+		$this->mentions->sync( 2, 'image/address', array( $shared => array() ) );
+
+		$lines   = array();
+		$done    = array();
+		$called  = array();
+		$command = new ResetCommand(
+			$this->topics,
+			$this->mentions,
+			new TopicPruner( $this->topics, $this->mentions ),
+			static function () use ( &$called ) {
+				$called[] = 'stop';
+			},
+			static function ( $everything ) use ( &$called ) {
+				$called[] = $everything ? 'forget everything' : 'forget';
+			},
+			static function ( $line ) use ( &$lines ) {
+				$lines[] = $line;
+			},
+			static function ( $line ) use ( &$done ) {
+				$done[] = $line;
+			}
+		);
+
+		$command( array(), array() );
+
+		$this->assertSame( array(), $called, 'A dry run stops and forgets nothing.' );
+		$this->assertSame( array( $made . "\tFait par une source [place]" ), $lines );
+		$this->assertStringContainsString( '3 mention(s) would be dropped, 1 topic(s) would be deleted', $done[0] );
+		$this->assertNotNull( $this->topics->get( $made ) );
+		$this->assertCount( 3, $this->mentions->mentioned_topics(), 'A dry run keeps every mention.' );
+
+		$command( array(), array( 'apply' => true ) );
+
+		$this->assertSame( array( 'stop', 'forget' ), $called );
+		$this->assertNull( $this->topics->get( $made ), 'What only a source said goes.' );
+		$this->assertNotNull( $this->topics->get( $shared ), 'It stays: a mention made by hand keeps it.' );
+		$this->assertNotNull( $this->topics->get( $hand ) );
+		$this->assertNotNull( $this->topics->get( $chosen ), 'A chosen kind stays.' );
+		$this->assertNotNull( $this->topics->get( $refused ), 'A refused topic stays.' );
+		$this->assertEquals( array( $hand => true, $shared => true ), $this->mentions->mentioned_topics() );
+
+		$called = array();
+
+		$command( array(), array( 'apply' => true, 'everything' => true ) );
+
+		$this->assertSame( array( 'stop', 'forget everything' ), $called );
+		$this->assertSame( array(), $this->mentions->mentioned_topics(), 'Every mention goes, the one made by hand too.' );
+		$this->assertSame( array(), $this->topics->all(), 'Every topic goes, the refused and the chosen ones too.' );
 	}
 }

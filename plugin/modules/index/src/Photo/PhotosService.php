@@ -25,6 +25,9 @@ defined( 'ABSPATH' ) || exit;
 final class PhotosService {
 	public const TICK_HOOK = 'otherguise_index_photos';
 	public const PENDING   = '_index_geo_pending';
+	/**
+	 * The option of the thresholds of the stops, which slice 623 removed: only the uninstall still knows it.
+	 */
 	public const SETTINGS  = 'index_photos_settings';
 	public const LAST      = 'index_photos_last';
 	public const WAITING   = 'index_photos_waiting';
@@ -61,7 +64,6 @@ final class PhotosService {
 		if ( null === $this->source ) {
 			$this->source = new Photos(
 				new Geo(),
-				array( $this, 'settings' ),
 				static function ( $post ) {
 					$urls = json_decode( (string) get_post_meta( (int) $post, self::PENDING, true ), true );
 
@@ -91,17 +93,6 @@ final class PhotosService {
 		}
 
 		return $this->source;
-	}
-
-	/**
-	 * The settings: the options `photos_min`, `minutes_min` and `chain_metres`. The defaults are **not calibrated** (Eric's list of places is awaited).
-	 *
-	 * @return array<string, int>
-	 */
-	public function settings() {
-		$saved = get_option( self::SETTINGS, array() );
-
-		return array_merge( Stops::DEFAULTS, array_map( 'intval', array_intersect_key( is_array( $saved ) ? $saved : array(), Stops::DEFAULTS ) ) );
 	}
 
 	/**
@@ -161,8 +152,7 @@ final class PhotosService {
 	}
 
 	/**
-	 * What the analysis of a post says, without keeping anything: the stops, their duration, the place chosen and what is left out (the tool to calibrate
-	 * the minimums).
+	 * What the analysis of a post says, without keeping anything: the places of its photographs and what is left out.
 	 *
 	 * @param int      $post_id Post.
 	 * @param Signal[] $signals What the page said.

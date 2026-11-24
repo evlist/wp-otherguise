@@ -124,10 +124,10 @@ final class PhotosCommand {
 	 * : The post to read.
 	 *
 	 * [--dry-run]
-	 * : With --post, write nothing and print the stops, their duration, the place chosen and what is left out: the tool to calibrate the minimums.
+	 * : With --post, write nothing and print the places of the photographs (one line per place, with its number of photographs) and what is left out.
 	 *
 	 * [--verbose]
-	 * : With --dry-run, also print, under each stop, the levels of its place as Media Helper gave them (the numbered administrative levels included) and each of its photographs: the time, the position and the address.
+	 * : With --dry-run, also print, under each place, the levels of its place as Media Helper gave them (the numbered administrative levels included) and each of its photographs: the time, the position and the address.
 	 *
 	 * @param array $args  Unused.
 	 * @param array $assoc Options.
@@ -148,13 +148,11 @@ final class PhotosCommand {
 			return;
 		}
 
-		foreach ( (array) ( $done['analysis']['stops'] ?? array() ) as $number => $stop ) {
-			( $this->log )(
-				'stop ' . ( $number + 1 ) . ': ' . count( $stop['photos'] ) . ' photograph(s), ' . $stop['minutes'] . ' min, ' . self::name( $stop['place'] ) . ( $stop['qualifies'] || ! is_array( $stop['place'] ) ? '' : ' (too small: no topic)' )
-			);
+		foreach ( (array) ( $done['analysis']['places'] ?? array() ) as $number => $place ) {
+			( $this->log )( 'place ' . ( $number + 1 ) . ': ' . count( $place['photos'] ) . ' photograph(s), ' . self::name( $place['place'] ) );
 
 			if ( isset( $assoc['verbose'] ) ) {
-				self::details( $stop, $this->log );
+				self::details( $place, $this->log );
 			}
 		}
 
@@ -189,10 +187,10 @@ final class PhotosCommand {
 	}
 
 	/**
-	 * What lies behind a stop, for the one who looks for a wrong place: the levels of its place as Media Helper gave them, then its photographs with
+	 * What lies behind a place, for the one who looks for a wrong place: the levels of its place as Media Helper gave them, then its photographs with
 	 * their time, their position and their address, in the order of the time.
 	 *
-	 * @param array    $stop The stop.
+	 * @param array    $stop The place with its photographs.
 	 * @param callable $log  Prints a line.
 	 * @return void
 	 */
@@ -207,7 +205,7 @@ final class PhotosCommand {
 	}
 
 	/**
-	 * The place of a stop, from the highest level to the lowest.
+	 * The name of a place, from the highest level to the lowest.
 	 *
 	 * @param array|null $place The `place` of the answer.
 	 * @return string

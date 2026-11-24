@@ -28,6 +28,11 @@ defined( 'ABSPATH' ) || exit;
  */
 final class SyncService {
 	public const TICK_HOOK = 'otherguise_index_sync';
+
+	/**
+	 * How long a worker may be silent before another takes over (a worker saves a sign of life at each tick, which lasts at most 20 seconds and one post).
+	 */
+	public const LOCK_SECONDS = 120;
 	public const AUTO_HOOK = 'otherguise_index_sync_auto';
 	public const AUTO      = 'index_sync_auto';
 
@@ -41,7 +46,7 @@ final class SyncService {
 	/**
 	 * The pieces, by name: `load` and `save` (the state), `load_job` and `save_job` (the state of the job of the collect), `load_ids` and `save_ids`
 	 * (the posts of the run), `all_posts`, `stale_posts`, `collect` (one post), `enrich_job` (a job, or null when the enrichment is off), `cleanup`,
-	 * `purge`, `schedule` (a tick in some seconds), `auto_on`, `schedule_auto`, `unschedule_auto`, `now`.
+	 * `purge`, `schedule` (a tick in some seconds), `lock` and `unlock` (one worker at a time; optional), `continuous` (whether the process may work for long: the command line; optional), `auto_on`, `schedule_auto`, `unschedule_auto`, `now`.
 	 *
 	 * @var array<string, callable>
 	 */
@@ -125,6 +130,49 @@ final class SyncService {
 			'state'   => $this->state(),
 			'posts'   => count( $ids ),
 		);
+	}
+
+	/**
+	 * The work of the cron event: **one worker at a time**, and a worker that runs from the command line (the system cron that Eric's containers use) goes on
+	 * **until the run is over** (or `$seconds`), instead of one tick a minute; from a web request it makes one tick, which is limited in time. A worker that
+	 * dies is replaced after `LOCK_SECONDS`. Action `otherguise_index_sync`.
+	 *
+	 * @param int $seconds The longest a command-line worker works (an hour by default: the next one takes over).
+	 * @return array The state.
+	 */
+	public function work( $seconds = 3600 ) {
+		$now = (int) ( $this->with['now'] )();
+
+		if ( ! $this->lock( $now ) ) {
+			return $this->state();
+		}
+
+		$until = $now + max( 1, (int) $seconds );
+		$long  = (bool) ( ( $this->with['continuous'] ?? static fn() => false )() );
+
+		try {
+			do {
+				$state = $this->tick();
+				$now   = (int) ( $this->with['now'] )();
+				$this->lock( $now );
+			} while ( $long && PagesJob::RUNNING === $state['status'] && $now < $until );
+		} finally {
+			if ( isset( $this->with['unlock'] ) ) {
+				( $this->with['unlock'] )();
+			}
+		}
+
+		return $this->state();
+	}
+
+	/**
+	 * Takes the place of the worker, or keeps it.
+	 *
+	 * @param int $now The time.
+	 * @return bool Whether this process is the worker.
+	 */
+	private function lock( $now ) {
+		return ! isset( $this->with['lock'] ) || (bool) ( $this->with['lock'] )( (int) $now );
 	}
 
 	/**
@@ -251,16 +299,30 @@ final class SyncService {
 	 * @return array The state.
 	 */
 	public function run_here( $log ) {
+		if ( ! $this->lock( (int) ( $this->with['now'] )() ) ) {
+			$log( 'Another worker is running the synchronisation (the cron of the system): wait for it, or stop it first.' );
+
+			return $this->state();
+		}
+
 		$seen = 0;
 
-		while ( PagesJob::RUNNING === $this->state()['status'] ) {
-			$state = $this->tick();
+		try {
+			while ( PagesJob::RUNNING === $this->state()['status'] ) {
+				$state = $this->tick();
 
-			foreach ( array_slice( $state['log'], $seen ) as $line ) {
-				$log( $line );
+				$this->lock( (int) ( $this->with['now'] )() );
+
+				foreach ( array_slice( $state['log'], $seen ) as $line ) {
+					$log( $line );
+				}
+
+				$seen = count( $state['log'] );
 			}
-
-			$seen = count( $state['log'] );
+		} finally {
+			if ( isset( $this->with['unlock'] ) ) {
+				( $this->with['unlock'] )();
+			}
 		}
 
 		return $this->state();

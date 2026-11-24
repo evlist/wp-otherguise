@@ -18,7 +18,7 @@ defined( 'ABSPATH' ) || exit;
 
 /**
  * Otherguise → Index (slice 622): what the synchronisation is doing (with the buttons to update, start again from scratch and stop) and the features
- * that are on (the sources, the Wikidata enrichment and its contact, the night run, the thresholds of the photographs). The screen adds no logic: it
+ * that are on (the sources, the Wikidata enrichment and its contact, the night run). The screen adds no logic: it
  * reads and writes the options that the commands write, and calls `SyncService`. Each form posts to `admin-post.php` with the capability and a nonce.
  */
 final class IndexScreen {
@@ -47,7 +47,7 @@ final class IndexScreen {
 	private $sync;
 
 	/**
-	 * Reads the features: `fn(): array{sources:string[],enrich:bool,contact:string,auto:bool,photos:array<string,int>}`.
+	 * Reads the features: `fn(): array{sources:string[],enrich:bool,contact:string,auto:bool}`.
 	 *
 	 * @var callable
 	 */
@@ -169,10 +169,10 @@ final class IndexScreen {
 
 	/**
 	 * The features that the form says, over the ones that are saved: the sources that the screen does not know (a plugin's) are kept, the photographs
-	 * turn the pages on, the thresholds are integers of at least 1.
+	 * turn the pages on.
 	 *
 	 * @param callable $field Reads a posted field.
-	 * @return array{sources:string[],enrich:bool,contact:string,auto:bool,photos:array<string,int>}
+	 * @return array{sources:string[],enrich:bool,contact:string,auto:bool}
 	 */
 	private function features_from( $field ) {
 		$current = (array) ( $this->read )();
@@ -188,19 +188,11 @@ final class IndexScreen {
 			$sources[] = 'page';
 		}
 
-		$photos = array();
-
-		foreach ( (array) ( $current['photos'] ?? array() ) as $name => $value ) {
-			$given          = $field( (string) $name );
-			$photos[ $name ] = '' === $given ? (int) $value : max( 1, (int) $given );
-		}
-
 		return array(
 			'sources' => array_values( array_unique( $sources ) ),
 			'enrich'  => '' !== $field( 'enrich' ),
 			'contact' => sanitize_text_field( $field( 'contact' ) ),
 			'auto'    => '' !== $field( 'auto' ),
-			'photos'  => $photos,
 		);
 	}
 
@@ -451,19 +443,6 @@ final class IndexScreen {
 
 		echo '<h3>' . esc_html__( 'Night run', 'otherguise' ) . '</h3>';
 		echo '<p><label><input type="checkbox" name="auto" value="1"' . checked( ! empty( $features['auto'] ), true, false ) . ' /> ' . esc_html__( 'Every night, read the posts that changed, enrich and clean up', 'otherguise' ) . '</label></p>';
-
-		echo '<h3>' . esc_html__( 'Places of the photographs', 'otherguise' ) . '</h3>';
-		echo '<p><em>' . esc_html__( 'These thresholds are not calibrated yet.', 'otherguise' ) . '</em></p>';
-
-		$thresholds = array(
-			'photos_min'   => __( 'Photographs for a stop to give a place', 'otherguise' ),
-			'minutes_min'  => __( 'or minutes spent there', 'otherguise' ),
-			'chain_metres' => __( 'Metres between photographs of one stop', 'otherguise' ),
-		);
-
-		foreach ( (array) ( $features['photos'] ?? array() ) as $name => $value ) {
-			echo '<p><label>' . esc_html( $thresholds[ $name ] ?? (string) $name ) . ' <input type="number" min="1" name="' . esc_attr( (string) $name ) . '" value="' . esc_attr( (string) (int) $value ) . '" /></label></p>';
-		}
 
 		echo '<p><button class="button button-primary">' . esc_html__( 'Save', 'otherguise' ) . '</button></p></form>';
 	}

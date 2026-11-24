@@ -106,11 +106,6 @@ class IndexPhotosDbTest extends Otherguise_Test_Database_Case {
 		);
 		$this->photos   = new Photos(
 			new Geo( fn( array $urls ) => array_intersect_key( $this->files, array_flip( $urls ) ) ),
-			static fn() => array(
-				'photos_min'   => 3,
-				'minutes_min'  => 20,
-				'chain_metres' => 50,
-			),
 			fn( $post ) => $this->pending[ $post ] ?? array(),
 			function ( $post, array $urls ) {
 				if ( array() === $urls ) {
@@ -168,8 +163,8 @@ class IndexPhotosDbTest extends Otherguise_Test_Database_Case {
 	}
 
 	/**
-	 * A page with photographs and a track: the stops that are big enough make mentions of the source image/address on the lowest place, the track
-	 * makes one mention for its start and one for its end; what is not usable is left out and counted, and no URL is kept.
+	 * A page with photographs and a track: every photograph that has a place makes a mention of the source image/address on the lowest place (a lone one
+	 * too, since slice 623), the track makes one mention for its start and one for its end; what is not usable is left out and counted, and no URL is kept.
 	 *
 	 * @return void
 	 */
@@ -219,21 +214,22 @@ class IndexPhotosDbTest extends Otherguise_Test_Database_Case {
 			$sources[ $topic['label'] ] = $mention['sources'];
 		}
 
-		$this->assertSame(
+		$this->assertEquals(
 			array(
 				'Les Arberons' => array( 'image/address' ),
+				'Lac'          => array( 'image/address' ),
 				'Gîte'         => array( 'trace/start' ),
 				'Refuge'       => array( 'trace/end' ),
 			),
 			$sources,
-			'The stop of three photographs, the start and the end; the lone photograph is too small; none, day-only time with one photograph: too small.'
+			'The photographs of one place, the lone photograph of another, the start and the end; no file and no position: nothing.'
 		);
 
 		$arberons_id = array_search( 'Les Arberons', array_map( fn( $id ) => $this->topics->get( $id )['label'], array_keys( $found ) ), true );
 		$id          = array_keys( $found )[ $arberons_id ];
 		$via         = $found[ $id ]['details']['image/address']['via'];
 
-		$this->assertCount( 3, $via, 'One via per photograph, a short hash and not the URL.' );
+		$this->assertCount( 4, $via, 'One via per photograph (the day-only one too), a short hash and not the URL.' );
 		$this->assertMatchesRegularExpression( '/^image:[0-9a-f]{12}$/', $via[0] );
 		$this->assertStringNotContainsString( 'a.jpg', implode( ' ', $via ) );
 		$this->assertSame( 'Beaufort', $this->topics->get( $this->topics->get( $id )['parent'] )['label'] );
@@ -243,7 +239,8 @@ class IndexPhotosDbTest extends Otherguise_Test_Database_Case {
 		$this->assertSame( 1, $left['not_of_the_site'] );
 		$this->assertSame( 1, $left['no_data'] );
 		$this->assertSame( 1, $left['no_position'] );
-		$this->assertSame( 1, $left['no_precise_time'] );
+		$this->assertArrayNotHasKey( 'no_precise_time', $left, 'The time no longer matters.' );
+		$this->assertArrayNotHasKey( 'small_stop', $left, 'There are no stops.' );
 		$this->assertSame( 0, $left['no_place_yet'] );
 		$this->assertArrayNotHasKey( 1, $this->pending, 'Nothing waits: no URL is kept.' );
 		$this->assertGreaterThan( 0, $report['added'] );
@@ -302,7 +299,7 @@ class IndexPhotosDbTest extends Otherguise_Test_Database_Case {
 	}
 
 	/**
-	 * A dry run keeps nothing; the command prints the stops and what is left out; without a post it makes the second pass.
+	 * A dry run keeps nothing; the command prints the places and what is left out; without a post it makes the second pass.
 	 *
 	 * @return void
 	 */
@@ -358,7 +355,7 @@ class IndexPhotosDbTest extends Otherguise_Test_Database_Case {
 			)
 		);
 
-		$this->assertSame( array( 'stop 1: 2 photograph(s), 30 min, France > Auvergne-Rhône-Alpes > Savoie > Beaufort > Les Arberons', 'stop 2: 1 photograph(s), 0 min, no place yet', 'left out, no place yet: 1' ), $lines );
+		$this->assertSame( array( 'place 1: 2 photograph(s), France > Auvergne-Rhône-Alpes > Savoie > Beaufort > Les Arberons', 'left out, no place yet: 1' ), $lines );
 		$this->assertSame( array( '/c.jpg' ), $this->photos->last( 1 )['pending'] );
 		$this->assertArrayNotHasKey( 1, $this->pending, 'A dry run keeps nothing.' );
 
@@ -373,7 +370,7 @@ class IndexPhotosDbTest extends Otherguise_Test_Database_Case {
 	}
 
 	/**
-	 * With `--verbose` the dry run shows, under each stop, the levels of its place as Media Helper gave them and each photograph with its time, its
+	 * With `--verbose` the dry run shows, under each place, the levels of its place as Media Helper gave them and each photograph with its time, its
 	 * position and its address (the tool to find which photograph gives a wrong place); without it the lines are the same as before.
 	 *
 	 * @return void
@@ -427,7 +424,7 @@ class IndexPhotosDbTest extends Otherguise_Test_Database_Case {
 			)
 		);
 
-		$this->assertCount( 1, $lines, 'Without --verbose: the stop only.' );
+		$this->assertCount( 1, $lines, 'Without --verbose: the place only.' );
 
 		$lines = array();
 
@@ -440,7 +437,7 @@ class IndexPhotosDbTest extends Otherguise_Test_Database_Case {
 			)
 		);
 
-		$this->assertStringStartsWith( 'stop 1: 2 photograph(s), 30 min, ', $lines[0] );
+		$this->assertStringStartsWith( 'place 1: 2 photograph(s), ', $lines[0] );
 		$this->assertStringStartsWith( '    levels: {', $lines[1] );
 		$this->assertStringContainsString( '"level6":"Huesca"', $lines[1], 'The numbered levels are shown.' );
 		$this->assertSame( '    10:00  42,6  /a.jpg', $lines[2] );
@@ -448,38 +445,33 @@ class IndexPhotosDbTest extends Otherguise_Test_Database_Case {
 	}
 
 	/**
-	 * A thumbnail and its original are one photograph (same position, same time, same name once the size is left out): a stop counts it once, so two
-	 * photographs and a thumbnail do not make the three of a stop; the mention has the `via` of both addresses.
+	 * A thumbnail and its original are one photograph (same position, same time, same name once the size is left out): the place counts it once, so the
+	 * mention has two photographs for three addresses, and the `via` of each address.
 	 *
 	 * @return void
 	 */
 	public function test_a_thumbnail_and_its_original_are_one_photograph(): void {
 		$here        = $this->place( 'Les Arberons', 'Beaufort' );
 		$this->files = array(
-			'/up/a.jpg'                => $this->shot( 45.0000, 0, $here ),
+			'/up/a.jpg'                     => $this->shot( 45.0000, 0, $here ),
 			'/up/thumbnails/b-1024x577.jpg' => $this->shot( 45.0003, 1, $here ),
-			'/up/b.jpg'                => $this->shot( 45.0003, 1, $here ),
+			'/up/b.jpg'                     => $this->shot( 45.0003, 1, $here ),
 		);
 
-		$signals = array(
-			new Signal( Signal::IMAGE, '/up/a.jpg', 'content', 'src' ),
-			new Signal( Signal::IMAGE, '/up/thumbnails/b-1024x577.jpg', 'content', 'src' ),
-			new Signal( Signal::IMAGE, '/up/b.jpg', 'content', 'href' ),
+		$this->photos->handle(
+			1,
+			array(
+				new Signal( Signal::IMAGE, '/up/a.jpg', 'content', 'src' ),
+				new Signal( Signal::IMAGE, '/up/thumbnails/b-1024x577.jpg', 'content', 'src' ),
+				new Signal( Signal::IMAGE, '/up/b.jpg', 'content', 'href' ),
+			)
 		);
-
-		$this->photos->handle( 1, $signals );
-		$this->indexer->index_post( 1 );
-
-		$this->assertSame( array(), $this->mentions->of_post( 1 ), 'Two photographs, not three: too small.' );
-		$this->assertSame( 2, $this->photos->last( 1 )['left_out']['small_stop'], 'Two photographs left out, not three.' );
-
-		$this->files['/up/c.jpg'] = $this->shot( 45.0006, 2, $here );
-		$this->photos->handle( 1, array_merge( $signals, array( new Signal( Signal::IMAGE, '/up/c.jpg', 'content', 'src' ) ) ) );
 		$this->indexer->index_post( 1 );
 
 		$found = $this->mentions->of_post( 1 );
 
-		$this->assertCount( 1, $found, 'Three photographs now.' );
-		$this->assertCount( 4, reset( $found )['details']['image/address']['via'], 'The via of each of the four addresses.' );
+		$this->assertCount( 1, $found );
+		$this->assertCount( 3, reset( $found )['details']['image/address']['via'], 'The via of each of the three addresses.' );
+		$this->assertCount( 2, $this->photos->last( 1 )['places'][0]['photos'], 'Two photographs, not three.' );
 	}
 }

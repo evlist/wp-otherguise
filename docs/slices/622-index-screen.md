@@ -52,3 +52,7 @@ The screen with doubles for the request, the nonce, the capability, the redirect
 ## Not tried
 
 Nothing of this screen was tried on a real WordPress site, nor on the blog. The wiring (`IndexScreenWiring`) that reads and writes the real options is only tried by its test through the same doubles.
+
+## Amendment (2026-11-24)
+
+The thresholds of the photographs (`photos_min`, `minutes_min`, `chain_metres`) are **gone from the screen**: slice 623 removed the stops.

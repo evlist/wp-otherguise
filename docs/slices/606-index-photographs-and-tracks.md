@@ -67,3 +67,7 @@ The **roll-up** (the commune listing the pages of its hamlets: a later option of
 **Changed on 2026-11-23 ([slice 614](614-index-levels-of-a-place.md))**: each level of a place is a topic of its **own kind** (`country`, `admin1`, `admin2`, `commune`, `site`), and two levels with the same name are **two topics** (the rule "a repeated name is one level" above is gone).
 
 **Added on 2026-11-23**: `wp otherguise index photos run --post=<id> --dry-run --verbose` prints, under each stop, **the levels of its place as Media Helper gave them** (the numbered `admin` levels included) and **each photograph with its time, its position and its address**: the tool to find which photograph gives a wrong place. The addresses are shown only by this dry run, nothing is kept.
+
+## Amendment (2026-11-24)
+
+**The stops are removed** (slice [623](623-index-photos-without-stops.md)): every photograph that has a place is an observation of it, and the minimums `photos_min`, `minutes_min` and the chain rule `chain_metres` described above no longer exist.

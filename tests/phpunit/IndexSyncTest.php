@@ -64,6 +64,24 @@ class IndexSyncTest extends TestCase {
 	);
 
 	/**
+	 * Whether the process may work for long (the command line).
+	 *
+	 * @var bool
+	 */
+	private $continuous = false;
+
+	/**
+	 * Whether another worker holds the place, and how many times the place was asked for and given back.
+	 *
+	 * @var array{held:bool,asked:int,released:int}
+	 */
+	private $lock = array(
+		'held'     => false,
+		'asked'    => 0,
+		'released' => 0,
+	);
+
+	/**
 	 * The enrichment: null when it is off, else the queue of topics (a post of the job is a batch).
 	 *
 	 * @var int[]|null
@@ -114,6 +132,12 @@ class IndexSyncTest extends TestCase {
 		$this->wait    = false;
 		$this->dropped = 0;
 		$this->auto_on = true;
+		$this->continuous = false;
+		$this->lock    = array(
+			'held'     => false,
+			'asked'    => 0,
+			'released' => 0,
+		);
 		$this->cron    = array(
 			'ticks' => 0,
 			'auto'  => 0,
@@ -179,6 +203,15 @@ class IndexSyncTest extends TestCase {
 					return $done;
 				},
 				'purge'           => fn() => ++$this->dropped * 10,
+				'lock'            => function () {
+					++$this->lock['asked'];
+
+					return ! $this->lock['held'];
+				},
+				'unlock'          => function () {
+					++$this->lock['released'];
+				},
+				'continuous'      => fn() => $this->continuous,
 				'schedule'        => function () {
 					++$this->cron['ticks'];
 				},
@@ -192,6 +225,38 @@ class IndexSyncTest extends TestCase {
 				'now'             => static fn() => 1700000000,
 			)
 		);
+	}
+
+	/**
+	 * The work of the cron event: from a web request one tick; from the command line the worker goes on until the run is over; another worker that holds
+	 * the place makes this one do nothing; the place is given back.
+	 *
+	 * @return void
+	 */
+	public function test_the_worker(): void {
+		$sync = $this->service();
+		$sync->start();
+
+		$sync->work();
+
+		$this->assertSame( PagesJob::RUNNING, $sync->state()['status'], 'One tick from a web request: not over.' );
+		$this->assertSame( 1, $this->lock['released'] );
+
+		$this->continuous = true;
+		$sync->work();
+
+		$this->assertSame( PagesJob::DONE, $sync->state()['status'], 'From the command line it goes on until the run is over.' );
+		$this->assertSame( array( 11, 12, 13 ), $this->read );
+		$this->assertSame( 2, $this->lock['released'] );
+
+		$sync->start();
+		$this->lock['held'] = true;
+		$read               = count( $this->read );
+
+		$sync->work();
+
+		$this->assertSame( $read, count( $this->read ), 'Another worker holds the place: nothing is read.' );
+		$this->assertSame( PagesJob::RUNNING, $sync->state()['status'] );
 	}
 
 	/**

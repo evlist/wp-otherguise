@@ -14,13 +14,13 @@ use Otherguise\Index\Candidate;
 use Otherguise\Index\Harvest\Signal;
 use Otherguise\Index\Photo\Geo;
 use Otherguise\Index\Photo\PlaceChain;
-use Otherguise\Index\Photo\Stops;
 use Otherguise\Index\Source;
 
 defined( 'ABSPATH' ) || exit;
 
 /**
- * The photographs and the GPX files of a post as sources of places (slice 606). The URLs come from the signals of the page, **while it is read** (the
+ * The photographs and the GPX files of a post as sources of places (slice 606; **no more stops since slice 623**: every photograph that has a place is one
+ * observation of it, so that a village shown on two pages is found on both). The URLs come from the signals of the page, **while it is read** (the
  * store keeps no URL); Media Helper is asked for them at once and **only what is derived is kept**: topics and mentions (sources `image/address`,
  * `trace/start`, `trace/end`, `via` = `image:` or `trace:` and a short hash of the URL). The URLs of what has **no place yet** are kept as
  * **pending** (capped), for a second pass that asks again without network; a post with nothing pending keeps no URL.
@@ -39,13 +39,6 @@ final class Photos implements Source, Partial {
 	 * @var Geo
 	 */
 	private $geo;
-
-	/**
-	 * Returns the settings (`photos_min`, `minutes_min`, `chain_metres`).
-	 *
-	 * @var callable
-	 */
-	private $settings;
 
 	/**
 	 * Reads the pending URLs of a post: `fn( int $post ): string[]`.
@@ -86,14 +79,12 @@ final class Photos implements Source, Partial {
 	 * Builds the source.
 	 *
 	 * @param Geo      $geo      Media Helper.
-	 * @param callable $settings Returns the settings.
 	 * @param callable $read     Reads the pending URLs of a post.
 	 * @param callable $write    Keeps them.
 	 * @param callable $is_local Whether a URL is of this site.
 	 */
-	public function __construct( Geo $geo, $settings, $read, $write, $is_local ) {
+	public function __construct( Geo $geo, $read, $write, $is_local ) {
 		$this->geo      = $geo;
-		$this->settings = $settings;
 		$this->read     = $read;
 		$this->write    = $write;
 		$this->is_local = $is_local;
@@ -167,11 +158,12 @@ final class Photos implements Source, Partial {
 	}
 
 	/**
-	 * Analyses a post: the stops, the tracks, what was left out and why, and the URLs that wait for a place. It keeps the pending URLs unless `$dry`.
+	 * Analyses a post: the places of its photographs (grouped by place, one `via` per photograph), the tracks, what was left out and why, and the URLs that
+	 * wait for a place. It keeps the pending URLs unless `$dry`.
 	 *
 	 * @param int  $post_id Post.
 	 * @param bool $dry     Keep nothing.
-	 * @return array{candidates:Candidate[],stops:array,tracks:array,left_out:array<string,int>,pending:string[]}
+	 * @return array{candidates:Candidate[],places:array,tracks:array,left_out:array<string,int>,pending:string[]}
 	 */
 	public function analyse( $post_id, $dry = false ) {
 		$post_id = (int) $post_id;
@@ -180,9 +172,7 @@ final class Photos implements Source, Partial {
 			'not_of_the_site' => 0,
 			'no_data'         => 0,
 			'no_position'     => 0,
-			'no_precise_time' => 0,
 			'no_place_yet'    => 0,
-			'small_stop'      => 0,
 		);
 		$local = array();
 
@@ -209,30 +199,40 @@ final class Photos implements Source, Partial {
 				++$left['no_position'];
 			} else {
 				$photos[] = self::photo( $url, $answer );
-
-				if ( null === end( $photos )['time'] ) {
-					++$left['no_precise_time'];
-				}
 			}
 		}
 
 		$photos = self::one_per_photograph( $photos );
-		$stops  = Stops::group( $photos, (array) ( $this->settings )() );
+		$places = array();
 
-		foreach ( $stops as $stop ) {
-			if ( null === $stop['place'] ) {
-				$left['no_place_yet'] += count( $stop['photos'] );
-				foreach ( $stop['photos'] as $photo ) {
-					$pending = array_merge( $pending, $photo['urls'] );
-				}
-			} elseif ( ! $stop['qualifies'] ) {
-				$left['small_stop'] += count( $stop['photos'] );
-			} else {
-				$candidate = PlaceChain::candidate( $stop['place'], 'image/address', array_map( static fn( $url ) => self::via( 'image', $url ), array_merge( ...array_column( $stop['photos'], 'urls' ) ) ) );
+		foreach ( $photos as $photo ) {
+			// A photograph with no place yet waits for the second pass; the others are grouped by place, which only saves resolving the same chain again.
+			if ( null === $photo['place'] ) {
+				++$left['no_place_yet'];
+				$pending = array_merge( $pending, $photo['urls'] );
 
-				if ( null !== $candidate ) {
-					$candidates[] = $candidate;
-				}
+				continue;
+			}
+
+			$key = md5( (string) wp_json_encode( $photo['place'] ) );
+
+			if ( ! isset( $places[ $key ] ) ) {
+				$places[ $key ] = array(
+					'place'  => $photo['place'],
+					'photos' => array(),
+				);
+			}
+
+			$places[ $key ]['photos'][] = $photo;
+		}
+
+		$places = array_values( $places );
+
+		foreach ( $places as $group ) {
+			$candidate = PlaceChain::candidate( $group['place'], 'image/address', array_map( static fn( $url ) => self::via( 'image', $url ), array_merge( ...array_column( $group['photos'], 'urls' ) ) ) );
+
+			if ( null !== $candidate ) {
+				$candidates[] = $candidate;
 			}
 		}
 
@@ -267,7 +267,7 @@ final class Photos implements Source, Partial {
 
 		$this->last[ $post_id ] = array(
 			'candidates' => $candidates,
-			'stops'      => $stops,
+			'places'     => $places,
 			'tracks'     => $tracks,
 			'left_out'   => $left,
 			'pending'    => $pending,
@@ -320,7 +320,7 @@ final class Photos implements Source, Partial {
 
 	/**
 	 * Makes one photograph of a thumbnail and of its original (slice 617): two addresses with the **same position, the same time and the same file name once
-	 * the size (`-1024x577`, `-scaled`) and the thumbnail directories are left out**. A page shows both (the image and its link), and the stop would count it
+	 * the size (`-1024x577`, `-scaled`) and the thumbnail directories are left out**. A page shows both (the image and its link), and each would be counted
 	 * twice. The record keeps all the addresses (`urls`), so that the mention has the `via` of each and the pending list the addresses of both.
 	 *
 	 * @param array<int, array> $photos The photographs.

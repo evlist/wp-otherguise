@@ -54,9 +54,10 @@ final class TopicPruner {
 	 * @param string[]                  $kinds     The kinds asked for, with their sub-kinds: by default `place`.
 	 * @param array<int, int>|null      $only      Only these topics may go (slice 620: the ones a source made), or null for every one.
 	 * @param array<int, int|true>|null $mentioned The topics that are mentioned, when it is not what the database says (a source that is being dropped).
+	 * @param bool                      $decided   Whether to keep what a person decided (a kind or a label chosen, a refusal, a candidate): `false` for the complete reset.
 	 * @return array<int, array{id:int,label:string,kind:string,parent:int}> The topics, the deepest first.
 	 */
-	public function candidates( array $kinds = array( 'place' ), $only = null, $mentioned = null ) {
+	public function candidates( array $kinds = array( 'place' ), $only = null, $mentioned = null, $decided = true ) {
 		$mentioned = null === $mentioned ? $this->mentions->mentioned_topics() : array_fill_keys( array_map( 'intval', array_keys( $mentioned ) ), true );
 		$all       = $this->topics->all();
 		$children  = array();
@@ -95,7 +96,7 @@ final class TopicPruner {
 				$asked = $asked || Kinds::is_a( $kind, $wanted );
 			}
 
-			$kept = ! $asked || isset( $mentioned[ $id ] ) || Topics::APPROVED !== (string) $topic['status'] || ! empty( $topic['kind_by_hand'] ) || ! empty( $topic['label_by_hand'] );
+			$kept = ! $asked || isset( $mentioned[ $id ] ) || ( $decided && ( Topics::APPROVED !== (string) $topic['status'] || ! empty( $topic['kind_by_hand'] ) || ! empty( $topic['label_by_hand'] ) ) );
 
 			foreach ( $children[ $id ] ?? array() as $child ) {
 				$kept = $kept || isset( $keep[ $child ] );
@@ -129,10 +130,11 @@ final class TopicPruner {
 	 * @param bool                      $dry       Delete nothing.
 	 * @param array<int, int>|null      $only      Only these topics may go, or null for every one.
 	 * @param array<int, int|true>|null $mentioned The topics that are mentioned, when it is not what the database says.
+	 * @param bool                      $decided   Whether to keep what a person decided.
 	 * @return array<int, array> The topics that go (or would), the deepest first.
 	 */
-	public function prune( array $kinds = array( 'place' ), $dry = true, $only = null, $mentioned = null ) {
-		$goes = $this->candidates( $kinds, $only, $mentioned );
+	public function prune( array $kinds = array( 'place' ), $dry = true, $only = null, $mentioned = null, $decided = true ) {
+		$goes = $this->candidates( $kinds, $only, $mentioned, $decided );
 
 		if ( ! $dry ) {
 			foreach ( $goes as $topic ) {

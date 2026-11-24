@@ -10,13 +10,17 @@
 
 namespace Otherguise\Index\Job;
 
+use Otherguise\Index\Cli\ResetCommand;
 use Otherguise\Index\Cli\SyncCommand;
 use Otherguise\Index\Harvest\SignalStore;
 use Otherguise\Index\Indexer;
 use Otherguise\Index\Enrich\EnrichService;
 use Otherguise\Index\Mentions;
+use Otherguise\Index\Merge\IgnoredPairs;
 use Otherguise\Index\Merge\TopicPruner;
+use Otherguise\Index\Photo\PhotosService;
 use Otherguise\Index\Source\Photos;
+use Otherguise\Index\Topics;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -27,6 +31,7 @@ final class SyncWiring {
 	public const STATE = 'index_sync';
 	public const JOB   = 'index_sync_job';
 	public const IDS   = 'index_sync_ids';
+	public const LOCK  = 'index_sync_lock';
 
 	/**
 	 * Builds the service.
@@ -91,6 +96,30 @@ final class SyncWiring {
 				'enrich_job'      => static fn() => $enrich->is_on() ? $enrich->job( true ) : null,
 				'cleanup'         => static fn() => count( $pruner->prune( array( 'any' ), false ) ),
 				'purge'           => static fn() => $mentions->drop_source( 'post' )['mentions'] + $mentions->drop_source( 'image' )['mentions'] + $mentions->drop_source( 'trace' )['mentions'],
+				'lock'            => static function ( $now ) {
+					// One token for the process. Not atomic (two workers that start in the same second may both start): the work is a loop that the state
+					// makes safe to repeat, and the cron starts a worker once a minute.
+					static $token = '';
+
+					$token = '' === $token ? bin2hex( random_bytes( 6 ) ) : $token;
+
+					wp_cache_delete( self::LOCK, 'options' );
+					wp_cache_delete( 'alloptions', 'options' );
+
+					$held = explode( '|', (string) get_option( self::LOCK, '' ) );
+
+					if ( 2 === count( $held ) && $held[0] !== $token && (int) $now - (int) $held[1] < SyncService::LOCK_SECONDS ) {
+						return false;
+					}
+
+					update_option( self::LOCK, $token . '|' . (int) $now, false );
+
+					return true;
+				},
+				'unlock'          => static function () {
+					delete_option( self::LOCK );
+				},
+				'continuous'      => static fn() => 'cli' === PHP_SAPI,
 				'schedule'        => static function ( $delay ) {
 					if ( false === wp_next_scheduled( SyncService::TICK_HOOK ) ) {
 						wp_schedule_single_event( time() + (int) $delay, SyncService::TICK_HOOK );
@@ -149,7 +178,7 @@ final class SyncWiring {
 	 * @return void
 	 */
 	public static function uninstall() {
-		foreach ( array( self::STATE, self::JOB, self::IDS, SyncService::AUTO ) as $option ) {
+		foreach ( array( self::STATE, self::JOB, self::IDS, self::LOCK, SyncService::AUTO ) as $option ) {
 			delete_option( $option );
 		}
 
@@ -165,18 +194,42 @@ final class SyncWiring {
 	 * @return void
 	 */
 	public static function register( SyncService $sync, $add_action ) {
-		$add_action( SyncService::TICK_HOOK, array( $sync, 'tick' ), 10, 0 );
+		$add_action( SyncService::TICK_HOOK, array( $sync, 'work' ), 10, 0 );
 		$add_action( SyncService::AUTO_HOOK, array( $sync, 'auto' ), 10, 0 );
 		$add_action( 'init', array( $sync, 'ensure_scheduled' ), 20, 0 );
 	}
 
 	/**
-	 * Registers the command `wp otherguise index sync`.
+	 * Registers the commands `wp otherguise index sync` and `wp otherguise index reset`.
 	 *
-	 * @param SyncService $sync The service.
+	 * @param SyncService $sync     The service.
+	 * @param Topics      $topics   The topics.
+	 * @param Mentions    $mentions The mentions.
 	 * @return void
 	 */
-	public static function register_command( SyncService $sync ) {
+	public static function register_command( SyncService $sync, Topics $topics, Mentions $mentions ) {
 		\WP_CLI::add_command( 'otherguise index sync', new SyncCommand( $sync ) );
+		\WP_CLI::add_command( 'otherguise index reset', new ResetCommand( $topics, $mentions, new TopicPruner( $topics, $mentions ), array( $sync, 'stop' ), array( self::class, 'forget' ) ) );
+	}
+
+	/**
+	 * Forgets what the reads left behind (slice 623): what was read of each post (so that every post is read again), the files that wait for a place, the
+	 * state of the readings, of the enrichment and of the synchronisation. With `$everything` also the list of the pairs that are not doubles.
+	 *
+	 * @param bool $everything Also what a person decided.
+	 * @return void
+	 */
+	public static function forget( $everything = false ) {
+		foreach ( array( SignalStore::SIGNALS, SignalStore::IMAGES, SignalStore::HARVEST, PhotosService::PENDING ) as $key ) {
+			delete_post_meta_by_key( $key );
+		}
+
+		$options = array( self::STATE, self::JOB, self::IDS, self::LOCK, PagesService::OPTION, EnrichService::JOB, PhotosService::WAITING, PhotosService::LAST );
+
+		foreach ( $everything ? array_merge( $options, array( IgnoredPairs::OPTION ) ) : $options as $option ) {
+			delete_option( $option );
+		}
+
+		wp_clear_scheduled_hook( SyncService::TICK_HOOK );
 	}
 }

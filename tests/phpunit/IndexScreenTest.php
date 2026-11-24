@@ -72,11 +72,6 @@ class IndexScreenTest extends TestCase {
 			'enrich'  => false,
 			'contact' => '',
 			'auto'    => true,
-			'photos'  => array(
-				'photos_min'   => 3,
-				'minutes_min'  => 20,
-				'chain_metres' => 50,
-			),
 		);
 	}
 
@@ -182,8 +177,7 @@ class IndexScreenTest extends TestCase {
 		$this->assertDoesNotMatchRegularExpression( '/name="src_page" value="1" checked/', $page );
 		$this->assertDoesNotMatchRegularExpression( '/name="enrich" value="1" checked/', $page );
 		$this->assertMatchesRegularExpression( '/name="auto" value="1" checked/', $page );
-		$this->assertStringContainsString( 'name="minutes_min"', $page );
-		$this->assertStringContainsString( 'not calibrated', $page );
+		$this->assertStringNotContainsString( 'minutes_min', $page, 'The stops are gone: no thresholds.' );
 
 		$sync->start();
 		$page = $this->page( $this->screen( $sync, $urls ) );
@@ -196,8 +190,8 @@ class IndexScreenTest extends TestCase {
 	}
 
 	/**
-	 * Saving: the sources, the enrichment, the contact, the night run and the thresholds are written; a source of a plugin is kept; the photographs turn
-	 * the pages on; the night event is planned at once; a threshold is an integer of at least 1.
+	 * Saving: the sources, the enrichment, the contact, the night run are written; a source of a plugin is kept; the photographs turn
+	 * the pages on; the night event is planned at once.
 	 *
 	 * @return void
 	 */
@@ -210,8 +204,6 @@ class IndexScreenTest extends TestCase {
 				'src_photos'     => '1',
 				'enrich'         => '1',
 				'contact'        => '  eric@example.org  ',
-				'photos_min'     => '0',
-				'minutes_min'    => '45',
 			)
 		);
 		$this->screen( $this->sync(), $urls )->save();
@@ -221,9 +213,6 @@ class IndexScreenTest extends TestCase {
 		$this->assertTrue( $this->features['enrich'] );
 		$this->assertSame( 'eric@example.org', $this->features['contact'] );
 		$this->assertFalse( $this->features['auto'], 'An unchecked box is off.' );
-		$this->assertSame( 1, $this->features['photos']['photos_min'] );
-		$this->assertSame( 45, $this->features['photos']['minutes_min'] );
-		$this->assertSame( 50, $this->features['photos']['chain_metres'], 'A threshold that is not posted keeps its value.' );
 		$this->assertSame( 1, $this->planned, 'The night event was planned or cancelled at once.' );
 		$this->assertStringContainsString( 'done=saved', end( $urls ) );
 	}

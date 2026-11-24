@@ -87,7 +87,7 @@ class IndexScreenAndModuleTest extends TestCase {
 				'index_mention_elements'      => array( array( 'mention_elements_for_filter', 10, 2 ) ),
 				'otherguise_index_pages'      => array( array( 'tick', 10, 0 ) ),
 				'otherguise_index_enrich'     => array( array( 'tick', 10, 0 ) ),
-				'otherguise_index_sync'       => array( array( 'tick', 10, 0 ) ),
+				'otherguise_index_sync'       => array( array( 'work', 10, 0 ) ),
 				'otherguise_index_sync_auto'  => array( array( 'auto', 10, 0 ) ),
 				'otherguise_index_photos'     => array( array( 'tick', 10, 0 ) ),
 				'wp_media_helper_places_updated' => array( array( 'tick', 10, 0 ) ),

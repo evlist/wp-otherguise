@@ -158,7 +158,7 @@ final class Module implements ModuleInterface, DescribedModule, DisabledByDefaul
 		if ( is_admin() ) {
 			$this->screen()->register( $this->add_action );
 			( new KindsScreen() )->register( $this->add_action );
-			IndexScreenWiring::screen( $this->sync(), $this->enrich(), $this->photos() )->register( $this->add_action );
+			IndexScreenWiring::screen( $this->sync(), $this->enrich() )->register( $this->add_action );
 			MergeWiring::screen( $this->topics(), $this->mentions() )->register( $this->add_action );
 		}
 	}
@@ -625,7 +625,7 @@ final class Module implements ModuleInterface, DescribedModule, DisabledByDefaul
 		\WP_CLI::add_command( 'otherguise index kinds', new KindsCommand() );
 		\WP_CLI::add_command( 'otherguise index sources', new SourcesCommand( $this->mentions() ) );
 		MergeWiring::register_commands( $this->topics(), $this->mentions() );
-		SyncWiring::register_command( $this->sync() );
+		SyncWiring::register_command( $this->sync(), $this->topics(), $this->mentions() );
 		\WP_CLI::add_command(
 			'otherguise index build',
 			new BuildCommand(

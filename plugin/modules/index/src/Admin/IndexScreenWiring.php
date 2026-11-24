@@ -13,7 +13,6 @@ namespace Otherguise\Index\Admin;
 use Otherguise\Index\Enrich\EnrichService;
 use Otherguise\Index\Job\PagesService;
 use Otherguise\Index\Job\SyncService;
-use Otherguise\Index\Photo\PhotosService;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -29,13 +28,12 @@ final class IndexScreenWiring {
 	 *
 	 * @param SyncService   $sync   The synchronisation.
 	 * @param EnrichService $enrich The enrichment.
-	 * @param PhotosService $photos The photographs.
 	 * @return IndexScreen
 	 */
-	public static function screen( SyncService $sync, EnrichService $enrich, PhotosService $photos ) {
+	public static function screen( SyncService $sync, EnrichService $enrich ) {
 		return new IndexScreen(
 			$sync,
-			static function () use ( $enrich, $photos ) {
+			static function () use ( $enrich ) {
 				$sources = get_option( PagesService::SOURCES, array( 'categories', 'tags' ) );
 
 				return array(
@@ -43,7 +41,6 @@ final class IndexScreenWiring {
 					'enrich'  => $enrich->is_on(),
 					'contact' => (string) get_option( self::CONTACT, '' ),
 					'auto'    => '0' !== (string) get_option( SyncService::AUTO, '1' ),
-					'photos'  => $photos->settings(),
 				);
 			},
 			static function ( array $features ) use ( $enrich ) {
@@ -51,7 +48,6 @@ final class IndexScreenWiring {
 				$enrich->set_on( (bool) $features['enrich'] );
 				update_option( self::CONTACT, (string) $features['contact'], false );
 				update_option( SyncService::AUTO, $features['auto'] ? '1' : '0' );
-				update_option( PhotosService::SETTINGS, array_map( 'intval', $features['photos'] ), false );
 			}
 		);
 	}
