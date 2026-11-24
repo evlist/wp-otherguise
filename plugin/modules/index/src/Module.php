@@ -155,7 +155,7 @@ final class Module implements ModuleInterface, DescribedModule, DisabledByDefaul
 		( $this->add_action )( PagesService::SINGLE_HOOK, array( $this->pages(), 'single' ), 10, 1 );
 		( $this->add_action )( 'wp_after_insert_post', array( $this->pages(), 'on_save' ), 30, 1 );
 
-		Designation\Wiring::register_rest( $this->topics(), $this->add_action );
+		Designation\Wiring::register_rest( $this->topics(), $this->mentions(), $this->observations(), $this->designations(), $this->add_action );
 
 		if ( is_admin() ) {
 			$this->screen()->register( $this->add_action );

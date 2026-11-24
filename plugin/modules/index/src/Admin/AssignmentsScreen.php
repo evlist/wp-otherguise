@@ -250,10 +250,13 @@ final class AssignmentsScreen {
 					'root'  => esc_url_raw( rest_url() ),
 					'path'  => TopicsRoute::REST_NAMESPACE . '/topics',
 					'nonce' => wp_create_nonce( 'wp_rest' ),
+					'edit'  => TopicsRoute::REST_NAMESPACE . '/designations/',
+					'words' => $this->quick_edit_words(),
 				)
 			) . ';',
 			'before'
 		);
+		wp_enqueue_script( 'otherguise-quick-edit', ( $this->script_url )( 'quick-edit.js' ), array( 'otherguise-topic-picker' ), '633.1', true );
 	}
 
 	/**
@@ -401,7 +404,7 @@ final class AssignmentsScreen {
 		$ids = $this->numbers( INPUT_POST, 'designation' );
 
 		if ( array() === $ids ) {
-			( $this->redirect )( $this->url( array( 'error' => __( 'Tick at least one designation.', 'otherguise' ) ) ) );
+			( $this->redirect )( $this->url( array_merge( $back, array( 'error' => __( 'Tick at least one designation.', 'otherguise' ) ) ) ) );
 
 			return;
 		}
@@ -418,13 +421,16 @@ final class AssignmentsScreen {
 			( $this->redirect )(
 				$this->url(
 					array_filter(
-						array(
-							'confirm'    => 1,
-							'ids'        => implode( ',', $ids ),
-							'to'         => 0,
-							'new_label'  => $this->text( INPUT_POST, 'new_label' ),
-							'new_kind'   => sanitize_key( (string) ( $this->input )( INPUT_POST, 'new_kind', false ) ),
-							'new_parent' => $parent['id'],
+						array_merge(
+							$back,
+							array(
+								'confirm'    => 1,
+								'ids'        => implode( ',', $ids ),
+								'to'         => 0,
+								'new_label'  => $this->text( INPUT_POST, 'new_label' ),
+								'new_kind'   => sanitize_key( (string) ( $this->input )( INPUT_POST, 'new_kind', false ) ),
+								'new_parent' => $parent['id'],
+							)
 						)
 					)
 				)
@@ -438,11 +444,14 @@ final class AssignmentsScreen {
 
 			( $this->redirect )(
 				$this->url(
-					$found['id'] > 0 ? array(
-						'confirm' => 1,
-						'ids'     => implode( ',', $ids ),
-						'to'      => $found['id'],
-					) : array( 'error' => $found['error'] )
+					array_merge(
+						$back,
+						$found['id'] > 0 ? array(
+							'confirm' => 1,
+							'ids'     => implode( ',', $ids ),
+							'to'      => $found['id'],
+						) : array( 'error' => $found['error'] )
+					)
 				)
 			);
 
@@ -568,6 +577,7 @@ final class AssignmentsScreen {
 			return;
 		}
 
+		$back  = $this->preserved( INPUT_POST );
 		$ids   = $this->numbers( INPUT_POST, 'designation' );
 		$new   = $this->text( INPUT_POST, 'new_label' );
 		$found = '' !== $new ? array(
@@ -576,7 +586,7 @@ final class AssignmentsScreen {
 		) : $this->target( INPUT_POST );
 
 		if ( array() === $ids || ( '' === $new && $found['id'] <= 0 ) ) {
-			( $this->redirect )( $this->url( array( 'error' => array() === $ids ? __( 'Tick at least one designation.', 'otherguise' ) : $found['error'] ) ) );
+			( $this->redirect )( $this->url( array_merge( $back, array( 'error' => array() === $ids ? __( 'Tick at least one designation.', 'otherguise' ) : $found['error'] ) ) ) );
 
 			return;
 		}
@@ -605,14 +615,17 @@ final class AssignmentsScreen {
 
 		( $this->redirect )(
 			$this->url(
-				array_filter(
-					array(
-						'did'   => $done['ok'] ? 'assign' : '',
-						'count' => $done['ok'] ? $done['designations'] : '',
-						'posts' => $done['ok'] ? $done['posts'] : '',
-						'error' => $done['error'],
-					),
-					static fn( $value ) => '' !== $value
+				array_merge(
+					$back,
+					array_filter(
+						array(
+							'did'   => $done['ok'] ? 'assign' : '',
+							'count' => $done['ok'] ? $done['designations'] : '',
+							'posts' => $done['ok'] ? $done['posts'] : '',
+							'error' => $done['error'],
+						),
+						static fn( $value ) => '' !== $value
+					)
 				)
 			)
 		);

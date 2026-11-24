@@ -12,6 +12,7 @@ use Otherguise\Index\Admin\AssignmentsScreen;
 use Otherguise\Index\Admin\AssignmentsTable;
 use Otherguise\Index\Designation\Assigner;
 use Otherguise\Index\Designation\Listing;
+use Otherguise\Index\Designation\Neighbours;
 use Otherguise\Index\Designation\Reresolver;
 use Otherguise\Index\Resolver;
 use Otherguise\Index\Designation\TopicFinder;
@@ -20,6 +21,7 @@ use Otherguise\Index\Kinds;
 use Otherguise\Index\Mentions;
 use Otherguise\Index\Module as IndexModule;
 use Otherguise\Index\Observations;
+use Otherguise\Index\Rest\AssignmentRoute;
 use Otherguise\Index\Rest\TopicsRoute;
 use Otherguise\Index\Topics;
 
@@ -945,5 +947,165 @@ class IndexAssignmentsDbTest extends Otherguise_Test_Database_Case {
 		foreach ( array( 'view=system', 's=atalaia', 'orderby=posts', 'order=desc', 'paged=2', 'did=confirm' ) as $kept ) {
 			$this->assertStringContainsString( $kept, end( $urls ) );
 		}
+	}
+
+	/**
+	 * The confirmation says the kinds only when they exclude each other, and what the page was showing is kept through the confirmation and the assignment
+	 * (slice 633).
+	 *
+	 * @return void
+	 */
+	public function test_the_warning_is_true_and_the_search_is_kept(): void {
+		$river = $this->topics->create( 'Allier (rivière)', 'waterway', 0, Topics::APPROVED, array() );
+		$dept  = $this->topics->create( 'Allier', 'commune', 0, Topics::APPROVED, array() );
+		$town  = $this->topics->create( 'Moulins', 'admin3', 0, Topics::APPROVED, array() );
+		$id    = $this->designation( 'Allier', array( 1 ), $dept );
+		$urls  = array();
+		$kept  = array(
+			's'      => 'post/tag',
+			'view'   => 'hand',
+			'paged'  => '2',
+			'orderby' => 'posts',
+		);
+
+		$this->request[ INPUT_GET ] = array_merge(
+			$kept,
+			array(
+				'confirm' => '1',
+				'ids'     => (string) $id,
+				'to'      => (string) $river,
+			)
+		);
+
+		ob_start();
+		$this->screen( $urls )->render();
+		$page = (string) ob_get_clean();
+
+		$this->assertStringContainsString( 'notice-warning', $page );
+		$this->assertStringContainsString( 'is assigned to a topic of the kind Commune, and the topic chosen is of the kind Waterway', $page );
+		$this->assertStringContainsString( 'name="force"', $page );
+		$this->assertStringContainsString( 'name="s" value="post/tag"', $page, 'The search goes back with the form.' );
+		$this->assertStringContainsString( 's=post%2Ftag', $page, 'And the link that cancels.' );
+
+		$this->request[ INPUT_GET ]['to'] = (string) $town;
+
+		ob_start();
+		$this->screen( $urls )->render();
+		$page = (string) ob_get_clean();
+
+		$this->assertStringNotContainsString( 'notice-warning', $page, 'A commune is a sort of third-level division: nothing to say.' );
+		$this->assertStringNotContainsString( 'name="force"', $page );
+
+		$this->request[ INPUT_POST ] = array_merge(
+			$kept,
+			array(
+				'_wpnonce'    => 'good',
+				'designation' => array( (string) $id ),
+				'to'          => (string) $town,
+			)
+		);
+		$this->screen( $urls )->apply();
+
+		$this->assertStringContainsString( 's=post%2Ftag', end( $urls ) );
+		$this->assertStringContainsString( 'view=hand', end( $urls ) );
+		$this->assertStringContainsString( 'paged=2', end( $urls ) );
+		$this->assertStringContainsString( 'did=assign', end( $urls ) );
+
+		$this->bulk( 'assign', array_merge( $kept, array( 'designation' => array( (string) $id ), 'to' => (string) $river ) ) );
+		$this->screen( $urls )->process();
+
+		$this->assertStringContainsString( 'confirm=1', end( $urls ) );
+		$this->assertStringContainsString( 's=post%2Ftag', end( $urls ), 'The confirmation knows what the page was showing.' );
+	}
+
+	/**
+	 * The close topics of a designation: the same name once the parentheses are left out, from its label and from the label of its topic; not the topic it has.
+	 *
+	 * @return void
+	 */
+	public function test_the_close_topics(): void {
+		$river = $this->topics->create( "Aisne (affluent de l'Oise)", 'waterway', 0, Topics::APPROVED, array() );
+		$other = $this->topics->create( 'Aisne', 'admin2', 0, Topics::APPROVED, array() );
+		$dept  = $this->topics->create( 'Aisne (02)', 'admin2', 0, Topics::APPROVED, array() );
+		$long  = $this->topics->create( 'Aisne-Marne', 'any', 0, Topics::APPROVED, array() );
+		$gone  = $this->topics->create( 'Aisne (refusé)', 'any', 0, Topics::REFUSED, array() );
+		$this->topics->create( 'Allier', 'admin2', 0, Topics::APPROVED, array() );
+		$id = $this->designation( 'aisne (02)', array( 1 ), $dept, Observations::SYSTEM, Designations::ASSIGNED, 'post/tag' );
+
+		$close = ( new Neighbours( $this->designations, $this->observations, $this->topics, new TopicFinder( $this->topics ) ) )->of( $id );
+		$ids   = array_column( $close, 'id' );
+
+		$this->assertNotContains( $dept, $ids, 'The topic that it has is not offered.' );
+		$this->assertNotContains( $gone, $ids, 'A refused topic is not offered.' );
+		$this->assertEqualsCanonicalizing( array( $river, $other, $long ), $ids );
+		$this->assertEqualsCanonicalizing( array( $river, $other ), array_slice( $ids, 0, 2 ), 'The same name once the parentheses are left out comes first.' );
+		$this->assertSame( $long, $ids[2], 'What only begins with it comes after.' );
+		$this->assertSame( array(), ( new Neighbours( $this->designations, $this->observations, $this->topics, new TopicFinder( $this->topics ) ) )->of( 9999 ) );
+	}
+
+	/**
+	 * The quick edit through the REST API: the close topics; the assignment by hand; the kinds that exclude each other are said and nothing changes until it is forced.
+	 *
+	 * @return void
+	 */
+	public function test_the_routes_of_the_quick_edit(): void {
+		$river = $this->topics->create( 'Allier (rivière)', 'waterway', 0, Topics::APPROVED, array() );
+		$dept  = $this->topics->create( 'Allier', 'commune', 0, Topics::APPROVED, array() );
+		$id    = $this->designation( 'Allier', array( 1 ), $dept );
+		$finder = new TopicFinder( $this->topics );
+		$route  = new AssignmentRoute(
+			$this->designations,
+			$this->topics,
+			new Assigner( $this->designations, $this->observations, $this->mentions, $this->topics ),
+			new Neighbours( $this->designations, $this->observations, $this->topics, $finder ),
+			$finder,
+			static fn() => true
+		);
+		$ask    = static fn( array $params ) => new class( $params ) {
+			/**
+			 * The parameters.
+			 *
+			 * @var array
+			 */
+			private $params;
+
+			/**
+			 * Builds the request.
+			 *
+			 * @param array $params The parameters.
+			 */
+			public function __construct( array $params ) {
+				$this->params = $params;
+			}
+
+			/**
+			 * A parameter.
+			 *
+			 * @param string $name Name.
+			 * @return mixed
+			 */
+			public function get_param( $name ) {
+				return $this->params[ $name ] ?? null;
+			}
+		};
+
+		$this->assertSame( array( $river ), array_column( $route->neighbours( $ask( array( 'id' => $id ) ) ), 'id' ) );
+
+		$no = $route->assign( $ask( array( 'id' => $id, 'topic' => $river ) ) );
+
+		$this->assertFalse( $no['ok'] );
+		$this->assertTrue( $no['conflict'] );
+		$this->assertStringContainsString( 'The topic that it has is a Commune, the one you chose is a Waterway', $no['error'] );
+		$this->assertSame( $dept, $this->observations->assignment( $id )['topic'], 'Nothing changed.' );
+
+		$yes = $route->assign( $ask( array( 'id' => $id, 'topic' => $river, 'force' => true ) ) );
+
+		$this->assertTrue( $yes['ok'] );
+		$this->assertSame( 'Allier (rivière)', $yes['topic']['label'] );
+		$this->assertSame( 'hand', $yes['by'] );
+		$this->assertSame( array( 'topic' => $river, 'by' => Observations::HAND ), $this->observations->assignment( $id ) );
+
+		$this->assertFalse( $route->assign( $ask( array( 'id' => 9999, 'topic' => $river ) ) )['ok'] );
+		$this->assertFalse( $route->assign( $ask( array( 'id' => $id, 'topic' => 9999 ) ) )['ok'] );
 	}
 }

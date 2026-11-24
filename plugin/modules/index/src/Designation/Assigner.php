@@ -75,7 +75,8 @@ final class Assigner {
 	 * @param bool  $dry   Change nothing, say what would be.
 	 * @param bool  $force Assign across kinds that exclude each other.
 	 * @param int   $from  The topic they leave, when all its designations go: its keys then follow them (0 for none).
-	 * @return array{ok:bool,error:string,designations:int,observations:int,posts:int,lines:string[]}
+	 * @return array{ok:bool,error:string,designations:int,observations:int,posts:int,lines:string[],conflict:array{designation?:int,was?:string,target?:string}} `conflict` says, when
+	 *         the kinds exclude each other, **which designation** and **the two kinds** (slice 633).
 	 */
 	public function assign( array $ids, $topic, $dry = true, $force = false, $from = 0 ) {
 		$report = array(
@@ -85,6 +86,7 @@ final class Assigner {
 			'observations' => 0,
 			'posts'        => 0,
 			'lines'        => array(),
+			'conflict'     => array(),
 		);
 		$target = $this->topics->get( (int) $topic );
 
@@ -110,6 +112,11 @@ final class Assigner {
 
 			if ( ! $force && null !== $was && ! Kinds::compatible( (string) $was['kind'], (string) $target['kind'] ) ) {
 				$report['error'] = 'The designation ' . $id . ' is assigned to a topic of the kind ' . $was['kind'] . ', which is not one a sort of ' . $target['kind'] . ': use --force to assign it anyway.';
+				$report['conflict'] = array(
+					'designation' => $id,
+					'was'         => (string) $was['kind'],
+					'target'      => (string) $target['kind'],
+				);
 
 				return $report;
 			}

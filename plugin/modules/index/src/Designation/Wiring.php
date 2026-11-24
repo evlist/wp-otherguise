@@ -20,6 +20,7 @@ use Otherguise\Index\Merge\DuplicateFinder;
 use Otherguise\Index\Merge\IgnoredPairs;
 use Otherguise\Index\Merge\MergeWiring;
 use Otherguise\Index\Merge\TopicMerger;
+use Otherguise\Index\Rest\AssignmentRoute;
 use Otherguise\Index\Rest\TopicsRoute;
 use Otherguise\Index\Designations;
 use Otherguise\Index\Resolver;
@@ -62,14 +63,35 @@ final class Wiring {
 	}
 
 	/**
-	 * Registers the route that finds topics for the field of the screen of the assignments (outside the administration: a request of the REST API is not one).
+	 * Registers the routes of the screen of the assignments (outside the administration: a request of the REST API is not one): the search of the topics
+	 * (slice 630) and the quick edit of one designation (slice 633).
 	 *
-	 * @param Topics   $topics     The topics.
-	 * @param callable $add_action `add_action`.
+	 * @param Topics       $topics       The topics.
+	 * @param Mentions     $mentions     The mentions.
+	 * @param Observations $observations The observations.
+	 * @param Designations $designations The designations.
+	 * @param callable     $add_action   `add_action`.
 	 * @return void
 	 */
-	public static function register_rest( Topics $topics, $add_action ) {
-		$add_action( 'rest_api_init', array( new TopicsRoute( new TopicFinder( $topics ) ), 'register' ), 10, 0 );
+	public static function register_rest( Topics $topics, Mentions $mentions, Observations $observations, Designations $designations, $add_action ) {
+		$finder = new TopicFinder( $topics );
+
+		$add_action( 'rest_api_init', array( new TopicsRoute( $finder ), 'register' ), 10, 0 );
+		$add_action(
+			'rest_api_init',
+			array(
+				new AssignmentRoute(
+					$designations,
+					$topics,
+					new Assigner( $designations, $observations, $mentions, $topics ),
+					new Neighbours( $designations, $observations, $topics, $finder ),
+					$finder
+				),
+				'register',
+			),
+			10,
+			0
+		);
 	}
 
 	/**

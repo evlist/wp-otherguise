@@ -11,6 +11,7 @@
 namespace Otherguise\Index\Admin;
 
 use Otherguise\Index\Designations;
+use Otherguise\Index\Kinds;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -28,6 +29,51 @@ trait AssignmentsViews {
 		foreach ( $this->preserved( INPUT_GET ) as $name => $value ) {
 			echo '<input type="hidden" name="' . esc_attr( $name ) . '" value="' . esc_attr( $value ) . '" />';
 		}
+	}
+
+	/**
+	 * The words of the quick edit (the script has none of its own).
+	 *
+	 * @return array<string, string>
+	 */
+	private function quick_edit_words() {
+		return array(
+			'change'    => __( 'Change topic', 'otherguise' ),
+			'close'     => __( 'Close topics', 'otherguise' ),
+			'choose'    => __( '— a close topic —', 'otherguise' ),
+			'search'    => __( 'or look for another topic (type a name)', 'otherguise' ),
+			'update'    => __( 'Update', 'otherguise' ),
+			'cancel'    => __( 'Cancel', 'otherguise' ),
+			'anyway'    => __( 'Assign anyway', 'otherguise' ),
+			'nothing'   => __( 'Choose a topic.', 'otherguise' ),
+			'failed'    => __( 'The topic could not be changed.', 'otherguise' ),
+			'working'   => __( 'Working…', 'otherguise' ),
+		);
+	}
+
+	/**
+	 * The first designation of a list whose topic has a kind that excludes the kind of the topic that it is going to, or null (slice 633: the warning is said
+	 * only when it is true).
+	 *
+	 * @param int[]  $ids  The designations.
+	 * @param string $kind The kind of the topic that they go to.
+	 * @return array{designation:int,was:string,target:string}|null
+	 */
+	private function kind_conflict( array $ids, $kind ) {
+		foreach ( $ids as $id ) {
+			$have = $this->observations->assignment( (int) $id );
+			$was  = null === $have ? null : $this->topics->get( (int) $have['topic'] );
+
+			if ( null !== $was && ! Kinds::compatible( (string) $was['kind'], (string) $kind ) ) {
+				return array(
+					'designation' => (int) $id,
+					'was'         => (string) $was['kind'],
+					'target'      => (string) $kind,
+				);
+			}
+		}
+
+		return null;
 	}
 
 	/**
@@ -79,7 +125,7 @@ trait AssignmentsViews {
 		}
 
 		if ( ( null === $target && '' === $new ) || array() === $ids ) {
-			echo '<p>' . esc_html__( 'Nothing to assign.', 'otherguise' ) . '</p><p><a href="' . esc_url( $this->url() ) . '">' . esc_html__( 'Back', 'otherguise' ) . '</a></p>';
+			echo '<p>' . esc_html__( 'Nothing to assign.', 'otherguise' ) . '</p><p><a href="' . esc_url( $this->url( $this->preserved( INPUT_GET ) ) ) . '">' . esc_html__( 'Back', 'otherguise' ) . '</a></p>';
 
 			return;
 		}
@@ -99,7 +145,25 @@ trait AssignmentsViews {
 			echo '<input type="hidden" name="designation[]" value="' . esc_attr( (string) $id ) . '" />';
 		}
 
-		echo '<p><label><input type="checkbox" name="force" value="1" /> ' . esc_html__( 'Assign them anyway, although their kinds are not one a sort of the other', 'otherguise' ) . '</label></p>';
-		echo '<p><button class="button button-primary">' . esc_html__( 'Assign', 'otherguise' ) . '</button> <a href="' . esc_url( $this->url() ) . '">' . esc_html__( 'Cancel', 'otherguise' ) . '</a></p></form>';
+		$conflict = $this->kind_conflict( $ids, null === $target ? ( Kinds::is_kind( $this->text( INPUT_GET, 'new_kind' ) ) ? $this->text( INPUT_GET, 'new_kind' ) : Kinds::ANY ) : (string) $target['kind'] );
+
+		// The warning is there only when it is true: a designation that is assigned to a topic whose kind cannot be the one of the new topic.
+		if ( null !== $conflict ) {
+			$old = $this->designations->get( $conflict['designation'] );
+
+			echo '<div class="notice notice-warning inline"><p>' . esc_html(
+				sprintf(
+					/* translators: 1: a designation, 2: the kind of its topic, 3: the kind of the topic chosen. */
+					__( '"%1$s" is assigned to a topic of the kind %2$s, and the topic chosen is of the kind %3$s: one is not a sort of the other. Tick the box to assign anyway.', 'otherguise' ),
+					null === $old ? (string) $conflict['designation'] : (string) ( $old['evidence']['label'] ?? $old['key'] ),
+					(string) Kinds::label( $conflict['was'] ),
+					(string) Kinds::label( $conflict['target'] )
+				)
+			) . '</p></div>';
+			echo '<p><label><input type="checkbox" name="force" value="1" /> ' . esc_html__( 'Assign them anyway', 'otherguise' ) . '</label></p>';
+		}
+
+		$this->print_preserved_fields();
+		echo '<p><button class="button button-primary">' . esc_html__( 'Assign', 'otherguise' ) . '</button> <a href="' . esc_url( $this->url( $this->preserved( INPUT_GET ) ) ) . '">' . esc_html__( 'Cancel', 'otherguise' ) . '</a></p></form>';
 	}
 }
