@@ -11,7 +11,7 @@ Status: **coded on 2026-11-24** (1028 PHPUnit tests, with a real database; the r
 
 ## What was built
 
-- **"Change topic" in the actions of each line** (added by the script `admin/quick-edit.js`, so it is **absent without JavaScript**, where the bulk actions do the same). It opens a panel under the line with:
+- **"Change topic" in the actions of the column of the topic** (added by the script `admin/quick-edit.js`, so it is **absent without JavaScript**, where the bulk actions do the same). It opens a panel under the line with:
   - a **list of the close topics** (the default), then a field that searches **any other topic** as one types (the field of slice 630);
   - **Update** and **Cancel**. Update assigns the designation **by hand** (a new reading never changes it; the mentions of its posts follow) through the REST API and **changes the line in place** (topic, by, state): the view, the search, the sort and the page **do not move**;
   - when the kinds exclude each other, the panel says which and **the same button becomes "Assign anyway"**; nothing was changed before.
@@ -24,6 +24,6 @@ Status: **coded on 2026-11-24** (1028 PHPUnit tests, with a real database; the r
 ## Not done, and what to look at
 
 - Never tried in a browser: the placement of the panel in the table (a row `inline-edit-row` over every column), the picker inside it, the in-place update of the line. The first thing to look at on the blog.
-- The line changed in place shows the topic and its kind, not the link and the actions that the server gives; reload the page to see it as the server writes it.
+- The line changed in place shows the topic **with its link** to the screen of the topics, its kind and the topics above (the answer of the route carries the address); the other cells (by, state) are plain text. (First version, corrected the same day on Eric's remarks: the link was in the first column and the topic had no link after the change.)
 - The confirmation of an assignment to a **new topic** still goes through the page of confirmation.
 - Not asked, not done: a close topic from the **letters that differ** (see above), and "apply to every designation that has the same label".

@@ -10,6 +10,7 @@
 
 namespace Otherguise\Index\Rest;
 
+use Otherguise\Index\Admin\TopicsScreen;
 use Otherguise\Index\Designation\Assigner;
 use Otherguise\Index\Designation\Neighbours;
 use Otherguise\Index\Designation\TopicFinder;
@@ -190,6 +191,13 @@ final class AssignmentRoute {
 				'label' => (string) $target['label'],
 				'kind'  => (string) Kinds::label( (string) $target['kind'] ),
 				'chain' => $this->finder->chain( $target ),
+				'url'   => add_query_arg(
+					array(
+						'page'  => TopicsScreen::PAGE,
+						'topic' => $topic,
+					),
+					admin_url( 'admin.php' )
+				),
 			),
 			'by'    => Observations::HAND,
 			'state' => 'assigned',

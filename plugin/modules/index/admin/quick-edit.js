@@ -80,8 +80,23 @@
 			};
 
 			if ( cell( 'topic' ) ) {
-				cell( 'topic' ).textContent = answer.topic.label + ' ';
-				cell( 'topic' ).appendChild( element( 'small', answer.topic.kind ) );
+				const where = cell( 'topic' );
+				const actions = where.querySelector( '.row-actions' );
+				const detail = [ answer.topic.kind, answer.topic.chain ].filter( Boolean ).join( ', ' );
+				const link = element( 'a', answer.topic.label );
+
+				// What the server wrote is replaced, except the actions of the line.
+				Array.from( where.childNodes ).forEach( function ( node ) {
+					if ( node !== actions ) {
+						where.removeChild( node );
+					}
+				} );
+				if ( answer.topic.url ) {
+					link.href = answer.topic.url;
+				}
+				where.insertBefore( answer.topic.url ? link : doc.createTextNode( answer.topic.label ), actions );
+				where.insertBefore( doc.createTextNode( ' ' ), actions );
+				where.insertBefore( element( 'small', detail ), actions );
 			}
 			if ( cell( 'by' ) ) {
 				cell( 'by' ).textContent = answer.by;
@@ -198,11 +213,13 @@
 				return;
 			}
 
-			let actions = row.querySelector( '.row-actions' );
+			// The link is in the column of the topic, where the topic is changed.
+			const place = row.querySelector( '.column-topic' ) || row.querySelector( 'td' );
+			let actions = place.querySelector( '.row-actions' );
 
 			if ( ! actions ) {
 				actions = element( 'div', '', 'row-actions' );
-				row.querySelector( 'td, th:not(.check-column)' ).appendChild( actions );
+				place.appendChild( actions );
 			}
 
 			const link = element( 'a', words.change );
@@ -214,7 +231,6 @@
 				open( row );
 			} );
 			span.appendChild( link );
-			actions.appendChild( actions.firstChild ? doc.createTextNode( ' | ' ) : doc.createTextNode( '' ) );
 			actions.appendChild( span );
 		} );
 

@@ -1011,7 +1011,16 @@ class IndexAssignmentsDbTest extends Otherguise_Test_Database_Case {
 		$this->assertStringContainsString( 'paged=2', end( $urls ) );
 		$this->assertStringContainsString( 'did=assign', end( $urls ) );
 
-		$this->bulk( 'assign', array_merge( $kept, array( 'designation' => array( (string) $id ), 'to' => (string) $river ) ) );
+		$this->bulk(
+			'assign',
+			array_merge(
+				$kept,
+				array(
+					'designation' => array( (string) $id ),
+					'to' => (string) $river,
+				)
+			)
+		);
 		$this->screen( $urls )->process();
 
 		$this->assertStringContainsString( 'confirm=1', end( $urls ) );
@@ -1091,21 +1100,61 @@ class IndexAssignmentsDbTest extends Otherguise_Test_Database_Case {
 
 		$this->assertSame( array( $river ), array_column( $route->neighbours( $ask( array( 'id' => $id ) ) ), 'id' ) );
 
-		$no = $route->assign( $ask( array( 'id' => $id, 'topic' => $river ) ) );
+		$no = $route->assign(
+			$ask(
+				array(
+					'id' => $id,
+					'topic' => $river,
+				)
+			)
+		);
 
 		$this->assertFalse( $no['ok'] );
 		$this->assertTrue( $no['conflict'] );
 		$this->assertStringContainsString( 'The topic that it has is a Commune, the one you chose is a Waterway', $no['error'] );
 		$this->assertSame( $dept, $this->observations->assignment( $id )['topic'], 'Nothing changed.' );
 
-		$yes = $route->assign( $ask( array( 'id' => $id, 'topic' => $river, 'force' => true ) ) );
+		$yes = $route->assign(
+			$ask(
+				array(
+					'id' => $id,
+					'topic' => $river,
+					'force' => true,
+				)
+			)
+		);
 
 		$this->assertTrue( $yes['ok'] );
 		$this->assertSame( 'Allier (rivière)', $yes['topic']['label'] );
 		$this->assertSame( 'hand', $yes['by'] );
-		$this->assertSame( array( 'topic' => $river, 'by' => Observations::HAND ), $this->observations->assignment( $id ) );
+		$this->assertStringContainsString( 'topic=' . $river, $yes['topic']['url'], 'The line changed in place gets the link of its topic.' );
+		$this->assertSame(
+			array(
+				'topic' => $river,
+				'by' => Observations::HAND,
+			),
+			$this->observations->assignment( $id )
+		);
 
-		$this->assertFalse( $route->assign( $ask( array( 'id' => 9999, 'topic' => $river ) ) )['ok'] );
-		$this->assertFalse( $route->assign( $ask( array( 'id' => $id, 'topic' => 9999 ) ) )['ok'] );
+		$this->assertFalse(
+			$route->assign(
+				$ask(
+					array(
+						'id' => 9999,
+						'topic' => $river,
+					)
+				)
+			)['ok']
+		);
+		$this->assertFalse(
+			$route->assign(
+				$ask(
+					array(
+						'id' => $id,
+						'topic' => 9999,
+					)
+				)
+			)['ok']
+		);
 	}
 }
