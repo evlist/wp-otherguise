@@ -586,6 +586,15 @@ class IndexAssignmentsDbTest extends Otherguise_Test_Database_Case {
 			}
 
 			/**
+			 * Prints the box of the target.
+			 *
+			 * @return void
+			 */
+			public function target_fields() {
+				$this->called[] = 'target';
+			}
+
+			/**
 			 * Prints the table.
 			 *
 			 * @return void
@@ -600,7 +609,8 @@ class IndexAssignmentsDbTest extends Otherguise_Test_Database_Case {
 		$this->screen( $urls, true, true, $table )->render();
 		$page = (string) ob_get_clean();
 
-		$this->assertSame( array( 'prepare', 'views', 'search:assignment', 'display' ), $table->called );
+		$this->assertSame( array( 'prepare', 'views', 'search:assignment', 'target', 'display' ), $table->called );
+		$this->assertStringContainsString( 'Search designations (top right) looks in the label', $page, 'A line of help says what each field searches.' );
 		$this->assertSame( 2, substr_count( $page, '<form' ), 'The search is a form of its own; the bulk actions post to the screen itself.' );
 		$this->assertStringContainsString( 'page=otherguise-index-assignments', $page );
 
@@ -785,5 +795,109 @@ class IndexAssignmentsDbTest extends Otherguise_Test_Database_Case {
 		$this->assertSame( 'Allier (département)', $this->topics->get( $new )['label'] );
 		$this->assertTrue( $this->topics->get( $new )['kind_by_hand'] );
 		$this->assertSame( Observations::HAND, $this->observations->assignment( $id )['by'] );
+	}
+
+	/**
+	 * The box of the target: an existing topic (a field with suggestions), or a new one (its label, its kind, the topic it goes under, which a field searches
+	 * too); every field has a visible label, and the kind that is chosen first is "not classified".
+	 *
+	 * @return void
+	 */
+	public function test_the_box_of_the_target(): void {
+		$table = $this->make_table();
+
+		ob_start();
+		$table->target_fields();
+		$html = (string) ob_get_clean();
+
+		$this->assertStringContainsString( '<legend><strong>Where &quot;Assign to the topic…&quot; puts the ticked lines', $html );
+		$this->assertStringContainsString( 'An existing topic', $html );
+		$this->assertStringContainsString( 'data-topic-picker="assignment-topic-id"', $html );
+		$this->assertStringContainsString( 'data-topic-picker="assignment-parent-id"', $html, 'The topic above is searched as one types, not given by a number.' );
+		$this->assertStringContainsString( 'name="new_parent" value=""', $html );
+		$this->assertMatchesRegularExpression( '/<option value="any" selected="selected">/', $html, 'The kind that is chosen first is "not classified".' );
+
+		foreach ( array( 'Label', 'Kind', 'Under the topic' ) as $label ) {
+			$this->assertStringContainsString( '>' . $label . '</label>', $html );
+		}
+	}
+
+	/**
+	 * The search of the list looks in the identifier of Wikidata and in the state too; a search keeps the sort and the view.
+	 *
+	 * @return void
+	 */
+	public function test_the_search_looks_in_the_identifier_and_the_state(): void {
+		$id = $this->designation( 'Allier', array( 1 ) );
+
+		$this->designations->set_enrichment(
+			$id,
+			array(
+				'state' => 'done',
+				'qid' => 'Q2464',
+			)
+		);
+		$this->designation( 'Lyon', array( 2 ), 0, Observations::SYSTEM, Designations::AMBIGUOUS );
+
+		$list = new Listing( $this->designations, $this->observations, $this->topics );
+
+		$this->assertSame( array( 'Allier' ), array_column( $list->query( array( 'search' => 'q2464' ) )['rows'], 'label' ) );
+		$this->assertSame( array( 'Lyon' ), array_column( $list->query( array( 'search' => 'ambiguous' ) )['rows'], 'label' ) );
+	}
+
+	/**
+	 * A new topic under a topic that was typed by its name: the number is found; a name that names no topic is said; what the page was showing (the view, the
+	 * search, the sort, the page) is kept after an action.
+	 *
+	 * @return void
+	 */
+	public function test_the_new_topic_under_a_name_and_what_the_page_shows_is_kept(): void {
+		$fist = $this->topics->create( 'Fisterra', 'commune', 0, Topics::APPROVED, array() );
+		$id   = $this->designation( 'A Atalaia', array( 1 ) );
+		$urls = array();
+
+		$this->bulk(
+			'assign',
+			array(
+				'designation' => array( (string) $id ),
+				'new_label' => 'A Atalaia',
+				'new_kind' => 'site',
+				'new_parent' => '',
+				'new_parent_label' => 'fisterra',
+			)
+		);
+		$this->screen( $urls )->process();
+
+		$this->assertStringContainsString( 'new_parent=' . $fist, end( $urls ) );
+
+		$this->bulk(
+			'assign',
+			array(
+				'designation' => array( (string) $id ),
+				'new_label' => 'A Atalaia',
+				'new_parent_label' => 'Nulle part',
+			)
+		);
+		$this->screen( $urls )->process();
+
+		$this->assertStringContainsString( 'No topic is called', urldecode( end( $urls ) ) );
+		$this->assertStringNotContainsString( 'confirm=1', end( $urls ) );
+
+		$this->bulk(
+			'confirm',
+			array(
+				'designation' => array( (string) $id ),
+				'view'        => 'system',
+				's'           => 'atalaia',
+				'orderby'     => 'posts',
+				'order'       => 'desc',
+				'paged'       => '2',
+			)
+		);
+		$this->screen( $urls )->process();
+
+		foreach ( array( 'view=system', 's=atalaia', 'orderby=posts', 'order=desc', 'paged=2', 'did=confirm' ) as $kept ) {
+			$this->assertStringContainsString( $kept, end( $urls ) );
+		}
 	}
 }

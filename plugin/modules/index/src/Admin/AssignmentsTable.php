@@ -157,7 +157,7 @@ final class AssignmentsTable extends \WP_List_Table {
 	protected function get_bulk_actions() {
 		return array(
 			'choose'   => __( 'Apply the choices (the lists in the Assigned to column)', 'otherguise' ),
-			'assign'   => __( 'Assign to the topic chosen above…', 'otherguise' ),
+			'assign'   => __( 'Assign to the topic in the box above…', 'otherguise' ),
 			'confirm'  => __( 'Confirm the assignment (a person decides)', 'otherguise' ),
 			'unassign' => __( 'Take the assignment away', 'otherguise' ),
 			'delete'   => __( 'Delete (only what no post observes)', 'otherguise' ),
@@ -165,27 +165,27 @@ final class AssignmentsTable extends \WP_List_Table {
 	}
 
 	/**
-	 * What is shown above the table: the field that chooses the topic of an assignment.
+	 * The box above the table that says **where the action "Assign…" puts the ticked lines**: an existing topic (a field that searches the topics as one types),
+	 * or a new one (its label, its kind and the topic it goes under, which a field searches too). It is printed inside the form of the table, by the screen.
 	 *
-	 * @param string $which `top` or `bottom`.
 	 * @return void
 	 */
-	protected function extra_tablenav( $which ) {
-		if ( 'top' !== $which ) {
-			return;
-		}
-
-		echo '<div class="alignleft actions"><label class="screen-reader-text" for="assignment-topic">' . esc_html__( 'The topic to assign to', 'otherguise' ) . '</label>';
-		echo '<input type="text" id="assignment-topic" name="to_label" size="30" placeholder="' . esc_attr__( 'Search the topic to assign to', 'otherguise' ) . '" data-topic-picker="assignment-topic-id" value="' . esc_attr( (string) ( $this->request )( 'to_label' ) ) . '" />';
-		echo '<input type="hidden" id="assignment-topic-id" name="to" value="" />';
-		echo ' <label class="screen-reader-text" for="assignment-new-label">' . esc_html__( 'Or a new topic', 'otherguise' ) . '</label><input type="text" id="assignment-new-label" name="new_label" size="20" placeholder="' . esc_attr__( 'or a new topic: label', 'otherguise' ) . '" />';
-		echo ' <select name="new_kind" aria-label="' . esc_attr__( 'Kind of the new topic', 'otherguise' ) . '">';
+	public function target_fields() {
+		echo '<fieldset class="assignment-target" style="background:#fff;border:1px solid #c3c4c7;margin:12px 0;padding:8px 12px;">';
+		echo '<legend><strong>' . esc_html__( 'Where "Assign to the topic…" puts the ticked lines', 'otherguise' ) . '</strong></legend>';
+		echo '<p><label for="assignment-topic"><strong>' . esc_html__( 'An existing topic', 'otherguise' ) . '</strong> ' . esc_html__( '(type a name, then pick it in the list)', 'otherguise' ) . '</label><br />';
+		echo '<input type="text" id="assignment-topic" name="to_label" size="40" data-topic-picker="assignment-topic-id" value="' . esc_attr( (string) ( $this->request )( 'to_label' ) ) . '" />';
+		echo '<input type="hidden" id="assignment-topic-id" name="to" value="" /></p>';
+		echo '<p><strong>' . esc_html__( 'or a new topic', 'otherguise' ) . '</strong><br />';
+		echo '<label for="assignment-new-label">' . esc_html__( 'Label', 'otherguise' ) . '</label> <input type="text" id="assignment-new-label" name="new_label" size="25" /> ';
+		echo '<label for="assignment-new-kind">' . esc_html__( 'Kind', 'otherguise' ) . '</label> <select id="assignment-new-kind" name="new_kind">';
 
 		foreach ( Kinds::tree() as $row ) {
-			echo '<option value="' . esc_attr( (string) $row['slug'] ) . '">' . esc_html( str_repeat( '— ', (int) $row['depth'] ) . $row['label'] ) . '</option>';
+			echo '<option value="' . esc_attr( (string) $row['slug'] ) . '"' . selected( Kinds::ANY, $row['slug'], false ) . '>' . esc_html( str_repeat( '— ', (int) $row['depth'] ) . $row['label'] ) . '</option>';
 		}
 
-		echo '</select> <input type="number" min="0" name="new_parent" size="6" placeholder="' . esc_attr__( 'under the topic number', 'otherguise' ) . '" /></div>';
+		echo '</select> <label for="assignment-parent">' . esc_html__( 'Under the topic', 'otherguise' ) . '</label> <input type="text" id="assignment-parent" name="new_parent_label" size="25" data-topic-picker="assignment-parent-id" placeholder="' . esc_attr__( 'none, or type a name', 'otherguise' ) . '" />';
+		echo '<input type="hidden" id="assignment-parent-id" name="new_parent" value="" /></p></fieldset>';
 	}
 
 	/**

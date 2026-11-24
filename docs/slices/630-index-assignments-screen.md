@@ -54,3 +54,11 @@ Sorting by the number of posts, and the view *Observed by no post*, read **every
 ## Amendment (2026-11-24, the same evening)
 
 **A bug seen on the blog**: the table printed its views and its pagination but **no header and no line**. A table of a plugin must give its columns to `WP_List_Table` itself (`_column_headers` in `prepare_items()`); without it WordPress looks for them in a filter of the screen and prints none. The test with the stand-in of the class and the first try on the scratch WordPress only looked for the fields, not for the columns: **the test now checks `_column_headers`**, and the scratch WordPress was run again with a real designation (the headers, the line, the checkbox, the sortable columns are printed).
+
+## Amendment (2026-11-24, after the first look at the screen on the blog)
+
+Eric did not understand **what the fields searched**, and the fields of the new topic (a kind "Activity", a number) were unlabelled and crammed in the toolbar. Changed:
+
+- **Two clearly named searches.** The box at the top right is **"Search designations"** and it also looks in **the identifier of Wikidata and the state** (and, through the key, in the source and in the chain of names of a place); a line of **help** under the title says what each field does.
+- **A box "Where Assign puts the ticked lines"** above the table, with **visible labels**: *An existing topic* (a field that suggests the topics as one types), or *a new topic*: **Label**, **Kind** (**"not classified" first**, no longer "Activity"), **Under the topic** (**a field that searches the topics too**, no longer a number; a name typed without picking it is looked up).
+- **What the page shows is kept** after an action and a search: the view, the sort and the search; the page after an action.

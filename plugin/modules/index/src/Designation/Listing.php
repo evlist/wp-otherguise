@@ -19,7 +19,8 @@ defined( 'ABSPATH' ) || exit;
 
 /**
  * What the screen of the assignments shows (slice 630), without WordPress: the designations with their topic, who assigned them, their state and the number
- * of posts that observe them, **filtered** by a view, **searched**, **sorted** and **cut in pages**. The assignments are read **in two queries**, whatever
+ * of posts that observe them, **filtered** by a view, **searched** (the label, the key, which holds the source and the chain of a place, the topic, the identifier
+ * of Wikidata and the state), **sorted** and **cut in pages**. The assignments are read **in two queries**, whatever
  * their number; the number of posts is asked **only for the lines of the page**, except to sort by it or to list the designations that nothing observes
  * (one pass over every observation: heavy, and measured by `wp otherguise index designations measure`).
  */
@@ -124,7 +125,7 @@ final class Listing {
 			$topic = $row['topic'] > 0 ? $this->topics->get( $row['topic'] ) : null;
 
 			$base[ $id ]['topic_label'] = null === $topic ? '' : (string) $topic['label'];
-			$labels[ $id ]              = Folding::key( $base[ $id ]['label'] . ' ' . $row['key'] . ' ' . $base[ $id ]['topic_label'] );
+			$labels[ $id ]              = Folding::key( $base[ $id ]['label'] . ' ' . $row['key'] . ' ' . $base[ $id ]['topic_label'] . ' ' . $row['wikidata'] . ' ' . $row['state'] );
 		}
 
 		$rows = array_values(

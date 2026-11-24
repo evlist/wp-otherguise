@@ -33,6 +33,8 @@ defined( 'ABSPATH' ) || exit;
  * request is handled when the page loads (`load-<page>`), then redirected; only the confirmation of an assignment posts to `admin-post.php`.
  */
 final class AssignmentsScreen {
+	use AssignmentsViews;
+
 	public const PAGE  = 'otherguise-index-assignments';
 	public const APPLY = 'otherguise_index_assignments_apply';
 	public const NONCE = 'otherguise_index_assignments';
@@ -279,6 +281,58 @@ final class AssignmentsScreen {
 	}
 
 	/**
+	 * What the page was showing, to come back to it: the view, the search, the sort and the page.
+	 *
+	 * @param int $type INPUT_GET or INPUT_POST.
+	 * @return array<string, string>
+	 */
+	private function preserved( $type ) {
+		$kept = array();
+
+		foreach ( array( 'view', 's', 'orderby', 'order', 'paged' ) as $name ) {
+			$value = sanitize_text_field( (string) ( $this->input )( $type, $name, false ) );
+
+			if ( '' !== $value ) {
+				$kept[ $name ] = $value;
+			}
+		}
+
+		return $kept;
+	}
+
+	/**
+	 * The topic that the new topic goes under: the number that the field of the page put in `new_parent`, else what was typed in its label.
+	 *
+	 * @return array{id:int,error:string} `id` is 0 for none, and -1 when what was typed names no topic (or several).
+	 */
+	private function parent() {
+		$id = absint( (string) ( $this->input )( INPUT_POST, 'new_parent', false ) );
+
+		if ( $id > 0 && null !== $this->topics->get( $id ) ) {
+			return array(
+				'id'    => $id,
+				'error' => '',
+			);
+		}
+
+		$typed = $this->text( INPUT_POST, 'new_parent_label' );
+
+		if ( '' === $typed ) {
+			return array(
+				'id'    => 0,
+				'error' => '',
+			);
+		}
+
+		$found = $this->finder->find( $typed );
+
+		return array(
+			'id'    => $found['id'] > 0 ? $found['id'] : -1,
+			'error' => $found['error'],
+		);
+	}
+
+	/**
 	 * Reads a text field of the request.
 	 *
 	 * @param int    $type INPUT_GET or INPUT_POST.
@@ -335,7 +389,7 @@ final class AssignmentsScreen {
 			return;
 		}
 
-		$back = array_filter( array( 'view' => sanitize_key( (string) ( $this->input )( INPUT_POST, 'view', false ) ) ) );
+		$back = $this->preserved( INPUT_POST );
 
 		// The choices are made in the lists of the lines: a line with a choice counts, ticked or not.
 		if ( 'choose' === $action ) {
@@ -353,6 +407,14 @@ final class AssignmentsScreen {
 		}
 
 		if ( 'assign' === $action && '' !== $this->text( INPUT_POST, 'new_label' ) ) {
+			$parent = $this->parent();
+
+			if ( $parent['id'] < 0 ) {
+				( $this->redirect )( $this->url( array_merge( $back, array( 'error' => $parent['error'] ) ) ) );
+
+				return;
+			}
+
 			( $this->redirect )(
 				$this->url(
 					array_filter(
@@ -362,7 +424,7 @@ final class AssignmentsScreen {
 							'to'         => 0,
 							'new_label'  => $this->text( INPUT_POST, 'new_label' ),
 							'new_kind'   => sanitize_key( (string) ( $this->input )( INPUT_POST, 'new_kind', false ) ),
-							'new_parent' => absint( (string) ( $this->input )( INPUT_POST, 'new_parent', false ) ),
+							'new_parent' => $parent['id'],
 						)
 					)
 				)
@@ -573,90 +635,30 @@ final class AssignmentsScreen {
 			$this->confirmation();
 		} else {
 			$table = ( $this->make_table )();
-			$view  = sanitize_key( (string) ( $this->input )( INPUT_GET, 'view', false ) );
 
 			$table->prepare_items();
+			echo '<p class="description">' . esc_html__( 'Search designations (top right) looks in the label, the key (which holds the source and, for a place, its chain of names), the topic it is assigned to, the identifier of Wikidata and the state, within the view chosen above. To assign the ticked lines, fill the box "Where Assign puts the ticked lines", then choose "Assign to the topic in the box above". For a designation that hesitated, pick the topic in the list of its line, then "Apply the choices".', 'otherguise' ) . '</p>';
 			$table->views();
-			echo '<form method="get"><input type="hidden" name="page" value="' . esc_attr( self::PAGE ) . '" />' . ( '' === $view ? '' : '<input type="hidden" name="view" value="' . esc_attr( $view ) . '" />' );
-			$table->search_box( __( 'Search', 'otherguise' ), 'assignment' );
-			echo '</form><form method="post" action="' . esc_url( $this->url() ) . '">' . ( '' === $view ? '' : '<input type="hidden" name="view" value="' . esc_attr( $view ) . '" />' );
+			echo '<form method="get"><input type="hidden" name="page" value="' . esc_attr( self::PAGE ) . '" />';
+
+			foreach ( array_diff_key(
+				$this->preserved( INPUT_GET ),
+				array(
+					's' => 1,
+					'paged' => 1,
+				)
+			) as $name => $value ) {
+				echo '<input type="hidden" name="' . esc_attr( $name ) . '" value="' . esc_attr( $value ) . '" />';
+			}
+
+			$table->search_box( __( 'Search designations', 'otherguise' ), 'assignment' );
+			echo '</form><form method="post" action="' . esc_url( $this->url() ) . '">';
+			$this->print_preserved_fields();
+			$table->target_fields();
 			$table->display();
 			echo '</form>';
 		}
 
 		echo '</div>';
-	}
-
-	/**
-	 * The notices that say what was done.
-	 *
-	 * @return void
-	 */
-	private function notices() {
-		$error   = sanitize_text_field( (string) ( $this->input )( INPUT_GET, 'error', false ) );
-		$did     = sanitize_key( (string) ( $this->input )( INPUT_GET, 'did', false ) );
-		$count   = absint( (string) ( $this->input )( INPUT_GET, 'count', false ) );
-		$skipped = absint( (string) ( $this->input )( INPUT_GET, 'skipped', false ) );
-		$words   = array(
-			/* translators: %d: number of designations. */
-			'assign'   => __( '%d designation(s) assigned; the mentions of their posts follow.', 'otherguise' ),
-			/* translators: %d: number of designations. */
-			'choose'   => __( '%d choice(s) applied: the topics are made where they were missing, and the mentions of the posts follow.', 'otherguise' ),
-			/* translators: %d: number of designations. */
-			'confirm'  => __( '%d assignment(s) confirmed: a new reading will not change them.', 'otherguise' ),
-			/* translators: %d: number of designations. */
-			'unassign' => __( '%d assignment(s) taken away: the designations are to resolve, and a new reading may propose a topic again.', 'otherguise' ),
-			/* translators: %d: number of designations. */
-			'delete'   => __( '%d designation(s) deleted.', 'otherguise' ),
-		);
-
-		if ( '' !== $error ) {
-			echo '<div class="notice notice-error"><p>' . esc_html( $error ) . '</p></div>';
-		} elseif ( isset( $words[ $did ] ) ) {
-			echo '<div class="notice notice-success"><p>' . esc_html( sprintf( $words[ $did ], $count ) . ( $skipped > 0 ? ' ' . sprintf( /* translators: %d: number skipped. */ __( '%d left as they were (not concerned).', 'otherguise' ), $skipped ) : '' ) ) . '</p></div>';
-		}
-	}
-
-	/**
-	 * The preview of an assignment, then the button that does it.
-	 *
-	 * @return void
-	 */
-	private function confirmation() {
-		$ids    = $this->numbers( INPUT_GET, 'ids' );
-		$target = $this->topics->get( absint( (string) ( $this->input )( INPUT_GET, 'to', false ) ) );
-		$new    = $this->text( INPUT_GET, 'new_label' );
-		$posts  = array();
-		$count  = 0;
-
-		foreach ( $ids as $id ) {
-			$where  = $this->observations->posts_of( $id );
-			$count += count( $where );
-			$posts  = array_merge( $posts, $where );
-		}
-
-		if ( ( null === $target && '' === $new ) || array() === $ids ) {
-			echo '<p>' . esc_html__( 'Nothing to assign.', 'otherguise' ) . '</p><p><a href="' . esc_url( $this->url() ) . '">' . esc_html__( 'Back', 'otherguise' ) . '</a></p>';
-
-			return;
-		}
-
-		echo '<h2>' . esc_html__( 'Assign', 'otherguise' ) . '</h2>';
-		/* translators: 1: designations, 2: observations, 3: posts, 4: topic label. */
-		echo '<p>' . esc_html( sprintf( __( '%1$d designation(s), %2$d observation(s) in %3$d post(s), will be assigned to "%4$s"%5$s. Nothing is deleted: the designations and the observations stay, and the mentions of the posts follow.', 'otherguise' ), count( $ids ), $count, count( array_unique( $posts ) ), null === $target ? $new : (string) $target['label'], null === $target ? ' ' . __( '(a new topic)', 'otherguise' ) : '' ) ) . '</p>';
-		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
-		wp_nonce_field( self::NONCE );
-		echo '<input type="hidden" name="action" value="' . esc_attr( self::APPLY ) . '" /><input type="hidden" name="to" value="' . esc_attr( null === $target ? '' : (string) $target['id'] ) . '" />';
-
-		foreach ( array( 'new_label', 'new_kind', 'new_parent' ) as $name ) {
-			echo '<input type="hidden" name="' . esc_attr( $name ) . '" value="' . esc_attr( $this->text( INPUT_GET, $name ) ) . '" />';
-		}
-
-		foreach ( $ids as $id ) {
-			echo '<input type="hidden" name="designation[]" value="' . esc_attr( (string) $id ) . '" />';
-		}
-
-		echo '<p><label><input type="checkbox" name="force" value="1" /> ' . esc_html__( 'Assign them anyway, although their kinds are not one a sort of the other', 'otherguise' ) . '</label></p>';
-		echo '<p><button class="button button-primary">' . esc_html__( 'Assign', 'otherguise' ) . '</button> <a href="' . esc_url( $this->url() ) . '">' . esc_html__( 'Cancel', 'otherguise' ) . '</a></p></form>';
 	}
 }
