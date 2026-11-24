@@ -134,7 +134,7 @@ final class DesignationRetry {
 
 		$candidate = ( new Candidate( (string) ( $was['label'] ?? '' ), (string) ( $was['kind'] ?? 'any' ), (array) ( $was['keys'] ?? array() ) ) )->from( (string) $one['source'] );
 		$candidate = $this->enrichment->completed( $candidate, $this->enrichment->learnt( $id ) );
-		$done      = $this->resolver->resolve( $candidate, true, false );
+		$done      = $this->resolver->resolve( $candidate, true, false, false );
 
 		if ( $done['topic'] <= 0 ) {
 			$this->designations->set_state(

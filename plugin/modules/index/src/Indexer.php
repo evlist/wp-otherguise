@@ -234,7 +234,7 @@ final class Indexer {
 
 		if ( $id <= 0 ) {
 			return array(
-				'done'        => $this->resolver->resolve( $candidate, $sure, false ),
+				'done'        => $this->resolver->resolve( $candidate, $sure, false, false ),
 				'designation' => 0,
 			);
 		}
@@ -264,7 +264,7 @@ final class Indexer {
 				)
 			);
 		} else {
-			$done = $this->resolver->resolve( $this->completed( $candidate, $id ), $sure, false );
+			$done = $this->resolver->resolve( $this->completed( $candidate, $id ), $sure, false, false );
 
 			if ( $done['topic'] > 0 ) {
 				$this->observations->assign( $id, $done['topic'], Observations::SYSTEM );

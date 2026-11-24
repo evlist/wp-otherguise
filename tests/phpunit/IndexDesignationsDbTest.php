@@ -650,6 +650,53 @@ class IndexDesignationsDbTest extends Otherguise_Test_Database_Case {
 	}
 
 	/**
+	 * An ambiguous candidate no longer leaves a placeholder topic (slice 629): **the designation holds the doubt** (state `ambiguous`, no assignment, no
+	 * mention), and the queue is made of designations.
+	 *
+	 * @return void
+	 */
+	public function test_a_doubt_is_a_designation_not_a_topic(): void {
+		$this->topics->create( 'Moulins', 'commune', 0, Topics::APPROVED, array( 'wikipedia:fr:Moulins' ) );
+		$this->topics->create( 'Moulins (autre)', 'commune', 0, Topics::APPROVED, array( 'wikipedia:fr:Moulins' ) );
+
+		$this->says[1] = array( $this->link( 'Moulins', 'Moulins' ) );
+		$report        = $this->indexer->index_post( 1 );
+
+		$id = (int) array_key_first( $this->designations->designations );
+
+		$this->assertSame( 1, $report['ambiguous'] );
+		$this->assertCount( 2, $this->topics->topics, 'No placeholder topic is made.' );
+		$this->assertSame( Designations::AMBIGUOUS, $this->designations->get( $id )['state'] );
+		$this->assertNull( $this->observations->assignment( $id ) );
+		$this->assertSame( array(), $this->mentions->of_post( 1 ) );
+		$this->assertSame( array( 1 ), $this->observations->posts_of( $id ), 'The observation is kept.' );
+	}
+
+	/**
+	 * The cleaning phase deletes the designations that the system proposed and that nobody observes any more, and keeps the ones that a person assigned.
+	 *
+	 * @return void
+	 */
+	public function test_the_cleaning_of_the_designations(): void {
+		$river = $this->topics->create( 'Allier', 'waterway', 0, Topics::APPROVED, array() );
+
+		$this->says[1] = array( $this->link( 'Allier', 'Allier_(rivière)' ), $this->link( 'Lyon', 'Lyon' ) );
+		$this->indexer->index_post( 1 );
+
+		$ids = array_keys( $this->designations->designations );
+		$this->observations->assign( $ids[0], $river, Observations::HAND );
+
+		$this->assertSame( 0, $this->mentions->clean_designations(), 'Both are observed.' );
+
+		$this->mentions->drop_source( 'post' );
+
+		$this->assertSame( 1, $this->mentions->clean_designations( true ), 'A count only.' );
+		$this->assertCount( 2, $this->designations->designations );
+		$this->assertSame( 1, $this->mentions->clean_designations() );
+		$this->assertSame( array( $ids[0] ), array_keys( $this->designations->designations ), 'What a person assigned stays.' );
+	}
+
+	/**
 	 * Sorts a list of numbers.
 	 *
 	 * @param int[] $numbers Numbers.

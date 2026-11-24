@@ -61,14 +61,15 @@ final class Resolver {
 	 * @param Candidate $candidate The candidate.
 	 * @param bool      $sure      Whether its source is sure (a new topic is then approved).
 	 * @param bool      $dry       Write nothing: say what would happen (a topic that would be created has the id 0).
+	 * @param bool      $record    Whether an ambiguous candidate leaves a placeholder topic (`candidate`, key `ambiguous:…`): **not when the designations hold the doubt** (slice 629).
 	 * @return array{result:string,topic:int,new:int} `topic` is 0 when ambiguous; `new` counts the topics created, the broader ones included.
 	 */
-	public function resolve( Candidate $candidate, $sure = true, $dry = false ) {
+	public function resolve( Candidate $candidate, $sure = true, $dry = false, $record = true ) {
 		$parent = 0;
 		$above  = array( 'new' => 0 );
 
 		if ( null !== $candidate->parent ) {
-			$above  = $this->resolve( $candidate->parent, $sure, $dry );
+			$above  = $this->resolve( $candidate->parent, $sure, $dry, $record );
 			$parent = $above['topic'];
 
 			// An ambiguous parent makes the child ambiguous; a parent that would be created makes the child new.
@@ -99,7 +100,7 @@ final class Resolver {
 		}
 
 		if ( count( $found ) > 1 ) {
-			if ( ! $dry ) {
+			if ( ! $dry && $record ) {
 				$this->record_ambiguous( $candidate, $parent );
 			}
 

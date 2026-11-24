@@ -95,7 +95,12 @@ final class SyncWiring {
 					return $pages->is_on() ? $pages->process( (int) $id ) : array( 'ok' => true );
 				},
 				'enrich_job'      => static fn() => $enrich->is_on() ? $enrich->job( true ) : null,
-				'cleanup'         => static fn() => count( $pruner->prune( array( 'any' ), false ) ),
+				'cleanup'         => static function () use ( $pruner, $mentions ) {
+					// What the readings made and no post observes any more: the designations of the system, then the topics that nothing mentions (slice 629).
+					$mentions->clean_designations();
+
+					return count( $pruner->prune( array( 'any' ), false ) );
+				},
 				'purge'           => static fn() => $mentions->drop_source( 'post' )['mentions'] + $mentions->drop_source( 'image' )['mentions'] + $mentions->drop_source( 'trace' )['mentions'],
 				'lock'            => static function ( $now ) {
 					// One token for the process. Not atomic (two workers that start in the same second may both start): the work is a loop that the state

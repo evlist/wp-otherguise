@@ -154,6 +154,28 @@ trait MentionsDropping {
 	}
 
 	/**
+	 * Deletes the designations that the system proposed and that no post observes (slice 629: the cleaning phase of the synchronisation). **A designation that
+	 * a person assigned stays.**
+	 *
+	 * @param bool $dry Count only.
+	 * @return int How many.
+	 */
+	public function clean_designations( $dry = false ) {
+		if ( null === $this->observations || null === $this->designations ) {
+			return 0;
+		}
+
+		$cleaner = new Designation\Cleaner( $this->designations, $this->observations );
+		$ids     = $cleaner->candidates();
+
+		if ( ! $dry ) {
+			$cleaner->delete( $ids );
+		}
+
+		return count( $ids );
+	}
+
+	/**
 	 * The topics that a decision of a person holds (slice 626): a designation that a person assigned to a topic keeps it, observed or not, so that the
 	 * cleaning of the topics that nobody mentions does not leave the decision pointing at nothing.
 	 *

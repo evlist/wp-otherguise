@@ -122,7 +122,7 @@ The two levels have **very different sizes**, which is the point: **the designat
 | **626** | **First, the measure** on the test blog (designations, observations, lookups). Then the designation (term, key per source, upsert), the observation (statement, identity, upsert), the assignment (statement), `Mentions` as a facade, `index migrate observations`, the resolver that proposes an assignment and keeps the proposal. | 625 validated |
 | **627** | **Enrichment before creation**, per designation: the `pending` state, the batch with a cache of the Wikipedia key → Wikidata item, the phase "enrich" of `index sync` becomes the retry of the pending designations. | 626 |
 | **628** | **One screen to manage the topics and their assignments** (below), the queue **To resolve** and the suggestions as views of it; the words of the interface, the commands and the documents are changed (`index merge` and `index duplicates` give way to `index assign` and `index suggestions`, `index designations --topic=<id>` comes; **no alias is kept**: Eric, 2026-11-24). | 626 |
-| **629** | `purge`, `prune`, `reset` and `sync --from-scratch` in the new vocabulary; **the topics of status `candidate` that stood for doubts are gone**. | 626, 628 |
+| **629** | `purge`, `prune`, `reset` and `sync --from-scratch` in the new vocabulary; **the topics of status `candidate` that stood for doubts are gone** (coded: [629](629-index-doubts-and-cleaning.md)). | 626, 628 |
 
 ## The screen (Proposed): topics and assignments on one page
 

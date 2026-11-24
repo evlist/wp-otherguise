@@ -342,4 +342,26 @@ class IndexPruneDbTest extends Otherguise_Test_Database_Case {
 		$this->assertSame( array(), $this->mentions->mentioned_topics(), 'Every mention goes, the one made by hand too.' );
 		$this->assertSame( array(), $this->topics->all(), 'Every topic goes, the refused and the chosen ones too.' );
 	}
+
+	/**
+	 * The placeholders (slice 629): a candidate topic with a key `ambiguous:…` only stands for a doubt, which the designations hold now: it goes; a candidate
+	 * that waits for a decision, and a refused topic, stay.
+	 *
+	 * @return void
+	 */
+	public function test_the_placeholders_of_the_doubts_go(): void {
+		$placeholder = $this->topics->create( 'Moulins', 'any', 0, Topics::CANDIDATE, array( 'ambiguous:wikipedia:fr:Moulins' ) );
+		$waiting     = $this->topics->create( 'En attente', 'any', 0, Topics::CANDIDATE, array( 'wikipedia:fr:Attente' ) );
+		$refused     = $this->topics->create( 'Refusé', 'any', 0, Topics::REFUSED, array( 'ambiguous:x' ) );
+
+		$pruner = new TopicPruner( $this->topics, $this->mentions );
+
+		$this->assertSame( array( $placeholder ), array_column( $pruner->candidates( array( 'any' ) ), 'id' ) );
+
+		$pruner->prune( array( 'any' ), false );
+
+		$this->assertNull( $this->topics->get( $placeholder ) );
+		$this->assertNotNull( $this->topics->get( $waiting ) );
+		$this->assertNotNull( $this->topics->get( $refused ) );
+	}
 }

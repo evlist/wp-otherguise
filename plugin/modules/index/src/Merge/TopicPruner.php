@@ -19,8 +19,7 @@ defined( 'ABSPATH' ) || exit;
 /**
  * Finds, and deletes, the topics that no post mentions any more (slice 619): the **places** that an older chain made (*Somontano de Barbastro* under
  * *Aragon*, before the levels were read from their numbers) and that reading the pages again no longer mentions. A topic is **left alone** when a post
- * mentions it, when a topic below it is kept, when a person chose its kind or its label, when it is **not approved** (a refused topic stops the source from making it again, and a candidate waits for a decision: the queue of the topics that
- * are ambiguous is made of candidates) or when it is of another kind than the ones asked for. What goes is made again, with its keys, if a source names it again.
+ * mentions it, when a topic below it is kept, when a person chose its kind or its label, when it is **not approved** (a refused topic stops the source from making it again; a candidate that is not a placeholder waits for a decision) or when it is of another kind than the ones asked for. What goes is made again, with its keys, if a source names it again.
  */
 final class TopicPruner {
 	/**
@@ -96,7 +95,7 @@ final class TopicPruner {
 				$asked = $asked || Kinds::is_a( $kind, $wanted );
 			}
 
-			$kept = ! $asked || isset( $mentioned[ $id ] ) || ( $decided && ( Topics::APPROVED !== (string) $topic['status'] || ! empty( $topic['kind_by_hand'] ) || ! empty( $topic['label_by_hand'] ) ) );
+			$kept = ! $asked || isset( $mentioned[ $id ] ) || ( $decided && ( ( Topics::APPROVED !== (string) $topic['status'] && ! self::is_placeholder( $topic ) ) || ! empty( $topic['kind_by_hand'] ) || ! empty( $topic['label_by_hand'] ) ) );
 
 			foreach ( $children[ $id ] ?? array() as $child ) {
 				$kept = $kept || isset( $keep[ $child ] );
@@ -121,6 +120,27 @@ final class TopicPruner {
 		}
 
 		return $goes;
+	}
+
+	/**
+	 * Whether a topic only stands for a doubt (slice 629): a candidate topic with a key `ambiguous:…`, made by the resolver before the designations held the
+	 * doubt. It is not a topic: it goes, whether or not a person decided about others.
+	 *
+	 * @param array<string, mixed> $topic The topic.
+	 * @return bool
+	 */
+	public static function is_placeholder( array $topic ) {
+		if ( Topics::CANDIDATE !== (string) $topic['status'] ) {
+			return false;
+		}
+
+		foreach ( (array) $topic['keys'] as $key ) {
+			if ( 0 === strpos( (string) $key, 'ambiguous:' ) ) {
+				return true;
+			}
+		}
+
+		return false;
 	}
 
 	/**

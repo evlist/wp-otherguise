@@ -83,7 +83,9 @@ final class PurgeCommand {
 	}
 
 	/**
-	 * Drops what a source said: its mentions go (a mention that another source also makes stays, without this source), then **the topics that nothing
+	 * Drops what a source said: its observations and its mentions go (a mention that another source also makes stays, without this source; the designations
+	 * stay, a new reading finds them again with what Wikidata said, and `wp otherguise index designations clean` or the next synchronisation deletes the ones that
+	 * nothing observes), then **the topics that nothing
 	 * mentions any more and that no topic below keeps** are deleted: the topics that the source made, and their broader topics that nothing else mentions.
 	 * A topic that a person chose the kind or the label of, or that is refused, stays. **Nothing is changed without --apply.** Then make again what the
 	 * source says: `wp otherguise index pages start` for the links, the marks and the photographs, `wp otherguise index rebuild` for the categories and
