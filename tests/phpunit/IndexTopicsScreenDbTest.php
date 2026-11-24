@@ -346,6 +346,7 @@ class IndexTopicsScreenDbTest extends Otherguise_Test_Database_Case {
 		$this->assertStringContainsString( '<td>2</td>', $page, 'Two posts observe it.' );
 		$this->assertStringContainsString( 'name="designation[]"', $page );
 		$this->assertStringContainsString( 'Preview the assignment of all the designations of this topic', $page );
+		$this->assertMatchesRegularExpression( '/<select name="new_kind">.*<option value="any" selected=.selected.>/s', $page, 'The kind of a new topic is not the first of the list (slice 633).' );
 
 		$this->request[ INPUT_GET ] = array( 'designation' => (string) $w['design'] );
 		$page                       = $this->page( $this->screen( $urls ) );

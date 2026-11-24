@@ -241,7 +241,7 @@ trait TopicsViews {
 		echo '<p><label>' . esc_html__( 'Assign the ticked ones to the topic (its number, or its label)', 'otherguise' ) . ' <input name="to" size="30" /></label> ' . esc_html__( 'or to a new topic:', 'otherguise' ) . ' <input name="new_label" placeholder="' . esc_attr__( 'Label', 'otherguise' ) . '" /> <select name="new_kind">';
 
 		foreach ( Kinds::tree() as $row ) {
-			echo '<option value="' . esc_attr( (string) $row['slug'] ) . '">' . esc_html( str_repeat( '— ', (int) $row['depth'] ) . $row['label'] ) . '</option>';
+			echo '<option value="' . esc_attr( (string) $row['slug'] ) . '"' . selected( Kinds::ANY, $row['slug'], false ) . '>' . esc_html( str_repeat( '— ', (int) $row['depth'] ) . $row['label'] ) . '</option>';
 		}
 
 		echo '</select> <input name="new_parent" type="number" min="0" placeholder="' . esc_attr__( 'Under the topic number', 'otherguise' ) . '" /></p>';

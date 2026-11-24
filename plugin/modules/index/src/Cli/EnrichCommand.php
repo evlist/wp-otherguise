@@ -17,7 +17,7 @@ use Otherguise\Index\Kinds;
 defined( 'ABSPATH' ) || exit;
 
 /**
- * `wp otherguise index enrich enable|disable|start|run|status|stop|resume|duplicates|ambiguous|classes|map` (slice 604). `start` hands the work
+ * `wp otherguise index enrich enable|disable|start|run|status|stop|resume|duplicates|ambiguous|classes|map|kinds` (slice 604). `start` hands the work
  * to WP-Cron; `run` does it here, which is what a site with `DISABLE_WP_CRON` needs. The services are never called by anything else.
  */
 final class EnrichCommand {
@@ -177,6 +177,51 @@ final class EnrichCommand {
 		}
 
 		( $this->success )( 'The job is ' . $state['status'] . ': ' . $state['ok'] . ' looked at.' );
+	}
+
+	/**
+	 * Reads again the classes of the topics that have an identifier of Wikidata and no kind, and gives them the kind that the table of the classes says (slice 633):
+	 * to run after `map` has added a line, since a topic is read once and the kind is not deduced again otherwise. **Only the kind changes** (never a kind that a
+	 * person chose, never the label). A dry run by default.
+	 *
+	 * ## OPTIONS
+	 *
+	 * [--apply]
+	 * : Write the kinds (without it, only say which topic would get which).
+	 *
+	 * @param array $args  Positional arguments.
+	 * @param array $assoc Options.
+	 * @return void
+	 */
+	public function kinds( $args, $assoc ) {
+		unset( $args );
+
+		if ( ! $this->service->is_on() ) {
+			( $this->fail )( 'The enrichment is off: wp otherguise index enrich enable.' );
+
+			return;
+		}
+
+		$apply = ! empty( $assoc['apply'] );
+		$done  = $this->service->enricher()->reread_kinds( $apply );
+
+		foreach ( $done['lines'] as $line ) {
+			( $this->log )( $line );
+		}
+
+		if ( ! $done['ok'] ) {
+			( $this->fail )( $done['message'] . ' ' . $done['read'] . ' topic(s) were read before that; run the command again later.' );
+
+			return;
+		}
+
+		if ( 0 === $done['read'] ) {
+			( $this->success )( '' === $done['message'] ? 'Every topic that has an identifier of Wikidata has a kind.' : $done['message'] );
+
+			return;
+		}
+
+		( $this->success )( $done['read'] . ' topic(s) read, ' . $done['changed'] . ( $apply ? ' got a kind.' : ' would get a kind: --apply writes them.' ) );
 	}
 
 	/**

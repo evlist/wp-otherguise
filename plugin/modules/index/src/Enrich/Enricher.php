@@ -170,18 +170,21 @@ final class Enricher {
 	/**
 	 * Enriches one batch.
 	 *
-	 * @param bool     $dry   Report what would be written and write nothing (the requests are made).
-	 * @param int|null $only  Only this topic (looked at again whatever its state).
+	 * @param bool       $dry       Report what would be written and write nothing (the requests are made).
+	 * @param int|null   $only      Only this topic (looked at again whatever its state: **by its identifier of Wikidata when it has one**, slice 633).
+	 * @param int[]|null $ids       Only these topics, looked at again like the one above (the command `enrich kinds`).
+	 * @param bool       $kind_only Write the kind and nothing else: not the label, not the state of the enrichment.
 	 * @return array{ok:bool,stop:bool,message:string,processed:int,report:array<int,array<string,mixed>>}
 	 */
-	public function run_batch( $dry = false, $only = null ) {
+	public function run_batch( $dry = false, $only = null, $ids = null, $kind_only = false ) {
 		$until = $this->paused_until();
 
 		if ( $until > 0 ) {
 			return $this->result( false, true, 'Paused until ' . gmdate( 'Y-m-d H:i:s', $until ) . ' UTC (the service asked to wait).', array() );
 		}
 
-		$ids = null === $only ? $this->pending( self::BATCH ) : array( (int) $only );
+		$again = null !== $only || null !== $ids;
+		$ids   = null !== $only ? array( (int) $only ) : ( null !== $ids ? array_map( 'intval', $ids ) : $this->pending( self::BATCH ) );
 
 		if ( array() === $ids ) {
 			return $this->result( true, false, 'Nothing to enrich.', array() );
@@ -191,7 +194,7 @@ final class Enricher {
 
 		foreach ( $ids as $id ) {
 			$topic = $this->topics->get( $id );
-			$found = null === $topic ? null : $this->source_of( $topic );
+			$found = null === $topic ? null : $this->source_of( $topic, $again );
 
 			if ( null !== $found ) {
 				$sources[ $id ] = $found;
@@ -209,7 +212,7 @@ final class Enricher {
 		$report = array();
 
 		foreach ( $asked['outcomes'] as $id => $outcome ) {
-			$report[ $id ] = $this->apply( (int) $id, $outcome, $asked['items'][ $outcome['qid'] ] ?? null, $dry );
+			$report[ $id ] = $this->apply( (int) $id, $outcome, $asked['items'][ $outcome['qid'] ] ?? null, $dry, $kind_only );
 		}
 
 		return $this->result( true, false, count( $report ) . ' topic' . ( 1 === count( $report ) ? '' : 's' ) . ' looked at.', $report );
@@ -220,9 +223,10 @@ final class Enricher {
 	 * topic does not need the enrichment.
 	 *
 	 * @param array<string, mixed> $topic The topic.
+	 * @param bool                 $again Asked for on purpose (a topic, a list): a topic that has its identifier is read again **by it**, whatever its label.
 	 * @return array{type:string,language:string,title:string,qid:string}|null
 	 */
-	private function source_of( array $topic ) {
+	private function source_of( array $topic, $again = false ) {
 		$wikipedia = null;
 		$wikidata  = '';
 
@@ -244,7 +248,7 @@ final class Enricher {
 		}
 
 		if ( '' !== $wikidata ) {
-			return ItemReader::valid_id( (string) $topic['label'] ) ? array(
+			return $again || ItemReader::valid_id( (string) $topic['label'] ) ? array(
 				'type'     => 'wikidata',
 				'language' => '',
 				'title'    => '',
@@ -262,9 +266,10 @@ final class Enricher {
 	 * @param array<string, string>     $outcome The state and item found for its title.
 	 * @param array<string, mixed>|null $item    The label and classes of the item.
 	 * @param bool                      $dry     Dry run.
+	 * @param bool                      $kind_only Write the kind only.
 	 * @return array<string, mixed> What happened.
 	 */
-	private function apply( $id, array $outcome, $item, $dry ) {
+	private function apply( $id, array $outcome, $item, $dry, $kind_only = false ) {
 		$topic  = (array) $this->topics->get( $id );
 		$qid    = (string) $outcome['qid'];
 		$report = array(
@@ -276,6 +281,10 @@ final class Enricher {
 			'new'     => '',
 			'note'    => '',
 		);
+
+		if ( $kind_only ) {
+			return $this->refine( $id, $topic, $report, $item, $dry );
+		}
 
 		if ( 'resolved' !== $outcome['state'] || null === $item ) {
 			$report['state'] = 'resolved' === $outcome['state'] ? 'none' : $report['state'];
@@ -317,6 +326,108 @@ final class Enricher {
 		}
 
 		return $this->keep( $id, $report, $dry );
+	}
+
+	/**
+	 * Gives a topic the kind that the classes of its item stand for, and **nothing else** (slice 633): neither its label, nor the state of its enrichment. Only a
+	 * topic that has no kind yet (`any`, `other`) and whose kind no person chose takes it.
+	 *
+	 * @param int                       $id     Topic.
+	 * @param array<string, mixed>      $topic  The topic.
+	 * @param array<string, mixed>      $report What is known so far.
+	 * @param array<string, mixed>|null $item   The label and classes of the item.
+	 * @param bool                      $dry    Dry run.
+	 * @return array<string, mixed> The report.
+	 */
+	private function refine( $id, array $topic, array $report, $item, $dry ) {
+		$report['was'] = (string) $topic['kind'];
+
+		if ( null === $item ) {
+			$report['state'] = 'none';
+
+			return $report;
+		}
+
+		$report['classes'] = $item['classes'];
+		$deduced           = $this->classes->kind_for( array_keys( $item['classes'] ) );
+		$report['state']   = 'done';
+		$report['kind']    = null !== $deduced && ! $topic['kind_by_hand'] && in_array( (string) $topic['kind'], array( '', 'any', 'other' ), true ) && $deduced !== $topic['kind'] ? $deduced : '';
+
+		if ( ! $dry && '' !== $report['kind'] ) {
+			$this->topics->set_kind( $id, $report['kind'], false );
+		}
+
+		return $report;
+	}
+
+	/**
+	 * The topics that have an identifier of Wikidata and no kind yet (`any` or `other`, not chosen by a person): what `enrich kinds` reads again after the table of the
+	 * classes was changed.
+	 *
+	 * @return int[]
+	 */
+	public function unclassified() {
+		$found = array();
+
+		foreach ( $this->topics->all() as $id => $topic ) {
+			if ( Topics::APPROVED !== $topic['status'] || ! empty( $topic['kind_by_hand'] ) || ! in_array( (string) $topic['kind'], array( '', 'any', 'other' ), true ) ) {
+				continue;
+			}
+
+			foreach ( $topic['keys'] as $key ) {
+				if ( 0 === strpos( (string) $key, 'wikidata:' ) && ItemReader::valid_id( substr( (string) $key, 9 ) ) ) {
+					$found[] = (int) $id;
+
+					break;
+				}
+			}
+		}
+
+		return $found;
+	}
+
+	/**
+	 * Reads again, in batches, the classes of the topics that have an identifier of Wikidata and no kind, and gives them the kind that the table says (slice 633:
+	 * the command `enrich kinds`). Only the kind changes.
+	 *
+	 * @param bool $apply Write the kinds (false: say which topic would get which).
+	 * @return array{ok:bool,message:string,read:int,changed:int,lines:string[]} `ok` is false when a service refused, `read` and `lines` say how far it went.
+	 */
+	public function reread_kinds( $apply ) {
+		$read    = 0;
+		$changed = 0;
+		$lines   = array();
+
+		foreach ( array_chunk( $this->unclassified(), self::BATCH ) as $chunk ) {
+			$done = $this->run_batch( ! $apply, null, $chunk, true );
+
+			foreach ( $done['report'] as $id => $line ) {
+				++$read;
+
+				if ( '' !== $line['kind'] ) {
+					++$changed;
+					$lines[] = $id . "\t" . $line['label'] . "\t" . ( '' === (string) ( $line['was'] ?? '' ) ? 'none' : $line['was'] ) . ' => ' . $line['kind'] . "\t" . $line['qid'];
+				}
+			}
+
+			if ( ! $done['ok'] || $done['stop'] ) {
+				return array(
+					'ok'      => $done['ok'],
+					'message' => $done['message'],
+					'read'    => $read,
+					'changed' => $changed,
+					'lines'   => $lines,
+				);
+			}
+		}
+
+		return array(
+			'ok'      => true,
+			'message' => '',
+			'read'    => $read,
+			'changed' => $changed,
+			'lines'   => $lines,
+		);
 	}
 
 	/**

@@ -376,7 +376,61 @@ class IndexEnrichTest extends TestCase {
 
 		$done = $this->enricher->run_batch( true, $this->id['tet'] );
 
-		$this->assertSame( 0, $done['processed'], 'A topic that has its item and its label has nothing left to ask.' );
+		$this->assertSame( 1, $done['processed'], 'A topic asked for by its id is read again by its identifier, although it has its item and its label (slice 633).' );
+	}
+
+	/**
+	 * The kinds (slice 633): a topic that has its identifier of Wikidata and no kind is read again when the table of the classes has a line that it lacked; only the
+	 * kind changes (not the label, not the state), a kind that a person chose stays, and a dry run writes nothing.
+	 *
+	 * @return void
+	 */
+	public function test_the_kinds_are_deduced_again(): void {
+		$route = $this->topics->create( 'Têt (le fleuve)', 'any', 0, Topics::APPROVED, array( 'wikidata:Q4040' ) );
+		$hand  = $this->topics->create( 'Têt à la main', 'any', 0, Topics::APPROVED, array( 'wikidata:Q4040' ) );
+		$kept  = $this->topics->create( 'Têt déjà classé', 'person', 0, Topics::APPROVED, array( 'wikidata:Q4040' ) );
+		$none  = $this->topics->create( 'Sans identifiant', 'any', 0, Topics::APPROVED, array( 'wikipedia:fr:Sans identifiant' ) );
+
+		$this->topics->set_kind( $hand, 'any', true );
+		$this->topics->set_label( $route, 'Têt (le fleuve)', true );
+
+		$this->assertSame( array( $route ), $this->enricher->unclassified(), 'An identifier, no kind, no kind chosen by a person, approved.' );
+
+		$dry = $this->enricher->run_batch( true, null, array( $route ), true );
+
+		$this->assertSame( 'waterway', $dry['report'][ $route ]['kind'] );
+		$this->assertSame( 'any', $dry['report'][ $route ]['was'] );
+		$this->assertSame( 'any', $this->topics->get( $route )['kind'], 'A dry run writes nothing.' );
+
+		$done = $this->enricher->run_batch( false, null, array( $route ), true );
+
+		$this->assertSame( 'waterway', $this->topics->get( $route )['kind'] );
+		$this->assertSame( 'Têt (le fleuve)', $this->topics->get( $route )['label'], 'Only the kind changes.' );
+		$this->assertSame( 1, $done['processed'] );
+		$this->assertSame( 'person', $this->topics->get( $kept )['kind'] );
+		$this->assertSame( array(), $this->enricher->unclassified() );
+		$this->assertSame( 'any', $this->topics->get( $none )['kind'] );
+	}
+
+	/**
+	 * The batches of the command `enrich kinds`: a dry run says and writes nothing, `--apply` writes, and what is left to do is none.
+	 *
+	 * @return void
+	 */
+	public function test_reading_the_kinds_again(): void {
+		$one = $this->topics->create( 'Têt (le fleuve)', 'any', 0, Topics::APPROVED, array( 'wikidata:Q4040' ) );
+
+		$dry = $this->enricher->reread_kinds( false );
+
+		$this->assertTrue( $dry['ok'] );
+		$this->assertSame( 1, $dry['read'] );
+		$this->assertSame( 1, $dry['changed'] );
+		$this->assertSame( array( $one . "\tTêt (le fleuve)\tany => waterway\tQ4040" ), $dry['lines'] );
+		$this->assertSame( 'any', $this->topics->get( $one )['kind'], 'Nothing is written without --apply.' );
+
+		$this->assertSame( 1, $this->enricher->reread_kinds( true )['changed'] );
+		$this->assertSame( 'waterway', $this->topics->get( $one )['kind'] );
+		$this->assertSame( 0, $this->enricher->reread_kinds( true )['read'], 'Nothing is left to read.' );
 	}
 
 	/**
