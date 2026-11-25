@@ -11,6 +11,7 @@
 namespace Otherguise\Index\Admin;
 
 use Otherguise\Index\Designation\Listing;
+use Otherguise\Index\Designation\TopicLabel;
 use Otherguise\Index\Designations;
 use Otherguise\Index\Kinds;
 use Otherguise\Index\Resolver;
@@ -40,6 +41,13 @@ final class AssignmentsTable extends \WP_List_Table {
 	 * @var Topics
 	 */
 	private $topics;
+
+	/**
+	 * The labels as the index prints them (slice 639).
+	 *
+	 * @var TopicLabel
+	 */
+	private $labels;
 
 	/**
 	 * Reads a field of the request: `fn( string $name ): string`.
@@ -81,6 +89,7 @@ final class AssignmentsTable extends \WP_List_Table {
 
 		$this->listing = $listing;
 		$this->topics  = $topics;
+		$this->labels  = new TopicLabel( $topics );
 		$this->request = $request;
 		$this->url     = $url;
 	}
@@ -504,7 +513,7 @@ final class AssignmentsTable extends \WP_List_Table {
 				),
 				admin_url( 'admin.php' )
 			)
-		) . '">' . esc_html( (string) $topic['label'] ) . '</a> <small>' . esc_html( $this->describe( $topic ) ) . '</small>';
+		) . '">' . esc_html( $this->labels->of( $topic ) ) . '</a> <small>' . esc_html( (string) Kinds::label( (string) $topic['kind'] ) ) . '</small>';
 	}
 
 	/**
@@ -532,7 +541,8 @@ final class AssignmentsTable extends \WP_List_Table {
 				continue;
 			}
 
-			$text = (string) $topic['label'] . ' (' . $this->describe( $topic ) . ') #' . $topic['id'];
+			// The label of the index, then the kind (slice 639).
+			$text = $this->labels->of( $topic ) . ' · ' . (string) Kinds::label( (string) $topic['kind'] ) . ' #' . $topic['id'];
 
 			if ( Resolver::INCOMPATIBLE === (string) ( $ambiguity['type'] ?? '' ) ) {
 				/* translators: %s: a topic, with its kind and the topics above it. */
@@ -562,30 +572,6 @@ final class AssignmentsTable extends \WP_List_Table {
 
 		/* translators: 1: the label of the level, 2: the kind of the topic that exists, 3: the kind that the source gives. */
 		return sprintf( __( '"%1$s" is incompatible: the topic is a %2$s, the source says %3$s.', 'otherguise' ), $level, (string) Kinds::label( (string) ( $ambiguity['found_kind'] ?? '' ) ), (string) Kinds::label( (string) ( $ambiguity['asked_kind'] ?? '' ) ) );
-	}
-
-	/**
-	 * What tells a topic from its namesakes: its kind and the topics above it.
-	 *
-	 * @param array $topic A topic.
-	 * @return string
-	 */
-	private function describe( array $topic ) {
-		$above = array();
-		$up    = (int) $topic['parent'];
-
-		for ( $level = 0; $up > 0 && $level < 8; $level++ ) {
-			$parent = $this->topics->get( $up );
-
-			if ( null === $parent ) {
-				break;
-			}
-
-			array_unshift( $above, (string) $parent['label'] );
-			$up = (int) $parent['parent'];
-		}
-
-		return (string) Kinds::label( (string) $topic['kind'] ) . ( array() === $above ? '' : ', ' . implode( ' > ', $above ) );
 	}
 
 	/**

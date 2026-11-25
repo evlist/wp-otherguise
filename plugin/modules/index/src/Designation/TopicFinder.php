@@ -29,12 +29,20 @@ final class TopicFinder {
 	private $topics;
 
 	/**
+	 * The labels as the index prints them.
+	 *
+	 * @var TopicLabel
+	 */
+	private $labels;
+
+	/**
 	 * Builds the finder.
 	 *
 	 * @param Topics $topics The topics.
 	 */
 	public function __construct( Topics $topics ) {
 		$this->topics = $topics;
+		$this->labels = new TopicLabel( $topics );
 	}
 
 	/**
@@ -101,9 +109,10 @@ final class TopicFinder {
 
 			$line = array(
 				'id'    => (int) $id,
-				'label' => (string) $topic['label'],
-				'kind'  => (string) Kinds::label( (string) $topic['kind'] ),
-				'chain' => $this->chain( $topic ),
+				'label'   => (string) $topic['label'],
+				'display' => $this->labels->of( $topic ),
+				'kind'    => (string) Kinds::label( (string) $topic['kind'] ),
+				'chain'   => $this->chain( $topic ),
 			);
 
 			if ( 0 === $where ) {

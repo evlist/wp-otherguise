@@ -28,7 +28,7 @@ function make( answers ) {
 }
 
 test( 'typing searches, the suggestions tell the kind and the topics above, a click chooses', async () => {
-	const s = make( { moul: [ { id: 7, label: 'Moulins', kind: 'Commune', chain: 'France > Auvergne > Allier' }, { id: 9, label: 'Moulins', kind: 'Waterway', chain: '' } ] } );
+	const s = make( { moul: [ { id: 7, label: 'Moulins', display: 'Moulins (Allier)', kind: 'Commune', chain: 'France > Auvergne > Allier' }, { id: 9, label: 'Moulins', display: 'Moulins', kind: 'Waterway', chain: '' } ] } );
 
 	s.type( 'moul' );
 	await flush();
@@ -37,13 +37,13 @@ test( 'typing searches, the suggestions tell the kind and the topics above, a cl
 
 	assert.deepStrictEqual( s.calls, [ 'moul' ] );
 	assert.strictEqual( items.length, 2 );
-	assert.match( items[ 0 ].textContent, /Moulins \(Commune, France > Auvergne > Allier\) #7/ );
+	assert.match( items[ 0 ].textContent, /Moulins \(Allier\) · Commune #7/ );
 	assert.strictEqual( s.list().hidden, false );
 
 	items[ 0 ].dispatchEvent( new s.dom.window.Event( 'click', { bubbles: true } ) );
 
 	assert.strictEqual( s.doc.getElementById( 'to' ).value, '7' );
-	assert.strictEqual( s.doc.getElementById( 'label' ).value, 'Moulins' );
+	assert.strictEqual( s.doc.getElementById( 'label' ).value, 'Moulins (Allier)', 'The box shows the label as the index prints it.' );
 	assert.strictEqual( s.list().hidden, true, 'The list closes.' );
 } );
 

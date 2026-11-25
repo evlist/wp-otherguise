@@ -39,8 +39,8 @@ test( 'every line gets the link, also the line that has no actions', () => {
 
 test( 'the panel offers the close topics, and Update changes the line in place', async () => {
 	const { doc, calls } = make( {
-		'GET 7/neighbours': [ { id: 5, label: 'Aisne', kind: 'River', chain: 'France' } ],
-		'POST 7/topic': { ok: true, topic: { id: 5, label: 'Aisne', kind: 'River', chain: 'France', url: 'https://example.test/topic5' }, by: 'hand', state: 'assigned', status: 'approved' },
+		'GET 7/neighbours': [ { id: 5, label: 'Aisne', display: 'Aisne (France)', kind: 'River', chain: 'France' } ],
+		'POST 7/topic': { ok: true, topic: { id: 5, label: 'Aisne', display: 'Aisne (France)', kind: 'River', chain: 'France', url: 'https://example.test/topic5' }, by: 'hand', state: 'assigned', status: 'approved' },
 	} );
 
 	doc.querySelector( '#r1 .change-topic a' ).click();
@@ -49,7 +49,7 @@ test( 'the panel offers the close topics, and Update changes the line in place',
 	const select = doc.querySelector( '.otherguise-quick-edit select' );
 
 	assert.strictEqual( select.options.length, 3, 'The first option says to choose, the last one excludes the motif.' );
-	assert.match( select.options[ 1 ].textContent, /Aisne \(River, France\) #5/ );
+	assert.match( select.options[ 1 ].textContent, /^Aisne \(France\) \u00b7 River #5$/ );
 
 	doc.querySelector( '.otherguise-quick-edit button.button-primary' ).click();
 	await flush();
@@ -64,7 +64,8 @@ test( 'the panel offers the close topics, and Update changes the line in place',
 	assert.strictEqual( doc.querySelector( '#r1 .column-by' ).textContent, 'hand' );
 	assert.strictEqual( doc.querySelector( '#r1 .column-status' ).textContent, 'approved', 'The status of the new topic (slice 637).' );
 	assert.strictEqual( doc.querySelector( '#r1 .column-topic a' ).getAttribute( 'href' ), 'https://example.test/topic5', 'The topic has its link, like the lines that were not changed.' );
-	assert.strictEqual( doc.querySelector( '#r1 .column-topic small' ).textContent, 'River, France' );
+	assert.strictEqual( doc.querySelector( '#r1 .column-topic a' ).textContent, 'Aisne (France)', 'The label as the index prints it (slice 639).' );
+	assert.strictEqual( doc.querySelector( '#r1 .column-topic small' ).textContent, 'River', 'Then the kind.' );
 	assert.ok( doc.querySelector( '#r1 .column-topic .change-topic' ), 'The link to change it again stays.' );
 	assert.strictEqual( doc.querySelector( '.otherguise-quick-edit' ), null, 'The panel is closed.' );
 } );
@@ -111,7 +112,7 @@ test( 'Cancel closes the panel and a second line replaces the first panel', asyn
 test( 'the last choice takes the motif out of the index, and the line says so (slice 635)', async () => {
 	let sent = null;
 	const { doc } = make( {
-		'GET 7/neighbours': [ { id: 5, label: 'Aisne', kind: 'River', chain: 'France' } ],
+		'GET 7/neighbours': [ { id: 5, label: 'Aisne', display: 'Aisne (France)', kind: 'River', chain: 'France' } ],
 		'POST 7/topic': ( body ) => {
 			sent = body;
 			return { ok: true, excluded: true, by: 'hand', state: 'excluded', status: '' };

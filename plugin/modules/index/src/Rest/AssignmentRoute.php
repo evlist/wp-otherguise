@@ -15,6 +15,7 @@ use Otherguise\Index\Designation\Assigner;
 use Otherguise\Index\Designation\Exclusion;
 use Otherguise\Index\Designation\Neighbours;
 use Otherguise\Index\Designation\TopicFinder;
+use Otherguise\Index\Designation\TopicLabel;
 use Otherguise\Index\Designations;
 use Otherguise\Index\Kinds;
 use Otherguise\Index\Observations;
@@ -210,9 +211,10 @@ final class AssignmentRoute {
 			'ok'    => true,
 			'topic' => array(
 				'id'    => $topic,
-				'label' => (string) $target['label'],
-				'kind'  => (string) Kinds::label( (string) $target['kind'] ),
-				'chain' => $this->finder->chain( $target ),
+				'label'   => (string) $target['label'],
+				'display' => ( new TopicLabel( $this->topics ) )->of( $target ),
+				'kind'    => (string) Kinds::label( (string) $target['kind'] ),
+				'chain'   => $this->finder->chain( $target ),
 				'url'   => add_query_arg(
 					array(
 						'page'  => TopicsScreen::PAGE,

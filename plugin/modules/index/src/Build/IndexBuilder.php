@@ -10,6 +10,7 @@
 
 namespace Otherguise\Index\Build;
 
+use Otherguise\Index\Designation\TopicLabel;
 use Otherguise\Index\Topics;
 use Otherguise\Index\Folding;
 use Otherguise\Index\Kinds;
@@ -275,16 +276,7 @@ final class IndexBuilder {
 	 * @return array|null
 	 */
 	private function context_of( array $topic ) {
-		$skipped = apply_filters( 'index_context_skipped_kinds', array( 'admin3' ) );
-		$skipped = is_array( $skipped ) ? array_map( 'strval', $skipped ) : array( 'admin3' );
-		$direct  = $this->topics->get( (int) $topic['parent'] );
-		$above   = $direct;
-
-		for ( $level = 0; null !== $above && in_array( (string) $above['kind'], $skipped, true ) && $level < 10; $level++ ) {
-			$above = (int) $above['parent'] > 0 ? $this->topics->get( (int) $above['parent'] ) : null;
-		}
-
-		return null === $above ? $direct : $above;
+		return ( new TopicLabel( $this->topics ) )->context( $topic );
 	}
 
 	/**

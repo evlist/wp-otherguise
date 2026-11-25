@@ -17,6 +17,7 @@ use Otherguise\Index\Designation\Neighbours;
 use Otherguise\Index\Designation\Reresolver;
 use Otherguise\Index\Resolver;
 use Otherguise\Index\Designation\TopicFinder;
+use Otherguise\Index\Designation\TopicLabel;
 use Otherguise\Index\Designations;
 use Otherguise\Index\Kinds;
 use Otherguise\Index\Mentions;
@@ -668,8 +669,8 @@ class IndexAssignmentsDbTest extends Otherguise_Test_Database_Case {
 
 		$this->assertStringContainsString( 'Which &quot;Fisterra&quot;?', $html );
 		$this->assertStringContainsString( 'name="choice[' . $id . ']"', $html );
-		$this->assertStringContainsString( 'Fisterra (Commune, Espagne) #' . $a, $html, 'The kind and the topics above tell the namesakes apart.' );
-		$this->assertStringContainsString( 'Fisterra (Site (below the commune)) #' . $b, $html );
+		$this->assertStringContainsString( 'Fisterra (Espagne) · Commune #' . $a, $html, 'The label of the index, then the kind: they tell the namesakes apart (slice 639).' );
+		$this->assertStringContainsString( 'Fisterra · Site (below the commune) #' . $b, $html );
 		$this->assertSame( '—', $this->call( $table, 'column_topic', $rows[ $plain ] ), 'Nothing to choose from.' );
 	}
 
@@ -715,7 +716,7 @@ class IndexAssignmentsDbTest extends Otherguise_Test_Database_Case {
 
 		$this->assertStringContainsString( 'is incompatible: the topic is a Species, the source says Commune.', html_entity_decode( $html ) );
 		$this->assertStringNotContainsString( 'Which', $html );
-		$this->assertStringContainsString( 'Keep Apt (Species, Vaucluse) #' . $apt, $html );
+		$this->assertStringContainsString( 'Keep Apt (Vaucluse) · Species #' . $apt, $html );
 		$this->assertStringContainsString( 'incompatible', $this->call( $table, 'column_state', $rows[ $id ] ) );
 	}
 
@@ -1555,7 +1556,7 @@ class IndexAssignmentsDbTest extends Otherguise_Test_Database_Case {
 		$this->assertStringContainsString( 'No motif', $this->call( $table, 'column_designation', $line ) );
 		$this->assertStringContainsString( 'topic=' . $aragon, $this->call( $table, 'column_designation', $line ), 'The way to the topic.' );
 		$this->assertStringContainsString( 'Aragon', $this->call( $table, 'column_topic', $line ) );
-		$this->assertStringContainsString( 'First-level division, Espagne', $this->call( $table, 'column_topic', $line ), 'The kind and the chain tell it from a namesake.' );
+		$this->assertStringContainsString( '>Aragon (Espagne)</a> <small>First-level division</small>', $this->call( $table, 'column_topic', $line ), 'The label of the index, then the kind (slice 639).' );
 		$this->assertSame( 'approved', $this->call( $table, 'column_status', $line ) );
 
 		foreach ( array( 'column_source', 'column_posts', 'column_by', 'column_state' ) as $column ) {
@@ -1583,5 +1584,51 @@ class IndexAssignmentsDbTest extends Otherguise_Test_Database_Case {
 		$this->screen( $urls )->process();
 
 		$this->assertStringContainsString( 'error=', end( $urls ), 'Nothing ticked.' );
+	}
+
+	/**
+	 * A topic is shown as the index prints it (slice 639): the label, the broader topic in parentheses (the nearest one that is not of a skipped kind), then the kind, in
+	 * the table, in the lists of the quick edit, in the search of the topics and in the answer of the route; the confirmation names the topic the same way.
+	 *
+	 * @return void
+	 */
+	public function test_a_topic_is_shown_as_the_index_prints_it(): void {
+		$spain  = $this->topics->create( 'Espagne', 'country', 0, Topics::APPROVED, array() );
+		$aragon = $this->topics->create( 'Aragon', 'admin1', $spain, Topics::APPROVED, array() );
+		$huesca = $this->topics->create( 'Huesca', 'admin2', $aragon, Topics::APPROVED, array() );
+		$third  = $this->topics->create( 'Sobrarbe', 'admin3', $huesca, Topics::APPROVED, array() );
+		$anso   = $this->topics->create( 'Ansó', 'commune', $third, Topics::APPROVED, array() );
+		$lone   = $this->topics->create( 'Aragon (communauté autonome)', 'place', 0, Topics::APPROVED, array() );
+		$labels = new TopicLabel( $this->topics );
+
+		$this->assertSame( 'Espagne', $labels->of( $this->topics->get( $spain ) ), 'No broader topic: the label alone.' );
+		$this->assertSame( 'Aragon (Espagne)', $labels->of( $this->topics->get( $aragon ) ) );
+		$this->assertSame( 'Ansó (Huesca)', $labels->of( $this->topics->get( $anso ) ), 'A third division is skipped, as in the index.' );
+		$this->assertSame( 'Aragon (communauté autonome)', $labels->of( $this->topics->get( $lone ) ), 'The label has its own parentheses.' );
+
+		$found = ( new TopicFinder( $this->topics ) )->search( 'aragon' );
+
+		$this->assertSame( array( 'Aragon (Espagne)', 'Aragon (communauté autonome)' ), array_column( $found, 'display' ) );
+		$this->assertSame( 'Aragon', $found[0]['label'], 'The label stays, for the ones that need it.' );
+
+		$id    = $this->designation( 'aragon', array( 1 ), $aragon, Observations::SYSTEM, Designations::ASSIGNED, 'post/tag' );
+		$table = $this->make_table();
+
+		$table->prepare_items();
+
+		$html = $this->call( $table, 'column_topic', array_column( $table->items, null, 'id' )[ $id ] );
+
+		$this->assertStringContainsString( '>Aragon (Espagne)</a> <small>First-level division</small>', $html );
+		$this->assertSame(
+			'Aragon (Espagne)',
+			$this->route()->assign(
+				$this->ask(
+					array(
+						'id' => $id,
+						'topic' => $aragon,
+					)
+				)
+			)['topic']['display']
+		);
 	}
 }

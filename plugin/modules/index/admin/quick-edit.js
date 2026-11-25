@@ -69,9 +69,7 @@
 		}
 
 		function topicText( topic ) {
-			const detail = [ topic.kind, topic.chain ].filter( Boolean ).join( ', ' );
-
-			return topic.label + ( detail ? ' (' + detail + ')' : '' ) + ' #' + topic.id;
+			return ( topic.display || topic.label ) + ( topic.kind ? ' \u00b7 ' + topic.kind : '' ) + ' #' + topic.id;
 		}
 
 		function update( row, answer ) {
@@ -93,8 +91,8 @@
 			} else if ( cell( 'topic' ) ) {
 				const where = cell( 'topic' );
 				const actions = where.querySelector( '.row-actions' );
-				const detail = [ answer.topic.kind, answer.topic.chain ].filter( Boolean ).join( ', ' );
-				const link = element( 'a', answer.topic.label );
+				const shown = answer.topic.display || answer.topic.label;
+				const link = element( 'a', shown );
 
 				// What the server wrote is replaced, except the actions of the line.
 				Array.from( where.childNodes ).forEach( function ( node ) {
@@ -105,9 +103,9 @@
 				if ( answer.topic.url ) {
 					link.href = answer.topic.url;
 				}
-				where.insertBefore( answer.topic.url ? link : doc.createTextNode( answer.topic.label ), actions );
+				where.insertBefore( answer.topic.url ? link : doc.createTextNode( shown ), actions );
 				where.insertBefore( doc.createTextNode( ' ' ), actions );
-				where.insertBefore( element( 'small', detail ), actions );
+				where.insertBefore( element( 'small', answer.topic.kind || '' ), actions );
 			}
 			if ( cell( 'status' ) ) {
 				cell( 'status' ).textContent = answer.status || '\u2014';

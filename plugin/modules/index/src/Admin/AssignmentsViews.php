@@ -10,6 +10,7 @@
 
 namespace Otherguise\Index\Admin;
 
+use Otherguise\Index\Designation\TopicLabel;
 use Otherguise\Index\Designations;
 use Otherguise\Index\Kinds;
 
@@ -140,7 +141,7 @@ trait AssignmentsViews {
 
 		echo '<h2>' . esc_html__( 'Assign', 'otherguise' ) . '</h2>';
 		/* translators: 1: motifs, 2: observations, 3: posts, 4: topic label. */
-		echo '<p>' . esc_html( sprintf( __( '%1$d motif(s), %2$d observation(s) in %3$d post(s), will be assigned to "%4$s"%5$s. Nothing is deleted: the motifs and the observations stay, and the mentions of the posts follow.', 'otherguise' ), count( $ids ), $count, count( array_unique( $posts ) ), null === $target ? $new : (string) $target['label'], null === $target ? ' ' . __( '(a new topic)', 'otherguise' ) : '' ) ) . '</p>';
+		echo '<p>' . esc_html( sprintf( __( '%1$d motif(s), %2$d observation(s) in %3$d post(s), will be assigned to "%4$s"%5$s. Nothing is deleted: the motifs and the observations stay, and the mentions of the posts follow.', 'otherguise' ), count( $ids ), $count, count( array_unique( $posts ) ), null === $target ? $new : ( new TopicLabel( $this->topics ) )->of( $target ), null === $target ? ' ' . __( '(a new topic)', 'otherguise' ) : '' ) ) . '</p>';
 		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
 		wp_nonce_field( self::NONCE );
 		echo '<input type="hidden" name="action" value="' . esc_attr( self::APPLY ) . '" /><input type="hidden" name="to" value="' . esc_attr( null === $target ? '' : (string) $target['id'] ) . '" />';

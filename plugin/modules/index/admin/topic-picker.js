@@ -64,7 +64,7 @@
 
 		function choose( topic ) {
 			hidden.value = String( topic.id );
-			input.value = topic.label;
+			input.value = topic.display || topic.label;
 			clear();
 		}
 
@@ -72,10 +72,9 @@
 			clear();
 			topics.forEach( function ( topic ) {
 				const item = doc.createElement( 'li' );
-				const detail = [ topic.kind, topic.chain ].filter( Boolean ).join( ', ' );
-
 				item.setAttribute( 'role', 'option' );
-				item.textContent = topic.label + ( detail ? ' (' + detail + ')' : '' ) + ' #' + topic.id;
+				// The label as the index prints it, then the kind (slice 639).
+				item.textContent = ( topic.display || topic.label ) + ( topic.kind ? ' \u00b7 ' + topic.kind : '' ) + ' #' + topic.id;
 				item.addEventListener( 'click', function () {
 					choose( topic );
 				} );
