@@ -417,7 +417,7 @@ final class DesignationsCommand {
 		$dry  = ! isset( $assoc['apply'] );
 		$done = $this->reresolver->run( $dry, (int) ( $assoc['limit'] ?? 0 ) );
 
-		( $this->success )( $done['looked'] . ' ambiguous motif(s) looked at: ' . $done['settled'] . ' ' . ( $dry ? 'would be settled' : 'settled' ) . ', ' . $done['still'] . ' still ambiguous' . ( $dry ? ' (nothing was changed, add --apply)' : ', the topics they hesitate between recorded for ' . $done['recorded'] ) . '.' );
+		( $this->success )( $done['looked'] . ' ambiguous motif(s) looked at: ' . $done['settled'] . ' ' . ( $dry ? 'would be settled' : 'settled' ) . ( $done['made'] > 0 ? ' (' . $done['made'] . ' with a topic ' . ( $dry ? 'to make' : 'made' ) . ')' : '' ) . ', ' . $done['still'] . ' still ambiguous' . ( $dry ? ' (nothing was changed, add --apply)' : ', the topics they hesitate between recorded for ' . $done['recorded'] ) . '.' );
 	}
 
 	/**

@@ -846,6 +846,7 @@ class IndexDesignationsDbTest extends Otherguise_Test_Database_Case {
 			array(
 				'looked' => 1,
 				'settled' => 0,
+				'made' => 0,
 				'still' => 1,
 				'recorded' => 0,
 			),
@@ -857,6 +858,7 @@ class IndexDesignationsDbTest extends Otherguise_Test_Database_Case {
 			array(
 				'looked' => 1,
 				'settled' => 0,
+				'made' => 0,
 				'still' => 1,
 				'recorded' => 1,
 			),
@@ -870,6 +872,7 @@ class IndexDesignationsDbTest extends Otherguise_Test_Database_Case {
 			array(
 				'looked' => 1,
 				'settled' => 1,
+				'made' => 1,
 				'still' => 0,
 				'recorded' => 0,
 			),
@@ -988,5 +991,78 @@ class IndexDesignationsDbTest extends Otherguise_Test_Database_Case {
 		$this->indexer->index_post( 1 );
 
 		$this->assertSame( $topic, (int) $this->observations->assignment( $id )['topic'], 'The next reading proposes a topic again.' );
+	}
+
+	/**
+	 * A motif that waited on a level that was incompatible, a commune that the topic has as a site (slice 640): the dry run says **it would settle, with a topic to make**
+	 * (it used to count it as still ambiguous, because a dry run makes nothing and says no topic); the real run assigns it to the topic that is made under the one
+	 * that was there.
+	 *
+	 * @return void
+	 */
+	public function test_a_dry_run_counts_the_motifs_that_would_settle_by_making_a_topic(): void {
+		$greece = $this->topics->create( 'Grèce', 'country', 0, Topics::APPROVED, array( 'label:0/grece' ) );
+		$site   = $this->topics->create( 'Igoumenítsa', 'site', $greece, Topics::APPROVED, array( 'label:' . $greece . '/igoumenitsa' ) );
+		$id     = $this->designations->create(
+			'image/address|chain:grece > igoumenitsa > nea seleukeia',
+			'image/address',
+			array(
+				'label'  => 'Νέα Σελεύκεια',
+				'kind'   => 'site',
+				'keys'   => array(),
+				'above'  => array(),
+				'levels' => array(
+					array(
+						'label' => 'Grèce',
+						'kind'  => 'country',
+						'keys'  => array(),
+					),
+					array(
+						'label' => 'Igoumenítsa',
+						'kind'  => 'commune',
+						'keys'  => array(),
+					),
+					array(
+						'label' => 'Νέα Σελεύκεια',
+						'kind'  => 'site',
+						'keys'  => array(),
+					),
+				),
+			)
+		);
+		$this->designations->set_state(
+			$id,
+			Designations::AMBIGUOUS,
+			array(
+				'topic' => 0,
+				'why' => 'label',
+			)
+		);
+		$this->observations->sync( 1, 'image/address', array( $id => array( 'strength' => 'passing' ) ) );
+
+		$resolver = new Reresolver( $this->designations, $this->observations, $this->mentions, new Resolver( $this->topics ), $this->topics );
+
+		$this->assertSame(
+			array(
+				'looked' => 1,
+				'settled' => 1,
+				'made' => 1,
+				'still' => 0,
+				'recorded' => 0,
+			),
+			$resolver->run( true ),
+			'A dry run: it would settle, with a topic to make.'
+		);
+		$this->assertSame( Designations::AMBIGUOUS, $this->designations->get( $id )['state'], 'A dry run changes nothing.' );
+
+		$real = $resolver->run( false );
+
+		$this->assertSame( 1, $real['settled'] );
+		$this->assertSame( Designations::ASSIGNED, $this->designations->get( $id )['state'] );
+
+		$made = $this->topics->get( $this->observations->assignment( $id )['topic'] );
+
+		$this->assertSame( 'Νέα Σελεύκεια', $made['label'] );
+		$this->assertSame( $site, (int) $made['parent'], 'Under the topic that was there as a site.' );
 	}
 }

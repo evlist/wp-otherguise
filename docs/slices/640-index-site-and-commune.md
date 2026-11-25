@@ -20,6 +20,10 @@ The 18 motifs of the view *Incompatible* are **all of the same kind of disagreem
 
 `wp otherguise index motifs resolve` (a dry run says how many settle), then `--apply`: the 18 motifs of the view *Incompatible* are **assigned by the system to the topic that has their name**, and the view should be empty (what is left is a real disagreement).
 
+## A defect of the dry run, found the same day
+
+`wp otherguise index motifs resolve` (a dry run) said **0 would be settled** for the 23 ambiguous motifs of the blog, with the rule in place. **The dry run was wrong, not the rule**: a dry run **makes nothing**, so a level that does not exist yet (the *last* level of the chain of each of these motifs: *paradiset*, *sandegyde*…) answers *no topic*, and the command counted it **still ambiguous**, although the real run makes the topic and assigns the motif. **A dry run now counts it as settled and says how many need a topic to be made** (`looked, settled (N with a topic to make), still`).
+
 ## Not done
 
 - Other pairs that may be one place (`admin3` and `site`, a `route` and a `site`…) are not made: **the view *Incompatible* will say which ones come back**; the list is one filter.

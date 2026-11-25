@@ -85,12 +85,14 @@ final class Reresolver {
 	 *
 	 * @param bool $dry   Change nothing, say what would happen.
 	 * @param int  $limit At most this many (0 for all).
-	 * @return array{looked:int,settled:int,still:int,recorded:int}
+	 * @return array{looked:int,settled:int,made:int,still:int,recorded:int} `settled` counts the motifs that get a topic, **a dry run included** (a level that does not exist
+	 *         yet is one that would be made: `made` says how many of them need a topic to be made).
 	 */
 	public function run( $dry = true, $limit = 0 ) {
 		$report = array(
 			'looked'   => 0,
 			'settled'  => 0,
+			'made'     => 0,
 			'still'    => 0,
 			'recorded' => 0,
 		);
@@ -105,8 +107,10 @@ final class Reresolver {
 			$candidate = Evidence::candidate( (array) $one['evidence'], (string) $one['source'] );
 			$done      = $this->resolver->resolve( $candidate, true, $dry, false );
 
-			if ( $done['topic'] > 0 ) {
+			// A dry run does not make the topic that a level lacks, and says no topic: it is still a motif that would settle (slice 640).
+			if ( $done['topic'] > 0 || ( $dry && Resolver::CREATED === $done['result'] ) ) {
 				++$report['settled'];
+				$report['made'] += Resolver::CREATED === $done['result'] || $done['new'] > 0 ? 1 : 0;
 
 				if ( ! $dry ) {
 					$this->settle( (int) $id, (int) $done['topic'], Observations::SYSTEM, (string) ( $candidate->keys[0] ?? 'label' ) );
