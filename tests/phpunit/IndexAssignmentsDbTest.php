@@ -1431,6 +1431,7 @@ class IndexAssignmentsDbTest extends Otherguise_Test_Database_Case {
 		}
 
 		$this->assertStringContainsString( 'name="f_topic" value="Alle"', $bar );
+		$this->assertSame( 2, substr_count( $bar, 'style="float:left' ), 'The text fields float like the lists of WordPress: the fields stay in the order of the columns.' );
 		$this->assertStringContainsString( '<option value="candidate" selected="selected">', $bar );
 		$this->assertStringContainsString( '<option value="post/tag" selected="selected">', $bar );
 		$this->assertStringContainsString( '<option value="1" selected="selected">At least 1 post', $bar );

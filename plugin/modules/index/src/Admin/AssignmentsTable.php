@@ -327,7 +327,8 @@ final class AssignmentsTable extends \WP_List_Table {
 	 */
 	private function filter_text( $name, $label, $value ) {
 		echo '<label class="screen-reader-text" for="f-' . esc_attr( $name ) . '">' . esc_html( $label ) . '</label>';
-		echo '<input type="search" id="f-' . esc_attr( $name ) . '" name="f_' . esc_attr( $name ) . '" value="' . esc_attr( $value ) . '" placeholder="' . esc_attr( $label ) . '" size="14" /> ';
+		// The lists of a bar of actions float to the left in the styles of WordPress and a text field does not: the same float keeps the fields in the order of the columns.
+		echo '<input type="search" id="f-' . esc_attr( $name ) . '" name="f_' . esc_attr( $name ) . '" value="' . esc_attr( $value ) . '" placeholder="' . esc_attr( $label ) . '" size="14" style="float:left;margin:0 6px 0 0;" /> ';
 	}
 
 	/**
