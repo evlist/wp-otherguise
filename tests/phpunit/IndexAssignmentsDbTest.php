@@ -166,8 +166,8 @@ class IndexAssignmentsDbTest extends Otherguise_Test_Database_Case {
 		$all  = $list->query( array() );
 
 		$this->assertSame( 4, $all['total'] );
-		$this->assertSame( array( 'Allier', 'Lyon', 'Moulins', 'Oubliée' ), array_column( $all['rows'], 'label' ) );
-		$this->assertSame( array( 3, 1, 1, 0 ), array_column( $all['rows'], 'posts' ), 'The number of posts is asked for the lines shown.' );
+		$this->assertSame( array( 'Allier', 'Moulins', 'Oubliée', 'Lyon' ), array_column( $all['rows'], 'label' ), 'By the topic, as the topic is the first column; a motif with no topic comes last.' );
+		$this->assertSame( array( 3, 1, 0, 1 ), array_column( $all['rows'], 'posts' ), 'The number of posts is asked for the lines shown.' );
 		$this->assertSame( 4, $all['counts'][ Listing::ALL ] );
 		$this->assertSame( 1, $all['counts'][ Listing::RESOLVE ] );
 		$this->assertSame( 2, $all['counts'][ Listing::SYSTEM ] );
@@ -195,7 +195,7 @@ class IndexAssignmentsDbTest extends Otherguise_Test_Database_Case {
 				'label'
 			)
 		);
-		$this->assertSame( array( 'Lyon', 'Allier', 'Moulins', 'Oubliée' ), array_column( $list->query( array( 'orderby' => 'topic' ) )['rows'], 'label' ), 'No topic first, then by the label of the topic.' );
+		$this->assertSame( array( 'Allier', 'Moulins', 'Oubliée', 'Lyon' ), array_column( $list->query( array( 'orderby' => 'topic' ) )['rows'], 'label' ), 'By the label of the topic, then the motif; no topic last.' );
 
 		$page = $list->query(
 			array(
@@ -204,7 +204,7 @@ class IndexAssignmentsDbTest extends Otherguise_Test_Database_Case {
 			)
 		);
 
-		$this->assertSame( array( 'Oubliée' ), array_column( $page['rows'], 'label' ) );
+		$this->assertSame( array( 'Lyon' ), array_column( $page['rows'], 'label' ) );
 		$this->assertSame( 2, $page['pages'] );
 		$this->assertSame( 4, $page['total'] );
 	}
@@ -373,11 +373,11 @@ class IndexAssignmentsDbTest extends Otherguise_Test_Database_Case {
 		$this->assertSame( 'designation', $table->_column_headers[3] );
 		$this->assertSame( array( 'cb', 'topic', 'status', 'designation', 'source', 'posts', 'by', 'state' ), array_keys( $table->get_columns() ) );
 		$this->assertSame( array( 'label', false ), $table->get_sortable_columns()['designation'] );
-		$this->assertSame( array( 'choose', 'assign', 'confirm', 'unassign', 'exclude', 'include', 'delete' ), array_keys( $this->call( $table, 'get_bulk_actions' ) ) );
+		$this->assertSame( array( 'choose', 'assign', 'confirm', 'approve', 'unassign', 'exclude', 'include', 'delete' ), array_keys( $this->call( $table, 'get_bulk_actions' ) ) );
 
 		$views = $this->call( $table, 'get_views' );
 
-		$this->assertSame( array( 'all', 'resolve', 'incompatible', 'excluded', 'system', 'hand', 'unobserved' ), array_keys( $views ) );
+		$this->assertSame( array( 'all', 'resolve', 'incompatible', 'excluded', 'topics', 'system', 'hand', 'unobserved' ), array_keys( $views ) );
 		$this->assertStringContainsString( 'class="current"', $views['all'] );
 		$this->assertStringContainsString( '(1)', $views['system'] );
 		$this->assertStringNotContainsString( '(', $views['unobserved'], 'Its count is not known: it costs a pass.' );
@@ -1466,5 +1466,122 @@ class IndexAssignmentsDbTest extends Otherguise_Test_Database_Case {
 
 		$this->assertStringContainsString( 'f_source=post%2Ftag', end( $urls ), 'An action keeps the filters.' );
 		$this->assertStringContainsString( 'f_status=candidate', end( $urls ) );
+	}
+
+	/**
+	 * The topics that no motif is assigned to are lines of the table (slice 638): the broader levels of a place, here *Aragon* above *Ansó*. They are in *All* (and in
+	 * its count) and in their own view, in no other view; the filters of the topic and of its status reach them, the filters of the columns of the motifs leave them
+	 * out; a line of a topic has the number of the topic, negative, and says so in its columns; the action *Approve the topic* works on it and on the topic of a
+	 * motif that is ticked.
+	 *
+	 * @return void
+	 */
+	public function test_the_topics_with_no_motif_are_lines_of_the_table(): void {
+		$spain  = $this->topics->create( 'Espagne', 'country', 0, Topics::APPROVED, array() );
+		$aragon = $this->topics->create( 'Aragon', 'admin1', $spain, Topics::APPROVED, array( 'wikidata:Q4040' ) );
+		$anso   = $this->topics->create( 'Ansó', 'commune', $aragon, Topics::APPROVED, array() );
+		$tag    = $this->topics->create( 'aragon', 'any', 0, Topics::CANDIDATE, array() );
+		$m1     = $this->designation( 'Ansó', array( 1 ), $anso, Observations::SYSTEM, Designations::ASSIGNED, 'image/address' );
+		$m2     = $this->designation( 'aragon', array( 1 ), $tag, Observations::SYSTEM, Designations::ASSIGNED, 'post/tag' );
+		$list   = new Listing( $this->designations, $this->observations, $this->topics );
+		$all    = $list->query( array() );
+
+		$this->assertSame( 4, $all['counts'][ Listing::ALL ], '2 motifs and 2 topics with no motif (Espagne and Aragon).' );
+		$this->assertSame( 2, $all['counts'][ Listing::TOPICS ], 'Espagne and Aragon: no motif is assigned to them.' );
+		$this->assertSame( array( -$aragon, -$spain ), array_values( array_intersect( array_column( $all['rows'], 'id' ), array( -$spain, -$aragon ) ) ), 'In the table, by the label of the topic.' );
+
+		$only = $list->query( array( 'view' => Listing::TOPICS ) );
+
+		$this->assertSame( array( 'Aragon', 'Espagne' ), array_column( $only['rows'], 'topic_label' ), 'Their own view, by the label of the topic.' );
+		$this->assertSame( array( 'topic', 'topic' ), array_column( $only['rows'], 'type' ) );
+		$this->assertSame( array( 0, 0 ), array_column( $only['rows'], 'posts' ) );
+		$this->assertSame( 'Q4040', $only['rows'][0]['wikidata'] );
+		$this->assertNotContains( -$aragon, array_column( $list->query( array( 'view' => Listing::SYSTEM ) )['rows'], 'id' ), 'In no other view.' );
+
+		$this->assertSame(
+			array( -$aragon ),
+			array_column(
+				$list->query(
+					array(
+						'filters' => array(
+							'topic' => 'ARAGON',
+							'status' => 'approved',
+						),
+					)
+				)['rows'],
+				'id'
+			),
+			'The filters of the topic and of its status reach a topic with no motif.'
+		);
+		$this->assertSame(
+			array( $m2 ),
+			array_column(
+				$list->query(
+					array(
+						'filters' => array(
+							'topic' => 'aragon',
+							'status' => 'candidate',
+						),
+					)
+				)['rows'],
+				'id'
+			)
+		);
+		$this->assertSame(
+			array( $m1 ),
+			array_column(
+				$list->query(
+					array(
+						'filters' => array(
+							'topic' => 'anso',
+							'source' => 'image',
+						),
+					)
+				)['rows'],
+				'id'
+			),
+			'The filters of the motifs leave the topics out.'
+		);
+		$this->assertSame( array( -$aragon ), array_column( $list->query( array( 'search' => 'Q4040' ) )['rows'], 'id' ), 'The search finds the identifier of a topic.' );
+
+		$this->request[ INPUT_GET ] = array( 'view' => 'topics' );
+		$table                      = $this->make_table();
+
+		$table->prepare_items();
+
+		$line = array_column( $table->items, null, 'id' )[ -$aragon ];
+
+		$this->assertStringContainsString( 'name="topic[]" value="' . $aragon . '"', $this->call( $table, 'column_cb', $line ) );
+		$this->assertStringContainsString( 'No motif', $this->call( $table, 'column_designation', $line ) );
+		$this->assertStringContainsString( 'topic=' . $aragon, $this->call( $table, 'column_designation', $line ), 'The way to the topic.' );
+		$this->assertStringContainsString( 'Aragon', $this->call( $table, 'column_topic', $line ) );
+		$this->assertStringContainsString( 'First-level division, Espagne', $this->call( $table, 'column_topic', $line ), 'The kind and the chain tell it from a namesake.' );
+		$this->assertSame( 'approved', $this->call( $table, 'column_status', $line ) );
+
+		foreach ( array( 'column_source', 'column_posts', 'column_by', 'column_state' ) as $column ) {
+			$this->assertSame( '—', $this->call( $table, $column, $line ) );
+		}
+
+		$candidate = $this->topics->create( 'Voyages', 'any', 0, Topics::CANDIDATE, array() );
+		$urls      = array();
+
+		$this->bulk(
+			'approve',
+			array(
+				'topic' => array( (string) $candidate ),
+				'designation' => array( (string) $m2 ),
+			)
+		);
+		$this->screen( $urls )->process();
+
+		$this->assertStringContainsString( 'did=approve', end( $urls ) );
+		$this->assertStringContainsString( 'count=2', end( $urls ), 'The topic of a line with no motif and the topic of a motif.' );
+		$this->assertSame( Topics::APPROVED, $this->topics->get( $candidate )['status'] );
+		$this->assertSame( Topics::APPROVED, $this->topics->get( $tag )['status'] );
+
+		$this->bulk( 'approve', array() );
+		$this->screen( $urls )->process();
+
+		$this->assertStringContainsString( 'error=', end( $urls ), 'Nothing ticked.' );
 	}
 }

@@ -93,7 +93,7 @@ final class AssignmentsTable extends \WP_List_Table {
 	public function view() {
 		$view = sanitize_key( (string) ( $this->request )( 'view' ) );
 
-		return in_array( $view, array( Listing::RESOLVE, Listing::INCOMPATIBLE, Listing::EXCLUDED, Listing::SYSTEM, Listing::HAND, Listing::UNOBSERVED ), true ) ? $view : Listing::ALL;
+		return in_array( $view, array( Listing::RESOLVE, Listing::INCOMPATIBLE, Listing::EXCLUDED, Listing::TOPICS, Listing::SYSTEM, Listing::HAND, Listing::UNOBSERVED ), true ) ? $view : Listing::ALL;
 	}
 
 	/**
@@ -143,6 +143,7 @@ final class AssignmentsTable extends \WP_List_Table {
 			Listing::RESOLVE    => __( 'To resolve', 'otherguise' ),
 			Listing::INCOMPATIBLE => __( 'Incompatible', 'otherguise' ),
 			Listing::EXCLUDED   => __( 'Excluded', 'otherguise' ),
+			Listing::TOPICS     => __( 'Topics with no motif', 'otherguise' ),
 			Listing::SYSTEM     => __( 'Assigned by the system', 'otherguise' ),
 			Listing::HAND       => __( 'Assigned by a person', 'otherguise' ),
 			Listing::UNOBSERVED => __( 'Observed by no post', 'otherguise' ),
@@ -168,6 +169,7 @@ final class AssignmentsTable extends \WP_List_Table {
 			'choose'   => __( 'Apply the choices (the lists in the Topic column)', 'otherguise' ),
 			'assign'   => __( 'Assign to the topic in the box that appears…', 'otherguise' ),
 			'confirm'  => __( 'Confirm the assignment (a person decides)', 'otherguise' ),
+			'approve'  => __( 'Approve the topic (a candidate enters the index)', 'otherguise' ),
 			'unassign' => __( 'Take the assignment away', 'otherguise' ),
 			'exclude'  => __( 'Exclude from the index (no topic, a reading leaves it alone)', 'otherguise' ),
 			'include'  => __( 'Include again (the next reading proposes a topic)', 'otherguise' ),
@@ -410,6 +412,11 @@ final class AssignmentsTable extends \WP_List_Table {
 	 * @return string
 	 */
 	protected function column_cb( $item ) {
+		// The line of a topic with no motif is ticked by its topic (slice 638).
+		if ( 'topic' === ( $item['type'] ?? 'motif' ) ) {
+			return '<input type="checkbox" name="topic[]" value="' . esc_attr( (string) $item['topic'] ) . '" />';
+		}
+
 		return '<input type="checkbox" name="designation[]" value="' . esc_attr( (string) $item['id'] ) . '" />';
 	}
 
@@ -420,6 +427,23 @@ final class AssignmentsTable extends \WP_List_Table {
 	 * @return string
 	 */
 	protected function column_designation( $item ) {
+		// A topic that no motif is assigned to: nothing to show here but the way to the topic (slice 638).
+		if ( 'topic' === ( $item['type'] ?? 'motif' ) ) {
+			return '<em>' . esc_html__( 'No motif', 'otherguise' ) . '</em>' . $this->row_actions(
+				array(
+					'open' => '<a href="' . esc_url(
+						add_query_arg(
+							array(
+								'page'  => TopicsScreen::PAGE,
+								'topic' => (int) $item['topic'],
+							),
+							admin_url( 'admin.php' )
+						)
+					) . '">' . esc_html__( 'Open the topic', 'otherguise' ) . '</a>',
+				)
+			);
+		}
+
 		$actions = array(
 			'posts' => '<a href="' . esc_url(
 				add_query_arg(
@@ -442,7 +466,7 @@ final class AssignmentsTable extends \WP_List_Table {
 	 * @return string
 	 */
 	protected function column_source( $item ) {
-		return esc_html( (string) $item['source'] );
+		return '' === (string) $item['source'] ? '—' : esc_html( (string) $item['source'] );
 	}
 
 	/**
@@ -452,7 +476,7 @@ final class AssignmentsTable extends \WP_List_Table {
 	 * @return string
 	 */
 	protected function column_posts( $item ) {
-		return esc_html( (string) (int) $item['posts'] );
+		return 'topic' === ( $item['type'] ?? 'motif' ) ? '—' : esc_html( (string) (int) $item['posts'] );
 	}
 
 	/**
@@ -581,6 +605,10 @@ final class AssignmentsTable extends \WP_List_Table {
 	 * @return string
 	 */
 	protected function column_state( $item ) {
+		if ( 'topic' === ( $item['type'] ?? 'motif' ) ) {
+			return '—';
+		}
+
 		return esc_html( ! empty( $item['incompatible'] ) ? __( 'incompatible', 'otherguise' ) : (string) $item['state'] ) . ( '' === $item['wikidata'] ? '' : ' <small>' . esc_html( (string) $item['wikidata'] ) . '</small>' );
 	}
 

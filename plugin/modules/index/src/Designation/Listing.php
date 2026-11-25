@@ -31,6 +31,7 @@ final class Listing {
 	public const RESOLVE    = 'resolve';
 	public const INCOMPATIBLE = 'incompatible';
 	public const EXCLUDED     = 'excluded';
+	public const TOPICS       = 'topics';
 	public const SYSTEM     = 'system';
 	public const HAND       = 'hand';
 	public const UNOBSERVED = 'unobserved';
@@ -81,7 +82,8 @@ final class Listing {
 		$view     = (string) ( $args['view'] ?? self::ALL );
 		$search   = Folding::key( trim( (string) ( $args['search'] ?? '' ) ) );
 		$filters  = self::clean_filters( (array) ( $args['filters'] ?? array() ) );
-		$orderby  = (string) ( $args['orderby'] ?? 'label' );
+		$orderby  = (string) ( $args['orderby'] ?? '' );
+		$orderby  = '' === $orderby ? 'topic' : $orderby;
 		$desc     = 'desc' === strtolower( (string) ( $args['order'] ?? 'asc' ) );
 		$per_page = max( 1, (int) ( $args['per_page'] ?? 50 ) );
 		$assigned = $this->observations->assignments();
@@ -91,6 +93,7 @@ final class Listing {
 			self::RESOLVE    => 0,
 			self::INCOMPATIBLE => 0,
 			self::EXCLUDED     => 0,
+			self::TOPICS     => 0,
 			self::SYSTEM     => 0,
 			self::HAND       => 0,
 			self::UNOBSERVED => null,
@@ -101,6 +104,7 @@ final class Listing {
 
 			$base[ (int) $id ] = array(
 				'id'       => (int) $id,
+				'type'     => 'motif',
 				'key'      => (string) $one['key'],
 				'label'    => (string) ( $one['evidence']['label'] ?? $one['key'] ),
 				'source'   => (string) $one['source'],
@@ -133,6 +137,50 @@ final class Listing {
 			$counts[ self::UNOBSERVED ] = count( $base );
 		}
 
+		// The topics that no motif is assigned to are lines of the table too (slice 638): the broader levels of a place (Aragon above its communes), a topic made by hand…
+		// Their line has the number of the topic, **negative**, so that it is not taken for a motif; they are in *All* and in their own view, and in no other.
+		$with   = array();
+		$lonely = array();
+
+		foreach ( $assigned as $have ) {
+			$with[ (int) $have['topic'] ] = true;
+		}
+
+		foreach ( $this->topics->all() as $topic_id => $topic ) {
+			if ( ! isset( $with[ (int) $topic_id ] ) ) {
+				$lonely[ (int) $topic_id ] = $topic;
+			}
+		}
+
+		$counts[ self::TOPICS ] = count( $lonely );
+		$counts[ self::ALL ]   += count( $lonely );
+
+		if ( in_array( $view, array( self::ALL, self::TOPICS ), true ) ) {
+			foreach ( $lonely as $topic_id => $topic ) {
+				$qid = '';
+
+				foreach ( (array) ( $topic['keys'] ?? array() ) as $key ) {
+					if ( '' === $qid && 0 === strpos( (string) $key, 'wikidata:' ) ) {
+						$qid = substr( (string) $key, 9 );
+					}
+				}
+
+				$base[ -$topic_id ] = array(
+					'id'           => -$topic_id,
+					'type'         => 'topic',
+					'key'          => '',
+					'label'        => '',
+					'source'       => '',
+					'state'        => '',
+					'topic'        => $topic_id,
+					'by'           => '',
+					'wikidata'     => $qid,
+					'ambiguity'    => null,
+					'incompatible' => false,
+				);
+			}
+		}
+
 		$labels = array();
 
 		foreach ( $base as $id => $row ) {
@@ -147,6 +195,10 @@ final class Listing {
 			array_filter(
 				$base,
 				static function ( $row ) use ( $view, $search, $labels, $filters, $posts ) {
+					if ( self::TOPICS === $view && 'topic' !== $row['type'] ) {
+						return false;
+					}
+
 					if ( self::RESOLVE === $view && ! in_array( $row['state'], array( Designations::PENDING, Designations::AMBIGUOUS ), true ) ) {
 						return false;
 					}
@@ -184,7 +236,8 @@ final class Listing {
 						$order = ( $posts[ $a['id'] ] ?? 0 ) <=> ( $posts[ $b['id'] ] ?? 0 );
 						break;
 					case 'topic':
-						$order = strcmp( Folding::key( $a['topic_label'] ), Folding::key( $b['topic_label'] ) );
+						// The motifs that have no topic come last.
+						$order = strcmp( '' === $a['topic_label'] ? "\u{FFFF}" : Folding::key( $a['topic_label'] ), '' === $b['topic_label'] ? "\u{FFFF}" : Folding::key( $b['topic_label'] ) );
 						break;
 					case 'state':
 						$order = strcmp( $a['state'], $b['state'] );
@@ -202,6 +255,9 @@ final class Listing {
 						$order = strcmp( Folding::key( $a['label'] ), Folding::key( $b['label'] ) );
 				}
 
+				// The lines of one topic come in the order of their motifs.
+				$order = 0 === $order && 'topic' === $orderby ? strcmp( Folding::key( $a['label'] ), Folding::key( $b['label'] ) ) : $order;
+
 				return 0 !== $order ? $order : $a['id'] <=> $b['id'];
 			}
 		);
@@ -215,7 +271,8 @@ final class Listing {
 		$page  = min( max( 1, (int) ( $args['paged'] ?? 1 ) ), $pages );
 		$rows  = array_slice( $rows, ( $page - 1 ) * $per_page, $per_page );
 
-		$posts = $posts ?? $this->observations->post_counts( array_column( $rows, 'id' ) );
+		// A line of a topic with no motif has no motif to count the posts of.
+		$posts = $posts ?? $this->observations->post_counts( array_values( array_filter( array_column( $rows, 'id' ), static fn( $id ) => $id > 0 ) ) );
 
 		foreach ( $rows as $index => $row ) {
 			$rows[ $index ]['posts'] = (int) ( $posts[ $row['id'] ] ?? 0 );
@@ -254,6 +311,11 @@ final class Listing {
 	 * @return bool
 	 */
 	private static function passes( array $row, array $filters, $posts ) {
+		// A topic with no motif has no motif, source, posts, assignment or state: the filters of those columns leave it out.
+		if ( 'topic' === $row['type'] && '' !== $filters['motif'] . $filters['source'] . $filters['posts'] . $filters['by'] . $filters['state'] ) {
+			return false;
+		}
+
 		if ( '' !== $filters['topic'] && false === strpos( Folding::key( (string) $row['topic_label'] ), Folding::key( $filters['topic'] ) ) ) {
 			return false;
 		}

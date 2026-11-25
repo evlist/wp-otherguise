@@ -24,3 +24,7 @@ Status: **coded on 2026-11-25** (1044 PHPUnit tests, with a real database; the t
 - The filter on the number of posts is **not measured on the blog** (6,560 motifs); the first thing to time.
 - No action *Approve the topic* on the lines yet (the topics are approved from the screen *Topics* or `wp otherguise index approve`): **a bulk action here would be the next step**, if Eric wants it.
 - The filter of the source lists every source of the registry, even those that nothing reads.
+
+## Amendment (slice 638)
+
+The table also lists **the topics that no motif is assigned to**, with a view of their own: see [`638-index-topics-with-no-motif.md`](638-index-topics-with-no-motif.md). The default sort is by the topic, a motif with no topic coming last.

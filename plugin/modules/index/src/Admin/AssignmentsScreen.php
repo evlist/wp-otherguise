@@ -35,6 +35,7 @@ defined( 'ABSPATH' ) || exit;
  */
 final class AssignmentsScreen {
 	use AssignmentsViews;
+	use AssignmentsBulk;
 
 	public const PAGE  = 'otherguise-index-assignments';
 	public const APPLY = 'otherguise_index_assignments_apply';
@@ -402,6 +403,13 @@ final class AssignmentsScreen {
 			return;
 		}
 
+		// Approving topics: the lines of the topics that have no motif, and the topic of each motif that is ticked (slice 638).
+		if ( 'approve' === $action ) {
+			( $this->redirect )( $this->url( array_merge( $back, $this->approve_topics( $this->numbers( INPUT_POST, 'designation' ), $this->numbers( INPUT_POST, 'topic' ) ) ) ) );
+
+			return;
+		}
+
 		$ids = $this->numbers( INPUT_POST, 'designation' );
 
 		if ( array() === $ids ) {
@@ -498,75 +506,6 @@ final class AssignmentsScreen {
 				'error' => $error,
 			),
 			static fn( $value ) => '' !== $value
-		);
-	}
-
-	/**
-	 * Does a bulk action that needs no confirmation.
-	 *
-	 * @param string $action `confirm`, `unassign` or `delete`.
-	 * @param int[]  $ids    The motifs.
-	 * @return array<string, int|string> What to say.
-	 */
-	private function bulk( $action, array $ids ) {
-		$done  = 0;
-		$skip  = 0;
-		$posts = array();
-
-		// Taking motifs out of the index, and back (slice 635).
-		if ( in_array( $action, array( 'exclude', 'include' ), true ) ) {
-			$exclusion = new Exclusion( $this->designations, $this->observations, $this->mentions );
-			$count     = 'exclude' === $action ? $exclusion->exclude( $ids )['designations'] : $exclusion->include( $ids );
-
-			return array(
-				'did'     => $action,
-				'count'   => $count,
-				'skipped' => count( $ids ) - $count,
-			);
-		}
-
-		if ( 'delete' === $action ) {
-			$counts = $this->observations->post_counts( $ids );
-		}
-
-		foreach ( $ids as $id ) {
-			$have = $this->observations->assignment( $id );
-
-			if ( null === $this->designations->get( $id ) || ( 'confirm' === $action && null === $have ) || ( 'unassign' === $action && null === $have ) || ( 'delete' === $action && 0 !== ( $counts[ $id ] ?? 0 ) ) ) {
-				++$skip;
-
-				continue;
-			}
-
-			if ( 'confirm' === $action && null !== $have ) {
-				$this->observations->assign( $id, $have['topic'], Observations::HAND );
-			} elseif ( 'unassign' === $action ) {
-				$posts = array_merge( $posts, $this->observations->posts_of( $id ) );
-				$this->observations->unassign( $id );
-				$this->designations->set_state(
-					$id,
-					Designations::AMBIGUOUS,
-					array(
-						'topic' => 0,
-						'why'   => 'unassigned by hand',
-					)
-				);
-			} elseif ( 'delete' === $action ) {
-				$this->observations->unassign( $id );
-				$this->designations->delete( $id );
-			}
-
-			++$done;
-		}
-
-		foreach ( array_unique( $posts ) as $post ) {
-			$this->mentions->derive_post( (int) $post );
-		}
-
-		return array(
-			'did'     => $action,
-			'count'   => $done,
-			'skipped' => $skip,
 		);
 	}
 
