@@ -71,11 +71,14 @@ final class Resolver {
 	 *         **which level** hesitated (its label, its key) and **between which topics** (slice 631); `new` counts the topics created, the broader ones included.
 	 */
 	public function resolve( Candidate $candidate, $sure = true, $dry = false, $record = true ) {
+		// A level that nobody classified (a tag with no kind) is not sure, whatever the source says (slice 635).
+		$source = $sure;
+		$sure   = null === $candidate->sure ? $sure : (bool) $candidate->sure;
 		$parent = 0;
 		$above  = array( 'new' => 0 );
 
 		if ( null !== $candidate->parent ) {
-			$above  = $this->resolve( $candidate->parent, $sure, $dry, $record );
+			$above  = $this->resolve( $candidate->parent, $source, $dry, $record );
 			$parent = $above['topic'];
 
 			// An ambiguous parent makes the child ambiguous; a parent that would be created makes the child new.
@@ -145,6 +148,11 @@ final class Resolver {
 			if ( ! $dry ) {
 				$this->topics->add_keys( $id, $keys );
 				$this->refine_kind( $id, $candidate );
+
+				// A person classified what was only a candidate (a kind given to a tag): the topic is approved (slice 635).
+				if ( $sure && null !== $this->topics->get( $id ) && Topics::CANDIDATE === $this->topics->get( $id )['status'] ) {
+					$this->topics->set_status( $id, Topics::APPROVED );
+				}
 			}
 
 			return array(

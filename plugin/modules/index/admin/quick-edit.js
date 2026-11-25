@@ -79,7 +79,18 @@
 				return row.querySelector( '.column-' + name );
 			};
 
-			if ( cell( 'topic' ) ) {
+			if ( cell( 'topic' ) && null === answer.topic ) {
+				// Taken out of the index: no topic, the actions of the line stay.
+				const place = cell( 'topic' );
+				const keep = place.querySelector( '.row-actions' );
+
+				Array.from( place.childNodes ).forEach( function ( node ) {
+					if ( node !== keep ) {
+						place.removeChild( node );
+					}
+				} );
+				place.insertBefore( element( 'em', words.excluded ), keep );
+			} else if ( cell( 'topic' ) ) {
 				const where = cell( 'topic' );
 				const actions = where.querySelector( '.row-actions' );
 				const detail = [ answer.topic.kind, answer.topic.chain ].filter( Boolean ).join( ', ' );
@@ -165,6 +176,8 @@
 				( Array.isArray( topics ) ? topics : [] ).forEach( function ( topic ) {
 					select.appendChild( Object.assign( element( 'option', topicText( topic ) ), { value: String( topic.id ) } ) );
 				} );
+				// Always the last choice: take the motif out of the index (slice 635).
+				select.appendChild( Object.assign( element( 'option', words.exclude ), { value: 'exclude' } ) );
 			} );
 
 			select.addEventListener( 'change', function () {
@@ -177,6 +190,7 @@
 
 			save.addEventListener( 'click', function () {
 				const topic = select.value || chosen.value;
+				const exclude = 'exclude' === topic;
 
 				if ( ! topic ) {
 					message.textContent = words.nothing;
@@ -184,10 +198,13 @@
 				}
 				message.textContent = words.working;
 				save.disabled = true;
-				options.api.call( id + '/topic', 'POST', { topic: Number( topic ), force: force } ).then(
+				options.api.call( id + '/topic', 'POST', exclude ? { exclude: true } : { topic: Number( topic ), force: force } ).then(
 					function ( answer ) {
 						save.disabled = false;
 						if ( answer && answer.ok ) {
+							if ( answer.excluded ) {
+								answer.topic = null;
+							}
 							update( row, answer );
 							close();
 							return;

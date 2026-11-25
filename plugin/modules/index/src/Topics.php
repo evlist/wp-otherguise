@@ -123,6 +123,15 @@ interface Topics {
 	public function set_parent( $id, $parent );
 
 	/**
+	 * Changes the status of a topic (slice 635): a candidate becomes approved, so that it is in the index.
+	 *
+	 * @param int    $id     Topic.
+	 * @param string $status `approved`, `candidate` or `refused`.
+	 * @return void
+	 */
+	public function set_status( $id, $status );
+
+	/**
 	 * Reads a topic.
 	 *
 	 * @param int $id Topic.

@@ -138,7 +138,8 @@ class IndexScreenAndModuleTest extends TestCase {
 	}
 
 	/**
-	 * A tag whose parent has no kind is a flat candidate; a kind that is not a kind is ignored.
+	 * A term with no kind (or a kind that is not a kind) is read as a candidate of the kind `any` that is **not sure** (slice 635); so is its parent with no kind; a term
+	 * that has a kind is sure (left to the source).
 	 *
 	 * @return void
 	 */
@@ -169,10 +170,17 @@ class IndexScreenAndModuleTest extends TestCase {
 		$source     = new Terms( 'category', 'categories', fn() => $post, fn( $id ) => $terms[ $id ] ?? null, fn( $id ) => $kinds[ $id ] ?? '' );
 		$candidates = $source->candidates( 5 );
 
-		$this->assertCount( 1, $candidates );
+		$this->assertCount( 2, $candidates );
 		$this->assertSame( 'Child', $candidates[0]->label );
-		$this->assertNull( $candidates[0]->parent );
+		$this->assertSame( 'place', $candidates[0]->kind );
+		$this->assertNull( $candidates[0]->sure, 'A person chose the kind: the source decides (sure).' );
+		$this->assertSame( 'Parent', $candidates[0]->parent->label );
+		$this->assertSame( 'any', $candidates[0]->parent->kind );
+		$this->assertFalse( $candidates[0]->parent->sure, 'Nobody classified the parent: not sure.' );
 		$this->assertSame( array( 'term:category:2' ), $candidates[0]->keys );
+		$this->assertSame( 'Odd', $candidates[1]->label );
+		$this->assertSame( 'any', $candidates[1]->kind, 'A kind that is not a kind is none.' );
+		$this->assertFalse( $candidates[1]->sure );
 		$this->assertSame( 'categories', $source->id() );
 		$this->assertTrue( $source->is_sure() );
 	}

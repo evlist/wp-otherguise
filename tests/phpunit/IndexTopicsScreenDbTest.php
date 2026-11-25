@@ -585,4 +585,47 @@ class IndexTopicsScreenDbTest extends Otherguise_Test_Database_Case {
 		$this->assertStringContainsString( 'class="suggestions"', $page );
 		$this->assertNotNull( $this->topics->get( $w['department'] ) );
 	}
+
+	/**
+	 * The topics made from what nobody classified are candidates, outside the index (slice 635): a filter lists them, and one button approves the ones of the list (the
+	 * server lists them again from the search and the kind: it takes no list of numbers from the browser); the capability and the nonce come first.
+	 *
+	 * @return void
+	 */
+	public function test_approving_the_candidates(): void {
+		$one   = $this->topics->create( 'Allemagne', 'any', 0, Topics::CANDIDATE, array() );
+		$two   = $this->topics->create( 'Albanie', 'any', 0, Topics::CANDIDATE, array() );
+		$other = $this->topics->create( 'Voyages', 'any', 0, Topics::CANDIDATE, array() );
+		$done  = $this->topics->create( 'France', 'country', 0, Topics::APPROVED, array() );
+		$urls  = array();
+
+		$this->request[ INPUT_GET ] = array( 'show' => 'candidates' );
+		$page                       = $this->page( $this->screen( $urls ) );
+
+		$this->assertStringContainsString( '3 topics.', $page );
+		$this->assertStringContainsString( 'Approve the 3 topics of this list', $page );
+		$this->assertStringContainsString( 'value="' . TopicsScreen::APPROVE . '"', $page );
+
+		$this->post( array( 'search' => 'al' ) );
+
+		try {
+			$this->screen( $urls, false )->approve();
+		} catch ( Throwable $stopped ) {
+			unset( $stopped );
+		}
+
+		$this->assertSame( Topics::CANDIDATE, $this->topics->get( $one )['status'], 'Nothing is done without the capability.' );
+
+		$this->screen( $urls )->approve();
+
+		$this->assertSame( Topics::APPROVED, $this->topics->get( $one )['status'] );
+		$this->assertSame( Topics::APPROVED, $this->topics->get( $two )['status'] );
+		$this->assertSame( Topics::CANDIDATE, $this->topics->get( $other )['status'], 'The search of the list: only what it showed.' );
+		$this->assertStringContainsString( 'approved=2', end( $urls ) );
+
+		$this->request[ INPUT_GET ] = array( 'approved' => '2' );
+
+		$this->assertStringContainsString( '2 topic(s) approved', $this->page( $this->screen( $urls ) ) );
+		$this->assertSame( Topics::APPROVED, $this->topics->get( $done )['status'] );
+	}
 }

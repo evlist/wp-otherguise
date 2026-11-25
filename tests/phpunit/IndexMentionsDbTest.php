@@ -15,6 +15,7 @@ use Otherguise\Index\Module as IndexModule;
 use Otherguise\Index\Resolver;
 use Otherguise\Index\Source;
 use Otherguise\Index\Source\Terms;
+use Otherguise\Index\Topics;
 
 require_once __DIR__ . '/support/class-otherguise-test-database-case.php';
 require_once __DIR__ . '/support/class-otherguise-test-modes-site.php';
@@ -173,7 +174,8 @@ class IndexMentionsDbTest extends Otherguise_Test_Database_Case {
 	}
 
 	/**
-	 * A category with a kind is mentioned, its parent is a topic, and a category with no kind is left out.
+	 * A category with a kind is mentioned and its topic is approved, its parent is a topic too, and a category with no kind is read as well (slice 635): a candidate
+	 * topic of the kind `any`, outside the index until a person approves it.
 	 *
 	 * @return void
 	 */
@@ -182,18 +184,24 @@ class IndexMentionsDbTest extends Otherguise_Test_Database_Case {
 
 		$report = $this->indexer->index_post( 12 );
 
-		$this->assertSame( 2, $report['created'], 'Beaufort and its parent France; Repos has no kind.' );
-		$this->assertSame( 1, $report['added'] );
+		$this->assertSame( 3, $report['created'], 'Beaufort and its parent France, and Repos, which has no kind.' );
+		$this->assertSame( 2, $report['added'] );
 
 		$mentions = $this->mentions->of_post( 12 );
 
-		$this->assertCount( 1, $mentions );
+		$this->assertCount( 2, $mentions );
 
-		$topic = array_key_first( $mentions );
+		$by_label = array();
 
-		$this->assertSame( 'Beaufort', $this->topics->get( $topic )['label'] );
-		$this->assertSame( array( 'post/category' ), $mentions[ $topic ]['sources'] );
-		$this->assertSame( 'passing', $mentions[ $topic ]['strength'] );
+		foreach ( array_keys( $mentions ) as $id ) {
+			$by_label[ $this->topics->get( $id )['label'] ] = $this->topics->get( $id );
+		}
+
+		$this->assertSame( Topics::APPROVED, $by_label['Beaufort']['status'], 'A person chose its kind: sure.' );
+		$this->assertSame( Topics::CANDIDATE, $by_label['Repos']['status'], 'Nobody classified it: a candidate, outside the index.' );
+		$this->assertSame( 'any', $by_label['Repos']['kind'] );
+		$this->assertSame( array( 'post/category' ), $mentions[ $by_label['Beaufort']['id'] ]['sources'] );
+		$this->assertSame( 'passing', $mentions[ $by_label['Beaufort']['id'] ]['strength'] );
 	}
 
 	/**
@@ -232,18 +240,22 @@ class IndexMentionsDbTest extends Otherguise_Test_Database_Case {
 	}
 
 	/**
-	 * Taking the kind off a term withdraws the mentions of its posts.
+	 * Taking the kind off a term keeps its topic (slice 635: a term with no kind is read too, and the topic that was approved stays so); to take a term out of the
+	 * index, exclude its motif.
 	 *
 	 * @return void
 	 */
-	public function test_taking_the_kind_off_withdraws_the_mentions(): void {
+	public function test_taking_the_kind_off_keeps_the_topic(): void {
 		$this->categorize( 12, array( 2 ) );
 		$this->indexer->index_post( 12 );
+
+		$topic = array_key_first( $this->mentions->of_post( 12 ) );
 
 		unset( $this->kinds[2] );
 		$this->indexer->index_post( 12 );
 
-		$this->assertSame( array(), $this->mentions->of_post( 12 ) );
+		$this->assertSame( array( $topic ), array_keys( $this->mentions->of_post( 12 ) ) );
+		$this->assertSame( Topics::APPROVED, $this->topics->get( $topic )['status'] );
 	}
 
 	/**

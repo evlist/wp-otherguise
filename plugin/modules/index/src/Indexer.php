@@ -143,7 +143,7 @@ final class Indexer {
 
 			foreach ( $candidates as $candidate ) {
 				$leaf = null !== $candidate->source && '' !== $candidate->source ? $candidate->source : $leaves[0];
-				$name = $this->designate( $candidate, $leaf, $source->is_sure(), $dry, $seen, $waiting );
+				$name = $this->designate( $candidate, $leaf, null === $candidate->sure ? $source->is_sure() : (bool) $candidate->sure, $dry, $seen, $waiting );
 				$done = $name['done'];
 
 				$report[ $done['result'] ] = ( $report[ $done['result'] ] ?? 0 ) + 1;
@@ -241,8 +241,16 @@ final class Indexer {
 		}
 
 		$have = $this->observations->assignment( $id );
+		$one  = $this->designations->get( $id );
 
-		if ( null !== $have && Observations::HAND === $have['by'] && $this->resolver->exists( $have['topic'] ) ) {
+		if ( null !== $one && Designations::EXCLUDED === $one['state'] ) {
+			// A person took it out of the index (slice 635): no topic, no question to the resolver; the observation is kept.
+			$done = array(
+				'result' => Resolver::RESOLVED,
+				'topic'  => 0,
+				'new'    => 0,
+			);
+		} elseif ( null !== $have && Observations::HAND === $have['by'] && $this->resolver->exists( $have['topic'] ) ) {
 			$done = array(
 				'result' => Resolver::RESOLVED,
 				'topic'  => $have['topic'],

@@ -96,6 +96,17 @@ final class Otherguise_Test_Memory_Topics implements Topics {
 	}
 
 	/**
+	 * Sets a status.
+	 *
+	 * @param int    $id     Topic.
+	 * @param string $status Status.
+	 * @return void
+	 */
+	public function set_status( $id, $status ) {
+		$this->topics[ $id ]['status'] = $status;
+	}
+
+	/**
 	 * Sets a kind.
 	 *
 	 * @param int    $id      Topic.

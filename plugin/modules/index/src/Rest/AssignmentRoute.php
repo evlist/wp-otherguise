@@ -12,6 +12,7 @@ namespace Otherguise\Index\Rest;
 
 use Otherguise\Index\Admin\TopicsScreen;
 use Otherguise\Index\Designation\Assigner;
+use Otherguise\Index\Designation\Exclusion;
 use Otherguise\Index\Designation\Neighbours;
 use Otherguise\Index\Designation\TopicFinder;
 use Otherguise\Index\Designations;
@@ -64,6 +65,13 @@ final class AssignmentRoute {
 	private $finder;
 
 	/**
+	 * Takes motifs out of the index.
+	 *
+	 * @var Exclusion|null
+	 */
+	private $exclusion;
+
+	/**
 	 * Tells whether the current user may: `fn(): bool`.
 	 *
 	 * @var callable
@@ -73,14 +81,16 @@ final class AssignmentRoute {
 	/**
 	 * Builds the routes.
 	 *
-	 * @param Designations  $designations The motifs.
-	 * @param Topics        $topics       The topics.
-	 * @param Assigner      $assigner     The assigner.
-	 * @param Neighbours    $neighbours   The close topics.
-	 * @param TopicFinder   $finder       The finder.
-	 * @param callable|null $can          Default: the capability of the module.
+	 * @param Designations   $designations The motifs.
+	 * @param Topics         $topics       The topics.
+	 * @param Assigner       $assigner     The assigner.
+	 * @param Neighbours     $neighbours   The close topics.
+	 * @param TopicFinder    $finder       The finder.
+	 * @param callable|null  $can          Default: the capability of the module.
+	 * @param Exclusion|null $exclusion   Takes a motif out of the index (slice 635).
 	 */
-	public function __construct( Designations $designations, Topics $topics, Assigner $assigner, Neighbours $neighbours, TopicFinder $finder, $can = null ) {
+	public function __construct( Designations $designations, Topics $topics, Assigner $assigner, Neighbours $neighbours, TopicFinder $finder, $can = null, ?Exclusion $exclusion = null ) {
+		$this->exclusion    = $exclusion;
 		$this->designations = $designations;
 		$this->topics       = $topics;
 		$this->assigner     = $assigner;
@@ -122,11 +132,9 @@ final class AssignmentRoute {
 				'permission_callback' => $this->can,
 				'args'                => array(
 					'id'    => $id,
-					'topic' => array(
-						'type'     => 'integer',
-						'required' => true,
-					),
-					'force' => array( 'type' => 'boolean' ),
+					'topic'   => array( 'type' => 'integer' ),
+					'force'   => array( 'type' => 'boolean' ),
+					'exclude' => array( 'type' => 'boolean' ),
 				),
 			)
 		);
@@ -146,12 +154,25 @@ final class AssignmentRoute {
 	 * Assigns the motif to the topic, by hand.
 	 *
 	 * @param object $request The request (`get_param`).
-	 * @return array<string, mixed> `ok`, then the topic and its posts, or `error` (and `conflict` with the two kinds when they exclude each other).
+	 * @return array<string, mixed> `ok`, then the topic and its posts, or `error` (and `conflict` with the two kinds when they exclude each other); `excluded` when the
+	 *         motif was taken out of the index.
 	 */
 	public function assign( $request ) {
 		$id     = absint( $request->get_param( 'id' ) );
 		$topic  = absint( $request->get_param( 'topic' ) );
 		$target = $this->topics->get( $topic );
+
+		// Take it out of the index: no topic, and a reading leaves it alone (slice 635).
+		if ( (bool) $request->get_param( 'exclude' ) && null !== $this->exclusion && null !== $this->designations->get( $id ) ) {
+			$this->exclusion->exclude( array( $id ) );
+
+			return array(
+				'ok'       => true,
+				'excluded' => true,
+				'by'       => Observations::HAND,
+				'state'    => 'excluded',
+			);
+		}
 
 		if ( null === $this->designations->get( $id ) ) {
 			return array(

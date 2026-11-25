@@ -11,6 +11,7 @@
 use Otherguise\Index\Admin\AssignmentsScreen;
 use Otherguise\Index\Admin\AssignmentsTable;
 use Otherguise\Index\Designation\Assigner;
+use Otherguise\Index\Designation\Exclusion;
 use Otherguise\Index\Designation\Listing;
 use Otherguise\Index\Designation\Neighbours;
 use Otherguise\Index\Designation\Reresolver;
@@ -372,11 +373,11 @@ class IndexAssignmentsDbTest extends Otherguise_Test_Database_Case {
 		$this->assertSame( 'designation', $table->_column_headers[3] );
 		$this->assertSame( array( 'cb', 'designation', 'source', 'posts', 'topic', 'by', 'state' ), array_keys( $table->get_columns() ) );
 		$this->assertSame( array( 'label', false ), $table->get_sortable_columns()['designation'] );
-		$this->assertSame( array( 'choose', 'assign', 'confirm', 'unassign', 'delete' ), array_keys( $this->call( $table, 'get_bulk_actions' ) ) );
+		$this->assertSame( array( 'choose', 'assign', 'confirm', 'unassign', 'exclude', 'include', 'delete' ), array_keys( $this->call( $table, 'get_bulk_actions' ) ) );
 
 		$views = $this->call( $table, 'get_views' );
 
-		$this->assertSame( array( 'all', 'resolve', 'incompatible', 'system', 'hand', 'unobserved' ), array_keys( $views ) );
+		$this->assertSame( array( 'all', 'resolve', 'incompatible', 'excluded', 'system', 'hand', 'unobserved' ), array_keys( $views ) );
 		$this->assertStringContainsString( 'class="current"', $views['all'] );
 		$this->assertStringContainsString( '(1)', $views['system'] );
 		$this->assertStringNotContainsString( '(', $views['unobserved'], 'Its count is not known: it costs a pass.' );
@@ -1156,5 +1157,129 @@ class IndexAssignmentsDbTest extends Otherguise_Test_Database_Case {
 				)
 			)['ok']
 		);
+	}
+
+	/**
+	 * Excluding motifs from the index (slice 635): the bulk action takes the motif out (no topic, the mentions go), the view *Excluded* lists it and says so in the
+	 * column of the topic, the same action in the quick edit does it by REST, and *Include again* puts it back to wait for a reading.
+	 *
+	 * @return void
+	 */
+	public function test_excluding_a_motif_from_the_index(): void {
+		$ville = $this->topics->create( 'Moulins', 'commune', 0, Topics::APPROVED, array() );
+		$a     = $this->designation( 'allemagne', array( 1 ), $ville, Observations::SYSTEM, Designations::ASSIGNED, 'post/tag' );
+		$b     = $this->designation( 'voyages', array( 1 ), $ville, Observations::SYSTEM, Designations::ASSIGNED, 'post/tag' );
+		$urls  = array();
+
+		$this->mentions->derive_post( 1 );
+
+		$this->bulk( 'exclude', array( 'designation' => array( (string) $a ) ) );
+		$this->screen( $urls )->process();
+
+		$this->assertStringContainsString( 'did=exclude', end( $urls ) );
+		$this->assertNull( $this->observations->assignment( $a ) );
+		$this->assertSame( Designations::EXCLUDED, $this->designations->get( $a )['state'] );
+		$this->assertNotNull( $this->observations->assignment( $b ), 'Only the ticked motif.' );
+
+		$list = ( new Listing( $this->designations, $this->observations, $this->topics ) )->query( array( 'view' => Listing::EXCLUDED ) );
+
+		$this->assertSame( array( $a ), array_column( $list['rows'], 'id' ) );
+		$this->assertSame( 1, $list['counts'][ Listing::EXCLUDED ] );
+
+		$table = $this->make_table();
+
+		$table->prepare_items();
+
+		$rows = array_column( $table->items, null, 'id' );
+
+		$this->assertStringContainsString( 'Not in the index', $this->call( $table, 'column_topic', $rows[ $a ] ) );
+
+		$route = $this->route();
+		$done  = $route->assign(
+			$this->ask(
+				array(
+					'id' => $b,
+					'exclude' => true,
+				)
+			)
+		);
+
+		$this->assertTrue( $done['ok'] );
+		$this->assertTrue( $done['excluded'] );
+		$this->assertSame( 'excluded', $done['state'] );
+		$this->assertSame( Designations::EXCLUDED, $this->designations->get( $b )['state'] );
+		$this->assertFalse(
+			$route->assign(
+				$this->ask(
+					array(
+						'id' => 9999,
+						'exclude' => true,
+					)
+				)
+			)['ok'],
+			'A motif that does not exist.'
+		);
+
+		$this->bulk( 'include', array( 'designation' => array( (string) $a, (string) $b ) ) );
+		$this->screen( $urls )->process();
+
+		$this->assertStringContainsString( 'did=include', end( $urls ) );
+		$this->assertSame( Designations::PENDING, $this->designations->get( $a )['state'] );
+		$this->assertSame( Designations::PENDING, $this->designations->get( $b )['state'] );
+	}
+
+	/**
+	 * The routes of the quick edit, built over the doubles of this test.
+	 *
+	 * @return AssignmentRoute
+	 */
+	private function route(): AssignmentRoute {
+		$finder = new TopicFinder( $this->topics );
+
+		return new AssignmentRoute(
+			$this->designations,
+			$this->topics,
+			new Assigner( $this->designations, $this->observations, $this->mentions, $this->topics ),
+			new Neighbours( $this->designations, $this->observations, $this->topics, $finder ),
+			$finder,
+			static fn() => true,
+			new Exclusion( $this->designations, $this->observations, $this->mentions )
+		);
+	}
+
+	/**
+	 * A request, for the routes.
+	 *
+	 * @param array<string, mixed> $params The parameters.
+	 * @return object
+	 */
+	private function ask( array $params ) {
+		return new class( $params ) {
+			/**
+			 * The parameters.
+			 *
+			 * @var array
+			 */
+			private $params;
+
+			/**
+			 * Builds the request.
+			 *
+			 * @param array $params The parameters.
+			 */
+			public function __construct( array $params ) {
+				$this->params = $params;
+			}
+
+			/**
+			 * A parameter.
+			 *
+			 * @param string $name Name.
+			 * @return mixed
+			 */
+			public function get_param( $name ) {
+				return $this->params[ $name ] ?? null;
+			}
+		};
 	}
 }

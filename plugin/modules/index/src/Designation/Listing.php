@@ -29,6 +29,7 @@ final class Listing {
 	public const ALL        = 'all';
 	public const RESOLVE    = 'resolve';
 	public const INCOMPATIBLE = 'incompatible';
+	public const EXCLUDED     = 'excluded';
 	public const SYSTEM     = 'system';
 	public const HAND       = 'hand';
 	public const UNOBSERVED = 'unobserved';
@@ -85,6 +86,7 @@ final class Listing {
 			self::ALL        => 0,
 			self::RESOLVE    => 0,
 			self::INCOMPATIBLE => 0,
+			self::EXCLUDED     => 0,
 			self::SYSTEM     => 0,
 			self::HAND       => 0,
 			self::UNOBSERVED => null,
@@ -109,6 +111,7 @@ final class Listing {
 
 			++$counts[ self::ALL ];
 			$counts[ self::RESOLVE ] += in_array( $one['state'], array( Designations::PENDING, Designations::AMBIGUOUS ), true ) ? 1 : 0;
+			$counts[ self::EXCLUDED ]    += Designations::EXCLUDED === $one['state'] ? 1 : 0;
 			$counts[ self::INCOMPATIBLE ] += $base[ (int) $id ]['incompatible'] ? 1 : 0;
 			$counts[ self::SYSTEM ]  += null !== $have && Observations::SYSTEM === $have['by'] ? 1 : 0;
 			$counts[ self::HAND ]    += null !== $have && Observations::HAND === $have['by'] ? 1 : 0;
@@ -139,6 +142,10 @@ final class Listing {
 				$base,
 				static function ( $row ) use ( $view, $search, $labels ) {
 					if ( self::RESOLVE === $view && ! in_array( $row['state'], array( Designations::PENDING, Designations::AMBIGUOUS ), true ) ) {
+						return false;
+					}
+
+					if ( self::EXCLUDED === $view && Designations::EXCLUDED !== $row['state'] ) {
 						return false;
 					}
 

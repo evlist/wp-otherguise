@@ -11,6 +11,7 @@
 namespace Otherguise\Index\Admin;
 
 use Otherguise\Index\Designation\Listing;
+use Otherguise\Index\Designations;
 use Otherguise\Index\Kinds;
 use Otherguise\Index\Resolver;
 use Otherguise\Index\Topics;
@@ -91,7 +92,7 @@ final class AssignmentsTable extends \WP_List_Table {
 	public function view() {
 		$view = sanitize_key( (string) ( $this->request )( 'view' ) );
 
-		return in_array( $view, array( Listing::RESOLVE, Listing::INCOMPATIBLE, Listing::SYSTEM, Listing::HAND, Listing::UNOBSERVED ), true ) ? $view : Listing::ALL;
+		return in_array( $view, array( Listing::RESOLVE, Listing::INCOMPATIBLE, Listing::EXCLUDED, Listing::SYSTEM, Listing::HAND, Listing::UNOBSERVED ), true ) ? $view : Listing::ALL;
 	}
 
 	/**
@@ -136,6 +137,7 @@ final class AssignmentsTable extends \WP_List_Table {
 			Listing::ALL        => __( 'All', 'otherguise' ),
 			Listing::RESOLVE    => __( 'To resolve', 'otherguise' ),
 			Listing::INCOMPATIBLE => __( 'Incompatible', 'otherguise' ),
+			Listing::EXCLUDED   => __( 'Excluded', 'otherguise' ),
 			Listing::SYSTEM     => __( 'Assigned by the system', 'otherguise' ),
 			Listing::HAND       => __( 'Assigned by a person', 'otherguise' ),
 			Listing::UNOBSERVED => __( 'Observed by no post', 'otherguise' ),
@@ -162,6 +164,8 @@ final class AssignmentsTable extends \WP_List_Table {
 			'assign'   => __( 'Assign to the topic in the box that appears…', 'otherguise' ),
 			'confirm'  => __( 'Confirm the assignment (a person decides)', 'otherguise' ),
 			'unassign' => __( 'Take the assignment away', 'otherguise' ),
+			'exclude'  => __( 'Exclude from the index (no topic, a reading leaves it alone)', 'otherguise' ),
+			'include'  => __( 'Include again (the next reading proposes a topic)', 'otherguise' ),
 			'delete'   => __( 'Delete (only what no post observes)', 'otherguise' ),
 		);
 	}
@@ -291,6 +295,10 @@ final class AssignmentsTable extends \WP_List_Table {
 	 */
 	protected function column_topic( $item ) {
 		$topic = (int) $item['topic'] > 0 ? $this->topics->get( (int) $item['topic'] ) : null;
+
+		if ( null === $topic && Designations::EXCLUDED === (string) $item['state'] ) {
+			return '<em>' . esc_html__( 'Not in the index', 'otherguise' ) . '</em>';
+		}
 
 		if ( null === $topic ) {
 			return $this->choice( $item );

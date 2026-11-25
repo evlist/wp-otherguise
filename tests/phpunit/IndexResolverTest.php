@@ -328,4 +328,41 @@ class IndexResolverTest extends TestCase {
 		$this->resolver->resolve( new Candidate( 'Machin', 'country', array(), null, Candidate::PASSING ) );
 		$this->assertSame( 'other', $this->topics->get( $other )['kind'], 'Other is a kind: it is not refined.' );
 	}
+
+	/**
+	 * A level that nobody classified (a tag with no kind) makes a **candidate** topic, outside the index; a person who gives the tag a kind approves it (slice 635); a
+	 * level that is not sure and meets an approved topic leaves it approved; a sure level under an unsure one keeps its own status.
+	 *
+	 * @return void
+	 */
+	public function test_what_nobody_classified_is_a_candidate_until_someone_does(): void {
+		$tag = new Candidate( 'Allemagne', 'any', array( 'term:post_tag:9' ) );
+
+		$tag->sure = false;
+
+		$done = $this->resolver->resolve( $tag );
+
+		$this->assertSame( Resolver::CREATED, $done['result'] );
+		$this->assertSame( Topics::CANDIDATE, $this->topics->get( $done['topic'] )['status'] );
+		$this->assertSame( 'any', $this->topics->get( $done['topic'] )['kind'] );
+
+		$known = $this->resolver->resolve( new Candidate( 'Allemagne', 'country', array( 'term:post_tag:9' ) ) );
+
+		$this->assertSame( $done['topic'], $known['topic'] );
+		$this->assertSame( Topics::APPROVED, $this->topics->get( $done['topic'] )['status'], 'A kind was given: approved.' );
+		$this->assertSame( 'country', $this->topics->get( $done['topic'] )['kind'] );
+
+		$again = $this->resolver->resolve( $tag );
+
+		$this->assertSame( $done['topic'], $again['topic'] );
+		$this->assertSame( Topics::APPROVED, $this->topics->get( $done['topic'] )['status'], 'An approved topic stays approved.' );
+
+		$parent        = new Candidate( 'Voyages', 'any', array( 'term:category:2' ) );
+		$parent->sure  = false;
+		$child         = new Candidate( 'Étape', 'place', array( 'term:category:3' ), $parent );
+		$made          = $this->resolver->resolve( $child );
+
+		$this->assertSame( Topics::APPROVED, $this->topics->get( $made['topic'] )['status'], 'The level that has a kind is sure.' );
+		$this->assertSame( Topics::CANDIDATE, $this->topics->get( $this->topics->get( $made['topic'] )['parent'] )['status'], 'The level above has none: a candidate.' );
+	}
 }

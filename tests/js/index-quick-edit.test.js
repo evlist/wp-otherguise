@@ -9,7 +9,7 @@ const { attach } = require( '../../plugin/modules/index/admin/quick-edit.js' );
 const picker = require( '../../plugin/modules/index/admin/topic-picker.js' );
 
 const flush = () => new Promise( ( resolve ) => setTimeout( resolve, 5 ) );
-const words = { change: 'Change topic', close: 'Close topics', choose: '— a close topic —', search: 'search', update: 'Update', cancel: 'Cancel', anyway: 'Assign anyway', nothing: 'Choose a topic.', failed: 'Failed', working: 'Working…' };
+const words = { change: 'Change topic', close: 'Close topics', choose: '— a close topic —', search: 'search', update: 'Update', cancel: 'Cancel', anyway: 'Assign anyway', nothing: 'Choose a topic.', failed: 'Failed', working: 'Working…', exclude: 'Not in the index (exclude this motif)', excluded: 'Not in the index' };
 
 function make( answers ) {
 	const dom = new JSDOM( '<!doctype html><body><table><tbody>' +
@@ -48,7 +48,7 @@ test( 'the panel offers the close topics, and Update changes the line in place',
 
 	const select = doc.querySelector( '.otherguise-quick-edit select' );
 
-	assert.strictEqual( select.options.length, 2, 'The first option says to choose.' );
+	assert.strictEqual( select.options.length, 3, 'The first option says to choose, the last one excludes the motif.' );
 	assert.match( select.options[ 1 ].textContent, /Aisne \(River, France\) #5/ );
 
 	doc.querySelector( '.otherguise-quick-edit button.button-primary' ).click();
@@ -105,4 +105,32 @@ test( 'Cancel closes the panel and a second line replaces the first panel', asyn
 
 	doc.querySelector( '.otherguise-quick-edit button:not(.button-primary)' ).click();
 	assert.strictEqual( doc.querySelector( '.otherguise-quick-edit' ), null );
+} );
+
+test( 'the last choice takes the motif out of the index, and the line says so (slice 635)', async () => {
+	let sent = null;
+	const { doc } = make( {
+		'GET 7/neighbours': [ { id: 5, label: 'Aisne', kind: 'River', chain: 'France' } ],
+		'POST 7/topic': ( body ) => {
+			sent = body;
+			return { ok: true, excluded: true, by: 'hand', state: 'excluded' };
+		},
+	} );
+
+	doc.querySelector( '#r1 .change-topic a' ).click();
+	await flush();
+
+	const select = doc.querySelector( '.otherguise-quick-edit select' );
+
+	assert.strictEqual( select.options[ select.options.length - 1 ].value, 'exclude', 'Always the last choice.' );
+
+	select.value = 'exclude';
+	doc.querySelector( '.otherguise-quick-edit button.button-primary' ).click();
+	await flush();
+
+	assert.deepStrictEqual( sent, { exclude: true } );
+	assert.strictEqual( doc.querySelector( '#r1 .column-topic em' ).textContent, 'Not in the index' );
+	assert.strictEqual( doc.querySelector( '#r1 .column-state' ).textContent, 'excluded' );
+	assert.ok( doc.querySelector( '#r1 .column-topic .change-topic' ), 'The link to change it stays.' );
+	assert.strictEqual( doc.querySelector( '#r1 .column-topic a[href="#old"]' ), null, 'The old topic is gone from the line.' );
 } );

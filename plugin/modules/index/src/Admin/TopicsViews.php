@@ -13,6 +13,7 @@ namespace Otherguise\Index\Admin;
 use Otherguise\Index\Designations;
 use Otherguise\Index\Folding;
 use Otherguise\Index\Kinds;
+use Otherguise\Index\Topics;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -64,6 +65,7 @@ trait TopicsViews {
 			if ( ( '' !== $search && false === strpos( Folding::key( (string) $topic['label'] ), Folding::key( $search ) ) )
 				|| ( '' !== $kind && ! Kinds::is_a( (string) $topic['kind'], $kind ) )
 				|| ( 'empty' === $show && $count > 0 )
+				|| ( 'candidates' === $show && Topics::CANDIDATE !== (string) $topic['status'] )
 				|| ( 'hand' === $show && empty( $topic['kind_by_hand'] ) && empty( $topic['label_by_hand'] ) && ! isset( $hand[ (int) $id ] ) ) ) {
 				continue;
 			}
@@ -98,6 +100,7 @@ trait TopicsViews {
 			''      => __( 'All the topics', 'otherguise' ),
 			'empty' => __( 'With no motif', 'otherguise' ),
 			'hand'  => __( 'Chosen by hand', 'otherguise' ),
+			'candidates' => __( 'Candidates (not in the index yet)', 'otherguise' ),
 		) as $value => $label ) {
 			echo '<option value="' . esc_attr( $value ) . '"' . selected( $show, $value, false ) . '>' . esc_html( $label ) . '</option>';
 		}
@@ -105,6 +108,15 @@ trait TopicsViews {
 		echo '</select> <button class="button">' . esc_html__( 'Filter', 'otherguise' ) . '</button></p></form>';
 		/* translators: %d: number of topics. */
 		echo '<p>' . esc_html( sprintf( _n( '%d topic.', '%d topics.', count( $rows ), 'otherguise' ), count( $rows ) ) ) . '</p>';
+
+		// The topics made from what nobody classified are candidates, outside the index: approve the ones that this list shows (slice 635).
+		if ( 'candidates' === $show && count( $rows ) > 0 ) {
+			echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
+			wp_nonce_field( self::NONCE );
+			echo '<input type="hidden" name="action" value="' . esc_attr( self::APPROVE ) . '" /><input type="hidden" name="search" value="' . esc_attr( $search ) . '" /><input type="hidden" name="kind" value="' . esc_attr( $kind ) . '" />';
+			/* translators: %d: number of topics. */
+			echo '<p><button class="button button-primary">' . esc_html( sprintf( __( 'Approve the %d topics of this list: they enter the index', 'otherguise' ), count( $rows ) ) ) . '</button></p></form>';
+		}
 		echo '<table class="widefat striped"><thead><tr><th>' . esc_html__( 'Label', 'otherguise' ) . '</th><th>' . esc_html__( 'Kind', 'otherguise' ) . '</th><th>' . esc_html__( 'Under', 'otherguise' ) . '</th><th>' . esc_html__( 'Status', 'otherguise' ) . '</th><th>' . esc_html__( 'Motifs', 'otherguise' ) . '</th></tr></thead><tbody>';
 
 		foreach ( array_slice( $rows, ( $paged - 1 ) * self::PER_PAGE, self::PER_PAGE ) as $row ) {

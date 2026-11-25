@@ -14,6 +14,7 @@ use Otherguise\Core\Modules;
 use Otherguise\Index\Admin\AssignmentsScreen;
 use Otherguise\Index\Admin\AssignmentsTable;
 use Otherguise\Index\Admin\TopicsScreen;
+use Otherguise\Index\Cli\ApproveCommand;
 use Otherguise\Index\Cli\DesignationsCommand;
 use Otherguise\Index\Cli\SuggestionsCommand;
 use Otherguise\Index\Merge\DuplicateFinder;
@@ -85,7 +86,9 @@ final class Wiring {
 					$topics,
 					new Assigner( $designations, $observations, $mentions, $topics ),
 					new Neighbours( $designations, $observations, $topics, $finder ),
-					$finder
+					$finder,
+					null,
+					new Exclusion( $designations, $observations, $mentions )
 				),
 				'register',
 			),
@@ -153,6 +156,7 @@ final class Wiring {
 
 		\WP_CLI::add_command( 'otherguise index motifs', $command );
 		\WP_CLI::add_command( 'otherguise index assign', array( $command, 'assign' ) );
+		\WP_CLI::add_command( 'otherguise index approve', new ApproveCommand( $topics ) );
 		\WP_CLI::add_command( 'otherguise index suggestions', new SuggestionsCommand( new DuplicateFinder( $topics, array( new IgnoredPairs(), 'has' ) ) ) );
 	}
 }

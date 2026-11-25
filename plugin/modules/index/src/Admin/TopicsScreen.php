@@ -39,6 +39,7 @@ final class TopicsScreen {
 	public const PAGE     = 'otherguise-index-topics';
 	public const SAVE     = 'otherguise_index_topic_save';
 	public const ASSIGN   = 'otherguise_index_topic_assign';
+	public const APPROVE  = 'otherguise_index_topic_approve';
 	public const NONCE    = 'otherguise_index_topics';
 	public const PER_PAGE = 50;
 
@@ -146,6 +147,7 @@ final class TopicsScreen {
 		$add_action( AdminMenu::FILTER, array( $this, 'declare_screen' ), 10, 1 );
 		$add_action( 'admin_post_' . self::SAVE, array( $this, 'save' ), 10, 0 );
 		$add_action( 'admin_post_' . self::ASSIGN, array( $this, 'assign' ), 10, 0 );
+		$add_action( 'admin_post_' . self::APPROVE, array( $this, 'approve' ), 10, 0 );
 		$this->suggestions->register( $add_action );
 	}
 
@@ -337,6 +339,35 @@ final class TopicsScreen {
 	}
 
 	/**
+	 * Approves the candidate topics of the list that was shown (slice 635): the topics made from the tags and the categories that nobody classified enter the index.
+	 * **The server lists them again from the search and the kind of the form**, it does not take a list of numbers from the browser. Action
+	 * `admin_post_otherguise_index_topic_approve`.
+	 *
+	 * @return void
+	 */
+	public function approve() {
+		if ( ! $this->allowed() ) {
+			return;
+		}
+
+		$search = $this->text( INPUT_POST, 'search' );
+		$kind   = sanitize_key( (string) ( $this->input )( INPUT_POST, 'kind', false ) );
+		$done   = 0;
+
+		foreach ( $this->topics->all( array( 'status' => Topics::CANDIDATE ) ) as $id => $topic ) {
+			if ( ( '' !== $search && false === strpos( Folding::key( (string) $topic['label'] ), Folding::key( $search ) ) )
+				|| ( '' !== $kind && ! Kinds::is_a( (string) $topic['kind'], $kind ) ) ) {
+				continue;
+			}
+
+			$this->topics->set_status( (int) $id, Topics::APPROVED );
+			++$done;
+		}
+
+		( $this->redirect )( $this->url( array( 'approved' => $done ) ) );
+	}
+
+	/**
 	 * Assigns motifs to a topic: the first step makes a preview, the second does it. Action `admin_post_otherguise_index_topic_assign`.
 	 *
 	 * @return void
@@ -490,11 +521,15 @@ final class TopicsScreen {
 		$error    = $this->text( INPUT_GET, 'error' );
 		$saved    = (string) ( $this->input )( INPUT_GET, 'saved', false );
 		$assigned = (string) ( $this->input )( INPUT_GET, 'assigned', false );
+		$approved = (string) ( $this->input )( INPUT_GET, 'approved', false );
 
 		if ( '' !== $error ) {
 			echo '<div class="notice notice-error"><p>' . esc_html( $error ) . '</p></div>';
 		} elseif ( '1' === $saved ) {
 			echo '<div class="notice notice-success"><p>' . esc_html__( 'Saved.', 'otherguise' ) . '</p></div>';
+		} elseif ( '' !== $approved ) {
+			/* translators: %d: number of topics. */
+			echo '<div class="notice notice-success"><p>' . esc_html( sprintf( __( '%d topic(s) approved: they are in the index.', 'otherguise' ), absint( $approved ) ) ) . '</p></div>';
 		} elseif ( '' !== $assigned ) {
 			/* translators: 1: motifs assigned, 2: posts whose mentions follow. */
 			echo '<div class="notice notice-success"><p>' . esc_html( sprintf( __( '%1$d motif(s) assigned; the mentions of %2$d post(s) follow.', 'otherguise' ), absint( $assigned ), absint( (string) ( $this->input )( INPUT_GET, 'posts', false ) ) ) ) . '</p></div>';

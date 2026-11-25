@@ -17,6 +17,7 @@ use Otherguise\Index\Merge\TopicMerger;
 use Otherguise\Index\Merge\TopicPruner;
 use Otherguise\Index\Designation\Cleaner;
 use Otherguise\Index\Designation\Evidence;
+use Otherguise\Index\Designation\Exclusion;
 use Otherguise\Index\Designation\Reresolver;
 use Otherguise\Index\Designation\Keys;
 use Otherguise\Index\Designations;
@@ -927,5 +928,65 @@ class IndexDesignationsDbTest extends Otherguise_Test_Database_Case {
 		sort( $numbers );
 
 		return $numbers;
+	}
+
+	/**
+	 * A tag with no kind (slice 635): read as a motif of the kind `any`, its topic is a candidate; a person **excludes** the motif: no assignment, no mention, the
+	 * observations stay; a reading and the cleaner leave it alone; including it puts it back and the next reading proposes a topic.
+	 *
+	 * @return void
+	 */
+	public function test_a_tag_with_no_kind_and_the_exclusion_of_a_motif(): void {
+		$tag = function () {
+			$candidate = ( new Candidate( 'allemagne', 'any', array( 'term:post_tag:9' ), null, Candidate::PASSING ) )->from( 'post/tag' );
+
+			$candidate->sure = false;
+
+			return $candidate;
+		};
+
+		$this->says[1] = array( $tag() );
+		$this->says[2] = array( $tag() );
+
+		$this->indexer->index_post( 1 );
+		$this->indexer->index_post( 2 );
+
+		$id    = (int) array_key_first( $this->designations->designations );
+		$topic = (int) $this->observations->assignment( $id )['topic'];
+
+		$this->assertSame( Topics::CANDIDATE, $this->topics->get( $topic )['status'], 'Nobody classified it: a candidate, outside the index.' );
+		$this->assertArrayHasKey( $topic, $this->mentions->of_post( 1 ) );
+
+		$exclusion = new Exclusion( $this->designations, $this->observations, $this->mentions );
+		$done      = $exclusion->exclude( array( $id, 9999 ) );
+
+		$this->assertSame( 1, $done['designations'], 'A motif that does not exist is skipped.' );
+		$this->assertSame( 2, $done['posts'] );
+		$this->assertNull( $this->observations->assignment( $id ) );
+		$this->assertSame( Designations::EXCLUDED, $this->designations->get( $id )['state'] );
+		$this->assertSame( array(), $this->mentions->of_post( 1 ), 'The mentions of its posts are gone.' );
+		$this->assertSame( array( 1, 2 ), $this->sorted( $this->observations->posts_of( $id ) ), 'The observations stay.' );
+
+		$this->indexer->index_post( 1 );
+
+		$this->assertNull( $this->observations->assignment( $id ), 'A reading leaves it alone.' );
+		$this->assertSame( Designations::EXCLUDED, $this->designations->get( $id )['state'] );
+		$this->assertSame( array(), $this->mentions->of_post( 1 ) );
+
+		$this->says = array();
+		$this->indexer->index_post( 1 );
+		$this->indexer->index_post( 2 );
+
+		$this->assertNotContains( $id, ( new Cleaner( $this->designations, $this->observations ) )->candidates(), 'A decision of a person is not cleaned away, observed or not.' );
+
+		$this->says[1] = array( $tag() );
+
+		$this->assertSame( 1, $exclusion->include( array( $id ) ) );
+		$this->assertSame( 0, $exclusion->include( array( $id ) ), 'Only an excluded motif is included.' );
+		$this->assertSame( Designations::PENDING, $this->designations->get( $id )['state'] );
+
+		$this->indexer->index_post( 1 );
+
+		$this->assertSame( $topic, (int) $this->observations->assignment( $id )['topic'], 'The next reading proposes a topic again.' );
 	}
 }

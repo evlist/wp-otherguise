@@ -48,6 +48,8 @@ trait AssignmentsViews {
 			'nothing'   => __( 'Choose a topic.', 'otherguise' ),
 			'failed'    => __( 'The topic could not be changed.', 'otherguise' ),
 			'working'   => __( 'Working…', 'otherguise' ),
+			'exclude'   => __( 'Not in the index (exclude this motif)', 'otherguise' ),
+			'excluded'  => __( 'Not in the index', 'otherguise' ),
 		);
 	}
 
@@ -95,6 +97,10 @@ trait AssignmentsViews {
 			'confirm'  => __( '%d assignment(s) confirmed: a new reading will not change them.', 'otherguise' ),
 			/* translators: %d: number of motifs. */
 			'unassign' => __( '%d assignment(s) taken away: the motifs are to resolve, and a new reading may propose a topic again.', 'otherguise' ),
+			/* translators: %d: number of motifs. */
+			'exclude'  => __( '%d motif(s) excluded from the index: no topic, the mentions of their posts are gone, and a reading leaves them alone.', 'otherguise' ),
+			/* translators: %d: number of motifs. */
+			'include'  => __( '%d motif(s) included again: the next reading proposes a topic.', 'otherguise' ),
 			/* translators: %d: number of motifs. */
 			'delete'   => __( '%d motif(s) deleted.', 'otherguise' ),
 		);

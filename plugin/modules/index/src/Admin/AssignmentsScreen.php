@@ -12,6 +12,7 @@ namespace Otherguise\Index\Admin;
 
 use Otherguise\Core\AdminMenu;
 use Otherguise\Index\Designation\Assigner;
+use Otherguise\Index\Designation\Exclusion;
 use Otherguise\Index\Designation\Reresolver;
 use Otherguise\Index\Designation\TopicFinder;
 use Otherguise\Index\Designations;
@@ -511,6 +512,18 @@ final class AssignmentsScreen {
 		$done  = 0;
 		$skip  = 0;
 		$posts = array();
+
+		// Taking motifs out of the index, and back (slice 635).
+		if ( in_array( $action, array( 'exclude', 'include' ), true ) ) {
+			$exclusion = new Exclusion( $this->designations, $this->observations, $this->mentions );
+			$count     = 'exclude' === $action ? $exclusion->exclude( $ids )['designations'] : $exclusion->include( $ids );
+
+			return array(
+				'did'     => $action,
+				'count'   => $count,
+				'skipped' => count( $ids ) - $count,
+			);
+		}
 
 		if ( 'delete' === $action ) {
 			$counts = $this->observations->post_counts( $ids );

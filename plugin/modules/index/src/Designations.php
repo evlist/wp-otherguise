@@ -23,6 +23,11 @@ interface Designations {
 	public const ASSIGNED  = 'assigned';
 
 	/**
+	 * A person decided that the motif is not for the index (slice 635): no topic, and a reading leaves it alone.
+	 */
+	public const EXCLUDED = 'excluded';
+
+	/**
 	 * The motif that has a key.
 	 *
 	 * @param string $key Key.

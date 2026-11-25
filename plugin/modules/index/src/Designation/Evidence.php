@@ -38,10 +38,14 @@ final class Evidence {
 		for ( $level = $candidate, $depth = 0; null !== $level && $depth < 30; $level = $level->parent, ++$depth ) {
 			array_unshift(
 				$levels,
-				array(
-					'label' => $level->label,
-					'kind'  => $level->kind,
-					'keys'  => array_slice( $level->keys, 0, self::KEYS ),
+				array_filter(
+					array(
+						'label' => $level->label,
+						'kind'  => $level->kind,
+						'keys'  => array_slice( $level->keys, 0, self::KEYS ),
+						'sure'  => false === $level->sure ? false : null, // A level that nobody classified (slice 635): kept, so that it is read again the same way.
+					),
+					static fn( $value ) => null !== $value
 				)
 			);
 
@@ -90,6 +94,10 @@ final class Evidence {
 
 		foreach ( $levels as $level ) {
 			$parent = new Candidate( (string) $level['label'], (string) $level['kind'], array_map( 'strval', (array) $level['keys'] ), $parent );
+
+			if ( isset( $level['sure'] ) && false === $level['sure'] ) {
+				$parent->sure = false;
+			}
 		}
 
 		return null === $parent ? new Candidate( '', 'any', array() ) : $parent->from( (string) $leaf );

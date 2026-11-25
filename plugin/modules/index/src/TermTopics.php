@@ -152,6 +152,19 @@ final class TermTopics implements Topics {
 	}
 
 	/**
+	 * Changes the status of a topic.
+	 *
+	 * @param int    $id     Topic.
+	 * @param string $status `approved`, `candidate` or `refused`.
+	 * @return void
+	 */
+	public function set_status( $id, $status ) {
+		if ( in_array( (string) $status, array( self::APPROVED, self::CANDIDATE, self::REFUSED ), true ) ) {
+			update_term_meta( (int) $id, self::STATUS, (string) $status );
+		}
+	}
+
+	/**
 	 * Changes the label of a topic: the name of the term changes, its slug stays.
 	 *
 	 * @param int    $id      Topic.
