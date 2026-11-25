@@ -202,6 +202,33 @@ class IndexPageReaderTest extends TestCase {
 	}
 
 	/**
+	 * The markup that wp-whobird writes since its commit f4bee4a (checked against the renderer, 2026-11-25): `data-recordings` first, then `data-index="wikidata:Q…"`,
+	 * `data-index-kind="species"` and, when the name comes from Wikidata, `data-index-label` (escaped by `esc_attr`). The mark sits **after the contents of the post**
+	 * and is trusted there; an entry with no identifier says nothing.
+	 *
+	 * @return void
+	 */
+	public function test_the_whobird_entries_as_the_plugin_writes_them(): void {
+		$html = '<main><div class="wp-block-post-content"><p>Texte.</p></div>'
+			. '<div class="wpwbd_observations"><ul class="wpwbd_list">'
+			. '<li class="wpwbd-bird-entry" data-recordings="https://e.vli.st/a.wav,https://e.vli.st/b.wav" data-index="wikidata:Q25422" data-index-kind="species" data-index-label="Pinson des arbres"><div class="common-name">pinson des arbres</div></li>'
+			. '<li class="wpwbd-bird-entry" data-recordings="https://e.vli.st/c.wav" data-index="wikidata:Q26825" data-index-kind="species" data-index-label="Bruant d&#039;Europe"><div class="common-name">bruant</div></li>'
+			. '<li class="wpwbd-bird-entry" data-recordings="https://e.vli.st/d.wav"><div class="common-name">sans identifiant</div></li>'
+			. '</ul></div></main>';
+
+		$signals = $this->reader->signals( $html );
+
+		$this->assertSame( array( 'page:wikidata:Q25422', 'page:wikidata:Q26825' ), $this->of( $signals, Signal::TOPIC ) );
+
+		$topics = array_values( array_filter( $signals, static fn( $signal ) => Signal::TOPIC === $signal->type ) );
+
+		$this->assertSame( 'species', $topics[0]->data['kind'] );
+		$this->assertSame( 'Pinson des arbres', $topics[0]->data['label'], 'The case of Wikidata, not the one of the app.' );
+		$this->assertSame( "Bruant d'Europe", $topics[1]->data['label'], 'The entity of esc_attr is decoded.' );
+		$this->assertTrue( $topics[0]->data['identifier'] );
+	}
+
+	/**
 	 * The marks in every form: identifier, path, several topics, the main flag, the anchor, a mark in a footer, an empty mark and what is
 	 * under `data-index-ignore`. A document with no `<main>` and no contents is read whole.
 	 *
