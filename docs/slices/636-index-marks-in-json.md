@@ -19,9 +19,9 @@ The mark `data-index` is the generic way to tell the index what a page is about 
 - **`Source\Page` reads the sources below the marks** (`mention_sources()`), so that **the mentions go when the mark goes**.
 - **The screen *What is on*** (the sources): the labels were out of date since slice 635 (*"those that have a kind"*): **"The categories / The tags (those that have no kind give candidate topics)"**, and the page source says what it reads: **"The pages: the marks (`data-index`, in the text or in JSON) and the links to Wikipedia"**. It is **one switch**: the marks and the links come from the same reading of the page, and turning the links off alone would read the page for nothing.
 
-## To do on the other side
+## The other side
 
-**`evlist/wp-whobird`** writes today `data-index="wikidata:Q…"`, `data-index-kind="species"` and `data-index-label="…"` (commit `f4bee4a`, still valid). It is asked to write **the JSON form with `source: "whobird"`** (one attribute, `esc_attr( wp_json_encode( … ) )`); both forms are read, so nothing breaks in between.
+**`evlist/wp-whobird`** wrote the text form in its commit `f4bee4a`, and **writes the JSON form since its commit `fe9ec53`** (its slice 002): one attribute `data-index` = `esc_attr( wp_json_encode( { topic: "wikidata:Q…", kind: "species", [label], source: "whobird" }, JSON_UNESCAPED_UNICODE ) )`, only when `wikidata_qid` is well formed, the label only when the name comes from Wikidata. **The markup was read in its renderer and a test of this repository reads it as it is written** (`test_the_whobird_entries_in_json_as_the_plugin_writes_them`: accents, quotes, apostrophe, ampersand and slash of a label make the round trip). **Automated tests only, on both sides.**
 
 ## Not done, and what to look at
 

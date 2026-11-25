@@ -229,6 +229,61 @@ class IndexPageReaderTest extends TestCase {
 	}
 
 	/**
+	 * The markup that wp-whobird writes since its commit fe9ec53 (checked against the renderer, 2026-11-25): one attribute `data-index` whose value is the JSON of
+	 * `topic`, `kind`, `label` (only when the name comes from Wikidata) and `source`, encoded with `JSON_UNESCAPED_UNICODE` and escaped as `esc_attr` does. Accents,
+	 * quotes, apostrophes, ampersands and slashes of the label come back as they were; the source is `whobird`; an entry with no identifier says nothing.
+	 *
+	 * @return void
+	 */
+	public function test_the_whobird_entries_in_json_as_the_plugin_writes_them(): void {
+		$entry = static function ( array $mark ): string {
+			return '<li class="wpwbd-bird-entry" data-recordings="https://e.vli.st/a.wav" data-index="' . htmlspecialchars( (string) json_encode( $mark, JSON_UNESCAPED_UNICODE ), ENT_QUOTES, 'UTF-8' ) . '"><div class="common-name">x</div></li>';
+		};
+		$html  = '<main><div class="wp-block-post-content"><p>Texte.</p></div><ul class="wpwbd_list">'
+			. $entry(
+				array(
+					'topic'  => 'wikidata:Q25422',
+					'kind'   => 'species',
+					'label'  => 'Pinson des arbres',
+					'source' => 'whobird',
+				)
+			)
+			. $entry(
+				array(
+					'topic'  => 'wikidata:Q26825',
+					'kind'   => 'species',
+					'label'  => 'Bruant d\'Europe, dit "le zizi" & Cie / Mésange à longue queue',
+					'source' => 'whobird',
+				)
+			)
+			. $entry(
+				array(
+					'topic'  => 'wikidata:Q1',
+					'kind'   => 'species',
+					'source' => 'whobird',
+				)
+			)
+			. '<li class="wpwbd-bird-entry" data-recordings="https://e.vli.st/d.wav"><div class="common-name">sans identifiant</div></li>'
+			. '</ul></main>';
+
+		$signals = $this->reader->signals( $html );
+
+		$this->assertSame( array( 'page:wikidata:Q25422', 'page:wikidata:Q26825', 'page:wikidata:Q1' ), $this->of( $signals, Signal::TOPIC ) );
+
+		$topics = array_values( array_filter( $signals, static fn( $signal ) => Signal::TOPIC === $signal->type ) );
+
+		foreach ( $topics as $topic ) {
+			$this->assertSame( 'species', $topic->data['kind'] );
+			$this->assertSame( 'whobird', $topic->data['source'] );
+			$this->assertTrue( $topic->data['identifier'] );
+		}
+
+		$this->assertSame( 'Pinson des arbres', $topics[0]->data['label'] );
+		$this->assertSame( 'Bruant d\'Europe, dit "le zizi" & Cie / Mésange à longue queue', $topics[1]->data['label'], 'The label makes the round trip.' );
+		$this->assertArrayNotHasKey( 'label', $topics[2]->data, 'No label when the name does not come from Wikidata.' );
+	}
+
+	/**
 	 * The two forms of a mark (slice 636): the text form with its companions, and the JSON form (an object, or a list of objects) whose keys win over the companions;
 	 * `topic` or `id` holds what the text form holds (an identifier, a path, several topics); a source is a slug; a JSON that does not parse says nothing.
 	 *
