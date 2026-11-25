@@ -303,8 +303,22 @@ final class Kinds {
 	}
 
 	/**
-	 * Whether two kinds can be one topic: one is a sort of the other. A kind that is unknown, empty, `any` or `other` conflicts with nothing (`other` was
-	 * the kind of what was not classified before `any` came, and a topic is not made ambiguous by what a person typed `other`).
+	 * The pairs of kinds that name **the same place seen at two precisions** (slice 640): a locality that the chain of one photograph gives as the commune and the
+	 * chain of another as a site below the commune. They are neither a sort of the other in the tree of the kinds (a site is not a sort of commune), and **they are
+	 * one topic**: the filter `index_kinds_same_place` changes the list.
+	 *
+	 * @return array<int, array{0:string,1:string}>
+	 */
+	public static function same_place() {
+		$pairs = apply_filters( 'index_kinds_same_place', array( array( 'commune', 'site' ) ) );
+
+		return is_array( $pairs ) ? $pairs : array();
+	}
+
+	/**
+	 * Whether two kinds can be one topic: one is a sort of the other, or they name the same place at two precisions (`same_place()`). A kind that is unknown, empty,
+	 * `any` or `other` conflicts with nothing (`other` was the kind of what was not classified before `any` came, and a topic is not made ambiguous by what a person
+	 * typed `other`).
 	 *
 	 * @param string $a Kind.
 	 * @param string $b Kind.
@@ -317,7 +331,17 @@ final class Kinds {
 			}
 		}
 
-		return self::is_a( $a, $b ) || self::is_a( $b, $a );
+		if ( self::is_a( $a, $b ) || self::is_a( $b, $a ) ) {
+			return true;
+		}
+
+		foreach ( self::same_place() as $pair ) {
+			if ( is_array( $pair ) && 2 === count( $pair ) && ( ( (string) $pair[0] === (string) $a && (string) $pair[1] === (string) $b ) || ( (string) $pair[1] === (string) $a && (string) $pair[0] === (string) $b ) ) ) {
+				return true;
+			}
+		}
+
+		return false;
 	}
 
 	/**

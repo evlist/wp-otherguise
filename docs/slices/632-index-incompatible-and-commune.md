@@ -25,3 +25,7 @@ Status: **coded on 2026-11-24** (1025 PHPUnit tests, with a real database; the j
 
 - Other pairs of kinds that are one thing seen twice (a `site` that is also a `route`...) are not looked for: the view *Incompatible* will show them.
 - The kind of a topic that was refined is not moved back if `commune` is moved again by hand.
+
+## Amendment (slice 640)
+
+A **commune and a site** are now one place too (the same place at two precisions), without changing the tree of the kinds: see [`640-index-site-and-commune.md`](640-index-site-and-commune.md).

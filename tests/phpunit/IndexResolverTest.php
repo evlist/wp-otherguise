@@ -365,4 +365,30 @@ class IndexResolverTest extends TestCase {
 		$this->assertSame( Topics::APPROVED, $this->topics->get( $made['topic'] )['status'], 'The level that has a kind is sure.' );
 		$this->assertSame( Topics::CANDIDATE, $this->topics->get( $this->topics->get( $made['topic'] )['parent'] )['status'], 'The level above has none: a candidate.' );
 	}
+
+	/**
+	 * A topic of the kind site met by a chain that gives it as the commune (or the reverse) is **the same place** (slice 640): it is found, not left incompatible, and its
+	 * kind is not changed; a place of another kind with the same name is still incompatible.
+	 *
+	 * @return void
+	 */
+	public function test_a_site_and_a_commune_are_one_place(): void {
+		$greece = $this->resolver->resolve( new Candidate( 'Grèce', 'country', array( 'label:0/grece' ) ) )['topic'];
+		$site   = $this->topics->create( 'Igoumenítsa', 'site', $greece, Topics::APPROVED, array( 'label:' . $greece . '/igoumenitsa' ) );
+
+		$commune = new Candidate( 'Igoumenítsa', 'commune', array(), new Candidate( 'Grèce', 'country', array( 'label:0/grece' ) ) );
+		$found   = $this->resolver->resolve( $commune );
+
+		$this->assertSame( Resolver::RESOLVED, $found['result'], 'The same place: not incompatible.' );
+		$this->assertSame( $site, $found['topic'] );
+		$this->assertSame( 'site', $this->topics->get( $site )['kind'], 'The kind stays: nobody says which precision is the right one.' );
+
+		$again = new Candidate( 'Igoumenítsa', 'site', array(), new Candidate( 'Grèce', 'country', array( 'label:0/grece' ) ) );
+
+		$this->assertSame( $site, $this->resolver->resolve( $again )['topic'] );
+
+		$species = new Candidate( 'Igoumenítsa', 'species', array(), new Candidate( 'Grèce', 'country', array( 'label:0/grece' ) ) );
+
+		$this->assertSame( Resolver::INCOMPATIBLE, $this->resolver->resolve( $species )['ambiguity']['type'], 'Another kind is still incompatible.' );
+	}
 }

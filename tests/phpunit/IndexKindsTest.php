@@ -445,4 +445,19 @@ class IndexKindsTest extends TestCase {
 		$this->assertTrue( Kinds::compatible( 'any', 'species' ) );
 		$this->assertTrue( Kinds::compatible( 'commune', 'any' ) );
 	}
+
+	/**
+	 * A commune and a site name **the same place at two precisions** (slice 640): they can be one topic, in both directions; the other levels of a place still exclude
+	 * each other; the filter `index_kinds_same_place` changes the pairs.
+	 *
+	 * @return void
+	 */
+	public function test_a_commune_and_a_site_can_be_one_topic(): void {
+		$this->assertTrue( Kinds::compatible( 'commune', 'site' ) );
+		$this->assertTrue( Kinds::compatible( 'site', 'commune' ), 'In both directions.' );
+		$this->assertFalse( Kinds::compatible( 'admin2', 'site' ), 'A department is not a site.' );
+		$this->assertFalse( Kinds::compatible( 'country', 'commune' ) );
+		$this->assertFalse( Kinds::compatible( 'species', 'site' ) );
+		$this->assertFalse( Kinds::is_a( 'site', 'commune' ), 'The tree of the kinds is not changed: a site is not a sort of commune.' );
+	}
 }
