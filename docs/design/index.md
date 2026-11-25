@@ -318,6 +318,8 @@ A **topic** is an **abstraction** (the river Allier, the département Allier: ea
 
 ## Marks in the text (Proposed)
 
+> **2026-11-25 (slice [636](../slices/636-index-marks-in-json.md)): a mark has two forms**, the text form below and **a JSON form** (`data-index` whose value starts with `{` or `[`: `{"topic":"wikidata:Q25422","kind":"species","label":"Pinson des arbres","source":"whobird"}`; the keys win over the companion attributes), and **a mark may say its source** (`data-index-source`, or `source`): the source is then `post/mark/<source>` when it is registered below the marks. The generic reader is `Harvest/PageReader`, the source `post/mark`.
+
 `<span data-index="Santiago de Compostela">Compostelle</span>`: **the attribute of the convention above** written by hand; it names the **entry** (a label, or an identifier), the optional `data-index-sort` and `data-index-main`. A mark **also counts as a tag** (a mention of the post) even if its passage is not printed. In the editor: a **button** that opens a field with **auto-completion on the entries that exist**. **To check**: WordPress filters some attributes on saving for the roles that have no `unfiltered_html`. A search source may **write the marks** after the validation (an assistant), which changes the contents of the posts: a command with `--dry-run` and a report, tried on a copy first.
 
 ## What is proposed first (Eric's order, 2026-11-21)

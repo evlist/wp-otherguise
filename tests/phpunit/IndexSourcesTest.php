@@ -42,18 +42,18 @@ class IndexSourcesTest extends TestCase {
 	public function test_the_hierarchy_of_the_sources(): void {
 		$this->assertTrue( Sources::is_source( 'post/tag' ) );
 		$this->assertTrue( Sources::is_source( 'image/address' ) );
-		$this->assertTrue( Sources::is_source( 'whobird' ) );
+		$this->assertTrue( Sources::is_source( 'post/mark/whobird' ) );
 		$this->assertFalse( Sources::is_source( 'post/nonsense' ) );
 
 		$this->assertSame( 'post', Sources::parent( 'post/tag' ) );
-		$this->assertSame( '', Sources::parent( 'whobird' ) );
+		$this->assertSame( 'post/mark', Sources::parent( 'post/mark/whobird' ) );
 
 		$this->assertTrue( Sources::is_a( 'post/tag', 'post' ) );
 		$this->assertTrue( Sources::is_a( 'post', 'post' ) );
 		$this->assertFalse( Sources::is_a( 'post', 'post/tag' ) );
 		$this->assertFalse( Sources::is_a( 'postal/tag', 'post' ), 'A path that only begins like another is not below it.' );
 
-		$this->assertSame( array( 'post', 'post/category', 'post/tag', 'post/link', 'post/mark' ), Sources::descendants( 'post' ) );
+		$this->assertSame( array( 'post', 'post/category', 'post/tag', 'post/link', 'post/mark', 'post/mark/whobird' ), Sources::descendants( 'post' ) );
 		$this->assertContains( 'image/address', Sources::descendants( 'image' ) );
 		$this->assertContains( 'trace/end', Sources::descendants( 'trace' ) );
 	}

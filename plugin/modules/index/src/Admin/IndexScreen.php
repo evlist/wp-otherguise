@@ -418,9 +418,9 @@ final class IndexScreen {
 		$features = (array) ( $this->read )();
 		$sources  = (array) ( $features['sources'] ?? array() );
 		$labels   = array(
-			'src_categories' => __( 'The categories (those that have a kind)', 'otherguise' ),
-			'src_tags'       => __( 'The tags (those that have a kind)', 'otherguise' ),
-			'src_page'       => __( 'The pages: the links to Wikipedia and the marks', 'otherguise' ),
+			'src_categories' => __( 'The categories (those that have no kind give candidate topics)', 'otherguise' ),
+			'src_tags'       => __( 'The tags (those that have no kind give candidate topics)', 'otherguise' ),
+			'src_page'       => __( 'The pages: the marks (data-index, in the text or in JSON) and the links to Wikipedia', 'otherguise' ),
 			'src_photos'     => __( 'The photographs and the tracks (they need the pages, which are turned on with them)', 'otherguise' ),
 		);
 

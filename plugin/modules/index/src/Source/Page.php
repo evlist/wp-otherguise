@@ -61,12 +61,12 @@ final class Page implements Source {
 	}
 
 	/**
-	 * The sources of its mentions: the links and the marks.
+	 * The sources of its mentions: the links, the marks, and the sources below the marks (slice 636: a mark that says its source, `post/mark/whobird`).
 	 *
 	 * @return string[]
 	 */
 	public function mention_sources() {
-		return array( Sources::LINK, Sources::MARK );
+		return array_merge( array( Sources::LINK ), Sources::descendants( Sources::MARK ) );
 	}
 
 	/**
@@ -152,7 +152,11 @@ final class Page implements Source {
 
 		$modes = is_array( $signal->data['modes'] ?? null ) ? array_map( 'strval', $signal->data['modes'] ) : array();
 
-		return null === $parent ? null : $parent->from( Sources::MARK, array( 'mark:' . ( '' !== $signal->anchor ? '#' . $signal->anchor : implode( ' > ', $path ) ) ), $modes );
+		// A mark that says its source (`data-index-source`, or `source` in the JSON form) is of that source when it is registered below the marks (slice 636): a source
+		// that nobody declared is the mark itself.
+		$leaf = isset( $signal->data['source'] ) && Sources::is_source( Sources::MARK . '/' . (string) $signal->data['source'] ) ? Sources::MARK . '/' . (string) $signal->data['source'] : Sources::MARK;
+
+		return null === $parent ? null : $parent->from( $leaf, array( 'mark:' . ( '' !== $signal->anchor ? '#' . $signal->anchor : implode( ' > ', $path ) ) ), $modes );
 	}
 
 	/**

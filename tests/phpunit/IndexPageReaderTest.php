@@ -229,6 +229,53 @@ class IndexPageReaderTest extends TestCase {
 	}
 
 	/**
+	 * The two forms of a mark (slice 636): the text form with its companions, and the JSON form (an object, or a list of objects) whose keys win over the companions;
+	 * `topic` or `id` holds what the text form holds (an identifier, a path, several topics); a source is a slug; a JSON that does not parse says nothing.
+	 *
+	 * @return void
+	 */
+	public function test_the_marks_in_json(): void {
+		$html = '<main><div class="wp-block-post-content">'
+			. '<span id="a" data-index="{&quot;topic&quot;:&quot;wikidata:Q25422&quot;,&quot;kind&quot;:&quot;species&quot;,&quot;label&quot;:&quot;Pinson des arbres&quot;,&quot;source&quot;:&quot;Whobird&quot;,&quot;main&quot;:true,&quot;modes&quot;:[&quot;web&quot;,&quot;print&quot;]}">x</span>'
+			. '<span data-index="{&quot;id&quot;:&quot;Beaufort > Les Arberons&quot;,&quot;sort&quot;:&quot;Arberons&quot;}" data-index-kind="place" data-index-label="Ignored by the JSON">y</span>'
+			. '<span data-index="[{&quot;topic&quot;:&quot;wikidata:Q1&quot;},{&quot;topic&quot;:&quot;Doron | Beaufort&quot;,&quot;source&quot;:&quot;not a slug!&quot;},&quot;a string is not a mark&quot;]">z</span>'
+			. '<span data-index="{&quot;topic&quot;:&quot;wikidata:Q9&quot;" data-index-kind="species">broken</span>'
+			. '<span data-index="Doron" data-index-source="whobird" data-index-kind="place">t</span>'
+			. '</div></main>';
+
+		$signals = $this->reader->signals( $html );
+
+		$this->assertSame(
+			array( 'page:wikidata:Q25422', 'page:Beaufort > Les Arberons', 'page:wikidata:Q1', 'page:Doron', 'page:Beaufort', 'page:Doron' ),
+			$this->of( $signals, Signal::TOPIC ),
+			'The broken JSON says nothing; the list gives two marks, one of them with two topics.'
+		);
+
+		$first = $signals[0];
+
+		$this->assertSame( 'species', $first->data['kind'] );
+		$this->assertSame( 'Pinson des arbres', $first->data['label'] );
+		$this->assertSame( 'whobird', $first->data['source'], 'A slug, in lower case.' );
+		$this->assertTrue( $first->data['main'] );
+		$this->assertSame( array( 'web', 'print' ), $first->data['modes'] );
+		$this->assertSame( 'a', $first->anchor );
+		$this->assertTrue( $first->data['identifier'] );
+
+		$second = $signals[1];
+
+		$this->assertSame( array( 'Beaufort', 'Les Arberons' ), $second->data['path'] );
+		$this->assertSame( 'Arberons', $second->data['sort'] );
+		$this->assertSame( 'place', $second->data['kind'], 'A companion fills what the JSON lacks.' );
+		$this->assertSame( 'Ignored by the JSON', $second->data['label'], 'Nothing in the JSON says otherwise.' );
+		$this->assertArrayNotHasKey( 'source', $signals[3]->data, 'A source that is not a slug is dropped.' );
+
+		$text = $signals[5];
+
+		$this->assertSame( 'whobird', $text->data['source'], 'The companion attribute of the text form.' );
+		$this->assertSame( 'place', $text->data['kind'] );
+	}
+
+	/**
 	 * The marks in every form: identifier, path, several topics, the main flag, the anchor, a mark in a footer, an empty mark and what is
 	 * under `data-index-ignore`. A document with no `<main>` and no contents is read whole.
 	 *

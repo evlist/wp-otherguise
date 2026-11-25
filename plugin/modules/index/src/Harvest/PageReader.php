@@ -242,7 +242,10 @@ final class PageReader {
 	}
 
 	/**
-	 * The explicit marks: `data-index` and its companions.
+	 * The explicit marks: `data-index`, in **two forms** (slice 636). The text form, `data-index="wikidata:Q9"` or `data-index="Beaufort > Les Arberons | Doron"`,
+	 * with its companions `data-index-kind`, `-label`, `-sort`, `-main`, `-modes` and `-source`; and **the JSON form**, a value that starts with `{` (an object) or `[`
+	 * (a list of objects): `{"topic":"wikidata:Q9","kind":"species","label":"Merle noir","source":"whobird"}`, where `topic` (or `id`) is what the text form holds
+	 * and the other keys are the companions. **In the JSON form the keys win over the companions**, which fill what it lacks. A JSON that does not parse says nothing.
 	 *
 	 * @param \WP_HTML_Tag_Processor $tags    The processor, on the element.
 	 * @param Signal[]               $signals Receives the signals.
@@ -255,38 +258,95 @@ final class PageReader {
 			return;
 		}
 
-		$id    = $tags->get_attribute( 'id' );
-		$extra = array();
+		$id        = $tags->get_attribute( 'id' );
+		$anchor    = is_string( $id ) ? $id : '';
+		$companion = self::fields(
+			array(
+				'kind'   => $tags->get_attribute( 'data-index-kind' ),
+				'label'  => $tags->get_attribute( 'data-index-label' ),
+				'sort'   => $tags->get_attribute( 'data-index-sort' ),
+				'source' => $tags->get_attribute( 'data-index-source' ),
+				'modes'  => $tags->get_attribute( 'data-index-modes' ),
+				'main'   => null !== $tags->get_attribute( 'data-index-main' ),
+			)
+		);
+		$text      = trim( $mark );
 
-		foreach ( array(
-			'kind'  => 'data-index-kind',
-			'label' => 'data-index-label',
-			'sort'  => 'data-index-sort',
-		) as $name => $attribute ) {
-			$value = $tags->get_attribute( $attribute );
+		if ( '{' !== $text[0] && '[' !== $text[0] ) {
+			$this->add_topics( $signals, $text, $companion, $anchor );
 
-			if ( is_string( $value ) && '' !== trim( $value ) ) {
-				$extra[ $name ] = trim( $value );
+			return;
+		}
+
+		$items = json_decode( $text, true );
+
+		if ( ! is_array( $items ) ) {
+			return;
+		}
+
+		// An object is one mark; a list is several.
+		$items = isset( $items[0] ) ? $items : array( $items );
+
+		foreach ( $items as $item ) {
+			if ( is_array( $item ) ) {
+				$this->add_topics( $signals, trim( (string) ( $item['topic'] ?? $item['id'] ?? '' ) ), array_merge( $companion, self::fields( $item ) ), $anchor );
+			}
+		}
+	}
+
+	/**
+	 * The fields of a mark, cleaned: the strings trimmed (empty ones dropped), the source a slug of at most 31 characters (letters, digits, hyphens), the flag
+	 * `main`, the modes as slugs. The same for the companion attributes and for the keys of the JSON form.
+	 *
+	 * @param array<string, mixed> $raw `kind`, `label`, `sort`, `source`, `modes` (a string or a list) and `main`.
+	 * @return array<string, mixed>
+	 */
+	private static function fields( array $raw ) {
+		$fields = array();
+
+		foreach ( array( 'kind', 'label', 'sort' ) as $name ) {
+			if ( isset( $raw[ $name ] ) && is_string( $raw[ $name ] ) && '' !== trim( $raw[ $name ] ) ) {
+				$fields[ $name ] = trim( $raw[ $name ] );
 			}
 		}
 
-		if ( null !== $tags->get_attribute( 'data-index-main' ) ) {
-			$extra['main'] = true;
+		$source = isset( $raw['source'] ) && is_string( $raw['source'] ) ? strtolower( trim( $raw['source'] ) ) : '';
+
+		if ( 1 === preg_match( '/^[a-z][a-z0-9-]{0,30}$/', $source ) ) {
+			$fields['source'] = $source;
+		}
+
+		if ( true === ( $raw['main'] ?? false ) || 'true' === ( $raw['main'] ?? '' ) || 1 === ( $raw['main'] ?? 0 ) ) {
+			$fields['main'] = true;
 		}
 
 		// The modes in which the mark is shown (slice 605), as slugs; absent: every mode.
-		$modes = $tags->get_attribute( 'data-index-modes' );
+		$modes = $raw['modes'] ?? null;
+		$modes = is_array( $modes ) ? implode( ' ', array_map( 'strval', array_filter( $modes, 'is_scalar' ) ) ) : $modes;
 
 		if ( is_string( $modes ) ) {
 			$words = preg_split( '/[\s,]+/', strtolower( $modes ) );
 			$slugs = array_values( array_filter( false === $words ? array() : $words, static fn( $slug ) => 1 === preg_match( '/^[a-z0-9_-]{1,40}$/', $slug ) ) );
 
 			if ( array() !== $slugs ) {
-				$extra['modes'] = array_values( array_unique( $slugs ) );
+				$fields['modes'] = array_values( array_unique( $slugs ) );
 			}
 		}
 
-		foreach ( explode( '|', $mark ) as $part ) {
+		return $fields;
+	}
+
+	/**
+	 * Makes the signals of the topics that a mark names (`a | b > c`): an identifier, or a path.
+	 *
+	 * @param Signal[]             $signals Receives the signals.
+	 * @param string               $value   What the mark names.
+	 * @param array<string, mixed> $extra   The fields of the mark.
+	 * @param string               $anchor  The `id` of the element.
+	 * @return void
+	 */
+	private function add_topics( array &$signals, $value, array $extra, $anchor ) {
+		foreach ( explode( '|', (string) $value ) as $part ) {
 			$path = array_values( array_filter( array_map( 'trim', explode( '>', $part ) ), 'strlen' ) );
 
 			if ( array() === $path ) {
@@ -297,7 +357,7 @@ final class PageReader {
 			$data['path']       = $path;
 			$data['identifier'] = 1 === count( $path ) && 1 === preg_match( self::IDENTIFIER, $path[0] );
 
-			$signals[] = new Signal( Signal::TOPIC, implode( ' > ', $path ), 'page', 'data-index', $data, is_string( $id ) ? $id : '' );
+			$signals[] = new Signal( Signal::TOPIC, implode( ' > ', $path ), 'page', 'data-index', $data, $anchor );
 		}
 	}
 

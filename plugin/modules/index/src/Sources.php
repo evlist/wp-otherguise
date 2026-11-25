@@ -45,7 +45,7 @@ final class Sources {
 			'trace'         => array( __( 'A GPX track named in a post', 'otherguise' ), array() ),
 			'trace/start'   => array( __( 'The start of a track', 'otherguise' ), array() ),
 			'trace/end'     => array( __( 'The end of a track', 'otherguise' ), array() ),
-			'whobird'       => array( __( 'An observation of whoBIRD', 'otherguise' ), array() ),
+			self::MARK . '/whobird' => array( __( 'An observation of whoBIRD (a mark that says so)', 'otherguise' ), array() ),
 			self::HAND      => array( __( 'Made by a person', 'otherguise' ), array() ),
 		);
 

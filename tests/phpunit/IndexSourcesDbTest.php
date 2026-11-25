@@ -621,4 +621,52 @@ class IndexSourcesDbTest extends Otherguise_Test_Database_Case {
 		$this->assertSame( array( 'link:fr:Beaufort', 'mark:#obs1' ), $vias );
 		$this->assertSame( '<p>Rien</p>', ( new MentionElements( $reader, $page, $this->mentions ) )->mark( '<p>Rien</p>', 2 ), 'A post with no mention is left as it is.' );
 	}
+
+	/**
+	 * A mark that says its source (slice 636, `source` in the JSON form or `data-index-source`) is of the source `post/mark/<source>` when it is registered below the marks,
+	 * and of `post/mark` otherwise; the mentions of the sources below the marks are made again, and withdrawn when the mark goes.
+	 *
+	 * @return void
+	 */
+	public function test_a_mark_that_says_its_source(): void {
+		if ( ! Otherguise_Test_Html_Api::load() ) {
+			$this->markTestSkipped( 'The tag processor is not available.' );
+		}
+
+		$html  = '<main><div class="wp-block-post-content"><p>Texte.</p></div><ul>'
+			. '<li data-index="{&quot;topic&quot;:&quot;wikidata:Q25422&quot;,&quot;kind&quot;:&quot;species&quot;,&quot;label&quot;:&quot;Pinson des arbres&quot;,&quot;source&quot;:&quot;whobird&quot;}">a</li>'
+			. '<li data-index="wikidata:Q26825" data-index-kind="species" data-index-source="nobody">b</li>'
+			. '</ul></main>';
+		$meta  = array();
+		$store = new SignalStore(
+			static function ( $id, $key ) use ( &$meta ) {
+				return $meta[ $id ][ $key ] ?? '';
+			},
+			static function ( $id, $key, $value ) use ( &$meta ) {
+				$meta[ $id ][ $key ] = is_string( $value ) ? stripslashes( $value ) : $value;
+			},
+			static fn() => 1700000000
+		);
+		$page    = new Page( $store );
+		$indexer = new Indexer( new Resolver( $this->topics ), $this->mentions, array( $page ), static fn() => true );
+
+		$this->assertSame( array( 'post/link', 'post/mark', 'post/mark/whobird' ), $page->mention_sources() );
+
+		$store->save( 1, ( new PageReader() )->signals( $html, 1 ) );
+		$indexer->index_post( 1 );
+
+		$sources = array();
+
+		foreach ( $this->mentions->of_post( 1 ) as $id => $mention ) {
+			$sources[ $this->topics->get( $id )['label'] ] = $mention['sources'];
+		}
+
+		$this->assertSame( array( 'post/mark/whobird' ), $sources['Pinson des arbres'], 'The source that the mark says, as it is registered.' );
+		$this->assertSame( array( 'post/mark' ), $sources['Q26825'], 'A source that nobody declared is the mark itself.' );
+
+		$store->save( 1, array() );
+		$indexer->index_post( 1 );
+
+		$this->assertSame( array(), $this->mentions->of_post( 1 ), 'The mentions of the source below the marks go with the mark.' );
+	}
 }
