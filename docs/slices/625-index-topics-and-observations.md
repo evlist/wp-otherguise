@@ -24,6 +24,8 @@ Status: **design validated by Eric on 2026-11-24; coded in slice [626](626-index
 
 ## Vocabulary (Decided by Eric, 2026-11-24)
 
+> **Amended on 2026-11-25: what this table calls a *designation* is now called a *motif*** (and the assignment associates a topic with a motif). The words are in [`../design/vocabulary.md`](../design/vocabulary.md); the renaming of the screens, the commands and the documents is not done yet, so *designation* below, in the code and in the commands means *motif*.
+
 | Word | Meaning |
 |---|---|
 | **Topic** | An **abstraction**: a concept that can be indexed (the river Allier, the département Allier, the commune Moulins). It has a **label**, a **kind**, a **place in its own tree** (parent), **identifiers** (`wikidata:Q…`, OSM) and a status. It exists **by itself**: it is edited as a topic, not deduced from what was seen. |

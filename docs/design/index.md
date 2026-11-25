@@ -312,6 +312,8 @@ The geocoding (coordinates to a place) is the one real decision of the list: an 
 
 ## Topics, designations and observations (the principle Decided by Eric, 2026-11-24; the details are Proposed)
 
+> **2026-11-25: a *designation* is now called a *motif*** (the vocabulary of the module is in [`vocabulary.md`](vocabulary.md)); the renaming of the screens, the commands and the documents is not done yet.
+
 A **topic** is an **abstraction** (the river Allier, the département Allier: each its own topic with its own place in the tree). A **designation** is **the way a source designates something**, wherever it is found (the link to one Wikipedia page, the commune given by the photographs, a tag): it is **the class**, and it is **what is assigned to a topic**. An **observation** is **one occurrence of a designation in a post**: it is **the instance**. **There is no merge and no split, only assignments**, automatic or manual: moving what was seen from one topic to another is assigning the designation again, nothing is deleted, a wrong guess of the system is put right on **one screen that manages the topics and their designations** (never the observations, which would be an endless list). The enrichment happens **before** a topic is created, once per designation. The details, the storage (Triples for now), the migration and the slices that follow are in [slice 625](../slices/625-index-topics-and-observations.md); the code of slices 600 to 624 still has *mention*s attached to topics directly.
 
 ## Marks in the text (Proposed)
