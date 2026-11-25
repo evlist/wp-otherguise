@@ -3,7 +3,7 @@
  * SPDX-FileCopyrightText: 2026 Eric van der Vlist <vdv@dyomedea.com>
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * Tests of the designations, the observations and the assignments (slice 626), on a real database for the statements.
+ * Tests of the motifs, the observations and the assignments (slice 626), on a real database for the statements.
  *
  * @package Otherguise
  */
@@ -36,7 +36,7 @@ require_once __DIR__ . '/support/class-otherguise-test-memory-kinds.php';
 require_once __DIR__ . '/support/class-otherguise-test-memory-designations.php';
 
 /**
- * The statements are real; the topics, the designations and the kinds are in memory.
+ * The statements are real; the topics, the motifs and the kinds are in memory.
  *
  * @covers \Otherguise\Index\Observations
  * @covers \Otherguise\Index\Designation\Keys
@@ -54,7 +54,7 @@ class IndexDesignationsDbTest extends Otherguise_Test_Database_Case {
 	private $topics;
 
 	/**
-	 * The designations.
+	 * The motifs.
 	 *
 	 * @var Otherguise_Test_Memory_Designations
 	 */
@@ -192,7 +192,7 @@ class IndexDesignationsDbTest extends Otherguise_Test_Database_Case {
 	}
 
 	/**
-	 * The key of a designation: the strongest identity, the source in front; a chain of labels when there is none.
+	 * The key of a motif: the strongest identity, the source in front; a chain of labels when there is none.
 	 *
 	 * @return void
 	 */
@@ -212,7 +212,7 @@ class IndexDesignationsDbTest extends Otherguise_Test_Database_Case {
 	}
 
 	/**
-	 * A link seen in two posts is **one designation** with two observations; reading again changes nothing; the mentions are the same as without the model.
+	 * A link seen in two posts is **one motif** with two observations; reading again changes nothing; the mentions are the same as without the model.
 	 *
 	 * @return void
 	 */
@@ -224,7 +224,7 @@ class IndexDesignationsDbTest extends Otherguise_Test_Database_Case {
 		$this->indexer->index_post( 2 );
 		$this->indexer->index_post( 2 );
 
-		$this->assertCount( 1, $this->designations->designations, 'One designation, whatever the posts.' );
+		$this->assertCount( 1, $this->designations->designations, 'One motif, whatever the posts.' );
 
 		$id    = (int) array_key_first( $this->designations->designations );
 		$topic = $this->observations->assignment( $id );
@@ -239,7 +239,7 @@ class IndexDesignationsDbTest extends Otherguise_Test_Database_Case {
 	}
 
 	/**
-	 * What a person assigned is never changed by a reading: the designation goes where it was put, the resolver is not asked, and the mention follows.
+	 * What a person assigned is never changed by a reading: the motif goes where it was put, the resolver is not asked, and the mention follows.
 	 *
 	 * @return void
 	 */
@@ -271,7 +271,7 @@ class IndexDesignationsDbTest extends Otherguise_Test_Database_Case {
 
 	/**
 	 * A topic that a decision holds is not mentioned by a post, but is not cleaned away either; a source dropped takes its observations and not its
-	 * designations; the cleaner deletes the designations that the system proposed and that nobody observes, not the ones that a person assigned.
+	 * motifs; the cleaner deletes the motifs that the system proposed and that nobody observes, not the ones that a person assigned.
 	 *
 	 * @return void
 	 */
@@ -288,7 +288,7 @@ class IndexDesignationsDbTest extends Otherguise_Test_Database_Case {
 
 		$this->assertSame( 2, $dropped['mentions'] );
 		$this->assertSame( array(), $this->observations->of_post( 1 ), 'The observations go with the source.' );
-		$this->assertCount( 2, $this->designations->designations, 'The designations stay.' );
+		$this->assertCount( 2, $this->designations->designations, 'The motifs stay.' );
 		$this->assertArrayHasKey( $river, $this->mentions->mentioned_topics(), 'A decision holds its topic.' );
 
 		$cleaner = new Cleaner( $this->designations, $this->observations );
@@ -301,7 +301,7 @@ class IndexDesignationsDbTest extends Otherguise_Test_Database_Case {
 	}
 
 	/**
-	 * Merging two topics assigns the designations of the first to the second, by a person.
+	 * Merging two topics assigns the motifs of the first to the second, by a person.
 	 *
 	 * @return void
 	 */
@@ -329,7 +329,7 @@ class IndexDesignationsDbTest extends Otherguise_Test_Database_Case {
 	}
 
 	/**
-	 * A mention made by a person has its designation (the source `hand`), assigned by hand, and its observation.
+	 * A mention made by a person has its motif (the source `hand`), assigned by hand, and its observation.
 	 *
 	 * @return void
 	 */
@@ -357,8 +357,8 @@ class IndexDesignationsDbTest extends Otherguise_Test_Database_Case {
 	}
 
 	/**
-	 * The assignment by a person: a dry run changes nothing; the real one moves the designation, **the mentions of the posts follow without reading
-	 * the pages**, the designation and its observations stay, and a kind conflict is refused unless forced.
+	 * The assignment by a person: a dry run changes nothing; the real one moves the motif, **the mentions of the posts follow without reading
+	 * the pages**, the motif and its observations stay, and a kind conflict is refused unless forced.
 	 *
 	 * @return void
 	 */
@@ -409,7 +409,7 @@ class IndexDesignationsDbTest extends Otherguise_Test_Database_Case {
 	}
 
 	/**
-	 * The mentions made by hand before the model are converted: a designation assigned by hand and an observation; run twice, it finds them again.
+	 * The mentions made by hand before the model are converted: a motif assigned by hand and an observation; run twice, it finds them again.
 	 *
 	 * @return void
 	 */
@@ -429,7 +429,7 @@ class IndexDesignationsDbTest extends Otherguise_Test_Database_Case {
 				'created' => 2,
 			),
 			$migration->run( true ),
-			'A dry run counts (one designation is counted for each post).'
+			'A dry run counts (one motif is counted for each post).'
 		);
 		$this->assertCount( 0, $this->designations->designations );
 
@@ -486,7 +486,7 @@ class IndexDesignationsDbTest extends Otherguise_Test_Database_Case {
 		$this->assertCount( 2, $lines );
 		$this->assertStringContainsString( 'post/link|wikipedia:fr:Allier_(rivière)', $lines[0] );
 		$this->assertStringContainsString( ', system)', $lines[0] );
-		$this->assertSame( '2 designation(s).', $done[0] );
+		$this->assertSame( '2 motif(s).', $done[0] );
 
 		$first = (int) array_key_first( $this->designations->designations );
 		$lines = array();
@@ -495,7 +495,7 @@ class IndexDesignationsDbTest extends Otherguise_Test_Database_Case {
 			array(),
 			array(
 				'topic' => $river,
-				'designation' => (string) $first,
+				'motif' => (string) $first,
 			)
 		);
 
@@ -506,7 +506,7 @@ class IndexDesignationsDbTest extends Otherguise_Test_Database_Case {
 			array(),
 			array(
 				'topic' => $river,
-				'designation' => (string) $first,
+				'motif' => (string) $first,
 				'apply' => true,
 			)
 		);
@@ -593,7 +593,7 @@ class IndexDesignationsDbTest extends Otherguise_Test_Database_Case {
 	}
 
 	/**
-	 * The reset takes the designations that the system proposed and keeps the ones that a person assigned; with `--everything` nothing stays.
+	 * The reset takes the motifs that the system proposed and keeps the ones that a person assigned; with `--everything` nothing stays.
 	 *
 	 * @return void
 	 */
@@ -652,8 +652,8 @@ class IndexDesignationsDbTest extends Otherguise_Test_Database_Case {
 	}
 
 	/**
-	 * An ambiguous candidate no longer leaves a placeholder topic (slice 629): **the designation holds the doubt** (state `ambiguous`, no assignment, no
-	 * mention), and the queue is made of designations.
+	 * An ambiguous candidate no longer leaves a placeholder topic (slice 629): **the motif holds the doubt** (state `ambiguous`, no assignment, no
+	 * mention), and the queue is made of motifs.
 	 *
 	 * @return void
 	 */
@@ -675,7 +675,7 @@ class IndexDesignationsDbTest extends Otherguise_Test_Database_Case {
 	}
 
 	/**
-	 * The cleaning phase deletes the designations that the system proposed and that nobody observes any more, and keeps the ones that a person assigned.
+	 * The cleaning phase deletes the motifs that the system proposed and that nobody observes any more, and keeps the ones that a person assigned.
 	 *
 	 * @return void
 	 */
@@ -758,8 +758,8 @@ class IndexDesignationsDbTest extends Otherguise_Test_Database_Case {
 	}
 
 	/**
-	 * A choice among the candidates: the topic is pinned to the level, the levels below are made under it, the designation is assigned **by hand**, the mentions
-	 * follow, and **the next designation that hesitates in the same way gets the same topic**; a topic that is not a candidate is refused.
+	 * A choice among the candidates: the topic is pinned to the level, the levels below are made under it, the motif is assigned **by hand**, the mentions
+	 * follow, and **the next motif that hesitates in the same way gets the same topic**; a topic that is not a candidate is refused.
 	 *
 	 * @return void
 	 */
@@ -803,14 +803,14 @@ class IndexDesignationsDbTest extends Otherguise_Test_Database_Case {
 
 		$second = $this->observations->assignment( $ids[1] );
 
-		$this->assertNotNull( $second, 'The other designation is no longer ambiguous: the choice was kept for the level.' );
+		$this->assertNotNull( $second, 'The other motif is no longer ambiguous: the choice was kept for the level.' );
 		$this->assertSame( $b, $this->topics->get( $second['topic'] )['parent'] );
 		$this->assertSame( Designations::ASSIGNED, $this->designations->get( $ids[1] )['state'] );
 	}
 
 	/**
-	 * Resolving the ambiguous designations again: a designation read before the candidates were kept gets them without its page; a dry run changes nothing; a
-	 * designation that the topics made since have cleared up is settled; the command says it.
+	 * Resolving the ambiguous motifs again: a motif read before the candidates were kept gets them without its page; a dry run changes nothing; a
+	 * motif that the topics made since have cleared up is settled; the command says it.
 	 *
 	 * @return void
 	 */
@@ -880,7 +880,7 @@ class IndexDesignationsDbTest extends Otherguise_Test_Database_Case {
 	}
 
 	/**
-	 * WordPress refuses a topic whose name is a sibling's: the topic that is there is taken instead of leaving the designation waiting for ever; of another kind,
+	 * WordPress refuses a topic whose name is a sibling's: the topic that is there is taken instead of leaving the motif waiting for ever; of another kind,
 	 * it is a doubt that a person settles.
 	 *
 	 * @return void

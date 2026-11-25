@@ -58,7 +58,7 @@ final class ResetCommand {
 	private $forget;
 
 	/**
-	 * The cleaner of the designations, when the model of slice 625 is on.
+	 * The cleaner of the motifs, when the model of slice 625 is on.
 	 *
 	 * @var Cleaner|null
 	 */
@@ -88,7 +88,7 @@ final class ResetCommand {
 	 * @param callable      $forget   Forgets the state of the reads.
 	 * @param callable|null $log      Default `WP_CLI::log`.
 	 * @param callable|null $success  Default `WP_CLI::success`.
-	 * @param Cleaner|null  $cleaner  The cleaner of the designations.
+	 * @param Cleaner|null  $cleaner  The cleaner of the motifs.
 	 */
 	public function __construct( Topics $topics, Mentions $mentions, TopicPruner $pruner, $stop, $forget, $log = null, $success = null, ?Cleaner $cleaner = null ) {
 		$this->topics   = $topics;
@@ -166,7 +166,7 @@ final class ResetCommand {
 		}
 
 		( $this->success )(
-			$dropped . ' mention(s) ' . ( $dry ? 'would be dropped, ' : 'dropped, ' ) . count( $designations ) . ' designation(s) and ' . count( $goes ) . ' topic(s) ' . ( $dry ? 'would be deleted' : 'deleted' ) . ', the state of the readings ' . ( $dry ? 'would be forgotten: nothing was changed, add --apply to do it.' : 'forgotten. Now: wp otherguise index sync start --from-scratch --foreground' )
+			$dropped . ' mention(s) ' . ( $dry ? 'would be dropped, ' : 'dropped, ' ) . count( $designations ) . ' motif(s) and ' . count( $goes ) . ' topic(s) ' . ( $dry ? 'would be deleted' : 'deleted' ) . ', the state of the readings ' . ( $dry ? 'would be forgotten: nothing was changed, add --apply to do it.' : 'forgotten. Now: wp otherguise index sync start --from-scratch --foreground' )
 		);
 	}
 }

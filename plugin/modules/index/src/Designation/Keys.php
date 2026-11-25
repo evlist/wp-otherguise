@@ -3,7 +3,7 @@
  * SPDX-FileCopyrightText: 2026 Eric van der Vlist <vdv@dyomedea.com>
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * The key of a designation.
+ * The key of a motif.
  *
  * @package Otherguise
  */
@@ -16,8 +16,8 @@ use Otherguise\Index\Folding;
 defined( 'ABSPATH' ) || exit;
 
 /**
- * What makes two observations the same designation (slice 625, 626), a pure function: **the source** and **the strongest identity that the candidate
- * carries**, whatever the post. A link to one Wikipedia page, a tag, a commune given by the photographs are each **one** designation, however many posts
+ * What makes two observations the same motif (slice 625, 626), a pure function: **the source** and **the strongest identity that the candidate
+ * carries**, whatever the post. A link to one Wikipedia page, a tag, a commune given by the photographs are each **one** motif, however many posts
  * show them.
  *
  * - an identifier of Wikidata, then of Wikipedia, then of OpenStreetMap, then the term of a tag or a category, when the candidate has one;
@@ -37,7 +37,7 @@ final class Keys {
 	private const IDENTIFIERS = array( 'wikidata:', 'wikipedia:', 'osm:', 'term:' );
 
 	/**
-	 * The key of the designation that a candidate makes.
+	 * The key of the motif that a candidate makes.
 	 *
 	 * @param Candidate $candidate The candidate.
 	 * @param string    $leaf      The source of its mention (`post/link`).
@@ -48,7 +48,7 @@ final class Keys {
 	}
 
 	/**
-	 * The key of the designation of a mention made by hand.
+	 * The key of the motif of a mention made by hand.
 	 *
 	 * @param int $topic Topic.
 	 * @return string

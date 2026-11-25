@@ -3,7 +3,7 @@
  * SPDX-FileCopyrightText: 2026 Eric van der Vlist <vdv@dyomedea.com>
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * The observations and the assignments of the designations.
+ * The observations and the assignments of the motifs.
  *
  * @package Otherguise
  */
@@ -19,12 +19,12 @@ defined( 'ABSPATH' ) || exit;
 /**
  * The two statements of the model of slice 625 (coded in slice 626):
  *
- * - **an observation**: `(post, index/observes, designation term)`, one per pair, qualified by `index/source` (the leaf of the source), `index/strength`,
+ * - **an observation**: `(post, index/observes, motif term)`, one per pair, qualified by `index/source` (the leaf of the source), `index/strength`,
  *   `index/via` (one value per file: the number of photographs of a place in a post is the number of its values) and `index/visible`. Triples keeps one
- *   statement per triple: **the occurrences of a designation in one post are the values of its qualifiers**;
- * - **an assignment**: `(designation term, index/designates, topic term)`, qualified by `index/by` (`system` or `hand`). A designation has at most one.
+ *   statement per triple: **the occurrences of a motif in one post are the values of its qualifiers**;
+ * - **an assignment**: `(motif term, index/designates, topic term)`, qualified by `index/by` (`system` or `hand`). A motif has at most one.
  *
- * The mentions (`Mentions`) are derived from these: the observations of a post, grouped by the topic of their designation.
+ * The mentions (`Mentions`) are derived from these: the observations of a post, grouped by the topic of their motif.
  */
 final class Observations {
 	public const OBSERVES   = 'index/observes';
@@ -111,7 +111,7 @@ final class Observations {
 	}
 
 	/**
-	 * What the observations of a post say, by designation.
+	 * What the observations of a post say, by motif.
 	 *
 	 * @param int         $post_id Post.
 	 * @param string|null $leaf    A source (with its sub-sources), or null for all.
@@ -146,7 +146,7 @@ final class Observations {
 	}
 
 	/**
-	 * The posts where a designation is observed.
+	 * The posts where a motif is observed.
 	 *
 	 * @param int $designation Designation.
 	 * @return int[]
@@ -162,7 +162,7 @@ final class Observations {
 	}
 
 	/**
-	 * Makes an assignment: the designation goes to the topic, by the system or by a person.
+	 * Makes an assignment: the motif goes to the topic, by the system or by a person.
 	 *
 	 * @param int    $designation Designation.
 	 * @param int    $topic       Topic.
@@ -206,7 +206,7 @@ final class Observations {
 	}
 
 	/**
-	 * The assignment of a designation.
+	 * The assignment of a motif.
 	 *
 	 * @param int $designation Designation.
 	 * @return array{topic:int,by:string}|null
@@ -231,7 +231,7 @@ final class Observations {
 	/**
 	 * Every assignment, in two queries (the screen of the assignments lists them all).
 	 *
-	 * @return array<int, array{topic:int,by:string}> By designation.
+	 * @return array<int, array{topic:int,by:string}> By motif.
 	 */
 	public function assignments() {
 		$statements = $this->statements();
@@ -252,11 +252,11 @@ final class Observations {
 	}
 
 	/**
-	 * How many posts observe designations. **Without a list, one pass over every observation** (heavy: tens of thousands of statements; the screen asks for it
-	 * only to sort by the number of posts or to list the designations that nothing observes); with a list, one question each.
+	 * How many posts observe motifs. **Without a list, one pass over every observation** (heavy: tens of thousands of statements; the screen asks for it
+	 * only to sort by the number of posts or to list the motifs that nothing observes); with a list, one question each.
 	 *
-	 * @param int[]|null $ids The designations, or null for all those that have an observation.
-	 * @return array<int, int> By designation.
+	 * @param int[]|null $ids The motifs, or null for all those that have an observation.
+	 * @return array<int, int> By motif.
 	 */
 	public function post_counts( ?array $ids = null ) {
 		$statements = $this->statements();
@@ -279,7 +279,7 @@ final class Observations {
 	}
 
 	/**
-	 * The designations assigned to a topic.
+	 * The motifs assigned to a topic.
 	 *
 	 * @param int $topic Topic.
 	 * @return array<int, string> Designation id => `system` or `hand`.
@@ -299,7 +299,7 @@ final class Observations {
 	}
 
 	/**
-	 * The topics that a person assigned designations to (a topic that a decision holds is not cleaned away, observed or not).
+	 * The topics that a person assigned motifs to (a topic that a decision holds is not cleaned away, observed or not).
 	 *
 	 * @return array<int, true>
 	 */
@@ -323,7 +323,7 @@ final class Observations {
 	 *
 	 * @param string $source The source.
 	 * @param bool   $dry    Count only.
-	 * @return array{observations:int,designations:int[]} How many, and the designations they were of.
+	 * @return array{observations:int,motifs:int[]} How many, and the motifs they were of.
 	 */
 	public function drop_source( $source, $dry = false ) {
 		$statements = $this->statements();
@@ -367,9 +367,9 @@ final class Observations {
 	}
 
 	/**
-	 * The designations that no post observes (read from the statements: the store does not know).
+	 * The motifs that no post observes (read from the statements: the store does not know).
 	 *
-	 * @param int[] $candidates The designations to look at.
+	 * @param int[] $candidates The motifs to look at.
 	 * @return int[] Those with no observation.
 	 */
 	public function unobserved( array $candidates ) {

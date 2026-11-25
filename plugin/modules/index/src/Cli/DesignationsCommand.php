@@ -3,7 +3,7 @@
  * SPDX-FileCopyrightText: 2026 Eric van der Vlist <vdv@dyomedea.com>
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * The commands about the designations.
+ * The commands about the motifs.
  *
  * @package Otherguise
  */
@@ -22,12 +22,12 @@ use Otherguise\Index\Topics;
 defined( 'ABSPATH' ) || exit;
 
 /**
- * `wp otherguise index designations list|assign|clean|migrate` (slice 626): see what the sources designated, assign it to a topic, clean up, and convert
+ * `wp otherguise index motifs list|assign|clean|migrate` (slice 626): see the motifs that the sources found, assign one to a topic, clean up, and convert
  * the mentions made by hand.
  */
 final class DesignationsCommand {
 	/**
-	 * The designations.
+	 * The motifs.
 	 *
 	 * @var Designations
 	 */
@@ -76,7 +76,7 @@ final class DesignationsCommand {
 	private $merger;
 
 	/**
-	 * Resolves the ambiguous designations again.
+	 * Resolves the ambiguous motifs again.
 	 *
 	 * @var Reresolver|null
 	 */
@@ -106,7 +106,7 @@ final class DesignationsCommand {
 	/**
 	 * Builds the command.
 	 *
-	 * @param Designations     $designations The designations.
+	 * @param Designations     $designations The motifs.
 	 * @param Observations     $observations The observations.
 	 * @param Topics           $topics       The topics.
 	 * @param Assigner         $assigner     The assigner.
@@ -116,7 +116,7 @@ final class DesignationsCommand {
 	 * @param callable|null    $success     Default `WP_CLI::success`.
 	 * @param callable|null    $fail        Default `WP_CLI::error`.
 	 * @param TopicMerger|null $merger   Assigns a whole topic with its sub-topics.
-	 * @param Reresolver|null  $reresolver Resolves the ambiguous designations again.
+	 * @param Reresolver|null  $reresolver Resolves the ambiguous motifs again.
 	 */
 	public function __construct( Designations $designations, Observations $observations, Topics $topics, Assigner $assigner, Cleaner $cleaner, Migration $migration, $log = null, $success = null, $fail = null, ?TopicMerger $merger = null, ?Reresolver $reresolver = null ) {
 		$this->designations = $designations;
@@ -133,12 +133,12 @@ final class DesignationsCommand {
 	}
 
 	/**
-	 * Lists the designations: what the sources designated, with the topic each is assigned to and by whom.
+	 * Lists the motifs that the sources found, with the topic each is assigned to and by whom.
 	 *
 	 * ## OPTIONS
 	 *
 	 * [--topic=<id>]
-	 * : Only the designations assigned to this topic.
+	 * : Only the motifs assigned to this topic.
 	 *
 	 * [--source=<path>]
 	 * : Only this source (with its sub-sources): `post/link`, `image`...
@@ -147,7 +147,7 @@ final class DesignationsCommand {
 	 * : `pending`, `ambiguous` or `assigned`.
 	 *
 	 * [--unobserved]
-	 * : Only the designations that no post observes.
+	 * : Only the motifs that no post observes.
 	 *
 	 * [--limit=<n>]
 	 * : At most this many lines (default 100).
@@ -194,11 +194,11 @@ final class DesignationsCommand {
 			( $this->log )( $id . "\t" . $one['key'] . "\t" . $one['state'] . "\t" . ( null === $goes ? '-' : $goes['label'] . ' (' . $goes['id'] . ', ' . $have['by'] . ')' ) . "\t" . $posts . ' post(s)' );
 		}
 
-		( $this->success )( $total . ' designation(s)' . ( $total > $shown ? ', ' . $shown . ' shown (--limit)' : '' ) . '.' );
+		( $this->success )( $total . ' motif(s)' . ( $total > $shown ? ', ' . $shown . ' shown (--limit)' : '' ) . '.' );
 	}
 
 	/**
-	 * Assigns designations to a topic, by a person: a new reading never changes it, and the mentions of the posts that observe them follow at once. Nothing
+	 * Assigns motifs to a topic, by a person: a new reading never changes it, and the mentions of the posts that observe them follow at once. Nothing
 	 * is changed without --apply.
 	 *
 	 * ## OPTIONS
@@ -206,14 +206,14 @@ final class DesignationsCommand {
 	 * --topic=<id>
 	 * : The topic that receives them.
 	 *
-	 * [--designation=<ids>]
-	 * : The designations, separated by commas.
+	 * [--motif=<ids>]
+	 * : The motifs, separated by commas.
 	 *
 	 * [--from-topic=<id>]
-	 * : Every designation now assigned to this topic (its keys follow them).
+	 * : Every motif now assigned to this topic (its keys follow them).
 	 *
 	 * [--with-sub-topics]
-	 * : With --from-topic: also repeat the assignment down the tree (the sub-topics of the same name give their designations to the sub-topics of the receiving topic; the others move under it), and delete what is left with nothing.
+	 * : With --from-topic: also repeat the assignment down the tree (the sub-topics of the same name give their motifs to the sub-topics of the receiving topic; the others move under it), and delete what is left with nothing.
 	 *
 	 * [--apply]
 	 * : Do it. Without it the command only says what it would do.
@@ -229,7 +229,7 @@ final class DesignationsCommand {
 		unset( $args );
 
 		$from = (int) ( $assoc['from-topic'] ?? 0 );
-		$ids  = isset( $assoc['designation'] ) ? array_map( 'intval', explode( ',', (string) $assoc['designation'] ) ) : array();
+		$ids  = isset( $assoc['motif'] ) ? array_map( 'intval', explode( ',', (string) $assoc['motif'] ) ) : array();
 
 		if ( isset( $assoc['with-sub-topics'] ) ) {
 			$this->with_sub_topics( (int) ( $assoc['topic'] ?? 0 ), $from, ! isset( $assoc['apply'] ), isset( $assoc['force'] ) );
@@ -242,7 +242,7 @@ final class DesignationsCommand {
 		}
 
 		if ( ! isset( $assoc['topic'] ) || array() === $ids ) {
-			( $this->fail )( 'Say --topic=<id> and --designation=<ids> or --from-topic=<id>.' );
+			( $this->fail )( 'Say --topic=<id> and --motif=<ids> or --from-topic=<id>.' );
 
 			return;
 		}
@@ -260,11 +260,11 @@ final class DesignationsCommand {
 			( $this->log )( $line );
 		}
 
-		( $this->success )( $report['designations'] . ' designation(s), ' . $report['observations'] . ' observation(s) in ' . $report['posts'] . ' post(s) ' . ( $dry ? 'would be assigned: nothing was changed, add --apply to do it.' : 'assigned.' ) );
+		( $this->success )( $report['designations'] . ' motif(s), ' . $report['observations'] . ' observation(s) in ' . $report['posts'] . ' post(s) ' . ( $dry ? 'would be assigned: nothing was changed, add --apply to do it.' : 'assigned.' ) );
 	}
 
 	/**
-	 * Assigns every designation of a topic to another, and the same down the tree.
+	 * Assigns every motif of a topic to another, and the same down the tree.
 	 *
 	 * @param int  $topic The topic that receives them.
 	 * @param int  $from  The topic that gives them.
@@ -298,13 +298,13 @@ final class DesignationsCommand {
 	}
 
 	/**
-	 * Deletes the designations that the system proposed and that no post observes any more. A designation that a person assigned stays unless --everything.
+	 * Deletes the motifs that the system proposed and that no post observes any more. A motif that a person assigned stays unless --everything.
 	 * Nothing is changed without --apply.
 	 *
 	 * ## OPTIONS
 	 *
 	 * [--everything]
-	 * : Also the designations that a person assigned.
+	 * : Also the motifs that a person assigned.
 	 *
 	 * [--apply]
 	 * : Do it.
@@ -322,11 +322,11 @@ final class DesignationsCommand {
 			$this->cleaner->delete( $ids );
 		}
 
-		( $this->success )( count( $ids ) . ' designation(s) ' . ( isset( $assoc['apply'] ) ? 'deleted.' : 'would be deleted: nothing was changed, add --apply to do it.' ) );
+		( $this->success )( count( $ids ) . ' motif(s) ' . ( isset( $assoc['apply'] ) ? 'deleted.' : 'would be deleted: nothing was changed, add --apply to do it.' ) );
 	}
 
 	/**
-	 * Measures what decides whether Triples is enough for the designations and the observations (slice 625): the numbers, and the time of the operations
+	 * Measures what decides whether Triples is enough for the motifs and the observations (slice 625): the numbers, and the time of the operations
 	 * that a person waits for. Changes nothing. The index of a section is timed by `time wp otherguise index build --section=<id>`.
 	 *
 	 * @param array $args  Unused.
@@ -354,7 +354,7 @@ final class DesignationsCommand {
 		}
 
 		if ( array() === $per ) {
-			( $this->success )( 'No designation is assigned: read the pages first.' );
+			( $this->success )( 'No motif is assigned: read the pages first.' );
 
 			return;
 		}
@@ -366,7 +366,7 @@ final class DesignationsCommand {
 
 		$start = microtime( true );
 		$ids   = array_keys( $this->observations->designations_of_topic( $topic ) );
-		$timed[ 'the designations of the topic that has most (' . count( $ids ) . ')' ] = microtime( true ) - $start;
+		$timed[ 'the motifs of the topic that has most (' . count( $ids ) . ')' ] = microtime( true ) - $start;
 
 		$start = microtime( true );
 		$this->assigner->assign( $ids, $topic, true );
@@ -379,24 +379,24 @@ final class DesignationsCommand {
 			$posts += count( $this->observations->posts_of( (int) $id ) );
 		}
 
-		$timed[ 'the posts of 200 designations (' . $posts . ' observations)' ] = microtime( true ) - $start;
+		$timed[ 'the posts of 200 motifs (' . $posts . ' observations)' ] = microtime( true ) - $start;
 
 		foreach ( $timed as $what => $seconds ) {
 			( $this->log )( sprintf( '%6.0f ms  %s', $seconds * 1000, $what ) );
 		}
 
-		( $this->success )( 'Thresholds: a page of the screen 1 s, an assignment of all the designations of a topic 2 s, the index of the largest section twice today and 10 s.' );
+		( $this->success )( 'Thresholds: a page of the screen 1 s, an assignment of all the motifs of a topic 2 s, the index of the largest section twice today and 10 s.' );
 	}
 
 	/**
-	 * Resolves again the designations that are ambiguous, **from their evidence, without reading the pages**: it records, for each, **the topics that a level
+	 * Resolves again the motifs that are ambiguous, **from their evidence, without reading the pages**: it records, for each, **the topics that a level
 	 * hesitated between** (the lists of the screen Otherguise → Assignments), and settles the ones that the topics made since have cleared up. Nothing is
 	 * changed without --apply.
 	 *
 	 * ## OPTIONS
 	 *
 	 * [--limit=<n>]
-	 * : At most this many designations (default all).
+	 * : At most this many motifs (default all).
 	 *
 	 * [--apply]
 	 * : Do it.
@@ -417,11 +417,11 @@ final class DesignationsCommand {
 		$dry  = ! isset( $assoc['apply'] );
 		$done = $this->reresolver->run( $dry, (int) ( $assoc['limit'] ?? 0 ) );
 
-		( $this->success )( $done['looked'] . ' ambiguous designation(s) looked at: ' . $done['settled'] . ' ' . ( $dry ? 'would be settled' : 'settled' ) . ', ' . $done['still'] . ' still ambiguous' . ( $dry ? ' (nothing was changed, add --apply)' : ', the topics they hesitate between recorded for ' . $done['recorded'] ) . '.' );
+		( $this->success )( $done['looked'] . ' ambiguous motif(s) looked at: ' . $done['settled'] . ' ' . ( $dry ? 'would be settled' : 'settled' ) . ', ' . $done['still'] . ' still ambiguous' . ( $dry ? ' (nothing was changed, add --apply)' : ', the topics they hesitate between recorded for ' . $done['recorded'] ) . '.' );
 	}
 
 	/**
-	 * Converts the mentions made by hand into designations assigned by hand, with one observation each. The mentions of the other sources are made again by
+	 * Converts the mentions made by hand into motifs assigned by hand, with one observation each. The mentions of the other sources are made again by
 	 * `wp otherguise index sync start --from-scratch`. It can be run twice. Nothing is changed without --apply.
 	 *
 	 * ## OPTIONS
@@ -438,6 +438,6 @@ final class DesignationsCommand {
 
 		$done = $this->migration->run( ! isset( $assoc['apply'] ) );
 
-		( $this->success )( $done['observations'] . ' mention(s) made by hand in ' . $done['posts'] . ' post(s), ' . $done['created'] . ' designation(s) ' . ( isset( $assoc['apply'] ) ? 'made.' : 'would be made: nothing was changed, add --apply to do it.' ) );
+		( $this->success )( $done['observations'] . ' mention(s) made by hand in ' . $done['posts'] . ' post(s), ' . $done['created'] . ' motif(s) ' . ( isset( $assoc['apply'] ) ? 'made.' : 'would be made: nothing was changed, add --apply to do it.' ) );
 	}
 }

@@ -278,7 +278,7 @@ final class DuplicatesScreen {
 
 		if ( null !== $merged && false !== $merged && '' !== (string) $merged ) {
 			/* translators: 1: topics merged, 2: mentions moved, 3: mentions joined to one that was there. */
-			echo '<div class="notice notice-success"><p>' . esc_html( sprintf( __( '%1$d topic(s) given their designations to another: %2$d mention(s) moved, %3$d joined to a mention that was already there.', 'otherguise' ), absint( $merged ), absint( (string) ( $this->input )( INPUT_GET, 'moved', false ) ), absint( (string) ( $this->input )( INPUT_GET, 'joined', false ) ) ) ) . '</p></div>';
+			echo '<div class="notice notice-success"><p>' . esc_html( sprintf( __( '%1$d topic(s) given their motifs to another: %2$d mention(s) moved, %3$d joined to a mention that was already there.', 'otherguise' ), absint( $merged ), absint( (string) ( $this->input )( INPUT_GET, 'moved', false ) ), absint( (string) ( $this->input )( INPUT_GET, 'joined', false ) ) ) ) . '</p></div>';
 		}
 
 		if ( null !== $ignored && false !== $ignored && '' !== (string) $ignored ) {
@@ -376,7 +376,7 @@ final class DuplicatesScreen {
 		$pages  = max( 1, (int) ceil( count( $groups ) / self::PER_PAGE ) );
 
 		/* translators: 1: number of groups, 2: number of pairs that were kept as not doubles. */
-		echo '<p>' . esc_html( sprintf( __( '%1$d group(s) of topics that may be the same; %2$d pair(s) kept as not doubles. The designations and the observations stay; the topic that is left with nothing is deleted.', 'otherguise' ), count( $groups ), $this->ignored->count() ) ) . '</p>';
+		echo '<p>' . esc_html( sprintf( __( '%1$d group(s) of topics that may be the same; %2$d pair(s) kept as not doubles. The motifs and the observations stay; the topic that is left with nothing is deleted.', 'otherguise' ), count( $groups ), $this->ignored->count() ) ) . '</p>';
 
 		if ( $safe > 0 ) {
 			/* translators: %d: number of safe merges. */
@@ -420,7 +420,7 @@ final class DuplicatesScreen {
 		$keep = null !== $group['safe'] ? $group['safe']['keep'] : $ids[0];
 
 		echo '<form method="get" action="' . esc_url( admin_url( 'admin.php' ) ) . '" style="margin:1em 0;"><input type="hidden" name="page" value="' . esc_attr( self::PAGE ) . '" /><input type="hidden" name="view" value="preview" />';
-		echo '<table class="widefat striped"><thead><tr><th>' . esc_html__( 'Receives', 'otherguise' ) . '</th><th>' . esc_html__( 'Gives its designations', 'otherguise' ) . '</th><th>' . esc_html__( 'Topic', 'otherguise' ) . '</th><th>' . esc_html__( 'Kind', 'otherguise' ) . '</th><th>' . esc_html__( 'Under', 'otherguise' ) . '</th><th>' . esc_html__( 'Posts', 'otherguise' ) . '</th><th>' . esc_html__( 'Made by', 'otherguise' ) . '</th><th>' . esc_html__( 'Keys', 'otherguise' ) . '</th></tr></thead><tbody>';
+		echo '<table class="widefat striped"><thead><tr><th>' . esc_html__( 'Receives', 'otherguise' ) . '</th><th>' . esc_html__( 'Gives its motifs', 'otherguise' ) . '</th><th>' . esc_html__( 'Topic', 'otherguise' ) . '</th><th>' . esc_html__( 'Kind', 'otherguise' ) . '</th><th>' . esc_html__( 'Under', 'otherguise' ) . '</th><th>' . esc_html__( 'Posts', 'otherguise' ) . '</th><th>' . esc_html__( 'Made by', 'otherguise' ) . '</th><th>' . esc_html__( 'Keys', 'otherguise' ) . '</th></tr></thead><tbody>';
 
 		foreach ( $group['members'] as $member ) {
 			$id = (int) $member['id'];
@@ -464,7 +464,7 @@ final class DuplicatesScreen {
 
 		echo '<h2>' . esc_html__( 'Preview', 'otherguise' ) . '</h2>';
 		echo '<p>' . esc_html( sprintf( /* translators: %s: label of the topic that stays. */ __( 'The topic that stays: %s', 'otherguise' ), null === $topic ? (string) $keep : (string) $topic['label'] ) ) . '</p>';
-		echo '<table class="widefat striped"><thead><tr><th>' . esc_html__( 'Gives its designations', 'otherguise' ) . '</th><th>' . esc_html__( 'Mentions moved', 'otherguise' ) . '</th><th>' . esc_html__( 'Joined to one already there', 'otherguise' ) . '</th><th>' . esc_html__( 'Children moved', 'otherguise' ) . '</th><th>' . esc_html__( 'Keys', 'otherguise' ) . '</th><th>' . esc_html__( 'Kind then', 'otherguise' ) . '</th></tr></thead><tbody>';
+		echo '<table class="widefat striped"><thead><tr><th>' . esc_html__( 'Gives its motifs', 'otherguise' ) . '</th><th>' . esc_html__( 'Mentions moved', 'otherguise' ) . '</th><th>' . esc_html__( 'Joined to one already there', 'otherguise' ) . '</th><th>' . esc_html__( 'Children moved', 'otherguise' ) . '</th><th>' . esc_html__( 'Keys', 'otherguise' ) . '</th><th>' . esc_html__( 'Kind then', 'otherguise' ) . '</th></tr></thead><tbody>';
 
 		$kind_problem = false;
 		$any_ok       = false;
@@ -505,7 +505,7 @@ final class DuplicatesScreen {
 			echo '<p><label><input type="checkbox" name="force" value="1" /> ' . esc_html__( 'Assign them anyway, although their kinds are not one a sort of the other', 'otherguise' ) . '</label></p>';
 		}
 
-		echo '<p>' . esc_html__( 'The designations and the observations stay; the topic that is left with nothing is deleted.', 'otherguise' ) . '</p><p><button class="button button-primary">' . esc_html__( 'Assign', 'otherguise' ) . '</button> <a href="' . esc_url( $this->url() ) . '">' . esc_html__( 'Cancel', 'otherguise' ) . '</a></p></form>';
+		echo '<p>' . esc_html__( 'The motifs and the observations stay; the topic that is left with nothing is deleted.', 'otherguise' ) . '</p><p><button class="button button-primary">' . esc_html__( 'Assign', 'otherguise' ) . '</button> <a href="' . esc_url( $this->url() ) . '">' . esc_html__( 'Cancel', 'otherguise' ) . '</a></p></form>';
 	}
 
 	/**
@@ -528,7 +528,7 @@ final class DuplicatesScreen {
 		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
 		wp_nonce_field( self::NONCE );
 		echo '<input type="hidden" name="action" value="' . esc_attr( self::ACTION ) . '" /><input type="hidden" name="op" value="merge_safe" />';
-		echo '<table class="widefat striped"><thead><tr><th></th><th>' . esc_html__( 'Receives', 'otherguise' ) . '</th><th>' . esc_html__( 'Kind', 'otherguise' ) . '</th><th>' . esc_html__( 'Under', 'otherguise' ) . '</th><th>' . esc_html__( 'Made by', 'otherguise' ) . '</th><th>' . esc_html__( 'Gives its designations', 'otherguise' ) . '</th><th>' . esc_html__( 'Made by', 'otherguise' ) . '</th><th>' . esc_html__( 'Mentions moved', 'otherguise' ) . '</th></tr></thead><tbody>';
+		echo '<table class="widefat striped"><thead><tr><th></th><th>' . esc_html__( 'Receives', 'otherguise' ) . '</th><th>' . esc_html__( 'Kind', 'otherguise' ) . '</th><th>' . esc_html__( 'Under', 'otherguise' ) . '</th><th>' . esc_html__( 'Made by', 'otherguise' ) . '</th><th>' . esc_html__( 'Gives its motifs', 'otherguise' ) . '</th><th>' . esc_html__( 'Made by', 'otherguise' ) . '</th><th>' . esc_html__( 'Mentions moved', 'otherguise' ) . '</th></tr></thead><tbody>';
 
 		foreach ( array_slice( $safe, ( $page - 1 ) * self::PER_PAGE * 2, self::PER_PAGE * 2 ) as $group ) {
 			$keep   = $this->topics->get( $group['safe']['keep'] );

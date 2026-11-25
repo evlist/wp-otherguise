@@ -96,7 +96,7 @@ final class SyncWiring {
 				},
 				'enrich_job'      => static fn() => $enrich->is_on() ? $enrich->job( true ) : null,
 				'cleanup'         => static function () use ( $pruner, $mentions ) {
-					// What the readings made and no post observes any more: the designations of the system, then the topics that nothing mentions (slice 629).
+					// What the readings made and no post observes any more: the motifs of the system, then the topics that nothing mentions (slice 629).
 					$mentions->clean_designations();
 
 					return count( $pruner->prune( array( 'any' ), false ) );
@@ -211,7 +211,7 @@ final class SyncWiring {
 	 * @param SyncService  $sync     The service.
 	 * @param Topics       $topics   The topics.
 	 * @param Mentions     $mentions The mentions.
-	 * @param Cleaner|null $cleaner The cleaner of the designations.
+	 * @param Cleaner|null $cleaner The cleaner of the motifs.
 	 * @return void
 	 */
 	public static function register_command( SyncService $sync, Topics $topics, Mentions $mentions, ?Cleaner $cleaner = null ) {

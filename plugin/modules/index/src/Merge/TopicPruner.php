@@ -123,7 +123,7 @@ final class TopicPruner {
 	}
 
 	/**
-	 * Whether a topic only stands for a doubt (slice 629): a candidate topic with a key `ambiguous:…`, made by the resolver before the designations held the
+	 * Whether a topic only stands for a doubt (slice 629): a candidate topic with a key `ambiguous:…`, made by the resolver before the motifs held the
 	 * doubt. It is not a topic: it goes, whether or not a person decided about others.
 	 *
 	 * @param array<string, mixed> $topic The topic.

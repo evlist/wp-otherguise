@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
 // Slice 633: "Change topic", the quick edit of the table of the assignments. A link in the actions of each line opens a panel under the line with the topics
-// that are close to the designation and a field that searches the others; "Update" assigns the designation by hand through the REST API and changes the
+// that are close to the motif and a field that searches the others; "Update" assigns the motif by hand through the REST API and changes the
 // line in place, so that the search, the view and the page of the table stay as they were. Without this script the bulk actions do the same.
 ( function ( root, factory ) {
 	if ( typeof module === 'object' && module.exports ) {

@@ -3,7 +3,7 @@
  * SPDX-FileCopyrightText: 2026 Eric van der Vlist <vdv@dyomedea.com>
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * The store of the designations.
+ * The store of the motifs.
  *
  * @package Otherguise
  */
@@ -13,8 +13,8 @@ namespace Otherguise\Index;
 defined( 'ABSPATH' ) || exit;
 
 /**
- * The designations (slice 625): **the way a source designates something, wherever it is found**. A designation is what is assigned to a topic; its
- * observations are the places where it was found. The assignment itself is a statement of Triples (`Observations`); the store keeps the designation,
+ * The motifs (slice 625): **the way a source designates something, wherever it is found**. A motif is what is assigned to a topic; its
+ * observations are the places where it was found. The assignment itself is a statement of Triples (`Observations`); the store keeps the motif,
  * its evidence, its state and the topic the system proposed.
  */
 interface Designations {
@@ -23,7 +23,7 @@ interface Designations {
 	public const ASSIGNED  = 'assigned';
 
 	/**
-	 * The designation that has a key.
+	 * The motif that has a key.
 	 *
 	 * @param string $key Key.
 	 * @return int The id, or 0.
@@ -31,7 +31,7 @@ interface Designations {
 	public function find( $key );
 
 	/**
-	 * Creates a designation.
+	 * Creates a motif.
 	 *
 	 * @param string               $key      Key.
 	 * @param string               $source   The leaf of the registry of the sources (`post/link`).
@@ -41,7 +41,7 @@ interface Designations {
 	public function create( $key, $source, array $evidence );
 
 	/**
-	 * A designation.
+	 * A motif.
 	 *
 	 * @param int $id Id.
 	 * @return array{id:int,key:string,source:string,evidence:array,state:string,proposal:array{topic:int,why:string,ambiguity?:array{level:string,key:string,candidates:int[]}}}|null
@@ -59,10 +59,10 @@ interface Designations {
 	public function set_state( $id, $state, array $proposal );
 
 	/**
-	 * What the enrichment learnt about a designation (slice 627): `state` (`done`, `missing`, `ambiguous`, `none`), `qid`, `label`, `kind`, `date`, `due`.
+	 * What the enrichment learnt about a motif (slice 627): `state` (`done`, `missing`, `ambiguous`, `none`), `qid`, `label`, `kind`, `date`, `due`.
 	 *
 	 * @param int $id Id.
-	 * @return array<string, mixed> Empty when the designation was not looked at.
+	 * @return array<string, mixed> Empty when the motif was not looked at.
 	 */
 	public function enrichment( $id );
 
@@ -76,7 +76,7 @@ interface Designations {
 	public function set_enrichment( $id, array $state );
 
 	/**
-	 * Deletes a designation.
+	 * Deletes a motif.
 	 *
 	 * @param int $id Id.
 	 * @return void
@@ -84,7 +84,7 @@ interface Designations {
 	public function delete( $id );
 
 	/**
-	 * The designations, with filters.
+	 * The motifs, with filters.
 	 *
 	 * @param array{source?:string,state?:string} $filters Filters: a source (with its sub-sources) and a state.
 	 * @return array<int, array> By id.

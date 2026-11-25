@@ -308,7 +308,7 @@ class IndexPruneDbTest extends Otherguise_Test_Database_Case {
 
 		$this->assertSame( array(), $called, 'A dry run stops and forgets nothing.' );
 		$this->assertSame( array( $made . "\tFait par une source [place]" ), $lines );
-		$this->assertStringContainsString( '3 mention(s) would be dropped, 0 designation(s) and 1 topic(s) would be deleted', $done[0] );
+		$this->assertStringContainsString( '3 mention(s) would be dropped, 0 motif(s) and 1 topic(s) would be deleted', $done[0] );
 		$this->assertNotNull( $this->topics->get( $made ) );
 		$this->assertCount( 3, $this->mentions->mentioned_topics(), 'A dry run keeps every mention.' );
 
@@ -344,7 +344,7 @@ class IndexPruneDbTest extends Otherguise_Test_Database_Case {
 	}
 
 	/**
-	 * The placeholders (slice 629): a candidate topic with a key `ambiguous:…` only stands for a doubt, which the designations hold now: it goes; a candidate
+	 * The placeholders (slice 629): a candidate topic with a key `ambiguous:…` only stands for a doubt, which the motifs hold now: it goes; a candidate
 	 * that waits for a decision, and a refused topic, stay.
 	 *
 	 * @return void

@@ -25,9 +25,9 @@ use Otherguise\Index\Topics;
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Otherguise → Assignments (slice 630): **the designations and the topic each is assigned to**, in a table of WordPress (views, search, sorting, pages of 50,
- * bulk actions). A person ticks designations and **assigns them to a topic that a field finds as one types** (a preview comes first), **confirms** what the
- * system proposed, **takes an assignment away** or **deletes** the designations that no post observes. The mentions follow every change.
+ * Otherguise → Assignments (slice 630): **the motifs and the topic each is assigned to**, in a table of WordPress (views, search, sorting, pages of 50,
+ * bulk actions). A person ticks motifs and **assigns them to a topic that a field finds as one types** (a preview comes first), **confirms** what the
+ * system proposed, **takes an assignment away** or **deletes** the motifs that no post observes. The mentions follow every change.
  *
  * The bulk actions of a table of WordPress post to the screen itself (their field `action` would be taken for an action of `admin-post.php`): the
  * request is handled when the page loads (`load-<page>`), then redirected; only the confirmation of an assignment posts to `admin-post.php`.
@@ -41,7 +41,7 @@ final class AssignmentsScreen {
 	public const BULK  = 'bulk-designations';
 
 	/**
-	 * The designations.
+	 * The motifs.
 	 *
 	 * @var Designations
 	 */
@@ -141,7 +141,7 @@ final class AssignmentsScreen {
 	/**
 	 * Builds the screen.
 	 *
-	 * @param Designations  $designations The designations.
+	 * @param Designations  $designations The motifs.
 	 * @param Observations  $observations The observations.
 	 * @param Topics        $topics       The topics.
 	 * @param Assigner      $assigner     The assigner.
@@ -207,7 +207,7 @@ final class AssignmentsScreen {
 		$screens   = is_array( $screens ) ? $screens : array();
 		$screens[] = array(
 			'title'       => __( 'Assignments', 'otherguise' ),
-			'description' => __( 'What the sources designated and the topic each designation is assigned to: assign, confirm, take away.', 'otherguise' ),
+			'description' => __( 'The motifs that the sources found and the topic each is assigned to: assign, confirm, take away.', 'otherguise' ),
 			'capability'  => $this->capability(),
 			'page'        => self::PAGE,
 			'group'       => 'settings',
@@ -250,7 +250,7 @@ final class AssignmentsScreen {
 					'root'  => esc_url_raw( rest_url() ),
 					'path'  => TopicsRoute::REST_NAMESPACE . '/topics',
 					'nonce' => wp_create_nonce( 'wp_rest' ),
-					'edit'  => TopicsRoute::REST_NAMESPACE . '/designations/',
+					'edit'  => TopicsRoute::REST_NAMESPACE . '/motifs/',
 					'words' => $this->quick_edit_words(),
 				)
 			) . ';',
@@ -404,7 +404,7 @@ final class AssignmentsScreen {
 		$ids = $this->numbers( INPUT_POST, 'designation' );
 
 		if ( array() === $ids ) {
-			( $this->redirect )( $this->url( array_merge( $back, array( 'error' => __( 'Tick at least one designation.', 'otherguise' ) ) ) ) );
+			( $this->redirect )( $this->url( array_merge( $back, array( 'error' => __( 'Tick at least one motif.', 'otherguise' ) ) ) ) );
 
 			return;
 		}
@@ -462,7 +462,7 @@ final class AssignmentsScreen {
 	}
 
 	/**
-	 * Applies the choices made in the lists of the lines: for each line with a choice, the topic is pinned to the level that hesitated, the designation is resolved
+	 * Applies the choices made in the lists of the lines: for each line with a choice, the topic is pinned to the level that hesitated, the motif is resolved
 	 * again and assigned by hand.
 	 *
 	 * @return array<string, int|string> What to say.
@@ -504,7 +504,7 @@ final class AssignmentsScreen {
 	 * Does a bulk action that needs no confirmation.
 	 *
 	 * @param string $action `confirm`, `unassign` or `delete`.
-	 * @param int[]  $ids    The designations.
+	 * @param int[]  $ids    The motifs.
 	 * @return array<string, int|string> What to say.
 	 */
 	private function bulk( $action, array $ids ) {
@@ -586,7 +586,7 @@ final class AssignmentsScreen {
 		) : $this->target( INPUT_POST );
 
 		if ( array() === $ids || ( '' === $new && $found['id'] <= 0 ) ) {
-			( $this->redirect )( $this->url( array_merge( $back, array( 'error' => array() === $ids ? __( 'Tick at least one designation.', 'otherguise' ) : $found['error'] ) ) ) );
+			( $this->redirect )( $this->url( array_merge( $back, array( 'error' => array() === $ids ? __( 'Tick at least one motif.', 'otherguise' ) : $found['error'] ) ) ) );
 
 			return;
 		}
@@ -650,7 +650,7 @@ final class AssignmentsScreen {
 			$table = ( $this->make_table )();
 
 			$table->prepare_items();
-			echo '<p class="description">' . esc_html__( 'Search designations (top right) looks in the label, the key (which holds the source and, for a place, its chain of names), the topic it is assigned to, the identifier of Wikidata and the state, within the view chosen above. To assign the ticked lines, fill the box "Where Assign puts the ticked lines", then choose "Assign to the topic in the box above". For a designation that hesitated, pick the topic in the list of its line, then "Apply the choices".', 'otherguise' ) . '</p>';
+			echo '<p class="description">' . esc_html__( 'Search motifs (top right) looks in the label, the key (which holds the source and, for a place, its chain of names), the topic it is assigned to, the identifier of Wikidata and the state, within the view chosen above. To assign the ticked lines, fill the box "Where Assign puts the ticked lines", then choose "Assign to the topic in the box above". For a motif that hesitated, pick the topic in the list of its line, then "Apply the choices".', 'otherguise' ) . '</p>';
 			$table->views();
 			echo '<form method="get"><input type="hidden" name="page" value="' . esc_attr( self::PAGE ) . '" />';
 
@@ -664,7 +664,7 @@ final class AssignmentsScreen {
 				echo '<input type="hidden" name="' . esc_attr( $name ) . '" value="' . esc_attr( $value ) . '" />';
 			}
 
-			$table->search_box( __( 'Search designations', 'otherguise' ), 'assignment' );
+			$table->search_box( __( 'Search motifs', 'otherguise' ), 'assignment' );
 			echo '</form><form method="post" action="' . esc_url( $this->url() ) . '">';
 			$this->print_preserved_fields();
 			$table->target_fields();

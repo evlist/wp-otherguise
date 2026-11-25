@@ -15,7 +15,7 @@ use Otherguise\Triples\Predicate\PredicateDefinition;
 defined( 'ABSPATH' ) || exit;
 
 /**
- * The predicates that the module registers in Triples: the mentions (derived), the observations and the assignments of the designations (slice 626), and
+ * The predicates that the module registers in Triples: the mentions (derived), the observations and the assignments of the motifs (slice 626), and
  * the qualifiers that they share.
  */
 final class Predicates {
@@ -54,8 +54,8 @@ final class Predicates {
 			PredicateDefinition::from_array(
 				array(
 					'slug'          => Observations::DESIGNATES,
-					'label'         => __( 'Designates', 'otherguise' ),
-					'inverse_label' => __( 'Is designated by', 'otherguise' ),
+					'label'         => __( 'Is assigned to', 'otherguise' ),
+					'inverse_label' => __( 'Has the motif', 'otherguise' ),
 					'subject_types' => array( 'term' ),
 					'object_types'  => array( 'term' ),
 					'qualified_by'  => array( Observations::BY ),

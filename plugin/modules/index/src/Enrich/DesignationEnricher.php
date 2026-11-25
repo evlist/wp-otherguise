@@ -3,7 +3,7 @@
  * SPDX-FileCopyrightText: 2026 Eric van der Vlist <vdv@dyomedea.com>
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * The enrichment of a designation, before the topic is made.
+ * The enrichment of a motif, before the topic is made.
  *
  * @package Otherguise
  */
@@ -18,9 +18,9 @@ use Otherguise\Index\Wikidata\TitleResolver;
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Asks Wikidata about a designation that carries a link to Wikipedia **before the topic is made** (slice 627): the item (`wikidata:Q…`), its label and the
- * kind that its classes give. **Once per designation, not once per occurrence**: the answer is kept with the designation, and a link repeated in fifty posts
- * costs one question. **No topic is created unenriched**: while the service asks to wait, the designation stays `pending`.
+ * Asks Wikidata about a motif that carries a link to Wikipedia **before the topic is made** (slice 627): the item (`wikidata:Q…`), its label and the
+ * kind that its classes give. **Once per motif, not once per occurrence**: the answer is kept with the motif, and a link repeated in fifty posts
+ * costs one question. **No topic is created unenriched**: while the service asks to wait, the motif stays `pending`.
  */
 final class DesignationEnricher {
 	public const BATCH      = 50;
@@ -41,7 +41,7 @@ final class DesignationEnricher {
 	private $failures;
 
 	/**
-	 * The designations.
+	 * The motifs.
 	 *
 	 * @var Designations
 	 */
@@ -66,7 +66,7 @@ final class DesignationEnricher {
 	 *
 	 * @param Lookup        $lookup       The questions to the services.
 	 * @param Failures      $failures     The failures and the pause.
-	 * @param Designations  $designations The designations.
+	 * @param Designations  $designations The motifs.
 	 * @param callable|null $now          Default `time`.
 	 * @param callable|null $random       Default `wp_rand`.
 	 */
@@ -110,7 +110,7 @@ final class DesignationEnricher {
 	}
 
 	/**
-	 * Whether the designation was looked at and does not need to be again for now: an answer, or a "not found" that is not due.
+	 * Whether the motif was looked at and does not need to be again for now: an answer, or a "not found" that is not due.
 	 *
 	 * @param int $id Designation.
 	 * @return bool
@@ -131,9 +131,9 @@ final class DesignationEnricher {
 	}
 
 	/**
-	 * Asks about designations and keeps the answers. **Nothing is kept for a batch whose requests failed.**
+	 * Asks about motifs and keeps the answers. **Nothing is kept for a batch whose requests failed.**
 	 *
-	 * @param array<int, array{type:string,language:string,title:string,qid:string}> $sources By designation.
+	 * @param array<int, array{type:string,language:string,title:string,qid:string}> $sources By motif.
 	 * @return array{ok:bool,stop:bool,message:string,done:array<int,array<string,mixed>>}
 	 */
 	public function look_up( array $sources ) {
@@ -174,13 +174,13 @@ final class DesignationEnricher {
 		return array(
 			'ok'      => true,
 			'stop'    => false,
-			'message' => count( $done ) . ' designation(s) looked at.',
+			'message' => count( $done ) . ' motif(s) looked at.',
 			'done'    => $done,
 		);
 	}
 
 	/**
-	 * Keeps what was learnt about a designation.
+	 * Keeps what was learnt about a motif.
 	 *
 	 * @param int                       $id      Designation.
 	 * @param array<string, string>     $outcome The state and item found for its title.
@@ -225,7 +225,7 @@ final class DesignationEnricher {
 	}
 
 	/**
-	 * What was learnt about a designation.
+	 * What was learnt about a motif.
 	 *
 	 * @param int $id Designation.
 	 * @return array<string, mixed>

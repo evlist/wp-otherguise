@@ -17,8 +17,8 @@ use Otherguise\Index\Observations;
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Converts the mentions made by a person (the source `hand`) into a designation assigned by hand and one observation each (slice 626). **The mentions of
- * the other sources cannot be converted** (they have no evidence): reading the pages again makes them as designations and observations. It can be run
+ * Converts the mentions made by a person (the source `hand`) into a motif assigned by hand and one observation each (slice 626). **The mentions of
+ * the other sources cannot be converted** (they have no evidence): reading the pages again makes them as motifs and observations. It can be run
  * twice: what exists is found again.
  */
 final class Migration {
@@ -30,7 +30,7 @@ final class Migration {
 	private $statements;
 
 	/**
-	 * The designations.
+	 * The motifs.
 	 *
 	 * @var Designations
 	 */
@@ -47,7 +47,7 @@ final class Migration {
 	 * Builds the service.
 	 *
 	 * @param callable     $statements   Returns the `Statements` service.
-	 * @param Designations $designations The designations.
+	 * @param Designations $designations The motifs.
 	 * @param Observations $observations The observations.
 	 */
 	public function __construct( $statements, Designations $designations, Observations $observations ) {

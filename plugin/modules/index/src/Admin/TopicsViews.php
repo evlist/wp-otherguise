@@ -17,7 +17,7 @@ use Otherguise\Index\Kinds;
 defined( 'ABSPATH' ) || exit;
 
 /**
- * What `TopicsScreen` prints (slice 628): the list of the topics, a topic, a designation, the designations to resolve and the preview of an assignment. A
+ * What `TopicsScreen` prints (slice 628): the list of the topics, a topic, a motif, the motifs to resolve and the preview of an assignment. A
  * trait of the screen (it uses its stores and its helpers), kept apart so that the class stays under the size limit of a file.
  */
 trait TopicsViews {
@@ -96,7 +96,7 @@ trait TopicsViews {
 
 		foreach ( array(
 			''      => __( 'All the topics', 'otherguise' ),
-			'empty' => __( 'With no designation', 'otherguise' ),
+			'empty' => __( 'With no motif', 'otherguise' ),
 			'hand'  => __( 'Chosen by hand', 'otherguise' ),
 		) as $value => $label ) {
 			echo '<option value="' . esc_attr( $value ) . '"' . selected( $show, $value, false ) . '>' . esc_html( $label ) . '</option>';
@@ -105,7 +105,7 @@ trait TopicsViews {
 		echo '</select> <button class="button">' . esc_html__( 'Filter', 'otherguise' ) . '</button></p></form>';
 		/* translators: %d: number of topics. */
 		echo '<p>' . esc_html( sprintf( _n( '%d topic.', '%d topics.', count( $rows ), 'otherguise' ), count( $rows ) ) ) . '</p>';
-		echo '<table class="widefat striped"><thead><tr><th>' . esc_html__( 'Label', 'otherguise' ) . '</th><th>' . esc_html__( 'Kind', 'otherguise' ) . '</th><th>' . esc_html__( 'Under', 'otherguise' ) . '</th><th>' . esc_html__( 'Status', 'otherguise' ) . '</th><th>' . esc_html__( 'Designations', 'otherguise' ) . '</th></tr></thead><tbody>';
+		echo '<table class="widefat striped"><thead><tr><th>' . esc_html__( 'Label', 'otherguise' ) . '</th><th>' . esc_html__( 'Kind', 'otherguise' ) . '</th><th>' . esc_html__( 'Under', 'otherguise' ) . '</th><th>' . esc_html__( 'Status', 'otherguise' ) . '</th><th>' . esc_html__( 'Motifs', 'otherguise' ) . '</th></tr></thead><tbody>';
 
 		foreach ( array_slice( $rows, ( $paged - 1 ) * self::PER_PAGE, self::PER_PAGE ) as $row ) {
 			$topic = $row['topic'];
@@ -136,7 +136,7 @@ trait TopicsViews {
 	}
 
 	/**
-	 * A topic: what a person edits, its identifiers, its designations and its sub-topics.
+	 * A topic: what a person edits, its identifiers, its motifs and its sub-topics.
 	 *
 	 * @param int $id The topic.
 	 * @return void
@@ -169,7 +169,7 @@ trait TopicsViews {
 		$keys = array_values( array_filter( array_map( 'strval', (array) $topic['keys'] ), static fn( $key ) => 0 !== strpos( $key, 'label:' ) ) );
 
 		echo '<p><strong>' . esc_html__( 'Identifiers', 'otherguise' ) . '</strong> ' . esc_html( array() === $keys ? '—' : implode( ', ', $keys ) ) . '</p>';
-		echo '<h3>' . esc_html__( 'Designations', 'otherguise' ) . '</h3>';
+		echo '<h3>' . esc_html__( 'Motifs', 'otherguise' ) . '</h3>';
 		$this->designations_table( array_keys( $this->observations->designations_of_topic( $id ) ), $id, 'topics' );
 
 		$children = $this->topics->all( array( 'parent' => $id ) );
@@ -192,9 +192,9 @@ trait TopicsViews {
 	}
 
 	/**
-	 * A table of designations with the form that assigns the ticked ones (or all of a topic) to a topic.
+	 * A table of motifs with the form that assigns the ticked ones (or all of a topic) to a topic.
 	 *
-	 * @param int[]  $ids   The designations.
+	 * @param int[]  $ids   The motifs.
 	 * @param int    $topic The topic they are shown under (0 for none).
 	 * @param string $tab   The tab to come back to.
 	 * @return void
@@ -209,7 +209,7 @@ trait TopicsViews {
 		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
 		wp_nonce_field( self::NONCE );
 		echo '<input type="hidden" name="action" value="' . esc_attr( self::ASSIGN ) . '" /><input type="hidden" name="op" value="preview" /><input type="hidden" name="topic" value="' . esc_attr( (string) $topic ) . '" /><input type="hidden" name="tab" value="' . esc_attr( $tab ) . '" />';
-		echo '<table class="widefat striped"><thead><tr><th></th><th>' . esc_html__( 'Source', 'otherguise' ) . '</th><th>' . esc_html__( 'What was designated', 'otherguise' ) . '</th><th>' . esc_html__( 'Posts', 'otherguise' ) . '</th><th>' . esc_html__( 'Assigned by', 'otherguise' ) . '</th><th>' . esc_html__( 'State', 'otherguise' ) . '</th></tr></thead><tbody>';
+		echo '<table class="widefat striped"><thead><tr><th></th><th>' . esc_html__( 'Source', 'otherguise' ) . '</th><th>' . esc_html__( 'Motif', 'otherguise' ) . '</th><th>' . esc_html__( 'Posts', 'otherguise' ) . '</th><th>' . esc_html__( 'Assigned by', 'otherguise' ) . '</th><th>' . esc_html__( 'State', 'otherguise' ) . '</th></tr></thead><tbody>';
 
 		foreach ( array_slice( $ids, 0, 200 ) as $id ) {
 			$one = $this->designations->get( (int) $id );
@@ -234,8 +234,8 @@ trait TopicsViews {
 		echo '</tbody></table>';
 
 		if ( count( $ids ) > 200 ) {
-			/* translators: %d: number of designations. */
-			echo '<p>' . esc_html( sprintf( __( 'The first 200 of %d designations are shown.', 'otherguise' ), count( $ids ) ) ) . '</p>';
+			/* translators: %d: number of motifs. */
+			echo '<p>' . esc_html( sprintf( __( 'The first 200 of %d motifs are shown.', 'otherguise' ), count( $ids ) ) ) . '</p>';
 		}
 
 		echo '<p><label>' . esc_html__( 'Assign the ticked ones to the topic (its number, or its label)', 'otherguise' ) . ' <input name="to" size="30" /></label> ' . esc_html__( 'or to a new topic:', 'otherguise' ) . ' <input name="new_label" placeholder="' . esc_attr__( 'Label', 'otherguise' ) . '" /> <select name="new_kind">';
@@ -248,23 +248,23 @@ trait TopicsViews {
 		echo '<p><button class="button">' . esc_html__( 'Preview the assignment of the ticked ones', 'otherguise' ) . '</button>';
 
 		if ( $topic > 0 ) {
-			echo ' <button class="button" name="all" value="1">' . esc_html__( 'Preview the assignment of all the designations of this topic', 'otherguise' ) . '</button>';
+			echo ' <button class="button" name="all" value="1">' . esc_html__( 'Preview the assignment of all the motifs of this topic', 'otherguise' ) . '</button>';
 		}
 
 		echo '</p></form>';
 	}
 
 	/**
-	 * A designation: the posts where it is found.
+	 * A motif: the posts where it is found.
 	 *
-	 * @param int $id The designation.
+	 * @param int $id The motif.
 	 * @return void
 	 */
 	private function designation_view( $id ) {
 		$one = $this->designations->get( $id );
 
 		if ( null === $one ) {
-			echo '<p>' . esc_html__( 'This designation does not exist.', 'otherguise' ) . '</p>';
+			echo '<p>' . esc_html__( 'This motif does not exist.', 'otherguise' ) . '</p>';
 
 			return;
 		}
@@ -307,7 +307,7 @@ trait TopicsViews {
 	}
 
 	/**
-	 * The designations that a person has to assign: pending and ambiguous.
+	 * The motifs that a person has to assign: pending and ambiguous.
 	 *
 	 * @return void
 	 */
@@ -318,7 +318,7 @@ trait TopicsViews {
 			$ids = array_merge( $ids, array_keys( $this->designations->all( array( 'state' => $state ) ) ) );
 		}
 
-		echo '<p>' . esc_html__( 'A designation is pending while Wikidata has not answered (it resolves by itself), and ambiguous when several topics fit: assign it to the right one.', 'otherguise' ) . '</p>';
+		echo '<p>' . esc_html__( 'A motif is pending while Wikidata has not answered (it resolves by itself), and ambiguous when several topics fit: assign it to the right one.', 'otherguise' ) . '</p>';
 		$this->designations_table( $ids, 0, 'resolve' );
 	}
 
@@ -345,8 +345,8 @@ trait TopicsViews {
 		$label = null === $target ? (string) $this->text( INPUT_GET, 'new_label' ) : (string) $target['label'];
 
 		echo '<h2>' . esc_html__( 'Assign', 'otherguise' ) . '</h2>';
-		/* translators: 1: designations, 2: observations, 3: posts, 4: topic label. */
-		echo '<p>' . esc_html( sprintf( __( '%1$d designation(s), %2$d observation(s) in %3$d post(s), will be assigned to "%4$s"%5$s. Nothing is deleted: the designations and the observations stay, and the mentions of the posts follow.', 'otherguise' ), count( $ids ), $count, count( array_unique( $posts ) ), $label, null === $target ? ' ' . __( '(a new topic)', 'otherguise' ) : '' ) ) . '</p>';
+		/* translators: 1: motifs, 2: observations, 3: posts, 4: topic label. */
+		echo '<p>' . esc_html( sprintf( __( '%1$d motif(s), %2$d observation(s) in %3$d post(s), will be assigned to "%4$s"%5$s. Nothing is deleted: the motifs and the observations stay, and the mentions of the posts follow.', 'otherguise' ), count( $ids ), $count, count( array_unique( $posts ) ), $label, null === $target ? ' ' . __( '(a new topic)', 'otherguise' ) : '' ) ) . '</p>';
 		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
 		wp_nonce_field( self::NONCE );
 		echo '<input type="hidden" name="action" value="' . esc_attr( self::ASSIGN ) . '" /><input type="hidden" name="op" value="apply" /><input type="hidden" name="topic" value="' . esc_attr( (string) $from ) . '" /><input type="hidden" name="tab" value="' . esc_attr( $tab ) . '" /><input type="hidden" name="to" value="' . esc_attr( (string) $to ) . '" />';

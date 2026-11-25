@@ -51,7 +51,7 @@ final class Mentions {
 	private $observations;
 
 	/**
-	 * The designations, when the model of slice 625 is on.
+	 * The motifs, when the model of slice 625 is on.
 	 *
 	 * @var Designations|null
 	 */
@@ -62,7 +62,7 @@ final class Mentions {
 	 *
 	 * @param callable          $statements   Returns the `Statements` service.
 	 * @param Observations|null $observations The observations.
-	 * @param Designations|null $designations The designations.
+	 * @param Designations|null $designations The motifs.
 	 */
 	public function __construct( $statements, ?Observations $observations = null, ?Designations $designations = null ) {
 		$this->statements   = $statements;
@@ -316,7 +316,7 @@ final class Mentions {
 				$moved  = 0;
 				$merged = 0;
 
-				// The designations of the first topic are assigned to the second, by a person (slice 626): a new reading follows the decision.
+				// The motifs of the first topic are assigned to the second, by a person (slice 626): a new reading follows the decision.
 				if ( ! $dry && null !== $this->observations ) {
 					foreach ( array_keys( $this->observations->designations_of_topic( $from ) ) as $designation ) {
 						$this->observations->assign( (int) $designation, $to, Observations::HAND );
@@ -470,7 +470,7 @@ final class Mentions {
 	}
 
 	/**
-	 * Keeps the observation of a mention made by a person: a designation of the source `hand` for the topic, assigned to it by hand (slice 626).
+	 * Keeps the observation of a mention made by a person: a motif of the source `hand` for the topic, assigned to it by hand (slice 626).
 	 *
 	 * @param int  $post_id Post.
 	 * @param int  $topic   Topic.

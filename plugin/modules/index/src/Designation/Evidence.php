@@ -3,7 +3,7 @@
  * SPDX-FileCopyrightText: 2026 Eric van der Vlist <vdv@dyomedea.com>
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * What a designation keeps of what a candidate saw.
+ * What a motif keeps of what a candidate saw.
  *
  * @package Otherguise
  */
@@ -15,8 +15,8 @@ use Otherguise\Index\Candidate;
 defined( 'ABSPATH' ) || exit;
 
 /**
- * The evidence of a designation (slices 626 and 631), and the candidate that it makes again: **every level of the chain** (its label, its kind, its keys),
- * from the broadest to the narrowest, so that a designation can be **resolved again without reading its page**: when a person chooses among the topics that a
+ * The evidence of a motif (slices 626 and 631), and the candidate that it makes again: **every level of the chain** (its label, its kind, its keys),
+ * from the broadest to the narrowest, so that a motif can be **resolved again without reading its page**: when a person chooses among the topics that a
  * level hesitated between, or when the resolver is run again. Never a URL or a precise coordinate (slice 606).
  */
 final class Evidence {
@@ -60,11 +60,11 @@ final class Evidence {
 	}
 
 	/**
-	 * The candidate that some evidence makes again. A designation read before the levels were kept has only the labels of the broader levels: they come back as
+	 * The candidate that some evidence makes again. A motif read before the levels were kept has only the labels of the broader levels: they come back as
 	 * levels of the kind `any`, which conflicts with none (the doubts that come from a kind are not found again, the others are).
 	 *
 	 * @param array<string, mixed> $evidence The evidence.
-	 * @param string               $leaf     The source of the designation.
+	 * @param string               $leaf     The source of the motif.
 	 * @return Candidate
 	 */
 	public static function candidate( array $evidence, $leaf ) {

@@ -66,7 +66,7 @@ final class Resolver {
 	 * @param Candidate $candidate The candidate.
 	 * @param bool      $sure      Whether its source is sure (a new topic is then approved).
 	 * @param bool      $dry       Write nothing: say what would happen (a topic that would be created has the id 0).
-	 * @param bool      $record    Whether an ambiguous candidate leaves a placeholder topic (`candidate`, key `ambiguous:…`): **not when the designations hold the doubt** (slice 629).
+	 * @param bool      $record    Whether an ambiguous candidate leaves a placeholder topic (`candidate`, key `ambiguous:…`): **not when the motifs hold the doubt** (slice 629).
 	 * @return array{result:string,topic:int,new:int,ambiguity?:array{level:string,key:string,candidates:int[]}} `topic` is 0 when ambiguous, and `ambiguity` then says
 	 *         **which level** hesitated (its label, its key) and **between which topics** (slice 631); `new` counts the topics created, the broader ones included.
 	 */
@@ -165,7 +165,7 @@ final class Resolver {
 		$id = $this->topics->create( $candidate->label, $candidate->kind, $parent, $sure ? Topics::APPROVED : Topics::CANDIDATE, $keys );
 
 		// WordPress refuses a term whose name is already one of its siblings' (accents and case ignored): the topic is there, under other keys. Take it (slice 631),
-		// instead of leaving the designation waiting for ever; of another kind, a person decides.
+		// instead of leaving the motif waiting for ever; of another kind, a person decides.
 		if ( $id <= 0 ) {
 			return $this->sibling( $candidate, $parent, $keys, $above['new'] );
 		}
@@ -178,9 +178,9 @@ final class Resolver {
 	}
 
 	/**
-	 * The result for a level whose topic is of a kind that the source cannot mean (slice 632): the designation has no topic, and says **why**: the topic that is
+	 * The result for a level whose topic is of a kind that the source cannot mean (slice 632): the motif has no topic, and says **why**: the topic that is
 	 * there, its kind and the kind that the source gives. It is not an ambiguity (there is one topic, not several): the person keeps the topic, or assigns the
-	 * designation elsewhere.
+	 * motif elsewhere.
 	 *
 	 * @param int       $topic     The topic that bears the label.
 	 * @param Candidate $candidate The candidate.

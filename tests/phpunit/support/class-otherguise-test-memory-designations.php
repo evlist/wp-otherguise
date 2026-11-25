@@ -3,7 +3,7 @@
  * SPDX-FileCopyrightText: 2026 Eric van der Vlist <vdv@dyomedea.com>
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * The designations of the index, in memory.
+ * The motifs of the index, in memory.
  *
  * @package Otherguise
  */
@@ -12,11 +12,11 @@ use Otherguise\Index\Designations;
 use Otherguise\Index\Sources;
 
 /**
- * Stands for the taxonomy `index_designation`. Each designation created is also declared as a `WP_Term` of the stubs, so that an observation can point at it.
+ * Stands for the taxonomy `index_designation`. Each motif created is also declared as a `WP_Term` of the stubs, so that an observation can point at it.
  */
 final class Otherguise_Test_Memory_Designations implements Designations {
 	/**
-	 * The designations by id.
+	 * The motifs by id.
 	 *
 	 * @var array<int, array<string, mixed>>
 	 */
@@ -30,7 +30,7 @@ final class Otherguise_Test_Memory_Designations implements Designations {
 	private $last = 5000;
 
 	/**
-	 * The designation that has a key.
+	 * The motif that has a key.
 	 *
 	 * @param string $key Key.
 	 * @return int
@@ -46,7 +46,7 @@ final class Otherguise_Test_Memory_Designations implements Designations {
 	}
 
 	/**
-	 * Creates a designation.
+	 * Creates a motif.
 	 *
 	 * @param string $key      Key.
 	 * @param string $source   Source.
@@ -74,7 +74,7 @@ final class Otherguise_Test_Memory_Designations implements Designations {
 	}
 
 	/**
-	 * A designation.
+	 * A motif.
 	 *
 	 * @param int $id Id.
 	 * @return array|null
@@ -97,7 +97,7 @@ final class Otherguise_Test_Memory_Designations implements Designations {
 	}
 
 	/**
-	 * What the enrichment learnt about a designation.
+	 * What the enrichment learnt about a motif.
 	 *
 	 * @param int $id Id.
 	 * @return array<string, mixed>
@@ -118,7 +118,7 @@ final class Otherguise_Test_Memory_Designations implements Designations {
 	}
 
 	/**
-	 * Deletes a designation.
+	 * Deletes a motif.
 	 *
 	 * @param int $id Id.
 	 * @return void
@@ -128,7 +128,7 @@ final class Otherguise_Test_Memory_Designations implements Designations {
 	}
 
 	/**
-	 * The designations.
+	 * The motifs.
 	 *
 	 * @param array $filters Filters.
 	 * @return array<int, array>

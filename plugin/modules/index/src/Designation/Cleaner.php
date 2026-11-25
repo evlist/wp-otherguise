@@ -3,7 +3,7 @@
  * SPDX-FileCopyrightText: 2026 Eric van der Vlist <vdv@dyomedea.com>
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * The cleaning of the designations.
+ * The cleaning of the motifs.
  *
  * @package Otherguise
  */
@@ -16,12 +16,12 @@ use Otherguise\Index\Observations;
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Deletes the designations that nothing needs (slice 626): **those that the system proposed and that no post observes any more**. A designation that a
+ * Deletes the motifs that nothing needs (slice 626): **those that the system proposed and that no post observes any more**. A motif that a
  * person assigned stays, observed or not, until a person deletes it (Eric, 2026-11-24).
  */
 final class Cleaner {
 	/**
-	 * The designations.
+	 * The motifs.
 	 *
 	 * @var Designations
 	 */
@@ -37,7 +37,7 @@ final class Cleaner {
 	/**
 	 * Builds the cleaner.
 	 *
-	 * @param Designations $designations The designations.
+	 * @param Designations $designations The motifs.
 	 * @param Observations $observations The observations.
 	 */
 	public function __construct( Designations $designations, Observations $observations ) {
@@ -46,7 +46,7 @@ final class Cleaner {
 	}
 
 	/**
-	 * The designations that can go.
+	 * The motifs that can go.
 	 *
 	 * @param bool $everything Also the ones that a person assigned.
 	 * @return int[]
@@ -63,7 +63,7 @@ final class Cleaner {
 	}
 
 	/**
-	 * The designations that a reset would leave nothing to (slice 626): once the observations are dropped, **every designation that the system proposed**.
+	 * The motifs that a reset would leave nothing to (slice 626): once the observations are dropped, **every motif that the system proposed**.
 	 *
 	 * @param bool $everything Also the ones that a person assigned.
 	 * @return int[]
@@ -80,7 +80,7 @@ final class Cleaner {
 	/**
 	 * Deletes them (and their assignment).
 	 *
-	 * @param int[] $ids The designations.
+	 * @param int[] $ids The motifs.
 	 * @return int How many.
 	 */
 	public function delete( array $ids ) {

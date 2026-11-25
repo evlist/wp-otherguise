@@ -3,7 +3,7 @@
  * SPDX-FileCopyrightText: 2026 Eric van der Vlist <vdv@dyomedea.com>
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * The designations that waited for Wikidata.
+ * The motifs that waited for Wikidata.
  *
  * @package Otherguise
  */
@@ -19,13 +19,13 @@ use Otherguise\Index\Resolver;
 defined( 'ABSPATH' ) || exit;
 
 /**
- * The queue of the designations that are `pending` because Wikidata had not answered when their post was read (slice 627): a batch at a time, they are
+ * The queue of the motifs that are `pending` because Wikidata had not answered when their post was read (slice 627): a batch at a time, they are
  * looked up, then **resolved with what Wikidata said** (the topic is made complete, or found by its identifier), assigned, and the mentions of the posts
  * that observe them are made. **The pages are not read again.**
  */
 final class DesignationRetry {
 	/**
-	 * The designations.
+	 * The motifs.
 	 *
 	 * @var Designations
 	 */
@@ -62,7 +62,7 @@ final class DesignationRetry {
 	/**
 	 * Builds the queue.
 	 *
-	 * @param Designations        $designations The designations.
+	 * @param Designations        $designations The motifs.
 	 * @param Observations        $observations The observations.
 	 * @param Mentions            $mentions     The mentions.
 	 * @param Resolver            $resolver     The resolver.
@@ -77,10 +77,10 @@ final class DesignationRetry {
 	}
 
 	/**
-	 * The designations that wait: `pending`, with a link to Wikipedia and no identifier of Wikidata, not looked at too recently.
+	 * The motifs that wait: `pending`, with a link to Wikipedia and no identifier of Wikidata, not looked at too recently.
 	 *
 	 * @param int $limit At most this many.
-	 * @return array<int, array{type:string,language:string,title:string,qid:string}> By designation.
+	 * @return array<int, array{type:string,language:string,title:string,qid:string}> By motif.
 	 */
 	public function pending( $limit = DesignationEnricher::BATCH ) {
 		$found = array();
@@ -119,11 +119,11 @@ final class DesignationRetry {
 			$report[ $id ] = $this->resolve( (int) $id );
 		}
 
-		return $this->result( $asked['ok'], $asked['stop'], $asked['ok'] ? count( $report ) . ' designation(s) looked at.' : $asked['message'], $report );
+		return $this->result( $asked['ok'], $asked['stop'], $asked['ok'] ? count( $report ) . ' motif(s) looked at.' : $asked['message'], $report );
 	}
 
 	/**
-	 * Resolves a designation with what Wikidata said, and makes the mentions of its posts.
+	 * Resolves a motif with what Wikidata said, and makes the mentions of its posts.
 	 *
 	 * @param int $id Designation.
 	 * @return string What happened: `assigned` or `ambiguous`.
@@ -172,7 +172,7 @@ final class DesignationRetry {
 	 * @param bool               $ok      Whether the batch worked.
 	 * @param bool               $stop    Whether the job must stop.
 	 * @param string             $message Message.
-	 * @param array<int, string> $report  What happened to each designation.
+	 * @param array<int, string> $report  What happened to each motif.
 	 * @return array{ok:bool,stop:bool,message:string,processed:int,report:array<int,string>}
 	 */
 	private function result( $ok, $stop, $message, array $report ) {

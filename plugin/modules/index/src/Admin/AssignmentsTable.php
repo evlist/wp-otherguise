@@ -18,7 +18,7 @@ use Otherguise\Index\Topics;
 defined( 'ABSPATH' ) || exit;
 
 /**
- * The `WP_List_Table` of the assignments (slice 630): one line per **designation**, with the topic it is assigned to, who assigned it, its state and the
+ * The `WP_List_Table` of the assignments (slice 630): one line per **motif**, with the topic it is assigned to, who assigned it, its state and the
  * number of posts that observe it; views, a search, sortable columns, bulk actions and a field that chooses the topic. **It only shows what `Listing` gives.**
  * The class of WordPress must be loaded before this one is (`Designation\Wiring::table()` does it).
  */
@@ -102,7 +102,7 @@ final class AssignmentsTable extends \WP_List_Table {
 	public function get_columns() {
 		return array(
 			'cb'          => '<input type="checkbox" />',
-			'designation' => __( 'What was designated', 'otherguise' ),
+			'designation' => __( 'Motif', 'otherguise' ),
 			'source'      => __( 'Source', 'otherguise' ),
 			'posts'       => __( 'Posts', 'otherguise' ),
 			'topic'       => __( 'Assigned to', 'otherguise' ),
@@ -196,7 +196,7 @@ final class AssignmentsTable extends \WP_List_Table {
 	 * @return void
 	 */
 	public function no_items() {
-		esc_html_e( 'No designation here: read the pages first (wp otherguise index sync).', 'otherguise' );
+		esc_html_e( 'No motif here: read the pages first (wp otherguise index sync).', 'otherguise' );
 	}
 
 	/**
@@ -242,7 +242,7 @@ final class AssignmentsTable extends \WP_List_Table {
 	}
 
 	/**
-	 * What was designated, with its key and the link to the posts.
+	 * Motif, with its key and the link to the posts.
 	 *
 	 * @param array $item A line.
 	 * @return string
@@ -308,7 +308,7 @@ final class AssignmentsTable extends \WP_List_Table {
 	}
 
 	/**
-	 * What a designation that has no topic offers: **the topics that a level hesitated between**, in a list, with the kind and the topics above each; the choice
+	 * What a motif that has no topic offers: **the topics that a level hesitated between**, in a list, with the kind and the topics above each; the choice
 	 * is applied by the bulk action *Apply the choices* (a form inside the form of the table is not possible).
 	 *
 	 * @param array $item A line.
@@ -349,7 +349,7 @@ final class AssignmentsTable extends \WP_List_Table {
 	 * What the list asks: which topic a level is (several hesitate), or what to do when the only topic of that name is of a kind that the source cannot mean
 	 * (slice 632).
 	 *
-	 * @param array $ambiguity The ambiguity of the designation.
+	 * @param array $ambiguity The ambiguity of the motif.
 	 * @return string
 	 */
 	private function question( array $ambiguity ) {

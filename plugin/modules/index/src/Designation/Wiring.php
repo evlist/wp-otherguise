@@ -3,7 +3,7 @@
  * SPDX-FileCopyrightText: 2026 Eric van der Vlist <vdv@dyomedea.com>
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * The commands of the designations, built on WordPress.
+ * The commands of the motifs, built on WordPress.
  *
  * @package Otherguise
  */
@@ -31,7 +31,7 @@ use Otherguise\Index\Topics;
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Registers `wp otherguise index designations`, `assign` and `suggestions` (slices 626 and 628), and builds the screen of the topics.
+ * Registers `wp otherguise index motifs`, `assign` and `suggestions` (slices 626 and 628), and builds the screen of the topics.
  */
 final class Wiring {
 	/**
@@ -40,7 +40,7 @@ final class Wiring {
 	 * @param Topics       $topics       The topics.
 	 * @param Mentions     $mentions     The mentions.
 	 * @param Observations $observations The observations.
-	 * @param Designations $designations The designations.
+	 * @param Designations $designations The motifs.
 	 * @param callable     $add_action   `add_action`.
 	 * @return void
 	 */
@@ -64,12 +64,12 @@ final class Wiring {
 
 	/**
 	 * Registers the routes of the screen of the assignments (outside the administration: a request of the REST API is not one): the search of the topics
-	 * (slice 630) and the quick edit of one designation (slice 633).
+	 * (slice 630) and the quick edit of one motif (slice 633).
 	 *
 	 * @param Topics       $topics       The topics.
 	 * @param Mentions     $mentions     The mentions.
 	 * @param Observations $observations The observations.
-	 * @param Designations $designations The designations.
+	 * @param Designations $designations The motifs.
 	 * @param callable     $add_action   `add_action`.
 	 * @return void
 	 */
@@ -97,7 +97,7 @@ final class Wiring {
 	/**
 	 * The table of the assignments: the class of WordPress that it extends is loaded first.
 	 *
-	 * @param Designations $designations The designations.
+	 * @param Designations $designations The motifs.
 	 * @param Observations $observations The observations.
 	 * @param Topics       $topics       The topics.
 	 * @return AssignmentsTable
@@ -127,7 +127,7 @@ final class Wiring {
 	 * @param Topics       $topics       The topics.
 	 * @param Mentions     $mentions     The mentions.
 	 * @param Observations $observations The observations.
-	 * @param Designations $designations The designations.
+	 * @param Designations $designations The motifs.
 	 * @return void
 	 */
 	public static function register_command( Topics $topics, Mentions $mentions, Observations $observations, Designations $designations ) {
@@ -151,7 +151,7 @@ final class Wiring {
 			new Reresolver( $designations, $observations, $mentions, new Resolver( $topics ), $topics )
 		);
 
-		\WP_CLI::add_command( 'otherguise index designations', $command );
+		\WP_CLI::add_command( 'otherguise index motifs', $command );
 		\WP_CLI::add_command( 'otherguise index assign', array( $command, 'assign' ) );
 		\WP_CLI::add_command( 'otherguise index suggestions', new SuggestionsCommand( new DuplicateFinder( $topics, array( new IgnoredPairs(), 'has' ) ) ) );
 	}

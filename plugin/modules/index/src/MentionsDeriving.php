@@ -13,14 +13,14 @@ namespace Otherguise\Index;
 defined( 'ABSPATH' ) || exit;
 
 /**
- * The mentions of a post, made again from its observations (slice 626): when a person assigns a designation to another topic, **the mentions of the posts
+ * The mentions of a post, made again from its observations (slice 626): when a person assigns a motif to another topic, **the mentions of the posts
  * that observe it follow**, without reading the pages again. A trait of `Mentions` (it uses `sync()`), kept apart so that the class stays under the size
  * limit of a file.
  */
 trait MentionsDeriving {
 	/**
-	 * Makes the mentions of a post, for every source that has observations or mentions in it, from the observations: each designation counts for the topic it
-	 * is assigned to, a designation with no assignment counts for none.
+	 * Makes the mentions of a post, for every source that has observations or mentions in it, from the observations: each motif counts for the topic it
+	 * is assigned to, a motif with no assignment counts for none.
 	 *
 	 * @param int $post_id Post.
 	 * @return array{added:int,removed:int}

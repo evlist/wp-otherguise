@@ -52,7 +52,7 @@ final class Indexer {
 	private $is_published;
 
 	/**
-	 * The designations, when the model of slice 625 is on.
+	 * The motifs, when the model of slice 625 is on.
 	 *
 	 * @var Designations|null
 	 */
@@ -79,7 +79,7 @@ final class Indexer {
 	 * @param Mentions                 $mentions     The mentions.
 	 * @param Source[]                 $sources      The sources.
 	 * @param callable                 $is_published Whether a post is published.
-	 * @param Designations|null        $designations The designations (with the observations, they make the model of slice 625).
+	 * @param Designations|null        $designations The motifs (with the observations, they make the model of slice 625).
 	 * @param Observations|null        $observations The observations and the assignments.
 	 * @param DesignationEnricher|null $enrichment The enrichment before creation, when it is on.
 	 */
@@ -192,17 +192,17 @@ final class Indexer {
 	}
 
 	/**
-	 * Ties a candidate to a designation and to a topic (slice 626). The designation is found by its key, or created; **an assignment that a person made is
+	 * Ties a candidate to a motif and to a topic (slice 626). The motif is found by its key, or created; **an assignment that a person made is
 	 * kept** (the resolver is not asked, so a new reading never undoes a decision); otherwise the resolver proposes a topic and the assignment follows it.
 	 * Without the model of slice 625 (or in a dry run) the candidate is only resolved.
 	 *
-	 * @param Candidate                                        $candidate The candidate.
-	 * @param string                                           $leaf      Its source.
-	 * @param bool                                             $sure      Whether the source is sure.
-	 * @param bool                                             $dry       Write nothing.
-	 * @param array<string, array{done:array,designation:int}> $seen      What was decided in this reading, by key (a designation is resolved once).
-	 * @param int[]                                            $waiting   The designations that the enrichment could not look at now (the service asked to wait).
-	 * @return array{done:array{result:string,topic:int,new:int},designation:int}
+	 * @param Candidate                                  $candidate The candidate.
+	 * @param string                                     $leaf      Its source.
+	 * @param bool                                       $sure      Whether the source is sure.
+	 * @param bool                                       $dry       Write nothing.
+	 * @param array<string, array{done:array,motif:int}> $seen      What was decided in this reading, by key (a motif is resolved once).
+	 * @param int[]                                      $waiting   The motifs that the enrichment could not look at now (the service asked to wait).
+	 * @return array{done:array{result:string,topic:int,new:int},motif:int}
 	 */
 	private function designate( Candidate $candidate, $leaf, $sure, $dry, array &$seen, array $waiting = array() ) {
 		if ( null === $this->designations || null === $this->observations || $dry ) {
@@ -249,7 +249,7 @@ final class Indexer {
 				'new'    => 0,
 			);
 		} elseif ( in_array( $id, $waiting, true ) && null === $have ) {
-			// Wikidata has not answered yet: **no topic is made unenriched**. The observation is kept, the designation waits (slice 627).
+			// Wikidata has not answered yet: **no topic is made unenriched**. The observation is kept, the motif waits (slice 627).
 			$done = array(
 				'result' => Designations::PENDING,
 				'topic'  => 0,
@@ -303,10 +303,10 @@ final class Indexer {
 	}
 
 	/**
-	 * The candidate that Wikidata completed (the identifier first, the label, the kind), when the enrichment is on and it knows the designation.
+	 * The candidate that Wikidata completed (the identifier first, the label, the kind), when the enrichment is on and it knows the motif.
 	 *
 	 * @param Candidate $candidate The candidate.
-	 * @param int       $id        Its designation.
+	 * @param int       $id        Its motif.
 	 * @return Candidate
 	 */
 	private function completed( Candidate $candidate, $id ) {
@@ -314,11 +314,11 @@ final class Indexer {
 	}
 
 	/**
-	 * Asks Wikidata about the designations of a post that carry a link to Wikipedia and were not looked at, **in one batch** (slice 627).
+	 * Asks Wikidata about the motifs of a post that carry a link to Wikipedia and were not looked at, **in one batch** (slice 627).
 	 *
 	 * @param Candidate[] $candidates The candidates of a source.
 	 * @param string      $default    The leaf of the source when a candidate has none.
-	 * @return int[] The designations that could not be looked at now (the service asked to wait, or failed).
+	 * @return int[] The motifs that could not be looked at now (the service asked to wait, or failed).
 	 */
 	private function prefetch( array $candidates, $default ) {
 		if ( null === $this->enrichment || null === $this->designations ) {

@@ -3,7 +3,7 @@
  * SPDX-FileCopyrightText: 2026 Eric van der Vlist <vdv@dyomedea.com>
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * The screen of the topics and of their designations.
+ * The screen of the topics and of their motifs.
  *
  * @package Otherguise
  */
@@ -23,12 +23,12 @@ use Otherguise\Index\Topics;
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Otherguise → Topics (slice 628): **one screen to manage the topics and what is assigned to them** (Eric, 2026-11-24). The screens list **designations**,
+ * Otherguise → Topics (slice 628): **one screen to manage the topics and what is assigned to them** (Eric, 2026-11-24). The screens list **motifs**,
  * never observations.
  *
  * - **Topics**: the list (search, filters, counts), then a topic: its label, kind and parent are **edited in place** (by hand: the enrichment never replaces
- *   them), its identifiers, its designations (**assigned to another topic** after a preview), its sub-topics, and for a designation the posts where it is found.
- * - **To resolve**: the designations that are pending or ambiguous.
+ *   them), its identifiers, its motifs (**assigned to another topic** after a preview), its sub-topics, and for a motif the posts where it is found.
+ * - **To resolve**: the motifs that are pending or ambiguous.
  * - **Suggestions**: the topics that may be the same (the screen of slice 618, in the vocabulary of the assignments).
  *
  * Each form posts to `admin-post.php` with the capability and a nonce.
@@ -50,7 +50,7 @@ final class TopicsScreen {
 	private $topics;
 
 	/**
-	 * The designations.
+	 * The motifs.
 	 *
 	 * @var Designations
 	 */
@@ -109,7 +109,7 @@ final class TopicsScreen {
 	 * Builds the screen.
 	 *
 	 * @param Topics           $topics       The topics.
-	 * @param Designations     $designations The designations.
+	 * @param Designations     $designations The motifs.
 	 * @param Observations     $observations The observations.
 	 * @param Assigner         $assigner     The assigner.
 	 * @param DuplicatesScreen $suggestions  The view of the suggestions.
@@ -168,7 +168,7 @@ final class TopicsScreen {
 		$screens   = is_array( $screens ) ? $screens : array();
 		$screens[] = array(
 			'title'       => __( 'Topics', 'otherguise' ),
-			'description' => __( 'The topics of the index, what the sources designated and where it is assigned: rename a topic, assign designations to another, look at the suggestions.', 'otherguise' ),
+			'description' => __( 'The topics of the index, the motifs that the sources found and where each is assigned: rename a topic, assign motifs to another, look at the suggestions.', 'otherguise' ),
 			'capability'  => $this->capability(),
 			'page'        => self::PAGE,
 			'group'       => 'settings',
@@ -337,7 +337,7 @@ final class TopicsScreen {
 	}
 
 	/**
-	 * Assigns designations to a topic: the first step makes a preview, the second does it. Action `admin_post_otherguise_index_topic_assign`.
+	 * Assigns motifs to a topic: the first step makes a preview, the second does it. Action `admin_post_otherguise_index_topic_assign`.
 	 *
 	 * @return void
 	 */
@@ -365,7 +365,7 @@ final class TopicsScreen {
 		}
 
 		if ( array() === $ids ) {
-			( $this->redirect )( $this->url( array_merge( $back, array( 'error' => __( 'Tick at least one designation.', 'otherguise' ) ) ) ) );
+			( $this->redirect )( $this->url( array_merge( $back, array( 'error' => __( 'Tick at least one motif.', 'otherguise' ) ) ) ) );
 
 			return;
 		}
@@ -496,8 +496,8 @@ final class TopicsScreen {
 		} elseif ( '1' === $saved ) {
 			echo '<div class="notice notice-success"><p>' . esc_html__( 'Saved.', 'otherguise' ) . '</p></div>';
 		} elseif ( '' !== $assigned ) {
-			/* translators: 1: designations assigned, 2: posts whose mentions follow. */
-			echo '<div class="notice notice-success"><p>' . esc_html( sprintf( __( '%1$d designation(s) assigned; the mentions of %2$d post(s) follow.', 'otherguise' ), absint( $assigned ), absint( (string) ( $this->input )( INPUT_GET, 'posts', false ) ) ) ) . '</p></div>';
+			/* translators: 1: motifs assigned, 2: posts whose mentions follow. */
+			echo '<div class="notice notice-success"><p>' . esc_html( sprintf( __( '%1$d motif(s) assigned; the mentions of %2$d post(s) follow.', 'otherguise' ), absint( $assigned ), absint( (string) ( $this->input )( INPUT_GET, 'posts', false ) ) ) ) . '</p></div>';
 		}
 	}
 }

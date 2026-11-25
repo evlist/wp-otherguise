@@ -3,7 +3,7 @@
  * SPDX-FileCopyrightText: 2026 Eric van der Vlist <vdv@dyomedea.com>
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * Tests of the screen of the topics and of their designations (slice 628), on a real database for the statements.
+ * Tests of the screen of the topics and of their motifs (slice 628), on a real database for the statements.
  *
  * @package Otherguise
  */
@@ -32,7 +32,7 @@ require_once __DIR__ . '/support/class-otherguise-test-memory-kinds.php';
 require_once __DIR__ . '/support/class-otherguise-test-memory-designations.php';
 
 /**
- * The statements are real; the topics, the designations and the kinds are in memory; the request, the nonce and the redirection are doubles.
+ * The statements are real; the topics, the motifs and the kinds are in memory; the request, the nonce and the redirection are doubles.
  *
  * @covers \Otherguise\Index\Admin\TopicsScreen
  * @covers \Otherguise\Index\Admin\TopicsViews
@@ -47,7 +47,7 @@ class IndexTopicsScreenDbTest extends Otherguise_Test_Database_Case {
 	private $topics;
 
 	/**
-	 * The designations.
+	 * The motifs.
 	 *
 	 * @var Otherguise_Test_Memory_Designations
 	 */
@@ -274,7 +274,7 @@ class IndexTopicsScreenDbTest extends Otherguise_Test_Database_Case {
 	}
 
 	/**
-	 * Makes two topics, the designation of a link assigned to the first, and a lone designation of a tag.
+	 * Makes two topics, the motif of a link assigned to the first, and a lone motif of a tag.
 	 *
 	 * @return array{department:int,river:int,design:int}
 	 */
@@ -319,7 +319,7 @@ class IndexTopicsScreenDbTest extends Otherguise_Test_Database_Case {
 		$this->request[ INPUT_GET ] = array( 'show' => 'empty' );
 		$page                       = $this->page( $this->screen( $urls ) );
 
-		$this->assertStringContainsString( 'Allier (rivière)', $page, 'The river has no designation.' );
+		$this->assertStringContainsString( 'Allier (rivière)', $page, 'The river has no motif.' );
 		$this->assertStringNotContainsString( '>Allier</a>', $page );
 
 		$this->request[ INPUT_GET ] = array( 'kind' => 'waterway' );
@@ -330,7 +330,7 @@ class IndexTopicsScreenDbTest extends Otherguise_Test_Database_Case {
 	}
 
 	/**
-	 * A topic: its designations with their posts and who assigned them, its identifiers; the designation shows its posts.
+	 * A topic: its motifs with their posts and who assigned them, its identifiers; the motif shows its posts.
 	 *
 	 * @return void
 	 */
@@ -345,7 +345,7 @@ class IndexTopicsScreenDbTest extends Otherguise_Test_Database_Case {
 		$this->assertStringContainsString( 'post/link|wikipedia:fr:Allier', $page );
 		$this->assertStringContainsString( '<td>2</td>', $page, 'Two posts observe it.' );
 		$this->assertStringContainsString( 'name="designation[]"', $page );
-		$this->assertStringContainsString( 'Preview the assignment of all the designations of this topic', $page );
+		$this->assertStringContainsString( 'Preview the assignment of all the motifs of this topic', $page );
 		$this->assertMatchesRegularExpression( '/<select name="new_kind">.*<option value="any" selected=.selected.>/s', $page, 'The kind of a new topic is not the first of the list (slice 633).' );
 
 		$this->request[ INPUT_GET ] = array( 'designation' => (string) $w['design'] );
@@ -452,7 +452,7 @@ class IndexTopicsScreenDbTest extends Otherguise_Test_Database_Case {
 		$this->request[ INPUT_GET ] = $query;
 		$page                       = $this->page( $this->screen( $urls ) );
 
-		$this->assertStringContainsString( '1 designation(s), 2 observation(s) in 2 post(s)', $page );
+		$this->assertStringContainsString( '1 motif(s), 2 observation(s) in 2 post(s)', $page );
 		$this->assertStringContainsString( 'will be assigned to &quot;Allier (rivière)&quot;', $page );
 		$this->assertStringContainsString( 'name="op" value="apply"', $page );
 
@@ -519,7 +519,7 @@ class IndexTopicsScreenDbTest extends Otherguise_Test_Database_Case {
 	}
 
 	/**
-	 * "All the designations of this topic" is one button; the capability and the nonce are checked.
+	 * "All the motifs of this topic" is one button; the capability and the nonce are checked.
 	 *
 	 * @return void
 	 */
@@ -551,11 +551,11 @@ class IndexTopicsScreenDbTest extends Otherguise_Test_Database_Case {
 		$this->screen( $urls )->assign();
 
 		$this->assertSame( $w['river'], $this->observations->assignment( $w['design'] )['topic'] );
-		$this->assertContains( 'wikipedia:fr:Allier', $this->topics->get( $w['river'] )['keys'], 'The keys of the topic follow its designations.' );
+		$this->assertContains( 'wikipedia:fr:Allier', $this->topics->get( $w['river'] )['keys'], 'The keys of the topic follow its motifs.' );
 	}
 
 	/**
-	 * The tab "To resolve" lists the designations that are pending or ambiguous; the tab "Suggestions" shows the suggestions.
+	 * The tab "To resolve" lists the motifs that are pending or ambiguous; the tab "Suggestions" shows the suggestions.
 	 *
 	 * @return void
 	 */
@@ -577,7 +577,7 @@ class IndexTopicsScreenDbTest extends Otherguise_Test_Database_Case {
 		$page                       = $this->page( $this->screen( $urls ) );
 
 		$this->assertStringContainsString( 'Attente', $page );
-		$this->assertStringNotContainsString( 'post/link|wikipedia:fr:Allier</code>', $page, 'An assigned designation is not to resolve.' );
+		$this->assertStringNotContainsString( 'post/link|wikipedia:fr:Allier</code>', $page, 'An assigned motif is not to resolve.' );
 
 		$this->request[ INPUT_GET ] = array( 'tab' => 'suggestions' );
 		$page                       = $this->page( $this->screen( $urls ) );

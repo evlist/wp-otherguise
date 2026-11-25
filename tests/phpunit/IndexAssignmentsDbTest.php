@@ -33,7 +33,7 @@ require_once __DIR__ . '/support/class-otherguise-test-memory-designations.php';
 require_once __DIR__ . '/support/class-otherguise-test-wp-list-table.php';
 
 /**
- * The statements are real; the topics, the designations and the kinds are in memory; the request, the nonce and the redirection are doubles.
+ * The statements are real; the topics, the motifs and the kinds are in memory; the request, the nonce and the redirection are doubles.
  *
  * @covers \Otherguise\Index\Designation\Listing
  * @covers \Otherguise\Index\Designation\TopicFinder
@@ -52,7 +52,7 @@ class IndexAssignmentsDbTest extends Otherguise_Test_Database_Case {
 	private $topics;
 
 	/**
-	 * The designations.
+	 * The motifs.
 	 *
 	 * @var Otherguise_Test_Memory_Designations
 	 */
@@ -114,9 +114,9 @@ class IndexAssignmentsDbTest extends Otherguise_Test_Database_Case {
 	}
 
 	/**
-	 * A designation, observed in some posts, assigned to a topic by the system or by a person.
+	 * A motif, observed in some posts, assigned to a topic by the system or by a person.
 	 *
-	 * @param string $label  What was designated.
+	 * @param string $label  Motif.
 	 * @param int[]  $posts  The posts that observe it.
 	 * @param int    $topic  The topic it is assigned to (0 for none).
 	 * @param string $by     `system` or `hand`.
@@ -410,7 +410,7 @@ class IndexAssignmentsDbTest extends Otherguise_Test_Database_Case {
 
 	/**
 	 * The bulk actions: the capability and the nonce first; nothing ticked is said; assigning goes to a confirmation with the topic that was typed; confirming
-	 * makes the assignment a decision; taking it away puts the designation to resolve and the mentions go; deleting only takes what no post observes.
+	 * makes the assignment a decision; taking it away puts the motif to resolve and the mentions go; deleting only takes what no post observes.
 	 *
 	 * @return void
 	 */
@@ -476,7 +476,7 @@ class IndexAssignmentsDbTest extends Otherguise_Test_Database_Case {
 		$this->bulk( 'delete', array( 'designation' => array( (string) $a, (string) $b ) ) );
 		$this->screen( $urls )->process();
 
-		$this->assertNotNull( $this->designations->get( $a ), 'A designation that a post observes is not deleted.' );
+		$this->assertNotNull( $this->designations->get( $a ), 'A motif that a post observes is not deleted.' );
 		$this->assertNull( $this->designations->get( $b ) );
 		$this->assertStringContainsString( 'skipped=1', end( $urls ) );
 
@@ -512,7 +512,7 @@ class IndexAssignmentsDbTest extends Otherguise_Test_Database_Case {
 		$this->screen( $urls )->render();
 		$page = (string) ob_get_clean();
 
-		$this->assertStringContainsString( '1 designation(s), 2 observation(s) in 2 post(s), will be assigned to &quot;Allier (rivière)&quot;', $page );
+		$this->assertStringContainsString( '1 motif(s), 2 observation(s) in 2 post(s), will be assigned to &quot;Allier (rivière)&quot;', $page );
 		$this->assertStringContainsString( 'name="action" value="' . AssignmentsScreen::APPLY . '"', $page );
 
 		$this->request[ INPUT_POST ] = array(
@@ -612,7 +612,7 @@ class IndexAssignmentsDbTest extends Otherguise_Test_Database_Case {
 		$page = (string) ob_get_clean();
 
 		$this->assertSame( array( 'prepare', 'views', 'search:assignment', 'target', 'display' ), $table->called );
-		$this->assertStringContainsString( 'Search designations (top right) looks in the label', $page, 'A line of help says what each field searches.' );
+		$this->assertStringContainsString( 'Search motifs (top right) looks in the label', $page, 'A line of help says what each field searches.' );
 		$this->assertSame( 2, substr_count( $page, '<form' ), 'The search is a form of its own; the bulk actions post to the screen itself.' );
 		$this->assertStringContainsString( 'page=otherguise-index-assignments', $page );
 
@@ -624,8 +624,8 @@ class IndexAssignmentsDbTest extends Otherguise_Test_Database_Case {
 	}
 
 	/**
-	 * A designation that hesitated between topics: the list of the table offers them (with the kind and the topics above each, to tell the namesakes apart); a
-	 * designation that has no candidate shows nothing to choose.
+	 * A motif that hesitated between topics: the list of the table offers them (with the kind and the topics above each, to tell the namesakes apart); a
+	 * motif that has no candidate shows nothing to choose.
 	 *
 	 * @return void
 	 */
@@ -664,7 +664,7 @@ class IndexAssignmentsDbTest extends Otherguise_Test_Database_Case {
 	}
 
 	/**
-	 * A designation whose only topic is of a kind that the source cannot mean (slice 632): it is said **incompatible**, with both kinds, in a view of its own, and the
+	 * A motif whose only topic is of a kind that the source cannot mean (slice 632): it is said **incompatible**, with both kinds, in a view of its own, and the
 	 * list offers to keep the topic.
 	 *
 	 * @return void
@@ -780,7 +780,7 @@ class IndexAssignmentsDbTest extends Otherguise_Test_Database_Case {
 		$this->assertSame( $b, $this->topics->get( $have['topic'] )['parent'], 'The level that was missing is made under the topic that was chosen.' );
 		$this->assertSame( Designations::ASSIGNED, $this->designations->get( $id )['state'] );
 		$this->assertSame( array( $have['topic'] ), array_keys( $this->mentions->of_post( 1 ) ) );
-		$this->assertSame( $b, $this->topics->pinned( 'label:' . $spain . '/fisterra' ), 'The choice is kept for the next designation that hesitates the same way.' );
+		$this->assertSame( $b, $this->topics->pinned( 'label:' . $spain . '/fisterra' ), 'The choice is kept for the next motif that hesitates the same way.' );
 	}
 
 	/**
@@ -1028,7 +1028,7 @@ class IndexAssignmentsDbTest extends Otherguise_Test_Database_Case {
 	}
 
 	/**
-	 * The close topics of a designation: the same name once the parentheses are left out, from its label and from the label of its topic; not the topic it has.
+	 * The close topics of a motif: the same name once the parentheses are left out, from its label and from the label of its topic; not the topic it has.
 	 *
 	 * @return void
 	 */

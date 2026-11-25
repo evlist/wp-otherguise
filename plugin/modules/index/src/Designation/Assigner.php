@@ -3,7 +3,7 @@
  * SPDX-FileCopyrightText: 2026 Eric van der Vlist <vdv@dyomedea.com>
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * The assignment of designations to a topic, by a person.
+ * The assignment of motifs to a topic, by a person.
  *
  * @package Otherguise
  */
@@ -19,13 +19,13 @@ use Otherguise\Index\Topics;
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Assigns designations to a topic (slice 626): **the only gesture left of what was called merge, link and correction** (Eric, 2026-11-24). The assignment is
- * **manual**: a new reading never changes it. The mentions of the posts that observe the designations follow at once. **Nothing is deleted**: the
- * designations and the observations stay, and the previous assignment is reported.
+ * Assigns motifs to a topic (slice 626): **the only gesture left of what was called merge, link and correction** (Eric, 2026-11-24). The assignment is
+ * **manual**: a new reading never changes it. The mentions of the posts that observe the motifs follow at once. **Nothing is deleted**: the
+ * motifs and the observations stay, and the previous assignment is reported.
  */
 final class Assigner {
 	/**
-	 * The designations.
+	 * The motifs.
 	 *
 	 * @var Designations
 	 */
@@ -55,7 +55,7 @@ final class Assigner {
 	/**
 	 * Builds the service.
 	 *
-	 * @param Designations $designations The designations.
+	 * @param Designations $designations The motifs.
 	 * @param Observations $observations The observations.
 	 * @param Mentions     $mentions     The mentions.
 	 * @param Topics       $topics       The topics.
@@ -68,15 +68,15 @@ final class Assigner {
 	}
 
 	/**
-	 * Assigns designations to a topic.
+	 * Assigns motifs to a topic.
 	 *
-	 * @param int[] $ids   The designations.
+	 * @param int[] $ids   The motifs.
 	 * @param int   $topic The topic.
 	 * @param bool  $dry   Change nothing, say what would be.
 	 * @param bool  $force Assign across kinds that exclude each other.
-	 * @param int   $from  The topic they leave, when all its designations go: its keys then follow them (0 for none).
-	 * @return array{ok:bool,error:string,designations:int,observations:int,posts:int,lines:string[],conflict:array{designation?:int,was?:string,target?:string}} `conflict` says, when
-	 *         the kinds exclude each other, **which designation** and **the two kinds** (slice 633).
+	 * @param int   $from  The topic they leave, when all its motifs go: its keys then follow them (0 for none).
+	 * @return array{ok:bool,error:string,motifs:int,observations:int,posts:int,lines:string[],conflict:array{motif?:int,was?:string,target?:string}} `conflict` says, when
+	 *         the kinds exclude each other, **which motif** and **the two kinds** (slice 633).
 	 */
 	public function assign( array $ids, $topic, $dry = true, $force = false, $from = 0 ) {
 		$report = array(
@@ -102,7 +102,7 @@ final class Assigner {
 			$one = $this->designations->get( $id );
 
 			if ( null === $one ) {
-				$report['error'] = 'The designation ' . $id . ' does not exist.';
+				$report['error'] = 'The motif ' . $id . ' does not exist.';
 
 				return $report;
 			}
@@ -111,7 +111,7 @@ final class Assigner {
 			$was  = null === $have ? null : $this->topics->get( (int) $have['topic'] );
 
 			if ( ! $force && null !== $was && ! Kinds::compatible( (string) $was['kind'], (string) $target['kind'] ) ) {
-				$report['error'] = 'The designation ' . $id . ' is assigned to a topic of the kind ' . $was['kind'] . ', which is not one a sort of ' . $target['kind'] . ': use --force to assign it anyway.';
+				$report['error'] = 'The motif ' . $id . ' is assigned to a topic of the kind ' . $was['kind'] . ', which is not one a sort of ' . $target['kind'] . ': use --force to assign it anyway.';
 				$report['conflict'] = array(
 					'designation' => $id,
 					'was'         => (string) $was['kind'],

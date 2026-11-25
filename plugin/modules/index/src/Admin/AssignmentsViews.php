@@ -52,12 +52,12 @@ trait AssignmentsViews {
 	}
 
 	/**
-	 * The first designation of a list whose topic has a kind that excludes the kind of the topic that it is going to, or null (slice 633: the warning is said
+	 * The first motif of a list whose topic has a kind that excludes the kind of the topic that it is going to, or null (slice 633: the warning is said
 	 * only when it is true).
 	 *
-	 * @param int[]  $ids  The designations.
+	 * @param int[]  $ids  The motifs.
 	 * @param string $kind The kind of the topic that they go to.
-	 * @return array{designation:int,was:string,target:string}|null
+	 * @return array{motif:int,was:string,target:string}|null
 	 */
 	private function kind_conflict( array $ids, $kind ) {
 		foreach ( $ids as $id ) {
@@ -87,16 +87,16 @@ trait AssignmentsViews {
 		$count   = absint( (string) ( $this->input )( INPUT_GET, 'count', false ) );
 		$skipped = absint( (string) ( $this->input )( INPUT_GET, 'skipped', false ) );
 		$words   = array(
-			/* translators: %d: number of designations. */
-			'assign'   => __( '%d designation(s) assigned; the mentions of their posts follow.', 'otherguise' ),
-			/* translators: %d: number of designations. */
+			/* translators: %d: number of motifs. */
+			'assign'   => __( '%d motif(s) assigned; the mentions of their posts follow.', 'otherguise' ),
+			/* translators: %d: number of motifs. */
 			'choose'   => __( '%d choice(s) applied: the topics are made where they were missing, and the mentions of the posts follow.', 'otherguise' ),
-			/* translators: %d: number of designations. */
+			/* translators: %d: number of motifs. */
 			'confirm'  => __( '%d assignment(s) confirmed: a new reading will not change them.', 'otherguise' ),
-			/* translators: %d: number of designations. */
-			'unassign' => __( '%d assignment(s) taken away: the designations are to resolve, and a new reading may propose a topic again.', 'otherguise' ),
-			/* translators: %d: number of designations. */
-			'delete'   => __( '%d designation(s) deleted.', 'otherguise' ),
+			/* translators: %d: number of motifs. */
+			'unassign' => __( '%d assignment(s) taken away: the motifs are to resolve, and a new reading may propose a topic again.', 'otherguise' ),
+			/* translators: %d: number of motifs. */
+			'delete'   => __( '%d motif(s) deleted.', 'otherguise' ),
 		);
 
 		if ( '' !== $error ) {
@@ -131,8 +131,8 @@ trait AssignmentsViews {
 		}
 
 		echo '<h2>' . esc_html__( 'Assign', 'otherguise' ) . '</h2>';
-		/* translators: 1: designations, 2: observations, 3: posts, 4: topic label. */
-		echo '<p>' . esc_html( sprintf( __( '%1$d designation(s), %2$d observation(s) in %3$d post(s), will be assigned to "%4$s"%5$s. Nothing is deleted: the designations and the observations stay, and the mentions of the posts follow.', 'otherguise' ), count( $ids ), $count, count( array_unique( $posts ) ), null === $target ? $new : (string) $target['label'], null === $target ? ' ' . __( '(a new topic)', 'otherguise' ) : '' ) ) . '</p>';
+		/* translators: 1: motifs, 2: observations, 3: posts, 4: topic label. */
+		echo '<p>' . esc_html( sprintf( __( '%1$d motif(s), %2$d observation(s) in %3$d post(s), will be assigned to "%4$s"%5$s. Nothing is deleted: the motifs and the observations stay, and the mentions of the posts follow.', 'otherguise' ), count( $ids ), $count, count( array_unique( $posts ) ), null === $target ? $new : (string) $target['label'], null === $target ? ' ' . __( '(a new topic)', 'otherguise' ) : '' ) ) . '</p>';
 		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
 		wp_nonce_field( self::NONCE );
 		echo '<input type="hidden" name="action" value="' . esc_attr( self::APPLY ) . '" /><input type="hidden" name="to" value="' . esc_attr( null === $target ? '' : (string) $target['id'] ) . '" />';
@@ -147,13 +147,13 @@ trait AssignmentsViews {
 
 		$conflict = $this->kind_conflict( $ids, null === $target ? ( Kinds::is_kind( $this->text( INPUT_GET, 'new_kind' ) ) ? $this->text( INPUT_GET, 'new_kind' ) : Kinds::ANY ) : (string) $target['kind'] );
 
-		// The warning is there only when it is true: a designation that is assigned to a topic whose kind cannot be the one of the new topic.
+		// The warning is there only when it is true: a motif that is assigned to a topic whose kind cannot be the one of the new topic.
 		if ( null !== $conflict ) {
 			$old = $this->designations->get( $conflict['designation'] );
 
 			echo '<div class="notice notice-warning inline"><p>' . esc_html(
 				sprintf(
-					/* translators: 1: a designation, 2: the kind of its topic, 3: the kind of the topic chosen. */
+					/* translators: 1: a motif, 2: the kind of its topic, 3: the kind of the topic chosen. */
 					__( '"%1$s" is assigned to a topic of the kind %2$s, and the topic chosen is of the kind %3$s: one is not a sort of the other. Tick the box to assign anyway.', 'otherguise' ),
 					null === $old ? (string) $conflict['designation'] : (string) ( $old['evidence']['label'] ?? $old['key'] ),
 					(string) Kinds::label( $conflict['was'] ),

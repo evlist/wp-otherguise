@@ -3,7 +3,7 @@
  * SPDX-FileCopyrightText: 2026 Eric van der Vlist <vdv@dyomedea.com>
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * The topics that are close to a designation.
+ * The topics that are close to a motif.
  *
  * @package Otherguise
  */
@@ -18,14 +18,14 @@ use Otherguise\Index\Topics;
 defined( 'ABSPATH' ) || exit;
 
 /**
- * The topics to offer first when a person changes the topic of a designation (slice 633): the ones that **a person would take it for**, found like the first
+ * The topics to offer first when a person changes the topic of a motif (slice 633): the ones that **a person would take it for**, found like the first
  * rule of the suggestions of doubles (slice 616), **the same name once what is in parentheses is left out** (*aisne (02)* and *Aisne (affluent de l'Oise)*),
- * from the label of the designation **and** from the label of the topic it is assigned to. The topic it is assigned to is not offered. The rule of the
+ * from the label of the motif **and** from the label of the topic it is assigned to. The topic it is assigned to is not offered. The rule of the
  * letters that differ is **not** used here: it compares every topic with every other, which is too heavy for a click.
  */
 final class Neighbours {
 	/**
-	 * The designations.
+	 * The motifs.
 	 *
 	 * @var Designations
 	 */
@@ -55,7 +55,7 @@ final class Neighbours {
 	/**
 	 * Builds the finder of neighbours.
 	 *
-	 * @param Designations $designations The designations.
+	 * @param Designations $designations The motifs.
 	 * @param Observations $observations The observations.
 	 * @param Topics       $topics       The topics.
 	 * @param TopicFinder  $finder       The finder.
@@ -70,7 +70,7 @@ final class Neighbours {
 	/**
 	 * The close topics, the closest first.
 	 *
-	 * @param int $id    The designation.
+	 * @param int $id    The motif.
 	 * @param int $limit At most this many.
 	 * @return array<int, array{id:int,label:string,kind:string,chain:string}>
 	 */

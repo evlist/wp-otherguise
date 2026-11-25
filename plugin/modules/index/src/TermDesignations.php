@@ -3,7 +3,7 @@
  * SPDX-FileCopyrightText: 2026 Eric van der Vlist <vdv@dyomedea.com>
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * The designations as terms of a taxonomy.
+ * The motifs as terms of a taxonomy.
  *
  * @package Otherguise
  */
@@ -62,7 +62,7 @@ final class TermDesignations implements Designations {
 	}
 
 	/**
-	 * The designation that has a key.
+	 * The motif that has a key.
 	 *
 	 * @param string $key Key.
 	 * @return int
@@ -74,7 +74,7 @@ final class TermDesignations implements Designations {
 	}
 
 	/**
-	 * Creates a designation.
+	 * Creates a motif.
 	 *
 	 * @param string               $key      Key.
 	 * @param string               $source   Source.
@@ -103,7 +103,7 @@ final class TermDesignations implements Designations {
 	}
 
 	/**
-	 * A designation.
+	 * A motif.
 	 *
 	 * @param int $id Id.
 	 * @return array|null
@@ -149,7 +149,7 @@ final class TermDesignations implements Designations {
 	}
 
 	/**
-	 * What the enrichment learnt about a designation.
+	 * What the enrichment learnt about a motif.
 	 *
 	 * @param int $id Id.
 	 * @return array<string, mixed>
@@ -172,7 +172,7 @@ final class TermDesignations implements Designations {
 	}
 
 	/**
-	 * Deletes a designation.
+	 * Deletes a motif.
 	 *
 	 * @param int $id Id.
 	 * @return void
@@ -182,7 +182,7 @@ final class TermDesignations implements Designations {
 	}
 
 	/**
-	 * The designations.
+	 * The motifs.
 	 *
 	 * @param array $filters Filters.
 	 * @return array<int, array>

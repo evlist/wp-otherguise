@@ -3,7 +3,7 @@
  * SPDX-FileCopyrightText: 2026 Eric van der Vlist <vdv@dyomedea.com>
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * The list of the designations and of their assignments.
+ * The list of the motifs and of their assignments.
  *
  * @package Otherguise
  */
@@ -19,11 +19,11 @@ use Otherguise\Index\Topics;
 defined( 'ABSPATH' ) || exit;
 
 /**
- * What the screen of the assignments shows (slice 630), without WordPress: the designations with their topic, who assigned them, their state and the number
+ * What the screen of the assignments shows (slice 630), without WordPress: the motifs with their topic, who assigned them, their state and the number
  * of posts that observe them, **filtered** by a view, **searched** (the label, the key, which holds the source and the chain of a place, the topic, the identifier
  * of Wikidata and the state), **sorted** and **cut in pages**. The assignments are read **in two queries**, whatever
- * their number; the number of posts is asked **only for the lines of the page**, except to sort by it or to list the designations that nothing observes
- * (one pass over every observation: heavy, and measured by `wp otherguise index designations measure`).
+ * their number; the number of posts is asked **only for the lines of the page**, except to sort by it or to list the motifs that nothing observes
+ * (one pass over every observation: heavy, and measured by `wp otherguise index motifs measure`).
  */
 final class Listing {
 	public const ALL        = 'all';
@@ -34,7 +34,7 @@ final class Listing {
 	public const UNOBSERVED = 'unobserved';
 
 	/**
-	 * The designations.
+	 * The motifs.
 	 *
 	 * @var Designations
 	 */
@@ -57,7 +57,7 @@ final class Listing {
 	/**
 	 * Builds the list.
 	 *
-	 * @param Designations $designations The designations.
+	 * @param Designations $designations The motifs.
 	 * @param Observations $observations The observations.
 	 * @param Topics       $topics       The topics.
 	 */

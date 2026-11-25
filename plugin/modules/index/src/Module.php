@@ -200,7 +200,7 @@ final class Module implements ModuleInterface, DescribedModule, DisabledByDefaul
 	}
 
 	/**
-	 * The observations and the assignments of the designations (slice 626).
+	 * The observations and the assignments of the motifs (slice 626).
 	 *
 	 * @return Observations
 	 */
@@ -213,7 +213,7 @@ final class Module implements ModuleInterface, DescribedModule, DisabledByDefaul
 	}
 
 	/**
-	 * The designations (slice 626).
+	 * The motifs (slice 626).
 	 *
 	 * @return Designations
 	 */

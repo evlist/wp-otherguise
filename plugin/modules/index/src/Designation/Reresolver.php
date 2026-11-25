@@ -3,7 +3,7 @@
  * SPDX-FileCopyrightText: 2026 Eric van der Vlist <vdv@dyomedea.com>
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * The designations that are resolved again, or by a choice.
+ * The motifs that are resolved again, or by a choice.
  *
  * @package Otherguise
  */
@@ -19,17 +19,17 @@ use Otherguise\Index\Topics;
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Resolves a designation **without reading its page**, from its evidence (slice 631):
+ * Resolves a motif **without reading its page**, from its evidence (slice 631):
  *
- * - `run()` resolves again the designations that are ambiguous, which **records the topics that a level hesitated between** (the list of the screen of the
+ * - `run()` resolves again the motifs that are ambiguous, which **records the topics that a level hesitated between** (the list of the screen of the
  *   assignments) and settles those that the topics made since have cleared up;
- * - `choose()` is **the decision of a person** among those topics: the choice is **pinned** to the level that hesitated (the next designation that hesitates
- *   in the same way gets it too), the designation is resolved again (**the levels that are missing under the topic chosen are made**), **assigned by hand**,
+ * - `choose()` is **the decision of a person** among those topics: the choice is **pinned** to the level that hesitated (the next motif that hesitates
+ *   in the same way gets it too), the motif is resolved again (**the levels that are missing under the topic chosen are made**), **assigned by hand**,
  *   and the mentions of its posts are made.
  */
 final class Reresolver {
 	/**
-	 * The designations.
+	 * The motifs.
 	 *
 	 * @var Designations
 	 */
@@ -66,7 +66,7 @@ final class Reresolver {
 	/**
 	 * Builds the service.
 	 *
-	 * @param Designations $designations The designations.
+	 * @param Designations $designations The motifs.
 	 * @param Observations $observations The observations.
 	 * @param Mentions     $mentions     The mentions.
 	 * @param Resolver     $resolver     The resolver.
@@ -81,7 +81,7 @@ final class Reresolver {
 	}
 
 	/**
-	 * Resolves again the designations that are ambiguous.
+	 * Resolves again the motifs that are ambiguous.
 	 *
 	 * @param bool $dry   Change nothing, say what would happen.
 	 * @param int  $limit At most this many (0 for all).
@@ -137,7 +137,7 @@ final class Reresolver {
 	/**
 	 * A person chooses, among the topics that a level hesitated between, the one that it is.
 	 *
-	 * @param int $id    The designation.
+	 * @param int $id    The motif.
 	 * @param int $topic The topic chosen.
 	 * @return array{ok:bool,error:string,topic:int}
 	 */
@@ -151,7 +151,7 @@ final class Reresolver {
 		);
 
 		if ( null === $one ) {
-			return $fail( __( 'This designation does not exist.', 'otherguise' ) );
+			return $fail( __( 'This motif does not exist.', 'otherguise' ) );
 		}
 
 		if ( ! is_array( $ambiguity ) || ! in_array( (int) $topic, array_map( 'intval', (array) $ambiguity['candidates'] ), true ) || null === $this->topics->get( (int) $topic ) ) {
@@ -190,9 +190,9 @@ final class Reresolver {
 	}
 
 	/**
-	 * Assigns a designation, says so, and makes the mentions of its posts.
+	 * Assigns a motif, says so, and makes the mentions of its posts.
 	 *
-	 * @param int    $id    The designation.
+	 * @param int    $id    The motif.
 	 * @param int    $topic The topic.
 	 * @param string $by    `system` or `hand`.
 	 * @param string $why   Why.

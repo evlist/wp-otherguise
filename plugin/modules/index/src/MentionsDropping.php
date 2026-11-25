@@ -72,7 +72,7 @@ trait MentionsDropping {
 					}
 				}
 
-				// What a source saw goes with what it said (slice 626): its observations, not its designations (a decision of a person stays).
+				// What a source saw goes with what it said (slice 626): its observations, not its motifs (a decision of a person stays).
 				if ( null !== $this->observations ) {
 					$this->observations->drop_source( (string) $source, $dry );
 				}
@@ -154,7 +154,7 @@ trait MentionsDropping {
 	}
 
 	/**
-	 * Deletes the designations that the system proposed and that no post observes (slice 629: the cleaning phase of the synchronisation). **A designation that
+	 * Deletes the motifs that the system proposed and that no post observes (slice 629: the cleaning phase of the synchronisation). **A motif that
 	 * a person assigned stays.**
 	 *
 	 * @param bool $dry Count only.
@@ -176,7 +176,7 @@ trait MentionsDropping {
 	}
 
 	/**
-	 * The topics that a decision of a person holds (slice 626): a designation that a person assigned to a topic keeps it, observed or not, so that the
+	 * The topics that a decision of a person holds (slice 626): a motif that a person assigned to a topic keeps it, observed or not, so that the
 	 * cleaning of the topics that nobody mentions does not leave the decision pointing at nothing.
 	 *
 	 * @return array<int, true>

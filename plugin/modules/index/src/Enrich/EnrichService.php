@@ -48,7 +48,7 @@ final class EnrichService {
 	private $mentions;
 
 	/**
-	 * The designations.
+	 * The motifs.
 	 *
 	 * @var Designations|null
 	 */
@@ -66,7 +66,7 @@ final class EnrichService {
 	 *
 	 * @param Topics            $topics  The topics.
 	 * @param Mentions          $mentions The mentions.
-	 * @param Designations|null $designations The designations (the enrichment before creation needs them).
+	 * @param Designations|null $designations The motifs (the enrichment before creation needs them).
 	 * @param Observations|null $observations The observations.
 	 */
 	public function __construct( Topics $topics, Mentions $mentions, ?Designations $designations = null, ?Observations $observations = null ) {
@@ -96,7 +96,7 @@ final class EnrichService {
 	}
 
 	/**
-	 * The queue of the designations that waited for Wikidata, or null when the enrichment is off.
+	 * The queue of the motifs that waited for Wikidata, or null when the enrichment is off.
 	 *
 	 * @return DesignationRetry|null
 	 */
@@ -231,7 +231,7 @@ final class EnrichService {
 	}
 
 	/**
-	 * The designations that wait for Wikidata.
+	 * The motifs that wait for Wikidata.
 	 *
 	 * @param int $limit At most this many.
 	 * @return array

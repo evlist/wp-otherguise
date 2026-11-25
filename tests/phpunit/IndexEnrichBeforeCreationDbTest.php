@@ -35,7 +35,7 @@ require_once __DIR__ . '/support/class-otherguise-test-memory-kinds.php';
 require_once __DIR__ . '/support/class-otherguise-test-memory-designations.php';
 
 /**
- * The statements are real; the topics, the designations and the kinds are in memory; the services of Wikimedia are doubles.
+ * The statements are real; the topics, the motifs and the kinds are in memory; the services of Wikimedia are doubles.
  *
  * @covers \Otherguise\Index\Enrich\DesignationEnricher
  * @covers \Otherguise\Index\Enrich\DesignationRetry
@@ -53,7 +53,7 @@ class IndexEnrichBeforeCreationDbTest extends Otherguise_Test_Database_Case {
 	private $topics;
 
 	/**
-	 * The designations.
+	 * The motifs.
 	 *
 	 * @var Otherguise_Test_Memory_Designations
 	 */
@@ -81,7 +81,7 @@ class IndexEnrichBeforeCreationDbTest extends Otherguise_Test_Database_Case {
 	private $indexer;
 
 	/**
-	 * The queue of the designations that waited.
+	 * The queue of the motifs that waited.
 	 *
 	 * @var DesignationRetry
 	 */
@@ -318,7 +318,7 @@ class IndexEnrichBeforeCreationDbTest extends Otherguise_Test_Database_Case {
 
 		$this->indexer->index_post( 2 );
 
-		$this->assertCount( 3, $this->requests, 'The designation was looked at once, whatever the posts.' );
+		$this->assertCount( 3, $this->requests, 'The motif was looked at once, whatever the posts.' );
 		$this->assertCount( 1, $this->topics->topics );
 		$this->assertSame( array_keys( $this->mentions->of_post( 1 ) ), array_keys( $this->mentions->of_post( 2 ) ) );
 	}
@@ -360,7 +360,7 @@ class IndexEnrichBeforeCreationDbTest extends Otherguise_Test_Database_Case {
 	}
 
 	/**
-	 * While the service asks to wait, **no topic is made**: the observation is kept, the designation is `pending`, the index is incomplete and not degraded;
+	 * While the service asks to wait, **no topic is made**: the observation is kept, the motif is `pending`, the index is incomplete and not degraded;
 	 * the queue then resolves it with what Wikidata says, and the mentions appear without reading the page again.
 	 *
 	 * @return void
@@ -419,6 +419,6 @@ class IndexEnrichBeforeCreationDbTest extends Otherguise_Test_Database_Case {
 		$this->indexer->index_post( 1 );
 
 		$this->assertSame( array( $river ), array_keys( $this->mentions->of_post( 1 ) ) );
-		$this->assertSame( array(), $this->requests, 'Nothing is asked about a designation that a person assigned.' );
+		$this->assertSame( array(), $this->requests, 'Nothing is asked about a motif that a person assigned.' );
 	}
 }
