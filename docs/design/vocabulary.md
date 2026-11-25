@@ -38,7 +38,7 @@ The words of the module, in one place. **Decided by Eric on 2026-11-25** (the wo
 Technically, **the topics and the motifs are themselves stored as terms of hidden taxonomies** (`index_topic`, `index_designation`): in the code, *term* can mean that. For a person only the first sense counts.
 
 ```
-a tag of WordPress "eurovelo 9"      (a kind makes its topic approved; without, a candidate)
+a tag of WordPress "eurovelo 9"      (its topic is approved; a person may exclude the motif)
   → motif       post/tag|term:post_tag:18
       → observations : one per post that has this tag (61)
       → assignment   : to the topic EuroVelo 9 – Baltic-Adriatic
@@ -55,8 +55,8 @@ a tag of WordPress "eurovelo 9"      (a kind makes its topic approved; without, 
 
 ## The tags and the categories with no kind (slice [635](../slices/635-index-terms-without-a-kind.md), decided by Eric on 2026-11-25, coded)
 
-- **A term with no kind is read like the others**: its motif has the kind `any` and **its topic is a candidate**, outside the index until a person **approves** it (a term that has a kind is sure: its topic is approved at once). **Giving the term a kind approves its topic.**
-- **Excluding**: a person can **exclude** a motif (a tag that says nothing of what an index lists): it has **no topic**, **its observations stay**, **the mentions of its posts go**, and **a reading leaves it alone** (the state `excluded`, a decision like an assignment by hand). *Include again* puts it back. **This replaces the reserved topic "None" that was proposed**: no topic to protect from the cleaning, the merges and the enrichment, and the same effect.
+- **A term with no kind is read like the others**: its motif has the kind `any` and **its topic is approved** (amended by slice [641](../slices/641-index-none-topic.md): the *candidate* rule is abandoned). **Giving the term a kind** makes the topic more precise.
+- **Excluding** (slice 641): a person **assigns the motif to the reserved topic `_None_`** (status `refused`, key `reserved:none`): **its observations stay**, **no mention is made**, and a reading leaves the assignment alone (by hand). *Include again* unassigns it. The topic is never pruned, never merged, not editable on the *Topics* screen, and sorts before the letters. **This replaces the state `excluded`** of slice 635.
 - **Open**: **a topic read from a tag has no Wikipedia or Wikidata key**, so the enrichment never classifies it; classifying it from its label alone (homonyms) is **not decided**. **A person classifies it** (the screen *Terms* or the kind of the topic).
 
 ## The renaming (slice [634](../slices/634-index-motif-vocabulary.md))

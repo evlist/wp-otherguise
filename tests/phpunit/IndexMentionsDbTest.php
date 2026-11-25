@@ -174,8 +174,8 @@ class IndexMentionsDbTest extends Otherguise_Test_Database_Case {
 	}
 
 	/**
-	 * A category with a kind is mentioned and its topic is approved, its parent is a topic too, and a category with no kind is read as well (slice 635): a candidate
-	 * topic of the kind `any`, outside the index until a person approves it.
+	 * A category with a kind is mentioned and its topic is approved, its parent is a topic too, and a category with no kind is read as well (slices 635 and 641): a topic of
+	 * the kind `any`, approved like the others.
 	 *
 	 * @return void
 	 */
@@ -198,7 +198,7 @@ class IndexMentionsDbTest extends Otherguise_Test_Database_Case {
 		}
 
 		$this->assertSame( Topics::APPROVED, $by_label['Beaufort']['status'], 'A person chose its kind: sure.' );
-		$this->assertSame( Topics::CANDIDATE, $by_label['Repos']['status'], 'Nobody classified it: a candidate, outside the index.' );
+		$this->assertSame( Topics::APPROVED, $by_label['Repos']['status'], 'Nobody classified it: read like the others, approved, of the kind any (slice 641).' );
 		$this->assertSame( 'any', $by_label['Repos']['kind'] );
 		$this->assertSame( array( 'post/category' ), $mentions[ $by_label['Beaufort']['id'] ]['sources'] );
 		$this->assertSame( 'passing', $mentions[ $by_label['Beaufort']['id'] ]['strength'] );

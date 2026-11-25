@@ -12,6 +12,7 @@ namespace Otherguise\Index\Designation;
 
 use Otherguise\Index\Designations;
 use Otherguise\Index\Folding;
+use Otherguise\Index\NoneTopic;
 use Otherguise\Index\Observations;
 use Otherguise\Index\Resolver;
 use Otherguise\Index\Sources;
@@ -99,6 +100,8 @@ final class Listing {
 			self::UNOBSERVED => null,
 		);
 
+		$none = ( new NoneTopic( $this->topics ) )->id( false );
+
 		foreach ( $this->designations->all() as $id => $one ) {
 			$have = $assigned[ (int) $id ] ?? null;
 
@@ -115,11 +118,13 @@ final class Listing {
 				'ambiguity' => is_array( $one['proposal']['ambiguity'] ?? null ) ? $one['proposal']['ambiguity'] : null,
 			);
 
+			// Excluded: assigned to the topic `_None_` (slice 641).
+			$base[ (int) $id ]['excluded']     = $none > 0 && null !== $have && $none === (int) $have['topic'];
+			$counts[ self::EXCLUDED ]         += $base[ (int) $id ]['excluded'] ? 1 : 0;
 			$base[ (int) $id ]['incompatible'] = Designations::AMBIGUOUS === $one['state'] && Resolver::INCOMPATIBLE === (string) ( $base[ (int) $id ]['ambiguity']['type'] ?? '' );
 
 			++$counts[ self::ALL ];
 			$counts[ self::RESOLVE ] += in_array( $one['state'], array( Designations::PENDING, Designations::AMBIGUOUS ), true ) ? 1 : 0;
-			$counts[ self::EXCLUDED ]    += Designations::EXCLUDED === $one['state'] ? 1 : 0;
 			$counts[ self::INCOMPATIBLE ] += $base[ (int) $id ]['incompatible'] ? 1 : 0;
 			$counts[ self::SYSTEM ]  += null !== $have && Observations::SYSTEM === $have['by'] ? 1 : 0;
 			$counts[ self::HAND ]    += null !== $have && Observations::HAND === $have['by'] ? 1 : 0;
@@ -177,6 +182,7 @@ final class Listing {
 					'wikidata'     => $qid,
 					'ambiguity'    => null,
 					'incompatible' => false,
+					'excluded'     => false,
 				);
 			}
 		}
@@ -203,7 +209,7 @@ final class Listing {
 						return false;
 					}
 
-					if ( self::EXCLUDED === $view && Designations::EXCLUDED !== $row['state'] ) {
+					if ( self::EXCLUDED === $view && ! $row['excluded'] ) {
 						return false;
 					}
 

@@ -22,6 +22,7 @@ use Otherguise\Index\Designations;
 use Otherguise\Index\Kinds;
 use Otherguise\Index\Mentions;
 use Otherguise\Index\Module as IndexModule;
+use Otherguise\Index\NoneTopic;
 use Otherguise\Index\Observations;
 use Otherguise\Index\Rest\AssignmentRoute;
 use Otherguise\Index\Rest\TopicsRoute;
@@ -111,7 +112,7 @@ class IndexAssignmentsDbTest extends Otherguise_Test_Database_Case {
 		$this->topics       = new Otherguise_Test_Memory_Topics();
 		$this->designations = new Otherguise_Test_Memory_Designations();
 		$this->observations = new Observations( $get );
-		$this->mentions     = new Mentions( $get, $this->observations, $this->designations );
+		$this->mentions     = new Mentions( $get, $this->observations, $this->designations, NoneTopic::skipper( $this->topics ) );
 		$this->request      = array();
 	}
 
@@ -1188,9 +1189,19 @@ class IndexAssignmentsDbTest extends Otherguise_Test_Database_Case {
 		$this->screen( $urls )->process();
 
 		$this->assertStringContainsString( 'did=exclude', end( $urls ) );
-		$this->assertNull( $this->observations->assignment( $a ) );
-		$this->assertSame( Designations::EXCLUDED, $this->designations->get( $a )['state'] );
-		$this->assertNotNull( $this->observations->assignment( $b ), 'Only the ticked motif.' );
+		$none = ( new NoneTopic( $this->topics ) )->id();
+
+		$this->assertGreaterThan( 0, $none, 'The topic _None_ is made the first time it is used.' );
+		$this->assertSame(
+			array(
+				'topic' => $none,
+				'by'    => Observations::HAND,
+			),
+			$this->observations->assignment( $a ),
+			'Assigned to _None_, by hand.'
+		);
+		$this->assertSame( Topics::REFUSED, $this->topics->get( $none )['status'] );
+		$this->assertSame( $ville, $this->observations->assignment( $b )['topic'], 'Only the ticked motif.' );
 
 		$list = ( new Listing( $this->designations, $this->observations, $this->topics ) )->query( array( 'view' => Listing::EXCLUDED ) );
 
@@ -1203,7 +1214,8 @@ class IndexAssignmentsDbTest extends Otherguise_Test_Database_Case {
 
 		$rows = array_column( $table->items, null, 'id' );
 
-		$this->assertStringContainsString( 'Not in the index', $this->call( $table, 'column_topic', $rows[ $a ] ) );
+		$this->assertStringContainsString( '>_None_</a> <small>not in the index</small>', $this->call( $table, 'column_topic', $rows[ $a ] ), 'It is a topic like the others, named _None_.' );
+		$this->assertSame( 'refused', $this->call( $table, 'column_status', $rows[ $a ] ) );
 
 		$route = $this->route();
 		$done  = $route->assign(
@@ -1217,8 +1229,8 @@ class IndexAssignmentsDbTest extends Otherguise_Test_Database_Case {
 
 		$this->assertTrue( $done['ok'] );
 		$this->assertTrue( $done['excluded'] );
-		$this->assertSame( 'excluded', $done['state'] );
-		$this->assertSame( Designations::EXCLUDED, $this->designations->get( $b )['state'] );
+		$this->assertSame( 'refused', $done['status'] );
+		$this->assertSame( $none, $this->observations->assignment( $b )['topic'] );
 		$this->assertFalse(
 			$route->assign(
 				$this->ask(
@@ -1254,7 +1266,7 @@ class IndexAssignmentsDbTest extends Otherguise_Test_Database_Case {
 			new Neighbours( $this->designations, $this->observations, $this->topics, $finder ),
 			$finder,
 			static fn() => true,
-			new Exclusion( $this->designations, $this->observations, $this->mentions )
+			new Exclusion( $this->designations, $this->observations, $this->mentions, new NoneTopic( $this->topics ) )
 		);
 	}
 
@@ -1305,11 +1317,12 @@ class IndexAssignmentsDbTest extends Otherguise_Test_Database_Case {
 		$france = $this->topics->create( 'France', 'country', 0, Topics::APPROVED, array() );
 		$tag    = $this->topics->create( 'Allemagne', 'any', 0, Topics::CANDIDATE, array() );
 		$bird   = $this->topics->create( 'Mésange bleue', 'species', 0, Topics::APPROVED, array() );
+		$none   = ( new NoneTopic( $this->topics ) )->id( true );
 		$a      = $this->designation( 'Moulins (France)', array( 1, 2, 3 ), $france, Observations::SYSTEM, Designations::ASSIGNED, 'post/link' );
 		$b      = $this->designation( 'allemagne', array( 1 ), $tag, Observations::SYSTEM, Designations::ASSIGNED, 'post/tag' );
 		$c      = $this->designation( 'mésange', array( 2, 3 ), $bird, Observations::HAND, Designations::ASSIGNED, 'post/mark/whobird' );
 		$d      = $this->designation( 'Sans topic', array(), 0, Observations::SYSTEM, Designations::PENDING, 'post/mark' );
-		$e      = $this->designation( 'Exclu', array( 1 ), 0, Observations::SYSTEM, Designations::EXCLUDED, 'post/tag' );
+		$e      = $this->designation( 'Exclu', array( 1 ), $none, Observations::SYSTEM, Designations::ASSIGNED, 'post/tag' );
 		$list   = new Listing( $this->designations, $this->observations, $this->topics );
 		$ids    = static fn( array $args ) => array_column( $list->query( $args )['rows'], 'id' );
 		$sorted = static function ( array $found ) {
@@ -1321,7 +1334,19 @@ class IndexAssignmentsDbTest extends Otherguise_Test_Database_Case {
 		$this->assertSame( array( $a ), $ids( array( 'filters' => array( 'topic' => 'FRANCE' ) ) ), 'The topic: a text.' );
 		$this->assertSame( array( $c ), $ids( array( 'filters' => array( 'motif' => 'MESANGE' ) ) ), 'The motif: a text, accents ignored.' );
 		$this->assertSame( array( $b ), $ids( array( 'filters' => array( 'status' => 'candidate' ) ) ), 'The status of the topic.' );
-		$this->assertSame( $sorted( array( $d, $e ) ), $sorted( $ids( array( 'filters' => array( 'status' => 'none' ) ) ) ), 'A motif with no topic.' );
+		$this->assertSame( array( $d ), $ids( array( 'filters' => array( 'status' => 'none' ) ) ), 'A motif with no topic.' );
+		$this->assertSame(
+			array( $e ),
+			$ids(
+				array(
+					'filters' => array(
+						'status' => 'refused',
+						'topic' => 'none',
+					),
+				)
+			),
+			'A motif assigned to _None_: the topic is a topic like the others.'
+		);
 		$this->assertSame( $sorted( array( $b, $e ) ), $sorted( $ids( array( 'filters' => array( 'source' => 'post/tag' ) ) ) ) );
 		$this->assertSame( array( $c ), $ids( array( 'filters' => array( 'source' => 'post/mark/whobird' ) ) ) );
 		$this->assertSame( $sorted( array( $c, $d ) ), $sorted( $ids( array( 'filters' => array( 'source' => 'post/mark' ) ) ) ), 'A source stands for the sources below it.' );
@@ -1330,7 +1355,6 @@ class IndexAssignmentsDbTest extends Otherguise_Test_Database_Case {
 		$this->assertSame( $sorted( array( $a, $c ) ), $sorted( $ids( array( 'filters' => array( 'posts' => '2' ) ) ) ) );
 		$this->assertSame( array( $d ), $ids( array( 'filters' => array( 'posts' => 'none' ) ) ), 'No post.' );
 		$this->assertSame( array( $d ), $ids( array( 'filters' => array( 'state' => Designations::PENDING ) ) ) );
-		$this->assertSame( array( $e ), $ids( array( 'filters' => array( 'state' => Designations::EXCLUDED ) ) ) );
 
 		$this->assertSame(
 			array( $b ),

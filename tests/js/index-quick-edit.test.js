@@ -9,7 +9,7 @@ const { attach } = require( '../../plugin/modules/index/admin/quick-edit.js' );
 const picker = require( '../../plugin/modules/index/admin/topic-picker.js' );
 
 const flush = () => new Promise( ( resolve ) => setTimeout( resolve, 5 ) );
-const words = { change: 'Change topic', close: 'Close topics', choose: '— a close topic —', search: 'search', update: 'Update', cancel: 'Cancel', anyway: 'Assign anyway', nothing: 'Choose a topic.', failed: 'Failed', working: 'Working…', exclude: 'Not in the index (exclude this motif)', excluded: 'Not in the index' };
+const words = { change: 'Change topic', close: 'Close topics', choose: '— a close topic —', search: 'search', update: 'Update', cancel: 'Cancel', anyway: 'Assign anyway', nothing: 'Choose a topic.', failed: 'Failed', working: 'Working…', exclude: '_None_ (not in the index)', excluded: '_None_ · not in the index' };
 
 function make( answers ) {
 	const dom = new JSDOM( '<!doctype html><body><table><tbody>' +
@@ -115,7 +115,7 @@ test( 'the last choice takes the motif out of the index, and the line says so (s
 		'GET 7/neighbours': [ { id: 5, label: 'Aisne', display: 'Aisne (France)', kind: 'River', chain: 'France' } ],
 		'POST 7/topic': ( body ) => {
 			sent = body;
-			return { ok: true, excluded: true, by: 'hand', state: 'excluded', status: '' };
+			return { ok: true, excluded: true, by: 'hand', state: 'assigned', status: 'refused' };
 		},
 	} );
 
@@ -131,9 +131,9 @@ test( 'the last choice takes the motif out of the index, and the line says so (s
 	await flush();
 
 	assert.deepStrictEqual( sent, { exclude: true } );
-	assert.strictEqual( doc.querySelector( '#r1 .column-topic em' ).textContent, 'Not in the index' );
-	assert.strictEqual( doc.querySelector( '#r1 .column-state' ).textContent, 'excluded' );
-	assert.strictEqual( doc.querySelector( '#r1 .column-status' ).textContent, '\u2014', 'No topic: no status.' );
+	assert.strictEqual( doc.querySelector( '#r1 .column-topic em' ).textContent, '_None_ · not in the index' );
+	assert.strictEqual( doc.querySelector( '#r1 .column-state' ).textContent, 'assigned' );
+	assert.strictEqual( doc.querySelector( '#r1 .column-status' ).textContent, 'refused', 'The topic _None_ is refused: it is never in the index.' );
 	assert.ok( doc.querySelector( '#r1 .column-topic .change-topic' ), 'The link to change it stays.' );
 	assert.strictEqual( doc.querySelector( '#r1 .column-topic a[href="#old"]' ), null, 'The old topic is gone from the line.' );
 } );

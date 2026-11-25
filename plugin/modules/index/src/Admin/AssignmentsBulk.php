@@ -12,6 +12,7 @@ namespace Otherguise\Index\Admin;
 
 use Otherguise\Index\Designation\Exclusion;
 use Otherguise\Index\Designations;
+use Otherguise\Index\NoneTopic;
 use Otherguise\Index\Observations;
 use Otherguise\Index\Topics;
 
@@ -36,7 +37,7 @@ trait AssignmentsBulk {
 
 		// Taking motifs out of the index, and back (slice 635).
 		if ( in_array( $action, array( 'exclude', 'include' ), true ) ) {
-			$exclusion = new Exclusion( $this->designations, $this->observations, $this->mentions );
+			$exclusion = new Exclusion( $this->designations, $this->observations, $this->mentions, new NoneTopic( $this->topics ) );
 			$count     = 'exclude' === $action ? $exclusion->exclude( $ids )['designations'] : $exclusion->include( $ids );
 
 			return array(

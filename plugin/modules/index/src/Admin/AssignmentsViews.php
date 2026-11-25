@@ -49,8 +49,8 @@ trait AssignmentsViews {
 			'nothing'   => __( 'Choose a topic.', 'otherguise' ),
 			'failed'    => __( 'The topic could not be changed.', 'otherguise' ),
 			'working'   => __( 'Working…', 'otherguise' ),
-			'exclude'   => __( 'Not in the index (exclude this motif)', 'otherguise' ),
-			'excluded'  => __( 'Not in the index', 'otherguise' ),
+			'exclude'   => __( '_None_ (not in the index)', 'otherguise' ),
+			'excluded'  => __( '_None_ · not in the index', 'otherguise' ),
 		);
 	}
 
@@ -101,7 +101,7 @@ trait AssignmentsViews {
 			/* translators: %d: number of topics. */
 			'approve'  => __( '%d topic(s) approved: they enter the index.', 'otherguise' ),
 			/* translators: %d: number of motifs. */
-			'exclude'  => __( '%d motif(s) excluded from the index: no topic, the mentions of their posts are gone, and a reading leaves them alone.', 'otherguise' ),
+			'exclude'  => __( '%d motif(s) excluded from the index: they are assigned to _None_, the mentions of their posts are gone, and a reading leaves them alone.', 'otherguise' ),
 			/* translators: %d: number of motifs. */
 			'include'  => __( '%d motif(s) included again: the next reading proposes a topic.', 'otherguise' ),
 			/* translators: %d: number of motifs. */

@@ -13,6 +13,7 @@ namespace Otherguise\Index\Merge;
 use Otherguise\Index\Folding;
 use Otherguise\Index\Kinds;
 use Otherguise\Index\Mentions;
+use Otherguise\Index\NoneTopic;
 use Otherguise\Index\Resolver;
 use Otherguise\Index\Topics;
 
@@ -75,6 +76,13 @@ final class TopicMerger {
 
 		if ( null === $a || null === $b || (int) $keep === (int) $go ) {
 			$report['error'] = null === $a || null === $b ? 'Both topics must exist.' : 'A topic is not merged into itself.';
+
+			return $report;
+		}
+
+		// The topic `_None_` stands for "not in the index": it is not merged into another topic, nor another into it (slice 641).
+		if ( NoneTopic::is_reserved( $a ) || NoneTopic::is_reserved( $b ) ) {
+			$report['error'] = 'The topic _None_ is reserved: it is not merged. Assign the motifs to it, or away from it.';
 
 			return $report;
 		}

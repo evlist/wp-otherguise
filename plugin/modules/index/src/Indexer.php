@@ -150,7 +150,7 @@ final class Indexer {
 				// The topics created for the broader terms count as created, not as resolved.
 				$report['created'] += $done['new'] - ( Resolver::CREATED === $done['result'] ? 1 : 0 );
 
-				if ( $done['topic'] > 0 ) {
+				if ( $done['topic'] > 0 && ! $this->mentions->skips( $done['topic'] ) ) {
 					$wanted[ $leaf ][ $done['topic'] ] = $this->merged( $wanted[ $leaf ][ $done['topic'] ] ?? null, $candidate, $leaf );
 				}
 
@@ -241,16 +241,7 @@ final class Indexer {
 		}
 
 		$have = $this->observations->assignment( $id );
-		$one  = $this->designations->get( $id );
-
-		if ( null !== $one && Designations::EXCLUDED === $one['state'] ) {
-			// A person took it out of the index (slice 635): no topic, no question to the resolver; the observation is kept.
-			$done = array(
-				'result' => Resolver::RESOLVED,
-				'topic'  => 0,
-				'new'    => 0,
-			);
-		} elseif ( null !== $have && Observations::HAND === $have['by'] && $this->resolver->exists( $have['topic'] ) ) {
+		if ( null !== $have && Observations::HAND === $have['by'] && $this->resolver->exists( $have['topic'] ) ) {
 			$done = array(
 				'result' => Resolver::RESOLVED,
 				'topic'  => $have['topic'],

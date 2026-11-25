@@ -16,6 +16,7 @@ use Otherguise\Index\Designation\TopicFinder;
 use Otherguise\Index\Designations;
 use Otherguise\Index\Folding;
 use Otherguise\Index\Kinds;
+use Otherguise\Index\NoneTopic;
 use Otherguise\Index\Observations;
 use Otherguise\Index\Resolver;
 use Otherguise\Index\Topics;
@@ -279,6 +280,8 @@ final class TopicsScreen {
 
 		if ( null === $topic ) {
 			$error = __( 'This topic does not exist.', 'otherguise' );
+		} elseif ( NoneTopic::is_reserved( $topic ) ) {
+			$error = __( 'This topic is reserved: it stands for "not in the index" and cannot be changed.', 'otherguise' );
 		} elseif ( '' === $label ) {
 			$error = __( 'A topic needs a label.', 'otherguise' );
 		} elseif ( '' !== $kind && ! Kinds::is_kind( $kind ) ) {

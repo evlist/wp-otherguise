@@ -25,6 +25,7 @@ use Otherguise\Index\Indexer;
 use Otherguise\Index\Kinds;
 use Otherguise\Index\Mentions;
 use Otherguise\Index\Module as IndexModule;
+use Otherguise\Index\NoneTopic;
 use Otherguise\Index\Observations;
 use Otherguise\Index\Resolver;
 use Otherguise\Index\Source;
@@ -118,7 +119,7 @@ class IndexDesignationsDbTest extends Otherguise_Test_Database_Case {
 		$this->topics       = new Otherguise_Test_Memory_Topics();
 		$this->designations = new Otherguise_Test_Memory_Designations();
 		$this->observations = new Observations( $get );
-		$this->mentions     = new Mentions( $get, $this->observations, $this->designations );
+		$this->mentions     = new Mentions( $get, $this->observations, $this->designations, NoneTopic::skipper( $this->topics ) );
 		$this->says         = array();
 
 		$says         = &$this->says;
@@ -934,18 +935,15 @@ class IndexDesignationsDbTest extends Otherguise_Test_Database_Case {
 	}
 
 	/**
-	 * A tag with no kind (slice 635): read as a motif of the kind `any`, its topic is a candidate; a person **excludes** the motif: no assignment, no mention, the
-	 * observations stay; a reading and the cleaner leave it alone; including it puts it back and the next reading proposes a topic.
+	 * A tag with no kind (slices 635 and 641): read as a motif of the kind `any`, its topic **approved** like the others; a person **excludes** the motif: it is assigned,
+	 * by hand, to the topic `_None_` (made the first time), **the mentions of its posts go**, the observations stay, a reading and the cleaner leave it alone; including
+	 * it again takes the assignment away and the next reading proposes a topic.
 	 *
 	 * @return void
 	 */
 	public function test_a_tag_with_no_kind_and_the_exclusion_of_a_motif(): void {
 		$tag = function () {
-			$candidate = ( new Candidate( 'allemagne', 'any', array( 'term:post_tag:9' ), null, Candidate::PASSING ) )->from( 'post/tag' );
-
-			$candidate->sure = false;
-
-			return $candidate;
+			return ( new Candidate( 'allemagne', 'any', array( 'term:post_tag:9' ), null, Candidate::PASSING ) )->from( 'post/tag' );
 		};
 
 		$this->says[1] = array( $tag() );
@@ -957,23 +955,26 @@ class IndexDesignationsDbTest extends Otherguise_Test_Database_Case {
 		$id    = (int) array_key_first( $this->designations->designations );
 		$topic = (int) $this->observations->assignment( $id )['topic'];
 
-		$this->assertSame( Topics::CANDIDATE, $this->topics->get( $topic )['status'], 'Nobody classified it: a candidate, outside the index.' );
+		$this->assertSame( Topics::APPROVED, $this->topics->get( $topic )['status'], 'A tag with no kind is read like the others: approved, of the kind any.' );
+		$this->assertSame( 'any', $this->topics->get( $topic )['kind'] );
 		$this->assertArrayHasKey( $topic, $this->mentions->of_post( 1 ) );
 
-		$exclusion = new Exclusion( $this->designations, $this->observations, $this->mentions );
+		$none      = new NoneTopic( $this->topics );
+		$exclusion = new Exclusion( $this->designations, $this->observations, $this->mentions, $none );
 		$done      = $exclusion->exclude( array( $id, 9999 ) );
 
 		$this->assertSame( 1, $done['designations'], 'A motif that does not exist is skipped.' );
 		$this->assertSame( 2, $done['posts'] );
-		$this->assertNull( $this->observations->assignment( $id ) );
-		$this->assertSame( Designations::EXCLUDED, $this->designations->get( $id )['state'] );
-		$this->assertSame( array(), $this->mentions->of_post( 1 ), 'The mentions of its posts are gone.' );
+		$this->assertSame( Observations::HAND, $this->observations->assignment( $id )['by'] );
+		$this->assertSame( $none->id(), $this->observations->assignment( $id )['topic'], 'Assigned to _None_.' );
+		$this->assertSame( NoneTopic::LABEL, $this->topics->get( $none->id() )['label'] );
+		$this->assertSame( Topics::REFUSED, $this->topics->get( $none->id() )['status'] );
+		$this->assertSame( array(), $this->mentions->of_post( 1 ), 'The mentions of its posts are gone: a motif assigned to _None_ makes none.' );
 		$this->assertSame( array( 1, 2 ), $this->sorted( $this->observations->posts_of( $id ) ), 'The observations stay.' );
 
 		$this->indexer->index_post( 1 );
 
-		$this->assertNull( $this->observations->assignment( $id ), 'A reading leaves it alone.' );
-		$this->assertSame( Designations::EXCLUDED, $this->designations->get( $id )['state'] );
+		$this->assertSame( $none->id(), $this->observations->assignment( $id )['topic'], 'A reading leaves it alone.' );
 		$this->assertSame( array(), $this->mentions->of_post( 1 ) );
 
 		$this->says = array();
@@ -985,12 +986,43 @@ class IndexDesignationsDbTest extends Otherguise_Test_Database_Case {
 		$this->says[1] = array( $tag() );
 
 		$this->assertSame( 1, $exclusion->include( array( $id ) ) );
-		$this->assertSame( 0, $exclusion->include( array( $id ) ), 'Only an excluded motif is included.' );
+		$this->assertSame( 0, $exclusion->include( array( $id ) ), 'Only a motif that is assigned to _None_ is included.' );
+		$this->assertNull( $this->observations->assignment( $id ) );
 		$this->assertSame( Designations::PENDING, $this->designations->get( $id )['state'] );
 
 		$this->indexer->index_post( 1 );
 
 		$this->assertSame( $topic, (int) $this->observations->assignment( $id )['topic'], 'The next reading proposes a topic again.' );
+		$this->assertSame( $none->id(), $none->id( true ), 'The topic is made once.' );
+	}
+
+	/**
+	 * The topic `_None_` is reserved (slice 641): it is not merged, the cleaning never deletes it, it cannot be changed on the screen of the topics, a person can assign a
+	 * motif to it like to any topic, and it is found by what a person types.
+	 *
+	 * @return void
+	 */
+	public function test_the_topic_none_is_reserved(): void {
+		$none   = new NoneTopic( $this->topics );
+		$id     = $none->id( true );
+		$topic  = $this->topics->get( $id );
+		$other  = $this->topics->create( 'Moulins', 'commune', 0, Topics::APPROVED, array() );
+		$merger = new TopicMerger( $this->topics, $this->mentions );
+
+		$this->assertSame( $id, $none->id( true ), 'Made once.' );
+		$this->assertTrue( NoneTopic::is_reserved( $topic ) );
+		$this->assertFalse( NoneTopic::is_reserved( (array) $this->topics->get( $other ) ) );
+		$this->assertTrue( $none->is_id( $id ) );
+		$this->assertFalse( $none->is_id( $other ) );
+		$this->assertFalse( ( new NoneTopic( new Otherguise_Test_Memory_Topics() ) )->is_id( 1 ), 'A topic that is not made is not asked to be.' );
+
+		$this->assertFalse( $merger->merge( $other, $id, true )['ok'], 'Not merged into another topic.' );
+		$this->assertFalse( $merger->merge( $id, $other, true )['ok'], 'Nor another into it.' );
+		$this->assertStringContainsString( 'reserved', $merger->merge( $other, $id, true )['error'] );
+
+		$pruner = new TopicPruner( $this->topics, $this->mentions );
+
+		$this->assertNotContains( $id, array_column( $pruner->candidates( array( 'any' ) ), 'id' ), 'The cleaning never deletes it, mentioned or not.' );
 	}
 
 	/**

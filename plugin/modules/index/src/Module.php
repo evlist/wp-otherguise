@@ -195,7 +195,8 @@ final class Module implements ModuleInterface, DescribedModule, DisabledByDefaul
 				return Modules::get( 'triples' )->statements();
 			},
 			$this->observations(),
-			$this->designations()
+			$this->designations(),
+			NoneTopic::skipper( $this->topics() )
 		);
 	}
 

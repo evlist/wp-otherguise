@@ -12,6 +12,7 @@ namespace Otherguise\Index\Merge;
 
 use Otherguise\Index\Kinds;
 use Otherguise\Index\Mentions;
+use Otherguise\Index\NoneTopic;
 use Otherguise\Index\Topics;
 
 defined( 'ABSPATH' ) || exit;
@@ -95,7 +96,7 @@ final class TopicPruner {
 				$asked = $asked || Kinds::is_a( $kind, $wanted );
 			}
 
-			$kept = ! $asked || isset( $mentioned[ $id ] ) || ( $decided && ( ( Topics::APPROVED !== (string) $topic['status'] && ! self::is_placeholder( $topic ) ) || ! empty( $topic['kind_by_hand'] ) || ! empty( $topic['label_by_hand'] ) ) );
+			$kept = ! $asked || isset( $mentioned[ $id ] ) || NoneTopic::is_reserved( $topic ) || ( $decided && ( ( Topics::APPROVED !== (string) $topic['status'] && ! self::is_placeholder( $topic ) ) || ! empty( $topic['kind_by_hand'] ) || ! empty( $topic['label_by_hand'] ) ) );
 
 			foreach ( $children[ $id ] ?? array() as $child ) {
 				$kept = $kept || isset( $keep[ $child ] );

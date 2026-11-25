@@ -176,11 +176,11 @@ class IndexScreenAndModuleTest extends TestCase {
 		$this->assertNull( $candidates[0]->sure, 'A person chose the kind: the source decides (sure).' );
 		$this->assertSame( 'Parent', $candidates[0]->parent->label );
 		$this->assertSame( 'any', $candidates[0]->parent->kind );
-		$this->assertFalse( $candidates[0]->parent->sure, 'Nobody classified the parent: not sure.' );
+		$this->assertNull( $candidates[0]->parent->sure, 'Nobody classified the parent: read like the others (slice 641).' );
 		$this->assertSame( array( 'term:category:2' ), $candidates[0]->keys );
 		$this->assertSame( 'Odd', $candidates[1]->label );
 		$this->assertSame( 'any', $candidates[1]->kind, 'A kind that is not a kind is none.' );
-		$this->assertFalse( $candidates[1]->sure );
+		$this->assertNull( $candidates[1]->sure );
 		$this->assertSame( 'categories', $source->id() );
 		$this->assertTrue( $source->is_sure() );
 	}

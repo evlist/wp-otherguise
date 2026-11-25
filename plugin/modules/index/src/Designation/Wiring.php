@@ -26,6 +26,7 @@ use Otherguise\Index\Rest\TopicsRoute;
 use Otherguise\Index\Designations;
 use Otherguise\Index\Resolver;
 use Otherguise\Index\Mentions;
+use Otherguise\Index\NoneTopic;
 use Otherguise\Index\Observations;
 use Otherguise\Index\Topics;
 
@@ -88,7 +89,7 @@ final class Wiring {
 					new Neighbours( $designations, $observations, $topics, $finder ),
 					$finder,
 					null,
-					new Exclusion( $designations, $observations, $mentions )
+					new Exclusion( $designations, $observations, $mentions, new NoneTopic( $topics ) )
 				),
 				'register',
 			),

@@ -47,7 +47,13 @@ trait MentionsDeriving {
 			}
 
 			$topic = (int) $assigned['topic'];
-			$was   = $wanted[ $what['source'] ][ $topic ] ?? null;
+
+			// A motif that is assigned to `_None_` is not for the index: it makes no mention (slice 641).
+			if ( $this->skips( $topic ) ) {
+				continue;
+			}
+
+			$was = $wanted[ $what['source'] ][ $topic ] ?? null;
 
 			$wanted[ $what['source'] ][ $topic ] = null === $was ? array(
 				'strength' => $what['strength'],

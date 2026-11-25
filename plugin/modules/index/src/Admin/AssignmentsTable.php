@@ -14,6 +14,7 @@ use Otherguise\Index\Designation\Listing;
 use Otherguise\Index\Designation\TopicLabel;
 use Otherguise\Index\Designations;
 use Otherguise\Index\Kinds;
+use Otherguise\Index\NoneTopic;
 use Otherguise\Index\Resolver;
 use Otherguise\Index\Sources;
 use Otherguise\Index\Topics;
@@ -180,8 +181,8 @@ final class AssignmentsTable extends \WP_List_Table {
 			'confirm'  => __( 'Confirm the assignment (a person decides)', 'otherguise' ),
 			'approve'  => __( 'Approve the topic (a candidate enters the index)', 'otherguise' ),
 			'unassign' => __( 'Take the assignment away', 'otherguise' ),
-			'exclude'  => __( 'Exclude from the index (no topic, a reading leaves it alone)', 'otherguise' ),
-			'include'  => __( 'Include again (the next reading proposes a topic)', 'otherguise' ),
+			'exclude'  => __( 'Exclude from the index (assign to _None_)', 'otherguise' ),
+			'include'  => __( 'Include again (take away _None_: the next reading proposes a topic)', 'otherguise' ),
 			'delete'   => __( 'Delete (only what no post observes)', 'otherguise' ),
 		);
 	}
@@ -310,7 +311,6 @@ final class AssignmentsTable extends \WP_List_Table {
 				Designations::ASSIGNED  => __( 'assigned', 'otherguise' ),
 				Designations::PENDING   => __( 'pending', 'otherguise' ),
 				Designations::AMBIGUOUS => __( 'ambiguous', 'otherguise' ),
-				Designations::EXCLUDED  => __( 'excluded', 'otherguise' ),
 			)
 		);
 		echo '<input type="submit" class="button" value="' . esc_attr__( 'Filter', 'otherguise' ) . '" />';
@@ -497,10 +497,6 @@ final class AssignmentsTable extends \WP_List_Table {
 	protected function column_topic( $item ) {
 		$topic = (int) $item['topic'] > 0 ? $this->topics->get( (int) $item['topic'] ) : null;
 
-		if ( null === $topic && Designations::EXCLUDED === (string) $item['state'] ) {
-			return '<em>' . esc_html__( 'Not in the index', 'otherguise' ) . '</em>';
-		}
-
 		if ( null === $topic ) {
 			return $this->choice( $item );
 		}
@@ -513,7 +509,7 @@ final class AssignmentsTable extends \WP_List_Table {
 				),
 				admin_url( 'admin.php' )
 			)
-		) . '">' . esc_html( $this->labels->of( $topic ) ) . '</a> <small>' . esc_html( (string) Kinds::label( (string) $topic['kind'] ) ) . '</small>';
+		) . '">' . esc_html( $this->labels->of( $topic ) ) . '</a> <small>' . esc_html( NoneTopic::is_reserved( $topic ) ? __( 'not in the index', 'otherguise' ) : (string) Kinds::label( (string) $topic['kind'] ) ) . '</small>';
 	}
 
 	/**

@@ -24,6 +24,7 @@ defined( 'ABSPATH' ) || exit;
  * mention with no source left is deleted. The mentions of another source, and the ones made by hand (source `hand`), are never touched.
  */
 final class Mentions {
+	use MentionsHelpers;
 	use MentionsDropping;
 	use MentionsDeriving;
 
@@ -58,16 +59,35 @@ final class Mentions {
 	private $designations;
 
 	/**
+	 * Tells whether a topic makes no mention (slice 641).
+	 *
+	 * @var callable|null
+	 */
+	private $skip;
+
+	/**
 	 * Builds the service.
 	 *
 	 * @param callable          $statements   Returns the `Statements` service.
 	 * @param Observations|null $observations The observations.
 	 * @param Designations|null $designations The motifs.
+	 * @param callable|null     $skip         Tells whether a topic makes no mention: `fn( int $topic ): bool` (default: none).
 	 */
-	public function __construct( $statements, ?Observations $observations = null, ?Designations $designations = null ) {
+	public function __construct( $statements, ?Observations $observations = null, ?Designations $designations = null, $skip = null ) {
 		$this->statements   = $statements;
 		$this->observations = $observations;
 		$this->designations = $designations;
+		$this->skip         = $skip;
+	}
+
+	/**
+	 * Whether a topic makes no mention (slice 641): the topic `_None_`, that stands for "not in the index".
+	 *
+	 * @param int $topic A topic.
+	 * @return bool
+	 */
+	public function skips( $topic ) {
+		return null !== $this->skip && (bool) ( $this->skip )( (int) $topic );
 	}
 
 	/**
@@ -646,43 +666,6 @@ final class Mentions {
 		}
 
 		return $found;
-	}
-
-	/**
-	 * Two descriptions of one mention found through two topics.
-	 *
-	 * @param array $a First.
-	 * @param array $b Second.
-	 * @return array{sources:string[],strength:string}
-	 */
-	private function merged( array $a, array $b ) {
-		$sources = array_values( array_unique( array_merge( $a['sources'], $b['sources'] ) ) );
-
-		sort( $sources );
-
-		return array(
-			'sources'  => $sources,
-			'strength' => ( Candidate::MAIN === $a['strength'] || Candidate::MAIN === $b['strength'] ) ? Candidate::MAIN : Candidate::PASSING,
-			'details'  => $a['details'] + $b['details'],
-		);
-	}
-
-	/**
-	 * Whether a list of qualifications holds a value.
-	 *
-	 * @param array<string, array> $known     Qualifications by predicate.
-	 * @param string               $predicate Predicate.
-	 * @param string               $value     Value.
-	 * @return bool
-	 */
-	private function has( array $known, $predicate, $value ) {
-		foreach ( $known[ $predicate ] ?? array() as $statement ) {
-			if ( (string) $statement->object()->key() === $value ) {
-				return true;
-			}
-		}
-
-		return false;
 	}
 
 	/**

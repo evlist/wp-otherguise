@@ -12,15 +12,16 @@ namespace Otherguise\Index\Designation;
 
 use Otherguise\Index\Designations;
 use Otherguise\Index\Mentions;
+use Otherguise\Index\NoneTopic;
 use Otherguise\Index\Observations;
 
 defined( 'ABSPATH' ) || exit;
 
 /**
- * **Excluding** a motif (slice 635) is a decision of a person that **this motif is not for the index** (a tag that says nothing of what an index lists): it keeps its
- * observations, **has no topic**, and a new reading **leaves it alone** (the state `excluded`: the resolver is not asked, as it is not for a motif that a
- * person assigned). **The mentions of the posts that observe it go.** Including it again makes it wait for the next reading, which proposes a topic as for any motif.
- * This is the case that "no topic" cannot be: a motif with no topic is proposed one again at every reading.
+ * **Excluding** a motif (slices 635 and 641) is **assigning it, by hand, to the topic `_None_`** (`NoneTopic`): *this motif is not for the index* (a tag that says nothing of
+ * what an index lists). It is an assignment like the others: a new reading never changes it, the screen of the assignments shows it and handles it as any topic, and
+ * **the mentions of the posts that observe it go** (a motif assigned to `_None_` makes none). Including it again takes the assignment away: the motif waits for the next
+ * reading, which proposes a topic as for any motif (or a person assigns it to a topic, which is the same thing).
  */
 final class Exclusion {
 	/**
@@ -45,27 +46,44 @@ final class Exclusion {
 	private $mentions;
 
 	/**
+	 * The topic `_None_`.
+	 *
+	 * @var NoneTopic
+	 */
+	private $none;
+
+	/**
 	 * Builds the service.
 	 *
 	 * @param Designations $designations The motifs.
 	 * @param Observations $observations The observations.
 	 * @param Mentions     $mentions     The mentions.
+	 * @param NoneTopic    $none         The topic `_None_`.
 	 */
-	public function __construct( Designations $designations, Observations $observations, Mentions $mentions ) {
+	public function __construct( Designations $designations, Observations $observations, Mentions $mentions, NoneTopic $none ) {
 		$this->designations = $designations;
 		$this->observations = $observations;
 		$this->mentions     = $mentions;
+		$this->none         = $none;
 	}
 
 	/**
-	 * Takes motifs out of the index: the assignment goes, the state is `excluded`, the mentions of their posts follow.
+	 * Takes motifs out of the index: they are assigned to `_None_`, by hand, and the mentions of their posts follow.
 	 *
 	 * @param int[] $ids The motifs.
 	 * @return array{designations:int,posts:int} How many motifs, and how many posts had their mentions made again.
 	 */
 	public function exclude( array $ids ) {
+		$none  = $this->none->id( true );
 		$done  = 0;
 		$posts = array();
+
+		if ( $none <= 0 ) {
+			return array(
+				'designations' => 0,
+				'posts'        => 0,
+			);
+		}
 
 		foreach ( array_unique( array_map( 'intval', $ids ) ) as $id ) {
 			if ( null === $this->designations->get( $id ) ) {
@@ -73,12 +91,12 @@ final class Exclusion {
 			}
 
 			$posts = array_merge( $posts, $this->observations->posts_of( $id ) );
-			$this->observations->unassign( $id );
+			$this->observations->assign( $id, $none, Observations::HAND );
 			$this->designations->set_state(
 				$id,
-				Designations::EXCLUDED,
+				Designations::ASSIGNED,
 				array(
-					'topic' => 0,
+					'topic' => $none,
 					'why'   => Observations::HAND,
 				)
 			);
@@ -98,21 +116,23 @@ final class Exclusion {
 	}
 
 	/**
-	 * Puts excluded motifs back: they wait for the next reading, which proposes a topic. Motifs that are not excluded are left as they are.
+	 * Puts motifs back that were assigned to `_None_`: the assignment goes and they wait for the next reading, which proposes a topic. The other motifs are left as they are.
 	 *
 	 * @param int[] $ids The motifs.
 	 * @return int How many.
 	 */
 	public function include( array $ids ) {
+		$none = $this->none->id( false );
 		$done = 0;
 
 		foreach ( array_unique( array_map( 'intval', $ids ) ) as $id ) {
-			$one = $this->designations->get( $id );
+			$have = $this->observations->assignment( $id );
 
-			if ( null === $one || Designations::EXCLUDED !== $one['state'] ) {
+			if ( $none <= 0 || null === $have || $none !== (int) $have['topic'] ) {
 				continue;
 			}
 
+			$this->observations->unassign( $id );
 			$this->designations->set_state(
 				$id,
 				Designations::PENDING,

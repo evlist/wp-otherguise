@@ -171,8 +171,8 @@ final class AssignmentRoute {
 				'ok'       => true,
 				'excluded' => true,
 				'by'       => Observations::HAND,
-				'state'    => 'excluded',
-				'status'   => '',
+				'state'    => 'assigned',
+				'status'   => 'refused',
 			);
 		}
 

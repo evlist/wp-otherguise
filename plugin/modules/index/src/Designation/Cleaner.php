@@ -57,7 +57,7 @@ final class Cleaner {
 		return array_values(
 			array_filter(
 				$free,
-				fn( $id ) => $everything || ( Observations::HAND !== ( $this->observations->assignment( (int) $id )['by'] ?? '' ) && ! $this->excluded( (int) $id ) )
+				fn( $id ) => $everything || Observations::HAND !== ( $this->observations->assignment( (int) $id )['by'] ?? '' )
 			)
 		);
 	}
@@ -72,19 +72,9 @@ final class Cleaner {
 		return array_values(
 			array_filter(
 				array_map( 'intval', array_keys( $this->designations->all() ) ),
-				fn( $id ) => $everything || ( Observations::HAND !== ( $this->observations->assignment( $id )['by'] ?? '' ) && ! $this->excluded( $id ) )
+				fn( $id ) => $everything || Observations::HAND !== ( $this->observations->assignment( $id )['by'] ?? '' )
 			)
 		);
-	}
-
-	/**
-	 * Whether a person excluded the motif (a decision, kept like an assignment by hand).
-	 *
-	 * @param int $id The motif.
-	 * @return bool
-	 */
-	private function excluded( $id ) {
-		return Designations::EXCLUDED === (string) ( $this->designations->get( $id )['state'] ?? '' );
 	}
 
 	/**

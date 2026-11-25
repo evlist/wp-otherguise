@@ -18,8 +18,8 @@ use Otherguise\Index\Sources;
 defined( 'ABSPATH' ) || exit;
 
 /**
- * The terms of one taxonomy (slice 600). **A term with no kind is read too** (slice 635): its motif has the kind `any` and its topic is a **candidate**, outside the
- * index until a person approves it (or excludes the motif); **a term that has a kind is sure** (a person chose it). The key of a candidate is
+ * The terms of one taxonomy (slice 600). **A term with no kind is read too** (slices 635 and 641): its motif has the kind `any` and its topic is approved like the others; a
+ * person gives it a kind, or **excludes** the motifs that are not for the index (they are assigned to the topic `_None_`). The key of a candidate is
  * `term:<taxonomy>:<id>`, stable when the term is renamed; the broader candidate of a hierarchical taxonomy is the parent term, only when
  * that one has a kind too.
  */
@@ -206,11 +206,8 @@ final class Terms implements Source {
 
 		$candidate = new Candidate( $term['name'], $kind, array( 'term:' . $this->taxonomy . ':' . $term['id'] ), $parent, Candidate::PASSING );
 
-		// A term that nobody classified is still read (slice 635), but its topic is only a candidate: a person approves it, or excludes the motif.
-		if ( ! $known ) {
-			$candidate->sure = false;
-		}
-
+		// A term that nobody classified is read like the others (slices 635 and 641): its topic is approved, of the kind `any`, and a person excludes the motifs that are not for
+		// the index (they are assigned to `_None_`).
 		return $candidate;
 	}
 }
