@@ -17,9 +17,14 @@ defined( 'ABSPATH' ) || exit;
  * as terms of the taxonomy `index_topic`; the tests use one in memory.
  */
 interface Topics {
-	public const APPROVED  = 'approved';
-	public const CANDIDATE = 'candidate';
-	public const REFUSED   = 'refused';
+	public const APPROVED = 'approved';
+	public const AMBIGUOUS = 'ambiguous';
+
+	/**
+	 * The value that was stored before the status was renamed (slice 642): read as `ambiguous`.
+	 */
+	public const LEGACY_CANDIDATE = 'candidate';
+	public const REFUSED = 'refused';
 
 	/**
 	 * The ids of the topics that hold a key.
@@ -123,10 +128,10 @@ interface Topics {
 	public function set_parent( $id, $parent );
 
 	/**
-	 * Changes the status of a topic (slice 635): a candidate becomes approved, so that it is in the index.
+	 * Changes the status of a topic (slice 635): an ambiguous topic becomes approved, so that it is in the index.
 	 *
 	 * @param int    $id     Topic.
-	 * @param string $status `approved`, `candidate` or `refused`.
+	 * @param string $status `approved`, `ambiguous` or `refused`.
 	 * @return void
 	 */
 	public function set_status( $id, $status );

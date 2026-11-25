@@ -18,7 +18,7 @@ defined( 'ABSPATH' ) || exit;
 /**
  * Otherguise → Index terms (slice 600): the categories or the tags with their number of posts and a kind selector per row, paged and
  * filterable (by name, by "no kind yet"), and a bulk action that sets one kind on the checked rows. Saved through `admin-post.php`, with the
- * capability and a nonce. A term with no kind is read too (slice 635): its topic is a candidate, outside the index until a person approves it.
+ * capability and a nonce. A term with no kind is read too (slice 635): its topic is approved, of the kind `any` (slices 635 and 641).
  */
 final class TermsScreen {
 	public const PAGE     = 'otherguise-index-terms';

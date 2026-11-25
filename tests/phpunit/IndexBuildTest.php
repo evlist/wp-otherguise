@@ -98,7 +98,7 @@ class IndexBuildTest extends Otherguise_Test_Database_Case {
 		$this->id['merle']    = $this->topics->create( 'Étourneau', 'species', 0, Topics::APPROVED, array() );
 		$this->id['eglise']   = $this->topics->create( 'église Saint-Jacques', 'other', 0, Topics::APPROVED, array() );
 		$this->id['404']      = $this->topics->create( '1958', 'event', 0, Topics::APPROVED, array() );
-		$this->id['pending']  = $this->topics->create( 'Pending', 'place', 0, Topics::CANDIDATE, array() );
+		$this->id['pending']  = $this->topics->create( 'Pending', 'place', 0, Topics::AMBIGUOUS, array() );
 		$this->id['refused']  = $this->topics->create( 'Refused', 'place', 0, Topics::REFUSED, array() );
 
 		$say = fn( $post, $topic, $strength = 'passing' ) => $this->mentions->sync( $post, 'test' . $topic, array( $this->id[ $topic ] => $strength ) );
@@ -475,7 +475,7 @@ class IndexBuildTest extends Otherguise_Test_Database_Case {
 	 * @return void
 	 */
 	public function test_rollup_follows_the_selection_and_the_approval(): void {
-		$candidate = $this->topics->create( 'Occitanie', 'place', 0, Topics::CANDIDATE, array() );
+		$candidate = $this->topics->create( 'Occitanie', 'place', 0, Topics::AMBIGUOUS, array() );
 
 		$this->tree( $candidate );
 

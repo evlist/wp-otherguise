@@ -77,15 +77,6 @@ class IndexCommandDbTest extends Otherguise_Test_Database_Case {
 			}
 
 			/**
-			 * Sure.
-			 *
-			 * @return bool
-			 */
-			public function is_sure() {
-				return true;
-			}
-
-			/**
 			 * One candidate.
 			 *
 			 * @param int $post_id Post.

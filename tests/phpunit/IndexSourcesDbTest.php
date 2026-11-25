@@ -341,15 +341,6 @@ class IndexSourcesDbTest extends Otherguise_Test_Database_Case {
 			}
 
 			/**
-			 * Sure.
-			 *
-			 * @return bool
-			 */
-			public function is_sure() {
-				return true;
-			}
-
-			/**
 			 * Three candidates for one topic.
 			 *
 			 * @param int $post_id Post.

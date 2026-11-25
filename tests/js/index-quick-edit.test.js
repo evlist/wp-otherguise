@@ -13,7 +13,7 @@ const words = { change: 'Change topic', close: 'Close topics', choose: '— a cl
 
 function make( answers ) {
 	const dom = new JSDOM( '<!doctype html><body><table><tbody>' +
-		'<tr id="r1"><th class="check-column"><input type="checkbox" name="designation[]" value="7"></th><td class="column-designation"><strong>aisne (02)</strong><div class="row-actions"><span class="posts"><a href="#p">Posts</a></span></div></td><td class="column-topic"><a href="#old">aisne (02)</a> <small>Place</small></td><td class="column-status">candidate</td><td class="column-by">system</td><td class="column-state">assigned</td></tr>' +
+		'<tr id="r1"><th class="check-column"><input type="checkbox" name="designation[]" value="7"></th><td class="column-designation"><strong>aisne (02)</strong><div class="row-actions"><span class="posts"><a href="#p">Posts</a></span></div></td><td class="column-topic"><a href="#old">aisne (02)</a> <small>Place</small></td><td class="column-status">ambiguous</td><td class="column-by">system</td><td class="column-state">assigned</td></tr>' +
 		'<tr id="r2"><th class="check-column"><input type="checkbox" name="designation[]" value="8"></th><td class="column-designation"><strong>autre</strong></td><td class="column-topic">—</td><td class="column-by">—</td><td class="column-state">pending</td></tr>' +
 		'</tbody></table></body>' );
 	const doc = dom.window.document;

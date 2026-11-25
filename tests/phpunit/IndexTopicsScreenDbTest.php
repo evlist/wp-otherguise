@@ -168,15 +168,6 @@ class IndexTopicsScreenDbTest extends Otherguise_Test_Database_Case {
 			}
 
 			/**
-			 * Whether it is sure.
-			 *
-			 * @return bool
-			 */
-			public function is_sure() {
-				return true;
-			}
-
-			/**
 			 * The candidates.
 			 *
 			 * @param int $post_id Post.
@@ -593,13 +584,13 @@ class IndexTopicsScreenDbTest extends Otherguise_Test_Database_Case {
 	 * @return void
 	 */
 	public function test_approving_the_candidates(): void {
-		$one   = $this->topics->create( 'Allemagne', 'any', 0, Topics::CANDIDATE, array() );
-		$two   = $this->topics->create( 'Albanie', 'any', 0, Topics::CANDIDATE, array() );
-		$other = $this->topics->create( 'Voyages', 'any', 0, Topics::CANDIDATE, array() );
+		$one   = $this->topics->create( 'Allemagne', 'any', 0, Topics::AMBIGUOUS, array() );
+		$two   = $this->topics->create( 'Albanie', 'any', 0, Topics::AMBIGUOUS, array() );
+		$other = $this->topics->create( 'Voyages', 'any', 0, Topics::AMBIGUOUS, array() );
 		$done  = $this->topics->create( 'France', 'country', 0, Topics::APPROVED, array() );
 		$urls  = array();
 
-		$this->request[ INPUT_GET ] = array( 'show' => 'candidates' );
+		$this->request[ INPUT_GET ] = array( 'show' => 'ambiguous' );
 		$page                       = $this->page( $this->screen( $urls ) );
 
 		$this->assertStringContainsString( '3 topics.', $page );
@@ -614,13 +605,13 @@ class IndexTopicsScreenDbTest extends Otherguise_Test_Database_Case {
 			unset( $stopped );
 		}
 
-		$this->assertSame( Topics::CANDIDATE, $this->topics->get( $one )['status'], 'Nothing is done without the capability.' );
+		$this->assertSame( Topics::AMBIGUOUS, $this->topics->get( $one )['status'], 'Nothing is done without the capability.' );
 
 		$this->screen( $urls )->approve();
 
 		$this->assertSame( Topics::APPROVED, $this->topics->get( $one )['status'] );
 		$this->assertSame( Topics::APPROVED, $this->topics->get( $two )['status'] );
-		$this->assertSame( Topics::CANDIDATE, $this->topics->get( $other )['status'], 'The search of the list: only what it showed.' );
+		$this->assertSame( Topics::AMBIGUOUS, $this->topics->get( $other )['status'], 'The search of the list: only what it showed.' );
 		$this->assertStringContainsString( 'approved=2', end( $urls ) );
 
 		$this->request[ INPUT_GET ] = array( 'approved' => '2' );

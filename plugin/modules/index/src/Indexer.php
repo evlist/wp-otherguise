@@ -143,7 +143,7 @@ final class Indexer {
 
 			foreach ( $candidates as $candidate ) {
 				$leaf = null !== $candidate->source && '' !== $candidate->source ? $candidate->source : $leaves[0];
-				$name = $this->designate( $candidate, $leaf, null === $candidate->sure ? $source->is_sure() : (bool) $candidate->sure, $dry, $seen, $waiting );
+				$name = $this->designate( $candidate, $leaf, $dry, $seen, $waiting );
 				$done = $name['done'];
 
 				$report[ $done['result'] ] = ( $report[ $done['result'] ] ?? 0 ) + 1;
@@ -198,16 +198,15 @@ final class Indexer {
 	 *
 	 * @param Candidate                                  $candidate The candidate.
 	 * @param string                                     $leaf      Its source.
-	 * @param bool                                       $sure      Whether the source is sure.
 	 * @param bool                                       $dry       Write nothing.
 	 * @param array<string, array{done:array,motif:int}> $seen      What was decided in this reading, by key (a motif is resolved once).
 	 * @param int[]                                      $waiting   The motifs that the enrichment could not look at now (the service asked to wait).
 	 * @return array{done:array{result:string,topic:int,new:int},motif:int}
 	 */
-	private function designate( Candidate $candidate, $leaf, $sure, $dry, array &$seen, array $waiting = array() ) {
+	private function designate( Candidate $candidate, $leaf, $dry, array &$seen, array $waiting = array() ) {
 		if ( null === $this->designations || null === $this->observations || $dry ) {
 			return array(
-				'done'        => $this->resolver->resolve( $candidate, $sure, $dry ),
+				'done'        => $this->resolver->resolve( $candidate, $dry ),
 				'designation' => 0,
 			);
 		}
@@ -235,7 +234,7 @@ final class Indexer {
 
 		if ( $id <= 0 ) {
 			return array(
-				'done'        => $this->resolver->resolve( $candidate, $sure, false, false ),
+				'done'        => $this->resolver->resolve( $candidate, false, false ),
 				'designation' => 0,
 			);
 		}
@@ -264,7 +263,7 @@ final class Indexer {
 				)
 			);
 		} else {
-			$done = $this->resolver->resolve( $this->completed( $candidate, $id ), $sure, false, false );
+			$done = $this->resolver->resolve( $this->completed( $candidate, $id ), false, false );
 
 			if ( $done['topic'] > 0 ) {
 				$this->observations->assign( $id, $done['topic'], Observations::SYSTEM );

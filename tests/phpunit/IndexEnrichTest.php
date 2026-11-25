@@ -215,7 +215,7 @@ class IndexEnrichTest extends TestCase {
 		$this->assertSame( array( $this->id['tet'], $this->id['col'], $this->id['paris'], $this->id['missing'] ), $this->enricher->pending() );
 		$this->assertCount( 2, $this->enricher->pending( 2 ) );
 
-		$this->topics->create( 'Candidate', 'other', 0, Topics::CANDIDATE, array( 'wikipedia:fr:Candidate' ) );
+		$this->topics->create( 'Candidate', 'other', 0, Topics::AMBIGUOUS, array( 'wikipedia:fr:Candidate' ) );
 		$this->topics->create( 'Without any key', 'other', 0, Topics::APPROVED, array( 'term:category:5' ) );
 		$this->topics->create( 'Done', 'other', 0, Topics::APPROVED, array( 'wikipedia:fr:Done', 'wikidata:Q1' ) );
 

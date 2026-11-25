@@ -82,17 +82,6 @@ class IndexResolverTest extends TestCase {
 	}
 
 	/**
-	 * A source that is not sure creates a candidate topic.
-	 *
-	 * @return void
-	 */
-	public function test_a_source_that_is_not_sure_creates_a_candidate(): void {
-		$done = $this->resolver->resolve( new Candidate( 'Beaufort', 'place', array( 'x:1' ) ), false );
-
-		$this->assertSame( Topics::CANDIDATE, $this->topics->get( $done['topic'] )['status'] );
-	}
-
-	/**
 	 * Resolving twice gives the same topic and creates nothing.
 	 *
 	 * @return void
@@ -175,7 +164,7 @@ class IndexResolverTest extends TestCase {
 
 		$this->assertSame( Resolver::AMBIGUOUS, $done['result'] );
 		$this->assertSame( 0, $done['topic'] );
-		$this->assertCount( 1, $this->topics->all( array( 'status' => Topics::CANDIDATE ) ) );
+		$this->assertCount( 1, $this->topics->all( array( 'status' => Topics::AMBIGUOUS ) ) );
 		$this->assertNotEmpty( array( $one, $two ) );
 	}
 
@@ -259,7 +248,7 @@ class IndexResolverTest extends TestCase {
 	 * @return void
 	 */
 	public function test_a_dry_run_writes_nothing(): void {
-		$done = $this->resolver->resolve( new Candidate( 'Beaufort', 'place', array( 'term:category:7' ), new Candidate( 'France', 'place', array( 'term:category:1' ) ) ), true, true );
+		$done = $this->resolver->resolve( new Candidate( 'Beaufort', 'place', array( 'term:category:7' ), new Candidate( 'France', 'place', array( 'term:category:1' ) ) ), true );
 
 		$this->assertSame( Resolver::CREATED, $done['result'] );
 		$this->assertSame( array(), $this->topics->topics );
@@ -330,40 +319,35 @@ class IndexResolverTest extends TestCase {
 	}
 
 	/**
-	 * A level that nobody classified (a tag with no kind) makes a **candidate** topic, outside the index; a person who gives the tag a kind approves it (slice 635); a
-	 * level that is not sure and meets an approved topic leaves it approved; a sure level under an unsure one keeps its own status.
+	 * A topic that is only a doubt (status `ambiguous`, slice 642) and that a source then names is approved, and gets the more precise kind; an approved topic stays so.
 	 *
 	 * @return void
 	 */
-	public function test_what_nobody_classified_is_a_candidate_until_someone_does(): void {
-		$tag = new Candidate( 'Allemagne', 'any', array( 'term:post_tag:9' ) );
-
-		$tag->sure = false;
-
-		$done = $this->resolver->resolve( $tag );
-
-		$this->assertSame( Resolver::CREATED, $done['result'] );
-		$this->assertSame( Topics::CANDIDATE, $this->topics->get( $done['topic'] )['status'] );
-		$this->assertSame( 'any', $this->topics->get( $done['topic'] )['kind'] );
+	public function test_an_ambiguous_topic_that_a_source_names_is_approved(): void {
+		$wait = $this->topics->create( 'Allemagne', 'any', 0, Topics::AMBIGUOUS, array( 'term:post_tag:9' ) );
 
 		$known = $this->resolver->resolve( new Candidate( 'Allemagne', 'country', array( 'term:post_tag:9' ) ) );
 
-		$this->assertSame( $done['topic'], $known['topic'] );
-		$this->assertSame( Topics::APPROVED, $this->topics->get( $done['topic'] )['status'], 'A kind was given: approved.' );
-		$this->assertSame( 'country', $this->topics->get( $done['topic'] )['kind'] );
+		$this->assertSame( $wait, $known['topic'] );
+		$this->assertSame( Topics::APPROVED, $this->topics->get( $wait )['status'] );
+		$this->assertSame( 'country', $this->topics->get( $wait )['kind'] );
 
-		$again = $this->resolver->resolve( $tag );
+		$again = $this->resolver->resolve( new Candidate( 'Allemagne', 'any', array( 'term:post_tag:9' ) ) );
 
-		$this->assertSame( $done['topic'], $again['topic'] );
-		$this->assertSame( Topics::APPROVED, $this->topics->get( $done['topic'] )['status'], 'An approved topic stays approved.' );
+		$this->assertSame( $wait, $again['topic'] );
+		$this->assertSame( Topics::APPROVED, $this->topics->get( $wait )['status'], 'An approved topic stays approved.' );
+	}
 
-		$parent        = new Candidate( 'Voyages', 'any', array( 'term:category:2' ) );
-		$parent->sure  = false;
-		$child         = new Candidate( 'Étape', 'place', array( 'term:category:3' ), $parent );
-		$made          = $this->resolver->resolve( $child );
+	/**
+	 * What nobody classified (the kind `any`) makes an approved topic like the rest (slice 641).
+	 *
+	 * @return void
+	 */
+	public function test_what_nobody_classified_makes_an_approved_topic(): void {
+		$done = $this->resolver->resolve( new Candidate( 'Étape', 'any', array( 'term:category:3' ), new Candidate( 'Voyages', 'any', array( 'term:category:2' ) ) ) );
 
-		$this->assertSame( Topics::APPROVED, $this->topics->get( $made['topic'] )['status'], 'The level that has a kind is sure.' );
-		$this->assertSame( Topics::CANDIDATE, $this->topics->get( $this->topics->get( $made['topic'] )['parent'] )['status'], 'The level above has none: a candidate.' );
+		$this->assertSame( Topics::APPROVED, $this->topics->get( $done['topic'] )['status'] );
+		$this->assertSame( Topics::APPROVED, $this->topics->get( $this->topics->get( $done['topic'] )['parent'] )['status'] );
 	}
 
 	/**

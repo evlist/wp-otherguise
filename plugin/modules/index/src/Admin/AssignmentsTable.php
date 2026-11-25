@@ -179,7 +179,7 @@ final class AssignmentsTable extends \WP_List_Table {
 			'choose'   => __( 'Apply the choices (the lists in the Topic column)', 'otherguise' ),
 			'assign'   => __( 'Assign to the topic in the box that appears…', 'otherguise' ),
 			'confirm'  => __( 'Confirm the assignment (a person decides)', 'otherguise' ),
-			'approve'  => __( 'Approve the topic (a candidate enters the index)', 'otherguise' ),
+			'approve'  => __( 'Approve the topic (an ambiguous topic enters the index)', 'otherguise' ),
 			'unassign' => __( 'Take the assignment away', 'otherguise' ),
 			'exclude'  => __( 'Exclude from the index (assign to _None_)', 'otherguise' ),
 			'include'  => __( 'Include again (take away _None_: the next reading proposes a topic)', 'otherguise' ),
@@ -265,7 +265,7 @@ final class AssignmentsTable extends \WP_List_Table {
 			$now['status'],
 			array(
 				'approved'  => __( 'Approved', 'otherguise' ),
-				'candidate' => __( 'Candidate (not in the index)', 'otherguise' ),
+				'ambiguous' => __( 'Ambiguous (not in the index)', 'otherguise' ),
 				'refused'   => __( 'Refused', 'otherguise' ),
 				'none'      => __( 'No topic', 'otherguise' ),
 			)

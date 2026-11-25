@@ -159,15 +159,6 @@ class IndexDesignationsDbTest extends Otherguise_Test_Database_Case {
 			}
 
 			/**
-			 * Whether it is sure.
-			 *
-			 * @return bool
-			 */
-			public function is_sure() {
-				return true;
-			}
-
-			/**
 			 * The candidates.
 			 *
 			 * @param int $post_id Post.

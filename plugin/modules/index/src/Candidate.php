@@ -55,14 +55,6 @@ final class Candidate {
 	public $strength;
 
 	/**
-	 * Whether this candidate is sure (slice 635): `false` for what nobody classified (a tag with no kind), whose topic is then a **candidate**, outside the index
-	 * until a person approves it; null when the source decides.
-	 *
-	 * @var bool|null
-	 */
-	public $sure = null;
-
-	/**
 	 * The source of the mention (a path of slice 605: `post/link`), null for the one of the harvester.
 	 *
 	 * @var string|null

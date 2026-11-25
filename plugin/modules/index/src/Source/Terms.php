@@ -157,15 +157,6 @@ final class Terms implements Source {
 	}
 
 	/**
-	 * A person chose the kind of the term: it is sure.
-	 *
-	 * @return bool
-	 */
-	public function is_sure() {
-		return true;
-	}
-
-	/**
 	 * The terms of the post that have a kind.
 	 *
 	 * @param int $post_id Post.

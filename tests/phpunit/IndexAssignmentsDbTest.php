@@ -1315,7 +1315,7 @@ class IndexAssignmentsDbTest extends Otherguise_Test_Database_Case {
 	 */
 	public function test_the_filters_of_the_columns(): void {
 		$france = $this->topics->create( 'France', 'country', 0, Topics::APPROVED, array() );
-		$tag    = $this->topics->create( 'Allemagne', 'any', 0, Topics::CANDIDATE, array() );
+		$tag    = $this->topics->create( 'Allemagne', 'any', 0, Topics::AMBIGUOUS, array() );
 		$bird   = $this->topics->create( 'Mésange bleue', 'species', 0, Topics::APPROVED, array() );
 		$none   = ( new NoneTopic( $this->topics ) )->id( true );
 		$a      = $this->designation( 'Moulins (France)', array( 1, 2, 3 ), $france, Observations::SYSTEM, Designations::ASSIGNED, 'post/link' );
@@ -1333,7 +1333,7 @@ class IndexAssignmentsDbTest extends Otherguise_Test_Database_Case {
 
 		$this->assertSame( array( $a ), $ids( array( 'filters' => array( 'topic' => 'FRANCE' ) ) ), 'The topic: a text.' );
 		$this->assertSame( array( $c ), $ids( array( 'filters' => array( 'motif' => 'MESANGE' ) ) ), 'The motif: a text, accents ignored.' );
-		$this->assertSame( array( $b ), $ids( array( 'filters' => array( 'status' => 'candidate' ) ) ), 'The status of the topic.' );
+		$this->assertSame( array( $b ), $ids( array( 'filters' => array( 'status' => 'ambiguous' ) ) ), 'The status of the topic.' );
 		$this->assertSame( array( $d ), $ids( array( 'filters' => array( 'status' => 'none' ) ) ), 'A motif with no topic.' );
 		$this->assertSame(
 			array( $e ),
@@ -1362,7 +1362,7 @@ class IndexAssignmentsDbTest extends Otherguise_Test_Database_Case {
 				array(
 					'filters' => array(
 						'source' => 'post/tag',
-						'status' => 'candidate',
+						'status' => 'ambiguous',
 					),
 				)
 			),
@@ -1426,13 +1426,13 @@ class IndexAssignmentsDbTest extends Otherguise_Test_Database_Case {
 	 * @return void
 	 */
 	public function test_the_bar_of_the_filters_and_the_columns(): void {
-		$tag = $this->topics->create( 'Allemagne', 'any', 0, Topics::CANDIDATE, array() );
+		$tag = $this->topics->create( 'Allemagne', 'any', 0, Topics::AMBIGUOUS, array() );
 		$id  = $this->designation( 'allemagne', array( 1 ), $tag, Observations::SYSTEM, Designations::ASSIGNED, 'post/tag' );
 
 		$this->request[ INPUT_GET ] = array(
 			's'        => 'allem',
 			'f_source' => 'post/tag',
-			'f_status' => 'candidate',
+			'f_status' => 'ambiguous',
 			'f_topic'  => 'Alle',
 			'f_posts'  => '1',
 			'view'     => 'system',
@@ -1444,7 +1444,7 @@ class IndexAssignmentsDbTest extends Otherguise_Test_Database_Case {
 
 		$this->assertSame( array( $id ), array_column( $table->items, 'id' ) );
 		$this->assertSame( 'designation', $table->_column_headers[3], 'The motif stays the main column.' );
-		$this->assertSame( 'candidate', $this->call( $table, 'column_status', array_column( $table->items, null, 'id' )[ $id ] ) );
+		$this->assertSame( 'ambiguous', $this->call( $table, 'column_status', array_column( $table->items, null, 'id' )[ $id ] ) );
 		$this->assertSame( '—', $this->call( $table, 'column_status', array( 'topic_status' => '' ) ) );
 
 		ob_start();
@@ -1457,7 +1457,7 @@ class IndexAssignmentsDbTest extends Otherguise_Test_Database_Case {
 
 		$this->assertStringContainsString( 'name="f_topic" value="Alle"', $bar );
 		$this->assertSame( 2, substr_count( $bar, 'style="float:left' ), 'The text fields float like the lists of WordPress: the fields stay in the order of the columns.' );
-		$this->assertStringContainsString( '<option value="candidate" selected="selected">', $bar );
+		$this->assertStringContainsString( '<option value="ambiguous" selected="selected">', $bar );
 		$this->assertStringContainsString( '<option value="post/tag" selected="selected">', $bar );
 		$this->assertStringContainsString( '<option value="1" selected="selected">At least 1 post', $bar );
 		$this->assertStringContainsString( 'Reset the filters', $bar );
@@ -1466,7 +1466,7 @@ class IndexAssignmentsDbTest extends Otherguise_Test_Database_Case {
 		$views = $this->call( $table, 'get_views' );
 
 		$this->assertStringContainsString( 'f_source=post%2Ftag', $views['resolve'] );
-		$this->assertStringContainsString( 'f_status=candidate', $views['resolve'] );
+		$this->assertStringContainsString( 'f_status=ambiguous', $views['resolve'] );
 		$this->assertStringContainsString( 's=allem', $views['resolve'], 'A view keeps the search and the filters.' );
 
 		$this->request[ INPUT_GET ] = array();
@@ -1485,12 +1485,12 @@ class IndexAssignmentsDbTest extends Otherguise_Test_Database_Case {
 			'action'      => 'exclude',
 			'designation' => array( (string) $id ),
 			'f_source'    => 'post/tag',
-			'f_status'    => 'candidate',
+			'f_status'    => 'ambiguous',
 		);
 		$this->screen( $urls )->process();
 
 		$this->assertStringContainsString( 'f_source=post%2Ftag', end( $urls ), 'An action keeps the filters.' );
-		$this->assertStringContainsString( 'f_status=candidate', end( $urls ) );
+		$this->assertStringContainsString( 'f_status=ambiguous', end( $urls ) );
 	}
 
 	/**
@@ -1505,7 +1505,7 @@ class IndexAssignmentsDbTest extends Otherguise_Test_Database_Case {
 		$spain  = $this->topics->create( 'Espagne', 'country', 0, Topics::APPROVED, array() );
 		$aragon = $this->topics->create( 'Aragon', 'admin1', $spain, Topics::APPROVED, array( 'wikidata:Q4040' ) );
 		$anso   = $this->topics->create( 'Ansó', 'commune', $aragon, Topics::APPROVED, array() );
-		$tag    = $this->topics->create( 'aragon', 'any', 0, Topics::CANDIDATE, array() );
+		$tag    = $this->topics->create( 'aragon', 'any', 0, Topics::AMBIGUOUS, array() );
 		$m1     = $this->designation( 'Ansó', array( 1 ), $anso, Observations::SYSTEM, Designations::ASSIGNED, 'image/address' );
 		$m2     = $this->designation( 'aragon', array( 1 ), $tag, Observations::SYSTEM, Designations::ASSIGNED, 'post/tag' );
 		$list   = new Listing( $this->designations, $this->observations, $this->topics );
@@ -1545,7 +1545,7 @@ class IndexAssignmentsDbTest extends Otherguise_Test_Database_Case {
 					array(
 						'filters' => array(
 							'topic' => 'aragon',
-							'status' => 'candidate',
+							'status' => 'ambiguous',
 						),
 					)
 				)['rows'],
@@ -1587,7 +1587,7 @@ class IndexAssignmentsDbTest extends Otherguise_Test_Database_Case {
 			$this->assertSame( '—', $this->call( $table, $column, $line ) );
 		}
 
-		$candidate = $this->topics->create( 'Voyages', 'any', 0, Topics::CANDIDATE, array() );
+		$candidate = $this->topics->create( 'Voyages', 'any', 0, Topics::AMBIGUOUS, array() );
 		$urls      = array();
 
 		$this->bulk(

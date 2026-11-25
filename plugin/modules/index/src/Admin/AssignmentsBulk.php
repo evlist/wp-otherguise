@@ -93,7 +93,7 @@ trait AssignmentsBulk {
 	}
 
 	/**
-	 * Approves topics (slice 638): the ticked lines of **topics with no motif** and **the topic of each ticked motif**; only a candidate changes (it enters the index),
+	 * Approves topics (slice 638): the ticked lines of **topics with no motif** and **the topic of each ticked motif**; only an ambiguous topic changes (it enters the index),
 	 * and a topic that is approved already, or that a motif has not, counts as left as it was.
 	 *
 	 * @param int[] $designations The motifs that were ticked.
@@ -122,7 +122,7 @@ trait AssignmentsBulk {
 		foreach ( $wanted as $id ) {
 			$topic = $this->topics->get( $id );
 
-			if ( null !== $topic && Topics::CANDIDATE === $topic['status'] ) {
+			if ( null !== $topic && Topics::AMBIGUOUS === $topic['status'] ) {
 				$this->topics->set_status( $id, Topics::APPROVED );
 				++$done;
 			}

@@ -92,7 +92,7 @@ class IndexPruneDbTest extends Otherguise_Test_Database_Case {
 		$hand    = $this->topics->create( 'Choisi', 'place', 0, Topics::APPROVED, array() );
 		$named   = $this->topics->create( 'Nommé', 'place', 0, Topics::APPROVED, array() );
 		$refused = $this->topics->create( 'Refusé', 'place', 0, Topics::REFUSED, array() );
-		$wait    = $this->topics->create( 'En attente', 'place', 0, Topics::CANDIDATE, array() );
+		$wait    = $this->topics->create( 'En attente', 'place', 0, Topics::AMBIGUOUS, array() );
 		$species = $this->topics->create( 'Merle', 'species', 0, Topics::APPROVED, array() );
 
 		$this->topics->set_kind( $hand, 'place', true );
@@ -350,8 +350,8 @@ class IndexPruneDbTest extends Otherguise_Test_Database_Case {
 	 * @return void
 	 */
 	public function test_the_placeholders_of_the_doubts_go(): void {
-		$placeholder = $this->topics->create( 'Moulins', 'any', 0, Topics::CANDIDATE, array( 'ambiguous:wikipedia:fr:Moulins' ) );
-		$waiting     = $this->topics->create( 'En attente', 'any', 0, Topics::CANDIDATE, array( 'wikipedia:fr:Attente' ) );
+		$placeholder = $this->topics->create( 'Moulins', 'any', 0, Topics::AMBIGUOUS, array( 'ambiguous:wikipedia:fr:Moulins' ) );
+		$waiting     = $this->topics->create( 'En attente', 'any', 0, Topics::AMBIGUOUS, array( 'wikipedia:fr:Attente' ) );
 		$refused     = $this->topics->create( 'Refusé', 'any', 0, Topics::REFUSED, array( 'ambiguous:x' ) );
 
 		$pruner = new TopicPruner( $this->topics, $this->mentions );

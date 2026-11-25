@@ -342,7 +342,7 @@ final class TopicsScreen {
 	}
 
 	/**
-	 * Approves the candidate topics of the list that was shown (slice 635): the topics made from the tags and the categories that nobody classified enter the index.
+	 * Approves the ambiguous topics of the list that was shown (slices 635 and 642): they enter the index.
 	 * **The server lists them again from the search and the kind of the form**, it does not take a list of numbers from the browser. Action
 	 * `admin_post_otherguise_index_topic_approve`.
 	 *
@@ -357,7 +357,7 @@ final class TopicsScreen {
 		$kind   = sanitize_key( (string) ( $this->input )( INPUT_POST, 'kind', false ) );
 		$done   = 0;
 
-		foreach ( $this->topics->all( array( 'status' => Topics::CANDIDATE ) ) as $id => $topic ) {
+		foreach ( $this->topics->all( array( 'status' => Topics::AMBIGUOUS ) ) as $id => $topic ) {
 			if ( ( '' !== $search && false === strpos( Folding::key( (string) $topic['label'] ), Folding::key( $search ) ) )
 				|| ( '' !== $kind && ! Kinds::is_a( (string) $topic['kind'], $kind ) ) ) {
 				continue;

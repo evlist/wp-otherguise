@@ -155,11 +155,11 @@ final class TermTopics implements Topics {
 	 * Changes the status of a topic.
 	 *
 	 * @param int    $id     Topic.
-	 * @param string $status `approved`, `candidate` or `refused`.
+	 * @param string $status `approved`, `ambiguous` or `refused`.
 	 * @return void
 	 */
 	public function set_status( $id, $status ) {
-		if ( in_array( (string) $status, array( self::APPROVED, self::CANDIDATE, self::REFUSED ), true ) ) {
+		if ( in_array( (string) $status, array( Topics::APPROVED, Topics::AMBIGUOUS, Topics::REFUSED ), true ) ) {
 			update_term_meta( (int) $id, self::STATUS, (string) $status );
 		}
 	}
@@ -280,11 +280,21 @@ final class TermTopics implements Topics {
 			'label'        => (string) $term->name,
 			'kind'         => (string) get_term_meta( (int) $id, self::KIND, true ),
 			'parent'       => (int) $term->parent,
-			'status'       => (string) get_term_meta( (int) $id, self::STATUS, true ),
+			'status'       => self::status_of( (string) get_term_meta( (int) $id, self::STATUS, true ) ),
 			'keys'         => array_map( 'strval', (array) get_term_meta( (int) $id, self::KEY, false ) ),
 			'kind_by_hand' => '1' === (string) get_term_meta( (int) $id, self::HAND, true ),
 			'label_by_hand' => '1' === (string) get_term_meta( (int) $id, self::LABEL_BY_HAND, true ),
 		);
+	}
+
+	/**
+	 * A stored status, with the old name of `ambiguous` read as the new one (slice 642): nothing has to be migrated.
+	 *
+	 * @param string $status The stored value.
+	 * @return string
+	 */
+	private static function status_of( $status ) {
+		return Topics::LEGACY_CANDIDATE === $status ? Topics::AMBIGUOUS : $status;
 	}
 
 	/**
@@ -313,8 +323,9 @@ final class TermTopics implements Topics {
 		) as $filter => $meta_key ) {
 			if ( isset( $filters[ $filter ] ) ) {
 				$meta[] = array(
-					'key'   => $meta_key,
-					'value' => (string) $filters[ $filter ],
+					'key'     => $meta_key,
+					'value'   => 'status' === $filter && Topics::AMBIGUOUS === (string) $filters[ $filter ] ? array( Topics::AMBIGUOUS, Topics::LEGACY_CANDIDATE ) : (string) $filters[ $filter ],
+					'compare' => 'status' === $filter && Topics::AMBIGUOUS === (string) $filters[ $filter ] ? 'IN' : '=',
 				);
 			}
 		}

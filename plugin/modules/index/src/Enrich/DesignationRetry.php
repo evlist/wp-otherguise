@@ -134,7 +134,7 @@ final class DesignationRetry {
 
 		$candidate = Evidence::candidate( (array) $was, (string) $one['source'] );
 		$candidate = $this->enrichment->completed( $candidate, $this->enrichment->learnt( $id ) );
-		$done      = $this->resolver->resolve( $candidate, true, false, false );
+		$done      = $this->resolver->resolve( $candidate, false, false );
 
 		if ( $done['topic'] <= 0 ) {
 			$this->designations->set_state(

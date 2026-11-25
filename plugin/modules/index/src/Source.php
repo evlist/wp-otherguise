@@ -32,13 +32,6 @@ interface Source {
 	public function mention_sources();
 
 	/**
-	 * Whether what it says is sure: a new topic is then approved at once.
-	 *
-	 * @return bool
-	 */
-	public function is_sure();
-
-	/**
 	 * What the post speaks of.
 	 *
 	 * @param int $post_id Post.

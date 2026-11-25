@@ -243,7 +243,7 @@ final class IndexCommand {
 	 * ## OPTIONS
 	 *
 	 * [--status=<status>]
-	 * : `approved`, `candidate` (the ambiguous ones to resolve) or `refused`.
+	 * : `approved`, `ambiguous` (the ones to resolve) or `refused`.
 	 *
 	 * [--kind=<kind>]
 	 * : Only this kind.
@@ -274,7 +274,7 @@ final class IndexCommand {
 	 * ## OPTIONS
 	 *
 	 * [--status=<status>]
-	 * : `approved`, `candidate` or `refused`.
+	 * : `approved`, `ambiguous` or `refused`.
 	 *
 	 * [--kind=<kind>]
 	 * : Only this kind.

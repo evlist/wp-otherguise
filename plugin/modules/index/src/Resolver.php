@@ -17,8 +17,8 @@ defined( 'ABSPATH' ) || exit;
  *
  * - the keys are tried most reliable first, the label key last: the **first key that matches** decides;
  * - one topic: it is that topic (the other keys of the candidate are added to it, so that a later source finds it by any of them);
- * - none: a topic is created, `approved` when the source is sure, `candidate` otherwise;
- * - several topics: the candidate is **ambiguous**, recorded as a `candidate` topic that carries its keys, and not mentioned until a
+ * - none: a topic is created, `approved`;
+ * - several topics: the candidate is **ambiguous**, recorded as an `ambiguous` topic that carries its keys, and not mentioned until a
  *   person links it (adding a key to a topic is what linking is).
  *
  * The label key (`label:<folded label>`) is a key of every topic, scoped by the parent (`label:<parent id>/<folded label>`), so that two
@@ -64,21 +64,17 @@ final class Resolver {
 	 * Resolves a candidate.
 	 *
 	 * @param Candidate $candidate The candidate.
-	 * @param bool      $sure      Whether its source is sure (a new topic is then approved).
 	 * @param bool      $dry       Write nothing: say what would happen (a topic that would be created has the id 0).
-	 * @param bool      $record    Whether an ambiguous candidate leaves a placeholder topic (`candidate`, key `ambiguous:…`): **not when the motifs hold the doubt** (slice 629).
+	 * @param bool      $record    Whether an ambiguous candidate leaves a placeholder topic (`ambiguous`, key `ambiguous:…`): **not when the motifs hold the doubt** (slice 629).
 	 * @return array{result:string,topic:int,new:int,ambiguity?:array{level:string,key:string,candidates:int[]}} `topic` is 0 when ambiguous, and `ambiguity` then says
 	 *         **which level** hesitated (its label, its key) and **between which topics** (slice 631); `new` counts the topics created, the broader ones included.
 	 */
-	public function resolve( Candidate $candidate, $sure = true, $dry = false, $record = true ) {
-		// A level that nobody classified (a tag with no kind) is not sure, whatever the source says (slice 635).
-		$source = $sure;
-		$sure   = null === $candidate->sure ? $sure : (bool) $candidate->sure;
+	public function resolve( Candidate $candidate, $dry = false, $record = true ) {
 		$parent = 0;
 		$above  = array( 'new' => 0 );
 
 		if ( null !== $candidate->parent ) {
-			$above  = $this->resolve( $candidate->parent, $source, $dry, $record );
+			$above  = $this->resolve( $candidate->parent, $dry, $record );
 			$parent = $above['topic'];
 
 			// An ambiguous parent makes the child ambiguous; a parent that would be created makes the child new.
@@ -149,8 +145,8 @@ final class Resolver {
 				$this->topics->add_keys( $id, $keys );
 				$this->refine_kind( $id, $candidate );
 
-				// A person classified what was only a candidate (a kind given to a tag): the topic is approved (slice 635).
-				if ( $sure && null !== $this->topics->get( $id ) && Topics::CANDIDATE === $this->topics->get( $id )['status'] ) {
+				// A topic that was only a doubt (or a candidate of an older reading) and that a source now names is approved (slices 635 and 642).
+				if ( null !== $this->topics->get( $id ) && Topics::AMBIGUOUS === $this->topics->get( $id )['status'] ) {
 					$this->topics->set_status( $id, Topics::APPROVED );
 				}
 			}
@@ -170,7 +166,7 @@ final class Resolver {
 			);
 		}
 
-		$id = $this->topics->create( $candidate->label, $candidate->kind, $parent, $sure ? Topics::APPROVED : Topics::CANDIDATE, $keys );
+		$id = $this->topics->create( $candidate->label, $candidate->kind, $parent, Topics::APPROVED, $keys );
 
 		// WordPress refuses a term whose name is already one of its siblings' (accents and case ignored): the topic is there, under other keys. Take it (slice 631),
 		// instead of leaving the motif waiting for ever; of another kind, a person decides.
@@ -327,7 +323,7 @@ final class Resolver {
 	}
 
 	/**
-	 * Records an ambiguous candidate once: a `candidate` topic that holds the keys it was met with, found again by its first key.
+	 * Records an ambiguous candidate once: an `ambiguous` topic that holds the keys it was met with, found again by its first key.
 	 *
 	 * @param Candidate $candidate The candidate.
 	 * @param int       $parent    Parent topic.
@@ -337,7 +333,7 @@ final class Resolver {
 		$marker = 'ambiguous:' . ( $candidate->keys[0] ?? self::label_key( $parent, $candidate->label ) );
 
 		if ( array() === $this->topics->with_key( $marker ) ) {
-			$this->topics->create( $candidate->label, $candidate->kind, 0, Topics::CANDIDATE, array( $marker ) );
+			$this->topics->create( $candidate->label, $candidate->kind, 0, Topics::AMBIGUOUS, array( $marker ) );
 		}
 	}
 }

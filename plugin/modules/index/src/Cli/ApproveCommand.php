@@ -3,7 +3,7 @@
  * SPDX-FileCopyrightText: 2026 Eric van der Vlist <vdv@dyomedea.com>
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * The command that approves candidate topics.
+ * The command that approves ambiguous topics.
  *
  * @package Otherguise
  */
@@ -17,8 +17,8 @@ use Otherguise\Index\Topics;
 defined( 'ABSPATH' ) || exit;
 
 /**
- * `wp otherguise index approve [--kind=<kind>] [--search=<text>] [--apply]` (slice 635): the topics made from the tags and the categories that nobody classified are
- * **candidates**, outside the index; this puts them in. A dry run by default.
+ * `wp otherguise index approve [--kind=<kind>] [--search=<text>] [--apply]` (slice 635): the **ambiguous** topics (slice 642: they were called *candidates*) are outside the index;
+ * this puts them in. A dry run by default.
  */
 final class ApproveCommand {
 	/**
@@ -65,7 +65,7 @@ final class ApproveCommand {
 	}
 
 	/**
-	 * Approves the candidate topics: they enter the index. Nothing is changed without --apply.
+	 * Approves the ambiguous topics: they enter the index. Nothing is changed without --apply.
 	 *
 	 * ## OPTIONS
 	 *
@@ -96,7 +96,7 @@ final class ApproveCommand {
 
 		$count = 0;
 
-		foreach ( $this->topics->all( array( 'status' => Topics::CANDIDATE ) ) as $id => $topic ) {
+		foreach ( $this->topics->all( array( 'status' => Topics::AMBIGUOUS ) ) as $id => $topic ) {
 			if ( ( '' !== $search && false === strpos( Folding::key( (string) $topic['label'] ), Folding::key( $search ) ) )
 				|| ( '' !== $kind && ! Kinds::is_a( (string) $topic['kind'], $kind ) ) ) {
 				continue;
@@ -110,6 +110,6 @@ final class ApproveCommand {
 			}
 		}
 
-		( $this->success )( $count . ' candidate topic(s) ' . ( isset( $assoc['apply'] ) ? 'approved.' : 'would be approved: nothing was changed, add --apply to do it.' ) );
+		( $this->success )( $count . ' ambiguous topic(s) ' . ( isset( $assoc['apply'] ) ? 'approved.' : 'would be approved: nothing was changed, add --apply to do it.' ) );
 	}
 }

@@ -70,15 +70,6 @@ final class Page implements Source {
 	}
 
 	/**
-	 * An explicit mark and a link to Wikipedia are things Eric chose to write: sure.
-	 *
-	 * @return bool
-	 */
-	public function is_sure() {
-		return true;
-	}
-
-	/**
 	 * What the page says, in the order of the page; one candidate for a topic met twice, the strongest strength kept.
 	 *
 	 * @param int $post_id Post.

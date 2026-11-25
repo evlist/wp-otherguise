@@ -219,7 +219,6 @@ class IndexPagesTest extends TestCase {
 		$candidates = $source->candidates( 5 );
 
 		$this->assertSame( 'page', $source->id() );
-		$this->assertTrue( $source->is_sure() );
 		$this->assertCount( 3, $candidates );
 
 		$this->assertSame( 'Mésange bleue', $candidates[0]->label );

@@ -302,7 +302,7 @@ class IndexMergeDbTest extends Otherguise_Test_Database_Case {
 		$this->topics->create( 'Beaufort', 'commune', $sav, Topics::APPROVED, array() );
 		$this->topics->create( 'Merle', 'species', 0, Topics::APPROVED, array() );
 		$this->topics->create( 'Merle (musique)', 'work', 0, Topics::APPROVED, array() );
-		$this->topics->create( 'Pending', 'place', 0, Topics::CANDIDATE, array() );
+		$this->topics->create( 'Pending', 'place', 0, Topics::AMBIGUOUS, array() );
 		$this->topics->create( 'Pending (x)', 'place', 0, Topics::APPROVED, array() );
 
 		$pairs = ( new DuplicateFinder( $this->topics ) )->pairs();

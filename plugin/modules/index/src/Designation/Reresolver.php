@@ -105,7 +105,7 @@ final class Reresolver {
 			++$report['looked'];
 
 			$candidate = Evidence::candidate( (array) $one['evidence'], (string) $one['source'] );
-			$done      = $this->resolver->resolve( $candidate, true, $dry, false );
+			$done      = $this->resolver->resolve( $candidate, $dry, false );
 
 			// A dry run does not make the topic that a level lacks, and says no topic: it is still a motif that would settle (slice 640).
 			if ( $done['topic'] > 0 || ( $dry && Resolver::CREATED === $done['result'] ) ) {
@@ -165,7 +165,7 @@ final class Reresolver {
 		$this->topics->pin( (int) $topic, (string) $ambiguity['key'] );
 
 		$candidate = Evidence::candidate( (array) $one['evidence'], (string) $one['source'] );
-		$done      = $this->resolver->resolve( $candidate, true, false, false );
+		$done      = $this->resolver->resolve( $candidate, false, false );
 
 		if ( $done['topic'] <= 0 ) {
 			$next = $done['ambiguity']['level'] ?? '';

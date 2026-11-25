@@ -3,7 +3,7 @@
  * SPDX-FileCopyrightText: 2026 Eric van der Vlist <vdv@dyomedea.com>
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * Tests of the command that approves candidate topics (slice 635).
+ * Tests of the command that approves ambiguous topics (slice 635).
  *
  * @package Otherguise
  */
@@ -43,8 +43,8 @@ class IndexApproveCommandTest extends TestCase {
 	 * @return void
 	 */
 	public function test_approving_candidates(): void {
-		$place   = $this->topics->create( 'Allemagne', 'country', 0, Topics::CANDIDATE, array() );
-		$unclear = $this->topics->create( 'Voyages', 'any', 0, Topics::CANDIDATE, array() );
+		$place   = $this->topics->create( 'Allemagne', 'country', 0, Topics::AMBIGUOUS, array() );
+		$unclear = $this->topics->create( 'Voyages', 'any', 0, Topics::AMBIGUOUS, array() );
 		$already = $this->topics->create( 'France', 'country', 0, Topics::APPROVED, array() );
 		$lines   = array();
 		$said    = array();
@@ -63,9 +63,9 @@ class IndexApproveCommandTest extends TestCase {
 
 		$command( array(), array() );
 
-		$this->assertSame( Topics::CANDIDATE, $this->topics->get( $place )['status'], 'A dry run changes nothing.' );
+		$this->assertSame( Topics::AMBIGUOUS, $this->topics->get( $place )['status'], 'A dry run changes nothing.' );
 		$this->assertCount( 2, $lines );
-		$this->assertSame( '2 candidate topic(s) would be approved: nothing was changed, add --apply to do it.', end( $said ) );
+		$this->assertSame( '2 ambiguous topic(s) would be approved: nothing was changed, add --apply to do it.', end( $said ) );
 
 		$command(
 			array(),
@@ -76,7 +76,7 @@ class IndexApproveCommandTest extends TestCase {
 		);
 
 		$this->assertSame( Topics::APPROVED, $this->topics->get( $place )['status'], 'A country is a sort of place.' );
-		$this->assertSame( Topics::CANDIDATE, $this->topics->get( $unclear )['status'], 'The kind any is not a sort of place.' );
+		$this->assertSame( Topics::AMBIGUOUS, $this->topics->get( $unclear )['status'], 'The kind any is not a sort of place.' );
 
 		$command(
 			array(),

@@ -109,16 +109,6 @@ final class Photos implements Source, Partial {
 	}
 
 	/**
-	 * Places of OpenStreetMap, found by a program from coordinates: they are not sure at first sight, but a wrong place costs little and the queue
-	 * would be of thousands. The topics are approved at once.
-	 *
-	 * @return bool
-	 */
-	public function is_sure() {
-		return true;
-	}
-
-	/**
 	 * Notes the photographs and the files that the page of a post shows.
 	 *
 	 * @param int      $post_id Post.

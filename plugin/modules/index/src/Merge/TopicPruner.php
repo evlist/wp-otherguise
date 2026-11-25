@@ -124,14 +124,14 @@ final class TopicPruner {
 	}
 
 	/**
-	 * Whether a topic only stands for a doubt (slice 629): a candidate topic with a key `ambiguous:…`, made by the resolver before the motifs held the
+	 * Whether a topic only stands for a doubt (slice 629): an ambiguous topic with a key `ambiguous:…`, made by the resolver before the motifs held the
 	 * doubt. It is not a topic: it goes, whether or not a person decided about others.
 	 *
 	 * @param array<string, mixed> $topic The topic.
 	 * @return bool
 	 */
 	public static function is_placeholder( array $topic ) {
-		if ( Topics::CANDIDATE !== (string) $topic['status'] ) {
+		if ( Topics::AMBIGUOUS !== (string) $topic['status'] ) {
 			return false;
 		}
 

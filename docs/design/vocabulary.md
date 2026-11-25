@@ -33,7 +33,7 @@ The words of the module, in one place. **Decided by Eric on 2026-11-25** (the wo
 
 ## Not to be mistaken: a *term*
 
-**A term of WordPress** is a tag or a category of the blog. It exists without this plugin. **A term is not a motif**: a **tag** (with a kind given on the screen *Terms*, or without) is read by the source `post/tag` and becomes a **motif**; a tag with no kind is read too, as a motif of the kind `any` whose topic is a candidate (see below).
+**A term of WordPress** is a tag or a category of the blog. It exists without this plugin. **A term is not a motif**: a **tag** (with a kind given on the screen *Terms*, or without) is read by the source `post/tag` and becomes a **motif**; a tag with no kind is read too, as a motif of the kind `any` whose topic is approved (see below).
 
 Technically, **the topics and the motifs are themselves stored as terms of hidden taxonomies** (`index_topic`, `index_designation`): in the code, *term* can mean that. For a person only the first sense counts.
 
@@ -58,6 +58,10 @@ a tag of WordPress "eurovelo 9"      (its topic is approved; a person may exclud
 - **A term with no kind is read like the others**: its motif has the kind `any` and **its topic is approved** (amended by slice [641](../slices/641-index-none-topic.md): the *candidate* rule is abandoned). **Giving the term a kind** makes the topic more precise.
 - **Excluding** (slice 641): a person **assigns the motif to the reserved topic `_None_`** (status `refused`, key `reserved:none`): **its observations stay**, **no mention is made**, and a reading leaves the assignment alone (by hand). *Include again* unassigns it. The topic is never pruned, never merged, not editable on the *Topics* screen, and sorts before the letters. **This replaces the state `excluded`** of slice 635.
 - **Open**: **a topic read from a tag has no Wikipedia or Wikidata key**, so the enrichment never classifies it; classifying it from its label alone (homonyms) is **not decided**. **A person classifies it** (the screen *Terms* or the kind of the topic).
+
+## The status of a topic (slice [642](../slices/642-index-ambiguous-status.md), decided by Eric on 2026-11-25)
+
+Three statuses: **approved** (in the index), **ambiguous** (a doubt that a person resolves, outside the index; it was called *candidate*) and **refused** (ignored by the resolution; `_None_` is one). **The notion of a source that is "sure" is gone**: every topic that a source makes is approved.
 
 ## The renaming (slice [634](../slices/634-index-motif-vocabulary.md))
 
