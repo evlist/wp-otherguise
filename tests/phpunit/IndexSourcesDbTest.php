@@ -641,7 +641,7 @@ class IndexSourcesDbTest extends Otherguise_Test_Database_Case {
 		$page    = new Page( $store );
 		$indexer = new Indexer( new Resolver( $this->topics ), $this->mentions, array( $page ), static fn() => true );
 
-		$this->assertSame( array( 'post/link', 'post/mark', 'post/mark/whobird' ), $page->mention_sources() );
+		$this->assertSame( array( 'post/link', 'post/mark', 'post/mark/whobird', 'post/mark/inaturalist' ), $page->mention_sources() );
 
 		$store->save( 1, ( new PageReader() )->signals( $html, 1 ) );
 		$indexer->index_post( 1 );
