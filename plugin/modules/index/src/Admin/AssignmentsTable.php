@@ -14,6 +14,7 @@ use Otherguise\Index\Designation\Listing;
 use Otherguise\Index\Designations;
 use Otherguise\Index\Kinds;
 use Otherguise\Index\Resolver;
+use Otherguise\Index\Sources;
 use Otherguise\Index\Topics;
 
 defined( 'ABSPATH' ) || exit;
@@ -101,12 +102,14 @@ final class AssignmentsTable extends \WP_List_Table {
 	 * @return array<string, string>
 	 */
 	public function get_columns() {
+		// The topic comes first (slice 637); the motif stays the main column of the table (its actions are there).
 		return array(
 			'cb'          => '<input type="checkbox" />',
+			'topic'       => __( 'Topic', 'otherguise' ),
+			'status'      => __( 'Topic status', 'otherguise' ),
 			'designation' => __( 'Motif', 'otherguise' ),
 			'source'      => __( 'Source', 'otherguise' ),
 			'posts'       => __( 'Posts', 'otherguise' ),
-			'topic'       => __( 'Assigned to', 'otherguise' ),
 			'by'          => __( 'By', 'otherguise' ),
 			'state'       => __( 'State', 'otherguise' ),
 		);
@@ -123,6 +126,8 @@ final class AssignmentsTable extends \WP_List_Table {
 			'source'      => array( 'source', false ),
 			'posts'       => array( 'posts', true ),
 			'topic'       => array( 'topic', false ),
+			'status'      => array( 'status', false ),
+			'by'          => array( 'by', false ),
 			'state'       => array( 'state', false ),
 		);
 	}
@@ -147,7 +152,7 @@ final class AssignmentsTable extends \WP_List_Table {
 		foreach ( $names as $view => $label ) {
 			$count = $this->counts[ $view ] ?? null;
 
-			$links[ $view ] = '<a href="' . esc_url( ( $this->url )( Listing::ALL === $view ? array() : array( 'view' => $view ) ) ) . '"' . ( $view === $this->view() ? ' class="current" aria-current="page"' : '' ) . '>' . esc_html( $label ) . ( null === $count ? '' : ' <span class="count">(' . esc_html( (string) $count ) . ')</span>' ) . '</a>';
+			$links[ $view ] = '<a href="' . esc_url( ( $this->url )( array_merge( $this->kept(), Listing::ALL === $view ? array() : array( 'view' => $view ) ) ) ) . '"' . ( $view === $this->view() ? ' class="current" aria-current="page"' : '' ) . '>' . esc_html( $label ) . ( null === $count ? '' : ' <span class="count">(' . esc_html( (string) $count ) . ')</span>' ) . '</a>';
 		}
 
 		return $links;
@@ -160,7 +165,7 @@ final class AssignmentsTable extends \WP_List_Table {
 	 */
 	protected function get_bulk_actions() {
 		return array(
-			'choose'   => __( 'Apply the choices (the lists in the Assigned to column)', 'otherguise' ),
+			'choose'   => __( 'Apply the choices (the lists in the Topic column)', 'otherguise' ),
 			'assign'   => __( 'Assign to the topic in the box that appears…', 'otherguise' ),
 			'confirm'  => __( 'Confirm the assignment (a person decides)', 'otherguise' ),
 			'unassign' => __( 'Take the assignment away', 'otherguise' ),
@@ -195,6 +200,167 @@ final class AssignmentsTable extends \WP_List_Table {
 	}
 
 	/**
+	 * The filters of the columns that were asked (slice 637): the fields `f_topic`, `f_status`, `f_motif`, `f_source`, `f_posts`, `f_by` and `f_state`.
+	 *
+	 * @return array<string, string>
+	 */
+	public function filters() {
+		$asked = array();
+
+		foreach ( Listing::clean_filters( array() ) as $name => $unused ) {
+			$asked[ $name ] = sanitize_text_field( (string) ( $this->request )( 'f_' . $name ) );
+		}
+
+		return Listing::clean_filters( $asked );
+	}
+
+	/**
+	 * What the links of the views keep: the search and the filters.
+	 *
+	 * @return array<string, string>
+	 */
+	private function kept() {
+		$kept   = array();
+		$search = sanitize_text_field( (string) ( $this->request )( 's' ) );
+
+		if ( '' !== $search ) {
+			$kept['s'] = $search;
+		}
+
+		foreach ( $this->filters() as $name => $value ) {
+			if ( '' !== $value ) {
+				$kept[ 'f_' . $name ] = $value;
+			}
+		}
+
+		return $kept;
+	}
+
+	/**
+	 * The bar of the filters, above the table, in the style of WordPress (slice 637): **one field per column**, in the order of the columns; they combine with the
+	 * view and with the search. It is printed inside the form of the search (a form that sends by GET), so that one button sends them all.
+	 *
+	 * @return void
+	 */
+	public function filter_bar() {
+		$now = $this->filters();
+
+		echo '<div class="tablenav top assignment-filters"><div class="alignleft actions">';
+		$this->filter_text( 'topic', __( 'Topic', 'otherguise' ), $now['topic'] );
+		$this->filter_select(
+			'status',
+			__( 'Any topic status', 'otherguise' ),
+			$now['status'],
+			array(
+				'approved'  => __( 'Approved', 'otherguise' ),
+				'candidate' => __( 'Candidate (not in the index)', 'otherguise' ),
+				'refused'   => __( 'Refused', 'otherguise' ),
+				'none'      => __( 'No topic', 'otherguise' ),
+			)
+		);
+		$this->filter_text( 'motif', __( 'Motif', 'otherguise' ), $now['motif'] );
+
+		$sources = array();
+
+		foreach ( Sources::tree() as $row ) {
+			$sources[ (string) $row['path'] ] = str_repeat( '— ', (int) $row['depth'] ) . $row['label'];
+		}
+
+		$this->filter_select( 'source', __( 'Any source', 'otherguise' ), $now['source'], $sources );
+		$this->filter_select(
+			'posts',
+			__( 'Any number of posts', 'otherguise' ),
+			$now['posts'],
+			array(
+				'none' => __( 'No post', 'otherguise' ),
+				'1'    => __( 'At least 1 post', 'otherguise' ),
+				'2'    => __( 'At least 2 posts', 'otherguise' ),
+				'5'    => __( 'At least 5 posts', 'otherguise' ),
+				'10'   => __( 'At least 10 posts', 'otherguise' ),
+				'25'   => __( 'At least 25 posts', 'otherguise' ),
+				'50'   => __( 'At least 50 posts', 'otherguise' ),
+			)
+		);
+		$this->filter_select(
+			'by',
+			__( 'Anyone', 'otherguise' ),
+			$now['by'],
+			array(
+				'system' => __( 'The system', 'otherguise' ),
+				'hand'   => __( 'A person', 'otherguise' ),
+				'none'   => __( 'No assignment', 'otherguise' ),
+			)
+		);
+		$this->filter_select(
+			'state',
+			__( 'Any state', 'otherguise' ),
+			$now['state'],
+			array(
+				Designations::ASSIGNED  => __( 'assigned', 'otherguise' ),
+				Designations::PENDING   => __( 'pending', 'otherguise' ),
+				Designations::AMBIGUOUS => __( 'ambiguous', 'otherguise' ),
+				Designations::EXCLUDED  => __( 'excluded', 'otherguise' ),
+			)
+		);
+		echo '<input type="submit" class="button" value="' . esc_attr__( 'Filter', 'otherguise' ) . '" />';
+
+		if ( array() !== array_filter( $now, static fn( $value ) => '' !== $value ) ) {
+			$reset = array_diff_key( $this->kept(), array_flip( array_map( static fn( $name ) => 'f_' . $name, array_keys( $now ) ) ) );
+
+			if ( Listing::ALL !== $this->view() ) {
+				$reset['view'] = $this->view();
+			}
+
+			echo ' <a href="' . esc_url( ( $this->url )( $reset ) ) . '">' . esc_html__( 'Reset the filters', 'otherguise' ) . '</a>';
+		}
+
+		echo '</div></div>';
+	}
+
+	/**
+	 * A text field of the bar of the filters.
+	 *
+	 * @param string $name  The column.
+	 * @param string $label Its label.
+	 * @param string $value The filter now.
+	 * @return void
+	 */
+	private function filter_text( $name, $label, $value ) {
+		echo '<label class="screen-reader-text" for="f-' . esc_attr( $name ) . '">' . esc_html( $label ) . '</label>';
+		echo '<input type="search" id="f-' . esc_attr( $name ) . '" name="f_' . esc_attr( $name ) . '" value="' . esc_attr( $value ) . '" placeholder="' . esc_attr( $label ) . '" size="14" /> ';
+	}
+
+	/**
+	 * A list of the bar of the filters: the first choice says "any".
+	 *
+	 * @param string                $name    The column.
+	 * @param string                $any     The text of the first choice.
+	 * @param string                $value   The filter now.
+	 * @param array<string, string> $choices Value => label.
+	 * @return void
+	 */
+	private function filter_select( $name, $any, $value, array $choices ) {
+		echo '<label class="screen-reader-text" for="f-' . esc_attr( $name ) . '">' . esc_html( $any ) . '</label>';
+		echo '<select id="f-' . esc_attr( $name ) . '" name="f_' . esc_attr( $name ) . '"><option value="">' . esc_html( $any ) . '</option>';
+
+		foreach ( $choices as $choice => $label ) {
+			echo '<option value="' . esc_attr( (string) $choice ) . '"' . selected( $value, (string) $choice, false ) . '>' . esc_html( $label ) . '</option>';
+		}
+
+		echo '</select> ';
+	}
+
+	/**
+	 * The status of the topic, said as it is stored.
+	 *
+	 * @param array $item A line.
+	 * @return string
+	 */
+	protected function column_status( $item ) {
+		return '' === (string) ( $item['topic_status'] ?? '' ) ? '—' : esc_html( (string) $item['topic_status'] );
+	}
+
+	/**
 	 * The message when there is nothing to show.
 	 *
 	 * @return void
@@ -213,6 +379,7 @@ final class AssignmentsTable extends \WP_List_Table {
 			array(
 				'view'     => $this->view(),
 				'search'   => sanitize_text_field( (string) ( $this->request )( 's' ) ),
+				'filters'  => $this->filters(),
 				'orderby'  => sanitize_key( (string) ( $this->request )( 'orderby' ) ),
 				'order'    => sanitize_key( (string) ( $this->request )( 'order' ) ),
 				'paged'    => max( 1, absint( (string) ( $this->request )( 'paged' ) ) ),

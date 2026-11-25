@@ -293,7 +293,7 @@ final class AssignmentsScreen {
 	private function preserved( $type ) {
 		$kept = array();
 
-		foreach ( array( 'view', 's', 'orderby', 'order', 'paged' ) as $name ) {
+		foreach ( array( 'view', 's', 'orderby', 'order', 'paged', 'f_topic', 'f_status', 'f_motif', 'f_source', 'f_posts', 'f_by', 'f_state' ) as $name ) {
 			$value = sanitize_text_field( (string) ( $this->input )( $type, $name, false ) );
 
 			if ( '' !== $value ) {
@@ -670,14 +670,22 @@ final class AssignmentsScreen {
 			foreach ( array_diff_key(
 				$this->preserved( INPUT_GET ),
 				array(
-					's' => 1,
-					'paged' => 1,
+					's'        => 1,
+					'paged'    => 1,
+					'f_topic'  => 1,
+					'f_status' => 1,
+					'f_motif'  => 1,
+					'f_source' => 1,
+					'f_posts'  => 1,
+					'f_by'     => 1,
+					'f_state'  => 1,
 				)
 			) as $name => $value ) {
 				echo '<input type="hidden" name="' . esc_attr( $name ) . '" value="' . esc_attr( $value ) . '" />';
 			}
 
 			$table->search_box( __( 'Search motifs', 'otherguise' ), 'assignment' );
+			$table->filter_bar();
 			echo '</form><form method="post" action="' . esc_url( $this->url() ) . '">';
 			$this->print_preserved_fields();
 			$table->target_fields();

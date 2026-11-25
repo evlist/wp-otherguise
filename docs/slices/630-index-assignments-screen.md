@@ -62,3 +62,7 @@ Eric did not understand **what the fields searched**, and the fields of the new 
 - **Two clearly named searches.** The box at the top right is **"Search designations"** and it also looks in **the identifier of Wikidata and the state** (and, through the key, in the source and in the chain of names of a place); a line of **help** under the title says what each field does.
 - **A box "Where Assign puts the ticked lines"** above the table, with **visible labels**: *An existing topic* (a field that suggests the topics as one types), or *a new topic*: **Label**, **Kind** (**"not classified" first**, no longer "Activity"), **Under the topic** (**a field that searches the topics too**, no longer a number; a name typed without picking it is looked up).
 - **What the page shows is kept** after an action and a search: the view, the sort and the search; the page after an action.
+
+## Amendment (slice 637)
+
+The column *Assigned to* is called **Topic** and is the first one; a column **Topic status** was added; **a bar of filters, one per column**, sits above the table. See [`637-index-assignments-columns-and-filters.md`](637-index-assignments-columns-and-filters.md).

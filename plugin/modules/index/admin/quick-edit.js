@@ -109,6 +109,9 @@
 				where.insertBefore( doc.createTextNode( ' ' ), actions );
 				where.insertBefore( element( 'small', detail ), actions );
 			}
+			if ( cell( 'status' ) ) {
+				cell( 'status' ).textContent = answer.status || '\u2014';
+			}
 			if ( cell( 'by' ) ) {
 				cell( 'by' ).textContent = answer.by;
 			}

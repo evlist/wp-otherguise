@@ -14,6 +14,7 @@ use Otherguise\Index\Designations;
 use Otherguise\Index\Folding;
 use Otherguise\Index\Observations;
 use Otherguise\Index\Resolver;
+use Otherguise\Index\Sources;
 use Otherguise\Index\Topics;
 
 defined( 'ABSPATH' ) || exit;
@@ -71,12 +72,15 @@ final class Listing {
 	/**
 	 * The lines of a page.
 	 *
-	 * @param array{view?:string,search?:string,orderby?:string,order?:string,paged?:int,per_page?:int} $args What was asked.
+	 * @param array{view?:string,search?:string,filters?:array<string,string>,orderby?:string,order?:string,paged?:int,per_page?:int} $args What was asked: `filters` is one
+	 *        filter per column (slice 637): `topic` and `motif` (a text), `status` (of the topic), `source` (a path: a source stands for its descendants), `posts`
+	 *        (`none`, or a number: at least that many), `by` and `state`; they combine with the view and the search.
 	 * @return array{rows:array<int,array<string,mixed>>,total:int,counts:array<string,?int>,pages:int}
 	 */
 	public function query( array $args ) {
 		$view     = (string) ( $args['view'] ?? self::ALL );
 		$search   = Folding::key( trim( (string) ( $args['search'] ?? '' ) ) );
+		$filters  = self::clean_filters( (array) ( $args['filters'] ?? array() ) );
 		$orderby  = (string) ( $args['orderby'] ?? 'label' );
 		$desc     = 'desc' === strtolower( (string) ( $args['order'] ?? 'asc' ) );
 		$per_page = max( 1, (int) ( $args['per_page'] ?? 50 ) );
@@ -119,7 +123,8 @@ final class Listing {
 
 		$posts = null;
 
-		if ( self::UNOBSERVED === $view || 'posts' === $orderby ) {
+		// One pass over every observation: heavy, so only when the view, the sort or the filter of the column *Posts* needs it.
+		if ( self::UNOBSERVED === $view || 'posts' === $orderby || '' !== $filters['posts'] ) {
 			$posts = $this->observations->post_counts();
 		}
 
@@ -133,14 +138,15 @@ final class Listing {
 		foreach ( $base as $id => $row ) {
 			$topic = $row['topic'] > 0 ? $this->topics->get( $row['topic'] ) : null;
 
-			$base[ $id ]['topic_label'] = null === $topic ? '' : (string) $topic['label'];
+			$base[ $id ]['topic_label']  = null === $topic ? '' : (string) $topic['label'];
+			$base[ $id ]['topic_status'] = null === $topic ? '' : (string) $topic['status'];
 			$labels[ $id ]              = Folding::key( $base[ $id ]['label'] . ' ' . $row['key'] . ' ' . $base[ $id ]['topic_label'] . ' ' . $row['wikidata'] . ' ' . $row['state'] );
 		}
 
 		$rows = array_values(
 			array_filter(
 				$base,
-				static function ( $row ) use ( $view, $search, $labels ) {
+				static function ( $row ) use ( $view, $search, $labels, $filters, $posts ) {
 					if ( self::RESOLVE === $view && ! in_array( $row['state'], array( Designations::PENDING, Designations::AMBIGUOUS ), true ) ) {
 						return false;
 					}
@@ -161,6 +167,10 @@ final class Listing {
 						return false;
 					}
 
+					if ( ! self::passes( $row, $filters, $posts ) ) {
+						return false;
+					}
+
 					return '' === $search || false !== strpos( $labels[ $row['id'] ], $search );
 				}
 			)
@@ -178,6 +188,12 @@ final class Listing {
 						break;
 					case 'state':
 						$order = strcmp( $a['state'], $b['state'] );
+						break;
+					case 'status':
+						$order = strcmp( $a['topic_status'], $b['topic_status'] );
+						break;
+					case 'by':
+						$order = strcmp( $a['by'], $b['by'] );
 						break;
 					case 'source':
 						$order = strcmp( $a['source'], $b['source'] );
@@ -211,5 +227,68 @@ final class Listing {
 			'counts' => $counts,
 			'pages'  => $pages,
 		);
+	}
+
+	/**
+	 * The filters of the columns, cleaned: only the known ones, as trimmed strings (an empty one filters nothing).
+	 *
+	 * @param array<string, mixed> $filters What was asked.
+	 * @return array<string, string>
+	 */
+	public static function clean_filters( array $filters ) {
+		$clean = array();
+
+		foreach ( array( 'topic', 'status', 'motif', 'source', 'posts', 'by', 'state' ) as $name ) {
+			$clean[ $name ] = isset( $filters[ $name ] ) && is_scalar( $filters[ $name ] ) ? trim( (string) $filters[ $name ] ) : '';
+		}
+
+		return $clean;
+	}
+
+	/**
+	 * Whether a line passes the filters of the columns.
+	 *
+	 * @param array<string, mixed>  $row     The line.
+	 * @param array<string, string> $filters The filters, cleaned.
+	 * @param array<int, int>|null  $posts   The number of posts by motif, when the filter of the posts needs it.
+	 * @return bool
+	 */
+	private static function passes( array $row, array $filters, $posts ) {
+		if ( '' !== $filters['topic'] && false === strpos( Folding::key( (string) $row['topic_label'] ), Folding::key( $filters['topic'] ) ) ) {
+			return false;
+		}
+
+		if ( '' !== $filters['motif'] && false === strpos( Folding::key( $row['label'] . ' ' . $row['key'] ), Folding::key( $filters['motif'] ) ) ) {
+			return false;
+		}
+
+		// The status of the topic: `none` is a motif that has no topic.
+		if ( '' !== $filters['status'] && ( 'none' === $filters['status'] ? '' !== (string) $row['topic_status'] : $filters['status'] !== (string) $row['topic_status'] ) ) {
+			return false;
+		}
+
+		// A source stands for the sources below it.
+		if ( '' !== $filters['source'] && ! Sources::is_a( (string) $row['source'], $filters['source'] ) ) {
+			return false;
+		}
+
+		// Who assigned it: `none` is a motif with no assignment.
+		if ( '' !== $filters['by'] && ( 'none' === $filters['by'] ? '' !== (string) $row['by'] : $filters['by'] !== (string) $row['by'] ) ) {
+			return false;
+		}
+
+		if ( '' !== $filters['state'] && $filters['state'] !== (string) $row['state'] ) {
+			return false;
+		}
+
+		if ( '' !== $filters['posts'] ) {
+			$count = (int) ( $posts[ $row['id'] ] ?? 0 );
+
+			if ( 'none' === $filters['posts'] ? 0 !== $count : $count < max( 1, (int) $filters['posts'] ) ) {
+				return false;
+			}
+		}
+
+		return true;
 	}
 }

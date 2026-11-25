@@ -171,6 +171,7 @@ final class AssignmentRoute {
 				'excluded' => true,
 				'by'       => Observations::HAND,
 				'state'    => 'excluded',
+				'status'   => '',
 			);
 		}
 
@@ -220,8 +221,9 @@ final class AssignmentRoute {
 					admin_url( 'admin.php' )
 				),
 			),
-			'by'    => Observations::HAND,
-			'state' => 'assigned',
+			'by'     => Observations::HAND,
+			'state'  => 'assigned',
+			'status' => (string) $target['status'],
 			'posts' => (int) $done['posts'],
 		);
 	}

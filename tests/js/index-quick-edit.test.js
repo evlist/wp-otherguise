@@ -13,7 +13,7 @@ const words = { change: 'Change topic', close: 'Close topics', choose: '— a cl
 
 function make( answers ) {
 	const dom = new JSDOM( '<!doctype html><body><table><tbody>' +
-		'<tr id="r1"><th class="check-column"><input type="checkbox" name="designation[]" value="7"></th><td class="column-designation"><strong>aisne (02)</strong><div class="row-actions"><span class="posts"><a href="#p">Posts</a></span></div></td><td class="column-topic"><a href="#old">aisne (02)</a> <small>Place</small></td><td class="column-by">system</td><td class="column-state">assigned</td></tr>' +
+		'<tr id="r1"><th class="check-column"><input type="checkbox" name="designation[]" value="7"></th><td class="column-designation"><strong>aisne (02)</strong><div class="row-actions"><span class="posts"><a href="#p">Posts</a></span></div></td><td class="column-topic"><a href="#old">aisne (02)</a> <small>Place</small></td><td class="column-status">candidate</td><td class="column-by">system</td><td class="column-state">assigned</td></tr>' +
 		'<tr id="r2"><th class="check-column"><input type="checkbox" name="designation[]" value="8"></th><td class="column-designation"><strong>autre</strong></td><td class="column-topic">—</td><td class="column-by">—</td><td class="column-state">pending</td></tr>' +
 		'</tbody></table></body>' );
 	const doc = dom.window.document;
@@ -40,7 +40,7 @@ test( 'every line gets the link, also the line that has no actions', () => {
 test( 'the panel offers the close topics, and Update changes the line in place', async () => {
 	const { doc, calls } = make( {
 		'GET 7/neighbours': [ { id: 5, label: 'Aisne', kind: 'River', chain: 'France' } ],
-		'POST 7/topic': { ok: true, topic: { id: 5, label: 'Aisne', kind: 'River', chain: 'France', url: 'https://example.test/topic5' }, by: 'hand', state: 'assigned' },
+		'POST 7/topic': { ok: true, topic: { id: 5, label: 'Aisne', kind: 'River', chain: 'France', url: 'https://example.test/topic5' }, by: 'hand', state: 'assigned', status: 'approved' },
 	} );
 
 	doc.querySelector( '#r1 .change-topic a' ).click();
@@ -62,6 +62,7 @@ test( 'the panel offers the close topics, and Update changes the line in place',
 
 	assert.deepStrictEqual( calls[ 1 ], { path: '7/topic', method: 'POST', body: { topic: 5, force: false } } );
 	assert.strictEqual( doc.querySelector( '#r1 .column-by' ).textContent, 'hand' );
+	assert.strictEqual( doc.querySelector( '#r1 .column-status' ).textContent, 'approved', 'The status of the new topic (slice 637).' );
 	assert.strictEqual( doc.querySelector( '#r1 .column-topic a' ).getAttribute( 'href' ), 'https://example.test/topic5', 'The topic has its link, like the lines that were not changed.' );
 	assert.strictEqual( doc.querySelector( '#r1 .column-topic small' ).textContent, 'River, France' );
 	assert.ok( doc.querySelector( '#r1 .column-topic .change-topic' ), 'The link to change it again stays.' );
@@ -113,7 +114,7 @@ test( 'the last choice takes the motif out of the index, and the line says so (s
 		'GET 7/neighbours': [ { id: 5, label: 'Aisne', kind: 'River', chain: 'France' } ],
 		'POST 7/topic': ( body ) => {
 			sent = body;
-			return { ok: true, excluded: true, by: 'hand', state: 'excluded' };
+			return { ok: true, excluded: true, by: 'hand', state: 'excluded', status: '' };
 		},
 	} );
 
@@ -131,6 +132,7 @@ test( 'the last choice takes the motif out of the index, and the line says so (s
 	assert.deepStrictEqual( sent, { exclude: true } );
 	assert.strictEqual( doc.querySelector( '#r1 .column-topic em' ).textContent, 'Not in the index' );
 	assert.strictEqual( doc.querySelector( '#r1 .column-state' ).textContent, 'excluded' );
+	assert.strictEqual( doc.querySelector( '#r1 .column-status' ).textContent, '\u2014', 'No topic: no status.' );
 	assert.ok( doc.querySelector( '#r1 .column-topic .change-topic' ), 'The link to change it stays.' );
 	assert.strictEqual( doc.querySelector( '#r1 .column-topic a[href="#old"]' ), null, 'The old topic is gone from the line.' );
 } );
